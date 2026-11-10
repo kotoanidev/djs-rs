@@ -1,18 +1,59 @@
 # djs-gateway
 
-Discord gateway (WebSocket) client with sharding and transport compression.
+A Discord gateway (WebSocket) client with transport compression — part of
+[djs-rs](https://github.com/kotoanidev/djs-rs).
 
-> **Status:** pre-alpha — this crate is a placeholder and contains no functionality yet.
-> Track progress in the [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
+> **Status:** pre-alpha. Phase 1 (vertical slice) covers a single, fully self-healing shard;
+> the sharding manager, gateway send rate limiting, identify queues and zlib arrive in
+> Phase 4. Track progress in the
+> [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
 
 **discord.js counterpart:** `@discordjs/ws`
 
-## Planned scope
+## Highlights
 
-- Shards built on `tokio-websockets`: identify, heartbeat, resume, reconnect
-- `zstd-stream` (default) and `zlib-stream` transport compression
-- Gateway send rate limiting and identify concurrency
-- In-process sharding manager
+- **Poll-driven.** `shard.next_event().await` drives the connection: identify/resume,
+  heartbeats with jitter, zombie detection, Hello timeout, exponential reconnect backoff and
+  close-code handling all happen while you wait for the next event. No background tasks, no
+  internal channels.
+- **zstd-stream compression** by default (feature `zstd-stream`), with a decompression buffer
+  that is reused across messages and released after oversized payloads.
+- **Single-pass decoding** via `djs_model`'s `GatewayEventDeserializer`.
+- **tokio-websockets + rustls** with an explicit ring provider and Mozilla roots, so it never
+  panics because another crate enabled a different rustls provider.
+
+## Example
+
+```rust,no_run
+use djs_gateway::Shard;
+use djs_model::gateway::{DispatchEvent, GatewayEvent, Intents, ShardId};
+
+# async fn run() {
+let token = std::env::var("DISCORD_TOKEN").unwrap();
+let mut shard = Shard::new(
+    ShardId::ONE,
+    token,
+    Intents::GUILDS | Intents::GUILD_MESSAGES | Intents::MESSAGE_CONTENT,
+);
+
+while let Some(event) = shard.next_event().await {
+    match event {
+        Ok(GatewayEvent::Dispatch(_, DispatchEvent::MessageCreate(message))) => {
+            println!("{}: {}", message.author.username, message.content);
+        }
+        Ok(_) => {}
+        Err(error) if error.is_fatal() => break,
+        Err(error) => eprintln!("gateway error: {error}"),
+    }
+}
+# }
+```
+
+## Cargo features
+
+| Feature | Default | Description |
+|---|---|---|
+| `zstd-stream` | ✅ | `zstd-stream` transport compression (needs a C compiler) |
 
 ## Part of djs-rs
 

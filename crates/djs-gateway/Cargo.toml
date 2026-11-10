@@ -13,6 +13,11 @@ readme = "README.md"
 # Not published until the owner decides on a release (see docs/DECISIONS.md, C-003).
 publish = false
 
+[features]
+default = ["zstd-stream"]
+## `zstd-stream` transport compression (D-015). Requires a C compiler (D-032).
+zstd-stream = ["dep:zstd"]
+
 [dependencies]
 djs-model.workspace = true
 fastrand.workspace = true
@@ -26,7 +31,7 @@ tokio-rustls = { workspace = true, features = ["ring", "tls12"] }
 tokio-websockets = { workspace = true, features = ["client", "fastrand", "ring", "rustls-bring-your-own-connector"] }
 tracing = { workspace = true, features = ["std"] }
 webpki-roots.workspace = true
-zstd = { workspace = true }
+zstd = { workspace = true, optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "test-util"] }

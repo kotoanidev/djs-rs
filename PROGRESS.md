@@ -25,7 +25,7 @@
   by tests and fixed: bucket state is migrated when a route's hash is first learned.
 
 ## In progress
-- Phase 1, step 3: `djs-gateway` core.
+- Phase 1, step 3: `djs-gateway` core — implementation committed (Shard, Config, zstd, TLS); NEXT: mock-gateway integration tests (`crates/djs-gateway/tests/`).
 
 ## Next step (Phase 1 plan, in order)
 1. ~~**`djs-model` core**~~ ✅ — `Id<Marker>` (D-023) with markers + aliases, Snowflake helpers
