@@ -288,6 +288,14 @@ and why.
   D-035).
 - **Alternatives:** install ring as the process-wide default provider when none is set.
 
+### D-037 — `Shard` is poll-driven
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** `djs_gateway::Shard::next_event().await` drives the whole connection
+  (heartbeats, reconnects, resumes) while it is being polled. No background tasks or event
+  channels inside the shard; commands from other tasks go through a cloneable `MessageSender`.
+  The high-level `djs-rs` client wraps shards in tasks for the user.
+- **Alternatives:** shard spawns its own task and delivers events over an mpsc channel.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
