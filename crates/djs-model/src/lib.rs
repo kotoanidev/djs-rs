@@ -7,5 +7,6 @@ pub mod gateway;
 pub mod guild;
 pub mod id;
 pub mod message;
+pub mod rest;
 pub mod user;
 pub mod util;

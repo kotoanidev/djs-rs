@@ -19,6 +19,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `Message` + `MessageType`, gateway `OpCode`, `CloseCode`, `Intents`, `ShardId`, payloads
   (`Hello`, `Ready`, `MessageCreate`, `Identify`, `Resume`, `Heartbeat`), `GatewayEvent` /
   `DispatchEvent` and the single-pass `GatewayEventDeserializer`.
+- `djs-model`: `MessageReference` (+ type), `rest::{GatewayBot, SessionStartLimit, CreateMessage}`.
 
 ### Changed
 - MSRV raised from 1.85 to 1.89 (required by maintained `tokio-websockets` and `simd-json`).

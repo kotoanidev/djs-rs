@@ -316,6 +316,11 @@ raw value. Structs ignore unknown fields (no `deny_unknown_fields`). Bitflags ke
 Payloads carrying the bot token (`Identify`, `Resume`) implement `Debug` manually and print
 `<redacted>`.
 
+### C-012 — REST request/response bodies live in `djs-model::rest`
+Mirrors discord-api-types, which contains both payload and REST body types (D-007 mapping).
+`djs-rest` contains only the client, routing and rate limiting. Body structs are plain data with
+`Default` (+ `From<&str>` for message bodies); validated builders come with `djs-builders`.
+
 ---
 
 ## Open questions (to ask the owner when relevant)
