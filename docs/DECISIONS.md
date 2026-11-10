@@ -279,6 +279,15 @@ and why.
   `aws-lc-rs` (common, e.g. via reqwest).
 - **Alternatives:** rely on the process-level default provider.
 
+### D-036 — `tokio-rustls` + `webpki-roots` as direct `djs-gateway` dependencies
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** `djs-gateway` builds its own rustls `ClientConfig` (explicit ring provider,
+  Mozilla roots) and passes it to `tokio-websockets` as `Connector::Rustls`. This requires
+  `tokio-rustls` and `webpki-roots` directly (same versions already in the tree), because
+  `tokio_websockets::Connector::new()` relies on the process-level provider (same panic risk as
+  D-035).
+- **Alternatives:** install ring as the process-wide default provider when none is set.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
