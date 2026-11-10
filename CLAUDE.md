@@ -128,7 +128,7 @@ cargo fmt --all                                            # format
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-features
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features
-cargo +1.85 check --workspace --all-features               # MSRV check (rustup toolchain install 1.85 first)
+cargo +1.89 check --workspace --all-features               # MSRV check (rustup toolchain install 1.89 first)
 ```
 
 Local quality gate before every code commit: `fmt` → `clippy` → `test` → `doc`.
@@ -136,4 +136,4 @@ Local quality gate before every code commit: `fmt` → `clippy` → `test` → `
 ## Toolchain
 
 - Installed via rustup (`~/.cargo`). Stable channel for development.
-- Edition 2024, MSRV **1.85** (fixed; bump only with owner approval + CHANGELOG note).
+- Edition 2024, MSRV **1.89** (D-031; bump only with owner approval + CHANGELOG note).

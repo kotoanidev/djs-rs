@@ -39,6 +39,8 @@ and why.
 - **Alternatives:** adapting fragments of discord.js under Apache-2.0 with attribution.
 
 ### D-005 — Toolchain: rustup stable, edition 2024, fixed MSRV 1.85
+> **Amended by D-031:** MSRV raised to **1.89**.
+
 - **Date:** 2026-11-10 · **Decided by:** Owner
 - **Decision:** Rust installed via rustup (stable). Edition 2024. MSRV fixed at **1.85** (first
   release with edition 2024); raised only deliberately, with owner approval and a CHANGELOG note.
@@ -232,6 +234,42 @@ and why.
   minimal containers and is reproducible.
 - **Alternatives:** platform verifier (system store); both behind a feature.
 
+### D-031 — MSRV raised to 1.89 (amends D-005)
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** MSRV is **1.89** (released August 2025). Needed because maintained versions of
+  `tokio-websockets` (≥ 0.13) require 1.89 and `simd-json` (≥ 0.16) requires 1.88. The policy
+  from D-005 otherwise stands: fixed MSRV, raised only deliberately with a CHANGELOG note.
+- **Alternatives:** stay on 1.85 with pinned old versions (tokio-websockets 0.12.x,
+  simd-json 0.15.1); per-crate MSRV.
+
+### D-032 — zstd implementation: `zstd` (C libzstd bindings)
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** zstd-stream decompression uses the `zstd` crate (bundled official libzstd built
+  with `cc`; requires a C compiler). Fastest and most mature.
+- **Alternatives:** `ruzstd` (pure Rust, slower, MSRV 1.87).
+
+### D-033 — Dependency set for the Phase 1 vertical slice
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** Approved dependencies (minimal feature sets), versions checked on crates.io on
+  2026-11-10:
+
+  | Crate         | Dependencies |
+  |---------------|--------------|
+  | `djs-model`   | `serde` (derive), `compact_str` (serde), `bitflags` |
+  | `djs-rest`    | `tokio`, `hyper` (client, http1, http2), `hyper-util` (client-legacy, tokio), `http`, `http-body-util`, `bytes`, `hyper-rustls` (ring, webpki-roots), `serde_json`, `thiserror`, `tracing` |
+  | `djs-gateway` | `tokio`, `tokio-websockets` (client, ring, rustls-webpki-roots), `zstd`, `futures-util` (Sink/Stream), `fastrand` (heartbeat jitter), `serde_json`, `thiserror`, `tracing` |
+  | `djs-rs`      | `tokio`, `futures-core` (Stream), `thiserror`, `tracing` |
+  | dev           | `tokio` (test-util, macros) |
+
+  Any dependency beyond this list still requires the owner's approval.
+
+### D-034 — Live testing via a local `.env` token
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** The owner creates a test bot + test guild; the token lives in a local `.env`
+  file (git-ignored, never committed). Claude runs examples locally against real Discord. CI
+  uses mocks only.
+- **Alternatives:** owner runs examples manually; token in GitHub Secrets for live CI.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
@@ -264,6 +302,5 @@ Reproducible CI and MSRV checks (current Cargo guidance for libraries as well).
 
 ## Open questions (to ask the owner when relevant)
 
-- **Integration testing against real Discord** (needs a test bot token + test guild).
 - **Benchmark harness** (`criterion` vs `divan`).
 - **Guide/book**: mdBook hosted on GitHub Pages?

@@ -1,4 +1,4 @@
-# Development toolchain. The minimum supported version (MSRV) is 1.85 — see Cargo.toml.
+# Development toolchain. The minimum supported version (MSRV) is 1.89 — see Cargo.toml.
 [toolchain]
 channel = "stable"
 components = ["rustfmt", "clippy"]

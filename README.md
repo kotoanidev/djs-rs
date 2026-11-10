@@ -60,7 +60,7 @@ full experience, or pick individual layers.
   compression, optional `simd-json` parsing, configurable cache with `DashMap`.
 - **Fully documented:** every public item has rustdoc; docs are built with `-D warnings` in CI.
 - **tokio-native**, `rustls` by default (optional `native-tls`).
-- **MSRV 1.85**, edition 2024.
+- **MSRV 1.89**, edition 2024.
 
 All design decisions are recorded in [`docs/DECISIONS.md`](docs/DECISIONS.md).
 

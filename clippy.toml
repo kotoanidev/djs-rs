@@ -1,2 +1,2 @@
 # Keep clippy suggestions compatible with the MSRV.
-msrv = "1.85"
+msrv = "1.89"

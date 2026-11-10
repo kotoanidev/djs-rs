@@ -66,13 +66,13 @@ jobs:
       - run: cargo doc --workspace --no-deps --all-features
 
   msrv:
-    name: MSRV (1.85)
+    name: MSRV (1.89)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@1.85
+      - uses: dtolnay/rust-toolchain@1.89
       - uses: Swatinem/rust-cache@v2
-      - run: cargo +1.85 check --workspace --all-features
+      - run: cargo +1.89 check --workspace --all-features
 
   deny:
     name: cargo-deny

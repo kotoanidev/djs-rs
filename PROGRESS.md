@@ -4,28 +4,38 @@
 > from this file alone. Read `CLAUDE.md` and `docs/DECISIONS.md` first.
 
 ## Current phase
-**Phase 1 — Vertical slice ("ping-pong" bot)** — not started; first step is a round of
-owner decisions (see "Next step").
+**Phase 1 — Vertical slice ("ping-pong" bot).** All decisions for the slice are made
+(D-023 … D-034). Implementation starting with `djs-model` core.
 
 ## Done
-- 2026-11-10: Owner decisions D-001 … D-030 recorded in `docs/DECISIONS.md`.
-- 2026-11-10: Rust stable 1.99.1 + 1.85 (MSRV) installed via rustup on the dev machine.
+- 2026-11-10: Owner decisions D-001 … D-034 recorded in `docs/DECISIONS.md`.
+- 2026-11-10: Rust stable 1.99.1 + 1.85 + 1.89 (MSRV, D-031) installed via rustup.
 - 2026-11-10: Phase 0 complete — foundation docs, public repo
-  https://github.com/kotoanidev/djs-rs, 9-crate workspace skeleton, lints/configs, CI.
-  First CI run fully green (fmt, clippy, tests ×3 OS, rustdoc, MSRV 1.85, cargo-deny).
+  https://github.com/kotoanidev/djs-rs, 9-crate workspace skeleton, lints/configs, CI
+  (first run fully green).
 - 2026-11-10: Roadmap restructured for D-020 (vertical slice first).
+- 2026-11-10: MSRV raised to 1.89 everywhere (Cargo.toml, clippy.toml, CI, docs). `.env.example`.
 
 ## In progress
-- Nothing.
+- Phase 1, step 1: `djs-model` core.
 
-## Next step
-1. Ask the owner the Phase 1 decision round (from "Open questions" in `docs/DECISIONS.md`):
-   (D-023..D-030 already answered: IDs, strings, errors, tracing, crypto provider,
-   handler concurrency, closures+Stream, webpki-roots.) Remaining: zstd implementation,
-   integration-testing setup, and the exact dependency set for the slice (tokio, hyper, hyper-util, hyper-rustls/rustls,
-   tokio-websockets, serde, serde_json, zstd, …).
-2. Record answers as D-023+ and implement the slice in this order:
-   `djs-model` core → `djs-rest` core → `djs-gateway` core → `djs-rs` core → `examples/ping.rs`.
+## Next step (Phase 1 plan, in order)
+1. **`djs-model` core** — `Id<Marker>` (D-023) with markers + aliases, Snowflake helpers
+   (timestamp, worker/process/increment), (de)serialize from JSON strings; `Timestamp`;
+   `Intents` (bitflags); minimal `User`, `Message`, `UnavailableGuild`; gateway `OpCode`,
+   `Hello`, `Identify` (+ properties), `Ready`, `Resume`, `CloseCode`, dispatch envelope,
+   `MessageCreate`. Strings are `CompactString` (D-024). Tests with real JSON fixtures.
+2. **`djs-rest` core** — hyper + hyper-rustls(ring, webpki-roots), `Authorization: Bot`,
+   user-agent, per-route bucket limiter (basic) + 429 handling, `get_gateway_bot`,
+   `create_message`. `thiserror` errors, `tracing` spans.
+3. **`djs-gateway` core** — single shard over tokio-websockets, zstd-stream, hello →
+   identify, heartbeat with jitter + ACK/zombie detection, resume/reconnect on close codes,
+   typed event stream.
+4. **`djs-rs` core** — `Client::builder(token).intents(..).build()`, `client.on(Events::
+   MessageCreate, |ctx, msg| async move {..})` (spawn-per-event default, sequential option,
+   D-028), `client.events()` Stream (D-029), `msg.reply(&ctx, ..)`, `login()`, shutdown.
+5. `crates/djs-rs/examples/ping.rs`; run live with `.env` token (D-034); mock tests in CI.
+6. Architecture review with the owner before Phase 2.
 
 ## Blocked on the owner
-- Phase 1 decision round (above).
+- A test bot token in `.env` (copy `.env.example`) is needed for step 5 only.

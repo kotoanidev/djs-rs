@@ -27,11 +27,11 @@ cargo test --workspace --all-features
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features
 ```
 
-MSRV check (1.85):
+MSRV check (1.89):
 
 ```bash
-rustup toolchain install 1.85
-cargo +1.85 check --workspace --all-features
+rustup toolchain install 1.89
+cargo +1.89 check --workspace --all-features
 ```
 
 ## Commit messages

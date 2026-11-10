@@ -14,3 +14,6 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `djs-gateway`, `djs-cache`, `djs-builders`, `djs-collection`, `djs-formatters`, `djs-util`).
 - Workspace lints, rustfmt/clippy/cargo-deny configuration, GitHub Actions CI.
 - `docs/ARCHITECTURE.md`.
+
+### Changed
+- MSRV raised from 1.85 to 1.89 (required by maintained `tokio-websockets` and `simd-json`).
