@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     id::{ChannelId, GuildId, MessageId, WebhookId},
-    macros::int_enum,
+    macros::{int_enum, int_flags},
     user::User,
     util::Timestamp,
 };
@@ -231,6 +231,111 @@ impl MessageType {
                 | Self::ChannelIconChange
                 | Self::ThreadStarterMessage
         )
+    }
+}
+
+int_flags! {
+    /// [Flags of a message](https://docs.discord.com/developers/resources/message#message-object-message-flags).
+    ///
+    /// Received on every message. When sending (creating or editing a message, or responding to
+    /// an interaction) only some flags may be set: `SUPPRESS_EMBEDS`, `SUPPRESS_NOTIFICATIONS`,
+    /// `IS_VOICE_MESSAGE`, `IS_COMPONENTS_V2` and, for interaction responses, `EPHEMERAL`.
+    ///
+    /// discord.js counterpart: `MessageFlags` / `MessageFlagsBitField`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use djs_model::message::MessageFlags;
+    ///
+    /// let flags = MessageFlags::EPHEMERAL | MessageFlags::SUPPRESS_EMBEDS;
+    /// assert_eq!(flags.bits(), 68);
+    /// assert_eq!(serde_json::to_string(&flags).unwrap(), "68");
+    /// ```
+    pub struct MessageFlags: u64 {
+        /// The message was published to the channels following this announcement channel.
+        const CROSSPOSTED = 1 << 0;
+        /// The message is a copy of a message published in a followed announcement channel.
+        const IS_CROSSPOST = 1 << 1;
+        /// Embeds are not shown for this message.
+        const SUPPRESS_EMBEDS = 1 << 2;
+        /// The original of this crossposted message has been deleted.
+        const SOURCE_MESSAGE_DELETED = 1 << 3;
+        /// The message comes from Discord's urgent message system.
+        const URGENT = 1 << 4;
+        /// A thread was started from this message; the thread has the message's ID.
+        const HAS_THREAD = 1 << 5;
+        /// Only the user who triggered the interaction can see the message.
+        const EPHEMERAL = 1 << 6;
+        /// The message is a deferred interaction response: the app is "thinking".
+        const LOADING = 1 << 7;
+        /// Some mentioned roles could not be mentioned, so their members were not added to the
+        /// thread.
+        const FAILED_TO_MENTION_SOME_ROLES_IN_THREAD = 1 << 8;
+        /// The client warns before opening links in this message.
+        ///
+        /// **Undocumented:** known from discord-api-types, not in the official docs; may
+        /// change without notice.
+        const SHOULD_SHOW_LINK_NOT_DISCORD_WARNING = 1 << 10;
+        /// The message does not trigger push or desktop notifications.
+        const SUPPRESS_NOTIFICATIONS = 1 << 12;
+        /// The message is a voice message.
+        const IS_VOICE_MESSAGE = 1 << 13;
+        /// The message contains a snapshot of a forwarded message.
+        const HAS_SNAPSHOT = 1 << 14;
+        /// The message is laid out entirely with components (Components V2) instead of
+        /// `content` and embeds. Once a message has been sent with this flag, the flag cannot be
+        /// removed.
+        const IS_COMPONENTS_V2 = 1 << 15;
+    }
+}
+
+int_flags! {
+    /// [Flags of an attachment](https://docs.discord.com/developers/resources/message#attachment-object-attachment-flags).
+    ///
+    /// discord.js counterpart: `AttachmentFlags` / `AttachmentFlagsBitField`.
+    pub struct AttachmentFlags: u64 {
+        /// The attachment is a clip recorded from a stream.
+        const IS_CLIP = 1 << 0;
+        /// The attachment is the thumbnail of a media-channel thread: shown in the channel's
+        /// grid, not on the message.
+        const IS_THUMBNAIL = 1 << 1;
+        /// The attachment was edited with the mobile remix feature. **Deprecated** by Discord.
+        const IS_REMIX = 1 << 2;
+        /// The attachment is marked as a spoiler and blurred until clicked.
+        const IS_SPOILER = 1 << 3;
+        /// Discord's content scanning flagged the attachment as explicit.
+        const CONTAINS_EXPLICIT_CONTENT = 1 << 4;
+        /// The attachment is an animated image.
+        const IS_ANIMATED = 1 << 5;
+        /// Discord's content scanning flagged the attachment as gore.
+        const CONTAINS_GORE_CONTENT = 1 << 6;
+        /// Discord's content scanning flagged the attachment as self-harm.
+        const CONTAINS_SELF_HARM_CONTENT = 1 << 7;
+    }
+}
+
+int_flags! {
+    /// [Flags of an embed](https://docs.discord.com/developers/resources/message#embed-object-embed-flags).
+    ///
+    /// Set by Discord on received embeds.
+    pub struct EmbedFlags: u64 {
+        /// Discord's content scanning flagged the embed's media as explicit.
+        const CONTAINS_EXPLICIT_CONTENT = 1 << 4;
+        /// The embed is the fallback shown for a reply to an activity card.
+        const IS_CONTENT_INVENTORY_ENTRY = 1 << 5;
+        /// Discord's content scanning flagged the embed's media as gore.
+        const CONTAINS_GORE_CONTENT = 1 << 6;
+        /// Discord's content scanning flagged the embed's media as self-harm.
+        const CONTAINS_SELF_HARM_CONTENT = 1 << 7;
+    }
+}
+
+int_flags! {
+    /// [Flags of an embed's image, thumbnail or video](https://docs.discord.com/developers/resources/message#embed-object-embed-media-flags).
+    pub struct EmbedMediaFlags: u64 {
+        /// The media is an animated image.
+        const IS_ANIMATED = 1 << 5;
     }
 }
 

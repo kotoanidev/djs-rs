@@ -1,12 +1,6 @@
-use core::fmt;
+use crate::macros::int_flags;
 
-use bitflags::bitflags;
-use serde::{
-    Deserialize, Deserializer, Serialize, Serializer,
-    de::{Error as DeError, Visitor},
-};
-
-bitflags! {
+int_flags! {
     /// [Gateway intents](https://docs.discord.com/developers/events/gateway#gateway-intents):
     /// the groups of events a client subscribes to when identifying.
     ///
@@ -31,7 +25,6 @@ bitflags! {
     /// assert_eq!(intents.bits(), 33281);
     /// assert!(intents.intersects(Intents::PRIVILEGED));
     /// ```
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
     pub struct Intents: u64 {
         /// Guild lifecycle, roles, channels, threads and stage instances.
         const GUILDS = 1 << 0;
@@ -91,32 +84,6 @@ impl Intents {
 
     /// Every known intent that is not privileged.
     pub const NON_PRIVILEGED: Self = Self::all().difference(Self::PRIVILEGED);
-}
-
-impl Serialize for Intents {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_u64(self.bits())
-    }
-}
-
-impl<'de> Deserialize<'de> for Intents {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        struct IntentsVisitor;
-
-        impl Visitor<'_> for IntentsVisitor {
-            type Value = Intents;
-
-            fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                f.write_str("an intents bitfield integer")
-            }
-
-            fn visit_u64<E: DeError>(self, value: u64) -> Result<Intents, E> {
-                Ok(Intents::from_bits_retain(value))
-            }
-        }
-
-        deserializer.deserialize_u64(IntentsVisitor)
-    }
 }
 
 #[cfg(test)]

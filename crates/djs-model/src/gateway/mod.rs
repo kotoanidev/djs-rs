@@ -9,6 +9,7 @@ mod event;
 mod intents;
 mod opcode;
 pub mod payload;
+mod presence;
 mod shard_id;
 
 pub use self::{
@@ -16,6 +17,7 @@ pub use self::{
     event::{DispatchEvent, GatewayEvent, GatewayEventDeserializer},
     intents::Intents,
     opcode::OpCode,
+    presence::ActivityFlags,
     shard_id::ShardId,
 };
 

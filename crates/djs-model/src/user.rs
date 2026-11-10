@@ -3,7 +3,7 @@
 use compact_str::CompactString;
 use serde::{Deserialize, Serialize};
 
-use crate::{id::UserId, util::ImageHash};
+use crate::{id::UserId, macros::int_flags, util::ImageHash};
 
 /// A Discord user — a person or a bot account.
 ///
@@ -125,6 +125,102 @@ mod discriminator {
         }
 
         deserializer.deserialize_any(DiscriminatorVisitor)
+    }
+}
+
+int_flags! {
+    /// [Flags on a user](https://docs.discord.com/developers/resources/user#user-object-user-flags),
+    /// most of them shown as profile badges.
+    ///
+    /// Users carry these in `public_flags` (visible to everyone) and, for the current user
+    /// with the right OAuth2 scope, in `flags`.
+    ///
+    /// discord.js counterpart: `UserFlags` / `UserFlagsBitField`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use djs_model::user::UserFlags;
+    ///
+    /// let flags: UserFlags = serde_json::from_str("65536").unwrap();
+    /// assert_eq!(flags, UserFlags::VERIFIED_BOT);
+    /// ```
+    pub struct UserFlags: u64 {
+        /// Discord employee.
+        const STAFF = 1 << 0;
+        /// Owner of a partnered server.
+        const PARTNER = 1 << 1;
+        /// Member of HypeSquad Events.
+        const HYPESQUAD = 1 << 2;
+        /// Bug Hunter, level 1.
+        const BUG_HUNTER_LEVEL_1 = 1 << 3;
+        /// The account has SMS two-factor authentication enabled.
+        ///
+        /// **Undocumented:** known from discord-api-types, not in the official docs; may
+        /// change without notice.
+        const MFA_SMS = 1 << 4;
+        /// The user dismissed a Nitro promotion.
+        ///
+        /// **Undocumented:** known from discord-api-types, not in the official docs; may
+        /// change without notice.
+        const PREMIUM_PROMO_DISMISSED = 1 << 5;
+        /// Member of HypeSquad house Bravery.
+        const HYPESQUAD_ONLINE_HOUSE_1 = 1 << 6;
+        /// Member of HypeSquad house Brilliance.
+        const HYPESQUAD_ONLINE_HOUSE_2 = 1 << 7;
+        /// Member of HypeSquad house Balance.
+        const HYPESQUAD_ONLINE_HOUSE_3 = 1 << 8;
+        /// Early Nitro supporter.
+        const PREMIUM_EARLY_SUPPORTER = 1 << 9;
+        /// The "user" is a [team](https://docs.discord.com/developers/topics/teams) account.
+        const TEAM_PSEUDO_USER = 1 << 10;
+        /// The user has unread urgent messages from Discord.
+        ///
+        /// **Undocumented:** known from discord-api-types, not in the official docs; may
+        /// change without notice.
+        const HAS_UNREAD_URGENT_MESSAGES = 1 << 13;
+        /// Bug Hunter, level 2.
+        const BUG_HUNTER_LEVEL_2 = 1 << 14;
+        /// A verified bot.
+        const VERIFIED_BOT = 1 << 16;
+        /// Early verified bot developer.
+        const VERIFIED_DEVELOPER = 1 << 17;
+        /// Alumnus of the Discord Moderator Programs.
+        const CERTIFIED_MODERATOR = 1 << 18;
+        /// A bot that only uses HTTP interactions; it is shown in the online member list.
+        const BOT_HTTP_INTERACTIONS = 1 << 19;
+        /// The account is flagged as a spammer.
+        ///
+        /// **Undocumented:** known from discord-api-types, not in the official docs; may
+        /// change without notice.
+        const SPAMMER = 1 << 20;
+        /// Nitro features are disabled for the account.
+        ///
+        /// **Undocumented:** known from discord-api-types, not in the official docs; may
+        /// change without notice.
+        const DISABLE_PREMIUM = 1 << 21;
+        /// Holder of the Active Developer badge.
+        ///
+        /// Discord no longer grants this flag.
+        ///
+        /// **Undocumented:** known from discord-api-types, not in the official docs; may
+        /// change without notice.
+        const ACTIVE_DEVELOPER = 1 << 22;
+        /// The account is quarantined.
+        ///
+        /// **Undocumented:** known from discord-api-types, not in the official docs; may
+        /// change without notice.
+        const QUARANTINED = 1 << 44;
+        /// The user is a collaborator on an application team.
+        ///
+        /// **Undocumented:** known from discord-api-types, not in the official docs; may
+        /// change without notice.
+        const COLLABORATOR = 1 << 50;
+        /// The user is a restricted collaborator on an application team.
+        ///
+        /// **Undocumented:** known from discord-api-types, not in the official docs; may
+        /// change without notice.
+        const RESTRICTED_COLLABORATOR = 1 << 51;
     }
 }
 

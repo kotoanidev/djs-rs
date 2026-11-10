@@ -8,6 +8,12 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-model`: all bitflags types (`u64`, integer serde, unknown bits kept; D-046/D-047):
+  `message::{MessageFlags, AttachmentFlags, EmbedFlags, EmbedMediaFlags}`, `user::UserFlags`,
+  `application::ApplicationFlags`, `channel::ChannelFlags`,
+  `guild::{SystemChannelFlags, MemberFlags, RoleFlags}`, `invite::InviteFlags`,
+  `sku::SkuFlags`, `gateway::ActivityFlags`; new modules `application`, `channel`, `invite`,
+  `sku` (D-044).
 - `djs-model`: `permissions::Permissions` (`u64` bitflags, all 52 documented flags, decimal-string
   serde that keeps unknown bits; D-040, D-045).
 - Performance suite (D-041, D-042): divan micro-benchmarks for gateway decoding and value

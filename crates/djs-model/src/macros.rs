@@ -118,3 +118,45 @@ macro_rules! int_enum {
 }
 
 pub(crate) use int_enum;
+
+/// Defines a `u64` bitflags type (D-047) that (de)serializes as a JSON integer.
+///
+/// Wraps [`bitflags::bitflags!`] and adds the standard derives plus `Serialize`/`Deserialize`.
+/// Unknown bits are preserved in both directions (C-010), so values received from a newer API
+/// version round-trip unchanged.
+macro_rules! int_flags {
+    (
+        $(#[$meta:meta])*
+        $vis:vis struct $name:ident: u64 {
+            $(
+                $(#[$($flag_attr:tt)*])*
+                const $flag:ident = $value:expr;
+            )*
+        }
+    ) => {
+        ::bitflags::bitflags! {
+            $(#[$meta])*
+            #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+            $vis struct $name: u64 {
+                $(
+                    $(#[$($flag_attr)*])*
+                    const $flag = $value;
+                )*
+            }
+        }
+
+        impl ::serde::Serialize for $name {
+            fn serialize<S: ::serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+                serializer.serialize_u64(self.bits())
+            }
+        }
+
+        impl<'de> ::serde::Deserialize<'de> for $name {
+            fn deserialize<D: ::serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+                <u64 as ::serde::Deserialize>::deserialize(deserializer).map(Self::from_bits_retain)
+            }
+        }
+    };
+}
+
+pub(crate) use int_flags;
