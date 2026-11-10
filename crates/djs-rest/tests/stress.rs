@@ -331,8 +331,8 @@ async fn global_limit_holds() {
         "finished too fast: {elapsed:?}"
     );
     // The limiter uses fixed one-second windows (like discord.js), so a sliding window that
-    // spans a window boundary can contain up to two windows' worth of requests. Whether to make
-    // it strict is an open question for the owner (docs/DECISIONS.md).
+    // spans a window boundary can contain up to two windows' worth of requests. D-043 replaces it
+    // with a strict GCRA limiter in Phase 3; this assertion then becomes `<= 50`.
     assert!(
         max_in_window <= 100,
         "{max_in_window} requests in one second"

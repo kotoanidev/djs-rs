@@ -54,6 +54,7 @@ just with narrow scope.
 - [ ] Complete rate limiting: invalid-request limit (10k/10 min), burst handler for interaction
       callbacks, per-route quirks (old message deletes, reactions), hash lifetime sweeps
 - [ ] Retries, timeouts, audit-log reason header, `native-tls` feature
+- [ ] Strict GCRA global limiter (D-043) instead of fixed one-second windows
 - [ ] Multipart uploads (attachments)
 - [ ] Every v10 REST endpoint as a typed method
 - [ ] CDN URL builder

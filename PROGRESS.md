@@ -9,7 +9,7 @@ D-041).
 **Next: Phase 2 — full `djs-model` coverage** (D-039; permissions = `u64`, D-040).
 
 ## Done
-- 2026-11-10: Owner decisions D-001 … D-042 in `docs/DECISIONS.md`; Claude defaults C-001 …
+- 2026-11-10: Owner decisions D-001 … D-043 in `docs/DECISIONS.md`; Claude defaults C-001 …
   C-017 (reviewable) in the same file.
 - Toolchains (rustup): stable 1.99.1, 1.85, 1.89 (MSRV, D-031).
 - Phase 0: foundation docs, public repo https://github.com/kotoanidev/djs-rs, 9-crate workspace,
@@ -54,9 +54,8 @@ D-041).
 4. When Phase 2 is done: extend `djs-model/benches/decode.rs` (all events, large GUILD_CREATE
    decoded for real) + stress tests, update `docs/PERFORMANCE.md` (D-041).
 5. Optimization candidates noted in `docs/PERFORMANCE.md` (1 KiB REST futures, Timestamp
-   formatting) are for Phase 3 / when touching that code.
+   formatting) are for Phase 3 / when touching that code. Phase 3 also replaces the global
+   REST limiter with strict GCRA (D-043).
 
 ## Blocked on the owner
-- Open question (asked 2026-11-10): global REST limiter — keep fixed windows (like discord.js)
-  or switch to a strict sliding-window/GCRA limiter? See `docs/DECISIONS.md` → Open questions.
-  Does not block Phase 2.
+- Nothing.

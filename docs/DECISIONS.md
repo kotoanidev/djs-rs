@@ -330,6 +330,17 @@ and why.
   `/proc/self/status` (VmHWM/VmRSS, Linux only) — no extra dependency.
 - **Alternatives:** criterion; measuring in CI with regression tracking; `dhat`.
 
+### D-043 — Strict global REST limiter (GCRA)
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** Replace the fixed one-second window of the global REST limiter with a strict
+  GCRA (Generic Cell Rate Algorithm) limiter: never more than the limit in any sliding second,
+  constant memory, no new dependency. Implemented as part of Phase 3 (full `djs-rest`); the
+  stress test `global_limit_holds` must then assert `≤ 50` per sliding second.
+- **Context:** the Phase 1 stress test showed 92–100 requests in a sliding second at window
+  boundaries with the fixed-window limiter (same behaviour as discord.js).
+- **Alternatives:** keep fixed windows like discord.js; fixed by default with an opt-in strict
+  mode in `RestBuilder`.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
@@ -411,7 +422,4 @@ would return), and read memory from `/proc/self/status` (`VmRSS`/`VmHWM`, peak r
 
 ## Open questions (to ask the owner when relevant)
 
-- **Global REST limiter strictness** (found by the Phase 1 stress test, see
-  `docs/PERFORMANCE.md`): keep fixed one-second windows like discord.js (up to 2× the limit in a
-  sliding second at window boundaries), or switch to a strict sliding-window/GCRA limiter?
 - **Guide/book**: mdBook hosted on GitHub Pages?

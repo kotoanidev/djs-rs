@@ -135,9 +135,8 @@ from `login()` until every handler call has completed.
    one-second windows (the same approach as discord.js). With all requests queued at once, the
    server saw **92–100 requests in some sliding one-second window** in 4 of 5 runs, i.e. two
    windows' worth (requests sent at the end of one window and at the start of the next). The
-   average rate is still 50/s. Whether to switch to a strict sliding-window/GCRA limiter is
-   an open question for the owner (see `docs/DECISIONS.md`). The stress test currently asserts
-   the fixed-window bound (≤ 100).
+   average rate is still 50/s. **Decision D-043:** switch to a strict GCRA limiter in Phase 3;
+   until then the stress test asserts the fixed-window bound (≤ 100).
 2. **REST futures are 1 KiB.** `create_message`/`get_gateway_bot` futures are 1 024/1 008 bytes,
    so every queued request costs at least that much. Candidate for Phase 3: box the inner
    request state machine so a queued, not-yet-polled future stays small.
