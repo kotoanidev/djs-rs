@@ -23,9 +23,13 @@
 - 2026-11-10: **Phase 1 step 2 done — `djs-rest` core** (D-035: direct `rustls` dep for an explicit
   ring provider). 11 unit + 11 mock-server integration tests + 6 doctests. A real bug was caught
   by tests and fixed: bucket state is migrated when a route's hash is first learned.
+- 2026-11-10: **Phase 1 step 3 done — `djs-gateway` core** (D-036 tokio-rustls + webpki-roots,
+  D-037 poll-driven Shard). 3 unit (zstd) + 7 mock-gateway integration tests (identify →
+  dispatch → reconnect → resume, heartbeats/latency, zombie + identify limit, fatal close,
+  command queueing, zstd-stream). CI also runs clippy with `--no-default-features`.
 
 ## In progress
-- Phase 1, step 3: `djs-gateway` core — implementation committed (Shard, Config, zstd, TLS); NEXT: mock-gateway integration tests (`crates/djs-gateway/tests/`).
+- Phase 1, step 4: `djs-rs` core (high-level Client).
 
 ## Next step (Phase 1 plan, in order)
 1. ~~**`djs-model` core**~~ ✅ — `Id<Marker>` (D-023) with markers + aliases, Snowflake helpers
@@ -36,7 +40,7 @@
 2. ~~**`djs-rest` core**~~ ✅ — hyper + hyper-rustls(ring, webpki-roots), `Authorization: Bot`,
    user-agent, per-route bucket limiter (basic) + 429 handling, `get_gateway_bot`,
    `create_message`. `thiserror` errors, `tracing` spans.
-3. **`djs-gateway` core** — single shard over tokio-websockets, zstd-stream, hello →
+3. ~~**`djs-gateway` core**~~ ✅ — single shard over tokio-websockets, zstd-stream, hello →
    identify, heartbeat with jitter + ACK/zombie detection, resume/reconnect on close codes,
    typed event stream.
 4. **`djs-rs` core** — `Client::builder(token).intents(..).build()`, `client.on(Events::

@@ -25,6 +25,10 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   with hash learning and state migration, global limiter + global 429 pauses, retries for
   5xx/transport/timeouts, `ApiError` parsing, typed `Route`s, `get_gateway_bot`,
   `create_message`, idle-bucket sweeping, token redaction.
+- `djs-gateway` core (Phase 1): poll-driven `Shard` (connect/Hello timeouts, identify with
+  per-shard 5 s limit, resume, heartbeats with jitter + zombie detection, reconnect backoff,
+  close-code handling), `MessageSender`, `Config`/`ConfigBuilder`, `zstd-stream` compression
+  (default feature), rustls with explicit ring provider.
 
 ### Changed
 - MSRV raised from 1.85 to 1.89 (required by maintained `tokio-websockets` and `simd-json`).

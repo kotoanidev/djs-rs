@@ -1,0 +1,415 @@
+//! Tests `Shard` against a scripted mock of the Discord gateway.
+
+use std::time::Duration;
+
+use djs_gateway::{Compression, Config, ReceiveErrorKind, Shard, ShardState};
+use djs_model::gateway::{
+    CloseCode, DispatchEvent, GatewayEvent, Intents, ShardId, payload::Heartbeat,
+};
+use futures_util::{SinkExt, StreamExt};
+use serde_json::{Value, json};
+use tokio::{
+    net::{TcpListener, TcpStream},
+    time::{Instant, timeout},
+};
+use tokio_websockets::{Message, ServerBuilder, WebSocketStream};
+
+type Server = WebSocketStream<TcpStream>;
+
+const TOKEN: &str = "test-token";
+const INTENTS: Intents = Intents::GUILDS.union(Intents::GUILD_MESSAGES);
+const STEP: Duration = Duration::from_secs(5);
+
+async fn listener() -> (TcpListener, String) {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("ws://{}", listener.local_addr().unwrap());
+    (listener, url)
+}
+
+/// Accepts one WebSocket connection, returning it with the request's query string.
+async fn accept(listener: &TcpListener) -> (Server, String) {
+    let (stream, _) = timeout(STEP, listener.accept())
+        .await
+        .expect("no connection")
+        .unwrap();
+    let (request, server) = ServerBuilder::new().accept(stream).await.unwrap();
+    (server, request.uri().query().unwrap_or_default().to_owned())
+}
+
+async fn send(server: &mut Server, payload: Value) {
+    server
+        .send(Message::text(payload.to_string()))
+        .await
+        .unwrap();
+}
+
+/// Receives the next text payload sent by the client.
+async fn recv(server: &mut Server) -> Value {
+    loop {
+        let message = timeout(STEP, server.next())
+            .await
+            .expect("client sent nothing")
+            .expect("connection ended")
+            .unwrap();
+        if let Some(text) = message.as_text() {
+            return serde_json::from_str(text).unwrap();
+        }
+    }
+}
+
+/// Receives client payloads until one has the given opcode, answering heartbeats on the way.
+async fn recv_op(server: &mut Server, op: u64) -> Value {
+    loop {
+        let payload = recv(server).await;
+        if payload["op"] == op {
+            return payload;
+        }
+        if payload["op"] == 1 {
+            send(server, json!({"op": 11})).await;
+        }
+    }
+}
+
+fn hello(interval_ms: u64) -> Value {
+    json!({"t": null, "s": null, "op": 10, "d": {"heartbeat_interval": interval_ms}})
+}
+
+fn ready(sequence: u64, resume_url: &str) -> Value {
+    json!({"t": "READY", "s": sequence, "op": 0, "d": {
+        "v": 10,
+        "user": {"id": "1", "username": "test-bot", "discriminator": "0", "global_name": null,
+                 "avatar": null, "bot": true},
+        "guilds": [{"id": "2", "unavailable": true}],
+        "session_id": "session-1",
+        "resume_gateway_url": resume_url,
+        "shard": [0, 1],
+        "application": {"id": "1", "flags": 0}
+    }})
+}
+
+fn message_create(sequence: u64) -> Value {
+    json!({"t": "MESSAGE_CREATE", "s": sequence, "op": 0, "d": {
+        "id": "10", "channel_id": "20", "guild_id": "2",
+        "author": {"id": "3", "username": "nelly", "discriminator": "0", "global_name": null,
+                   "avatar": null},
+        "content": "!ping", "timestamp": "2026-11-10T19:42:07.123000+00:00",
+        "edited_timestamp": null, "tts": false, "mention_everyone": false, "pinned": false,
+        "type": 0
+    }})
+}
+
+fn shard(url: &str) -> Shard {
+    let config = Config::builder(TOKEN, INTENTS)
+        .gateway_url(url)
+        .compression(Compression::None)
+        .build();
+    Shard::with_config(ShardId::ONE, config)
+}
+
+/// Polls the shard until `stop` returns true for an event, collecting all events.
+async fn collect_until(
+    shard: &mut Shard,
+    mut stop: impl FnMut(&GatewayEvent) -> bool,
+) -> Vec<GatewayEvent> {
+    let mut events = Vec::new();
+    loop {
+        let event = timeout(STEP, shard.next_event())
+            .await
+            .expect("shard produced no event in time")
+            .expect("shard ended")
+            .expect("shard returned an error");
+        let done = stop(&event);
+        events.push(event);
+        if done {
+            return events;
+        }
+    }
+}
+
+#[tokio::test]
+async fn identify_dispatch_reconnect_and_resume() {
+    let (listener, url) = listener().await;
+    let resume_url = url.clone();
+
+    let server = tokio::spawn(async move {
+        // First connection: identify, receive two dispatches, then a reconnect request.
+        let (mut first, query) = accept(&listener).await;
+        assert_eq!(query, "v=10&encoding=json");
+        send(&mut first, hello(45_000)).await;
+        let identify = recv_op(&mut first, 2).await;
+        assert_eq!(identify["d"]["token"], TOKEN);
+        assert_eq!(identify["d"]["intents"], INTENTS.bits());
+        assert_eq!(identify["d"]["shard"], json!([0, 1]));
+        assert_eq!(identify["d"]["properties"]["browser"], "djs-rs");
+        send(&mut first, ready(1, &resume_url)).await;
+        send(&mut first, message_create(2)).await;
+        send(
+            &mut first,
+            json!({"t": null, "s": null, "op": 7, "d": null}),
+        )
+        .await;
+
+        // Second connection: the shard must resume with the last sequence number.
+        let (mut second, _) = accept(&listener).await;
+        send(&mut second, hello(45_000)).await;
+        let resume = recv_op(&mut second, 6).await;
+        assert_eq!(resume["d"]["token"], TOKEN);
+        assert_eq!(resume["d"]["session_id"], "session-1");
+        assert_eq!(resume["d"]["seq"], 2);
+        send(
+            &mut second,
+            json!({"t": "RESUMED", "s": 3, "op": 0, "d": {}}),
+        )
+        .await;
+        // Keep the connection open until the client is done.
+        let _ = timeout(STEP, second.next()).await;
+    });
+
+    let mut shard = shard(&url);
+    let events = collect_until(&mut shard, |event| {
+        matches!(event, GatewayEvent::Dispatch(_, DispatchEvent::Resumed))
+    })
+    .await;
+
+    let summary: Vec<String> = events
+        .iter()
+        .map(|event| match event {
+            GatewayEvent::Dispatch(sequence, event) => format!("{}#{sequence}", event.name()),
+            other => format!("{other:?}").split('(').next().unwrap().to_owned(),
+        })
+        .collect();
+    assert_eq!(
+        summary,
+        [
+            "Hello",
+            "READY#1",
+            "MESSAGE_CREATE#2",
+            "Reconnect",
+            "Hello",
+            "RESUMED#3"
+        ]
+    );
+    let GatewayEvent::Dispatch(_, DispatchEvent::MessageCreate(message)) = &events[2] else {
+        unreachable!()
+    };
+    assert_eq!(message.content, "!ping");
+    assert_eq!(shard.state(), ShardState::Active);
+    assert_eq!(shard.session_id(), Some("session-1"));
+    assert_eq!(shard.sequence(), Some(3));
+
+    drop(shard);
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn heartbeats_are_sent_and_acknowledged() {
+    let (listener, url) = listener().await;
+    let server = tokio::spawn(async move {
+        let (mut connection, _) = accept(&listener).await;
+        send(&mut connection, hello(100)).await;
+        let mut heartbeats = 0;
+        while heartbeats < 3 {
+            let payload = recv(&mut connection).await;
+            if payload["op"] == 1 {
+                heartbeats += 1;
+                send(&mut connection, json!({"op": 11})).await;
+            }
+        }
+        heartbeats
+    });
+
+    let mut shard = shard(&url);
+    let mut acks = 0;
+    collect_until(&mut shard, |event| {
+        if matches!(event, GatewayEvent::HeartbeatAck) {
+            acks += 1;
+        }
+        acks == 3
+    })
+    .await;
+    assert!(shard.latency().is_some());
+    assert_eq!(server.await.unwrap(), 3);
+}
+
+#[tokio::test]
+async fn zombied_connection_is_replaced_respecting_the_identify_limit() {
+    let (listener, url) = listener().await;
+    let server = tokio::spawn(async move {
+        let (mut first, _) = accept(&listener).await;
+        send(&mut first, hello(100)).await;
+        // Identify, then never acknowledge heartbeats: the shard must give up on this
+        // connection once a heartbeat goes unanswered.
+        let identify = loop {
+            let payload = recv(&mut first).await;
+            if payload["op"] == 2 {
+                break Instant::now();
+            }
+        };
+        let (mut second, _) = accept(&listener).await;
+        send(&mut second, hello(45_000)).await;
+        // Without a session the shard identifies again — but not sooner than 5 s after the
+        // previous identify.
+        let again = loop {
+            let payload = timeout(Duration::from_secs(10), recv(&mut second))
+                .await
+                .unwrap();
+            if payload["op"] == 2 {
+                break Instant::now();
+            }
+        };
+        again - identify
+    });
+
+    let mut shard = shard(&url);
+    let gap = timeout(Duration::from_secs(15), async {
+        tokio::pin!(server);
+        loop {
+            tokio::select! {
+                result = &mut server => break result.unwrap(),
+                _ = shard.next_event() => {}
+            }
+        }
+    })
+    .await
+    .expect("shard did not reconnect and identify");
+    assert!(
+        gap >= Duration::from_secs(5),
+        "identified again after only {gap:?}"
+    );
+}
+
+#[tokio::test]
+async fn fatal_close_code_stops_the_shard() {
+    let (listener, url) = listener().await;
+    let server = tokio::spawn(async move {
+        let (mut connection, _) = accept(&listener).await;
+        send(&mut connection, hello(45_000)).await;
+        recv_op(&mut connection, 2).await;
+        let code = tokio_websockets::CloseCode::try_from(4004).unwrap();
+        connection
+            .send(Message::close(Some(code), "Authentication failed."))
+            .await
+            .unwrap();
+        let _ = timeout(STEP, connection.next()).await;
+    });
+
+    let mut shard = shard(&url);
+    let error = loop {
+        match timeout(STEP, shard.next_event()).await.unwrap() {
+            Some(Ok(_)) => {}
+            Some(Err(error)) => break error,
+            None => panic!("shard ended without reporting the fatal error"),
+        }
+    };
+    assert!(error.is_fatal());
+    assert!(matches!(
+        error.kind(),
+        ReceiveErrorKind::FatallyClosed {
+            code: CloseCode::AuthenticationFailed
+        }
+    ));
+    assert!(shard.next_event().await.is_none());
+    assert_eq!(
+        shard.state(),
+        ShardState::FatallyClosed(CloseCode::AuthenticationFailed)
+    );
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn commands_wait_for_an_active_session() {
+    let (listener, url) = listener().await;
+    let resume_url = url.clone();
+    let server = tokio::spawn(async move {
+        let (mut connection, _) = accept(&listener).await;
+        send(&mut connection, hello(45_000)).await;
+        // The queued command must not be sent before identifying.
+        let first = recv(&mut connection).await;
+        assert_eq!(first["op"], 2, "expected identify first, got {first}");
+        send(&mut connection, ready(1, &resume_url)).await;
+        let command = recv(&mut connection).await;
+        assert_eq!(command, json!({"op": 1, "d": 42}));
+    });
+
+    let mut shard = shard(&url);
+    shard.sender().command(&Heartbeat(Some(42))).unwrap();
+    collect_until(&mut shard, |event| {
+        matches!(event, GatewayEvent::Dispatch(_, DispatchEvent::Ready(_)))
+    })
+    .await;
+    // Keep driving the shard so it flushes the queued command.
+    let _ = timeout(Duration::from_millis(500), shard.next_event()).await;
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn sender_reports_dropped_shard() {
+    let shard = shard("ws://127.0.0.1:9");
+    let sender = shard.sender();
+    assert!(!sender.is_closed());
+    drop(shard);
+    assert!(sender.is_closed());
+    assert!(sender.command(&Heartbeat(None)).is_err());
+}
+
+#[cfg(feature = "zstd-stream")]
+#[tokio::test]
+async fn zstd_stream_payloads_are_decompressed() {
+    use zstd::stream::raw::{Encoder, InBuffer, Operation, OutBuffer};
+
+    /// Compresses like Discord: one stream per connection, flushed after every message.
+    fn compress(encoder: &mut Encoder<'static>, data: &[u8]) -> Vec<u8> {
+        let mut out = Vec::new();
+        let mut input = InBuffer::around(data);
+        while input.pos() < data.len() {
+            out.reserve(4096);
+            let position = out.len();
+            encoder
+                .run(&mut input, &mut OutBuffer::around_pos(&mut out, position))
+                .unwrap();
+        }
+        loop {
+            out.reserve(4096);
+            let position = out.len();
+            if encoder
+                .flush(&mut OutBuffer::around_pos(&mut out, position))
+                .unwrap()
+                == 0
+            {
+                return out;
+            }
+        }
+    }
+
+    let (listener, url) = listener().await;
+    let resume_url = url.clone();
+    let server = tokio::spawn(async move {
+        let (mut connection, query) = accept(&listener).await;
+        assert_eq!(query, "v=10&encoding=json&compress=zstd-stream");
+        let mut encoder = Encoder::new(3).unwrap();
+        for payload in [hello(45_000), ready(1, &resume_url), message_create(2)] {
+            let compressed = compress(&mut encoder, payload.to_string().as_bytes());
+            connection.send(Message::binary(compressed)).await.unwrap();
+            if payload["op"] == 10 {
+                recv_op(&mut connection, 2).await;
+            }
+        }
+        let _ = timeout(STEP, connection.next()).await;
+    });
+
+    let config = Config::builder(TOKEN, INTENTS)
+        .gateway_url(&url)
+        .compression(Compression::ZstdStream)
+        .build();
+    let mut shard = Shard::with_config(ShardId::ONE, config);
+    let events = collect_until(&mut shard, |event| {
+        matches!(
+            event,
+            GatewayEvent::Dispatch(_, DispatchEvent::MessageCreate(_))
+        )
+    })
+    .await;
+    assert_eq!(events.len(), 3);
+    drop(shard);
+    server.await.unwrap();
+}

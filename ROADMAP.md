@@ -27,7 +27,7 @@ just with narrow scope.
       MessageCreate payloads
 - [x] `djs-rest` core: hyper client + rustls, auth, per-route rate limiting basics,
       `GET /gateway/bot`, `POST /channels/{id}/messages`
-- [ ] `djs-gateway` core: single shard — connect, zstd-stream, hello/identify, heartbeat with
+- [x] `djs-gateway` core: single shard — connect, zstd-stream, hello/identify, heartbeat with
       jitter + ACK tracking, resume/reconnect, dispatch → typed events
 - [ ] `djs-rs` core: `Client::builder`, `client.on(Events::MessageCreate, …)`, `msg.reply`,
       `login`, graceful shutdown
