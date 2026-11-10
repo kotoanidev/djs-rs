@@ -448,6 +448,17 @@ and why.
   hand-written (non-buffering) `Deserialize`. Full guild/application emojis are `emoji::Emoji`.
 - **Alternatives:** a struct with optional `id`/`name` (like discord.js `PartialEmoji`).
 
+### D-057 — Channels are an enum of precise variants
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** `channel::Channel` is an enum with one variant per kind of channel (text,
+  announcement, voice, stage, category, forum, media, thread, DM, group DM, directory, unknown),
+  each holding a struct with the fields that kind actually has (like discord.js classes and the
+  discord-api-types unions). Deserialization stays single-pass and non-buffering: a private flat
+  struct with every field is decoded first and converted by `type`. Common fields are exposed
+  through methods (`id()`, `kind()`, `guild_id()`, `name()`, …).
+- **Alternatives:** one flat struct with every field optional (twilight); flat struct plus typed
+  views.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
