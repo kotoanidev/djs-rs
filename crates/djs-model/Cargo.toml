@@ -14,6 +14,12 @@ readme = "README.md"
 publish = false
 
 [dependencies]
+bitflags.workspace = true
+compact_str = { workspace = true, features = ["std", "serde"] }
+serde = { workspace = true, features = ["std", "derive"] }
+
+[dev-dependencies]
+serde_json.workspace = true
 
 [lints]
 workspace = true

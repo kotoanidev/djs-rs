@@ -20,9 +20,9 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` not started
 Goal: the smallest end-to-end bot that touches every layer, to validate the architecture
 before the API surface is widened. Everything here is built to final quality (docs, tests),
 just with narrow scope.
-- [ ] Owner decisions for the slice (IDs, strings, errors, logging, TLS crypto provider,
+- [x] Owner decisions for the slice (IDs, strings, errors, logging, TLS crypto provider,
       handler model, dependency set)
-- [ ] `djs-model` core: Snowflake/ID types, intents, timestamps; minimal `User`, `Message`,
+- [x] `djs-model` core: Snowflake/ID types, intents, timestamps; minimal `User`, `Message`,
       `Guild` (unavailable/partial), gateway opcodes + Hello/Identify/Ready/Resume/
       MessageCreate payloads
 - [ ] `djs-rest` core: hyper client + rustls, auth, per-route rate limiting basics,

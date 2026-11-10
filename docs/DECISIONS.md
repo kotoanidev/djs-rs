@@ -298,6 +298,24 @@ Commit messages follow Conventional Commits; `CHANGELOG.md` follows Keep a Chang
 ### C-007 — `Cargo.lock` is committed
 Reproducible CI and MSRV checks (current Cargo guidance for libraries as well).
 
+### C-008 — `ImageHash` stored as 16 bytes + animated flag
+Image hashes (avatars, icons, …) are decoded from 32 hex chars (+ optional `a_`) into
+`[u8; 16]` + `bool` (17 bytes, `Copy`) instead of a 34-byte heap string. Strict parsing: a hash
+that is not 32 hex chars fails deserialization (same trade-off twilight has made for years).
+
+### C-009 — Gateway decoding via `GatewayEventDeserializer` (DeserializeSeed)
+`djs-model` provides a format-agnostic `DeserializeSeed` that is given `op`/`s`/`t` up front and
+decodes `d` in one pass into the concrete type; unhandled events are skipped with `IgnoredAny`.
+A JSON helper (`from_json`) scans only top-level keys (stops before `d` in Discord's key order).
+
+### C-010 — Forward-compatibility policy
+Integer enums carry an `Unknown(raw)` variant and are `#[non_exhaustive]`; equality/hash are by
+raw value. Structs ignore unknown fields (no `deny_unknown_fields`). Bitflags keep unknown bits.
+
+### C-011 — Secrets are redacted in `Debug`
+Payloads carrying the bot token (`Identify`, `Resume`) implement `Debug` manually and print
+`<redacted>`.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

@@ -1,0 +1,39 @@
+{
+  "t": "READY",
+  "s": 1,
+  "op": 0,
+  "d": {
+    "v": 10,
+    "user_settings": {},
+    "user": {
+      "verified": true,
+      "username": "djs-test-bot",
+      "primary_guild": null,
+      "mfa_enabled": false,
+      "id": "1437000000000000001",
+      "global_name": null,
+      "flags": 0,
+      "email": null,
+      "discriminator": "4821",
+      "clan": null,
+      "bot": true,
+      "avatar": "a_1269e74af4df7417b13759eae50c83dc"
+    },
+    "session_type": "normal",
+    "session_id": "0123456789abcdef0123456789abcdef",
+    "resume_gateway_url": "wss://gateway-us-east1-b.discord.gg",
+    "relationships": [],
+    "private_channels": [],
+    "presences": [],
+    "guilds": [
+      { "unavailable": true, "id": "1437000000000000100" },
+      { "unavailable": true, "id": "1437000000000000200" }
+    ],
+    "guild_join_requests": [],
+    "geo_ordered_rtc_regions": ["frankfurt", "rotterdam", "milan"],
+    "auth": {},
+    "application": { "id": "1437000000000000001", "flags": 565248 },
+    "shard": [0, 1],
+    "_trace": ["[\"gateway-prd-us-east1-b-abcd\",{\"micros\":101598}]"]
+  }
+}

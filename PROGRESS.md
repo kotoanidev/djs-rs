@@ -15,12 +15,17 @@
   (first run fully green).
 - 2026-11-10: Roadmap restructured for D-020 (vertical slice first).
 - 2026-11-10: MSRV raised to 1.89 everywhere (Cargo.toml, clippy.toml, CI, docs). `.env.example`.
+- 2026-11-10: **Phase 1 step 1 done — `djs-model` core.** 35 unit tests + 17 doctests +
+  3 integration tests on realistic fixtures (`crates/djs-model/tests/fixtures/`). Claude defaults
+  C-008 … C-011 logged in `docs/DECISIONS.md` for owner review. Reference checkouts
+  (discord-api-docs, discord-api-types, discord.js v14) live in git-ignored `.reference/` —
+  re-clone with `git clone --depth 1` if missing.
 
 ## In progress
-- Phase 1, step 1: `djs-model` core.
+- Phase 1, step 2: `djs-rest` core.
 
 ## Next step (Phase 1 plan, in order)
-1. **`djs-model` core** — `Id<Marker>` (D-023) with markers + aliases, Snowflake helpers
+1. ~~**`djs-model` core**~~ ✅ — `Id<Marker>` (D-023) with markers + aliases, Snowflake helpers
    (timestamp, worker/process/increment), (de)serialize from JSON strings; `Timestamp`;
    `Intents` (bitflags); minimal `User`, `Message`, `UnavailableGuild`; gateway `OpCode`,
    `Hello`, `Identify` (+ properties), `Ready`, `Resume`, `CloseCode`, dispatch envelope,
