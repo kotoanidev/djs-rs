@@ -414,6 +414,25 @@ and why.
   and `GET /users/@me`. Keeps the hot-path `User` small.
 - **Alternatives:** a single `User` with every field optional (like discord-api-types `APIUser`).
 
+### D-053 — Received model structs are `#[non_exhaustive]`
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** Structs that model data received from Discord (`User`, `Message`, `Ready`, …)
+  are `#[non_exhaustive]`, so new Discord fields can be added in minor releases. They are
+  built by deserialization (or by constructors where one is useful). Types users build
+  themselves (request bodies, outgoing gateway commands) stay constructible; their shape is
+  decided with Phase 3 / Phase 6 (builders).
+- **Alternatives:** exhaustive public structs (struct literals possible, every new field is a
+  breaking change).
+
+### D-054 — Rarely present sub-objects of hot types are boxed
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** In hot types (`User`, `Member`, `Message`, …) optional nested objects of 32 bytes
+  or more that are usually absent are stored as `Option<Box<T>>` (e.g. `User::collectibles`,
+  `primary_guild`, `avatar_decoration_data`): `User` shrinks from 288 to 144 bytes, and the
+  allocation only happens when the field is present. Size guards in unit tests keep hot types
+  from growing unnoticed.
+- **Alternatives:** keep everything inline (no extra allocations, larger structs).
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
@@ -490,6 +509,20 @@ use in-process mock servers that also check correctness (sequence order, 429s th
 would return), and read memory from `/proc/self/status` (`VmRSS`/`VmHWM`, peak reset through
 `/proc/self/clear_refs`). Micro-benchmarks live in `benches/` (divan). Results go to
 `docs/PERFORMANCE.md`.
+
+### C-018 — String-valued enums use `str_enum!` with an `Unknown` variant
+The string counterpart of `int_enum!` (C-010): `#[non_exhaustive]`, `Unknown(CompactString)`,
+equality/hash/order by the string value, (de)serialized as the bare string. Used for
+`Locale`, `NameplatePalette` and every other string enum.
+
+### C-019 — Items from the docs' "Reference" page live in `util` / `id`
+The Reference page defines snowflakes (`id`), ISO 8601 timestamps, image hashes and locales;
+they stay in `id` and `util` (`util::Locale`) instead of a `reference` module, because they are
+used everywhere.
+
+### C-020 — `clippy::struct_excessive_bools` is allowed in `djs-model`
+Model types mirror Discord's JSON objects field by field; several have more than three boolean
+fields. Allowed crate-wide in `djs-model` with a reason; still denied elsewhere.
 
 ---
 

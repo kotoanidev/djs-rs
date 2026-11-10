@@ -13,6 +13,7 @@ use crate::message::MessageReference;
 /// The response of [Get Gateway Bot](https://docs.discord.com/developers/events/gateway#get-gateway-bot)
 /// (`GET /gateway/bot`): where and how to connect to the gateway.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct GatewayBot {
     /// The WSS URL to connect to, e.g. `wss://gateway.discord.gg`.
     pub url: CompactString,
@@ -25,6 +26,7 @@ pub struct GatewayBot {
 /// How many gateway sessions the bot may still start
 /// ([session start limit object](https://docs.discord.com/developers/events/gateway#session-start-limit-object)).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct SessionStartLimit {
     /// The total number of session starts allowed per reset period (usually 1000 per day).
     pub total: u32,

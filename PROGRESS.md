@@ -9,8 +9,8 @@ D-041).
 **Current: Phase 2 — full `djs-model` coverage** (D-039; permissions = `u64`, D-040).
 
 ## Done
-- 2026-11-10: Owner decisions D-001 … D-051 in `docs/DECISIONS.md`; Claude defaults C-001 …
-  C-017 (reviewable) in the same file.
+- 2026-11-10: Owner decisions D-001 … D-054 in `docs/DECISIONS.md`; Claude defaults C-001 …
+  C-020 (reviewable) in the same file.
 - Toolchains (rustup): stable 1.99.1, 1.85, 1.89 (MSRV, D-031).
 - Phase 0: foundation docs, public repo https://github.com/kotoanidev/djs-rs, 9-crate workspace,
   lints, CI (fmt, clippy all/no-default features, tests ×3 OS, rustdoc -D warnings, MSRV 1.89,
@@ -43,11 +43,16 @@ D-041).
   internal `int_flags!` macro (`macros.rs`, also used by `Intents`); `tests/flags.rs` checks
   every type against independently computed values. Component flags (unfurled media item,
   content scan metadata) come with the components step.
-- **Next:** Phase 2 step "users/members/roles/emojis/stickers": full `user::User` (all user
-  object fields: `public_flags`, `flags`, `banner`, `accent_color`, `avatar_decoration_data`,
-  `collectibles`, `primary_guild`, …), `guild::{Member, Role}` (+ role tags/colors), `emoji`,
-  `sticker` modules. Modelling rules: `Option<T>` + faithful serialization (D-049), `Vec<T>`
-  (D-050), separate partial types (D-051).
+- Phase 2 step "users/members/roles/emojis/stickers": **user module ✅** (`User`,
+  `CurrentUser` (D-052), avatar decoration, collectibles/nameplate, primary guild, premium type,
+  `util::Locale`; non-exhaustive structs (D-053), boxed rare sub-objects with size guards
+  (D-054)). Not yet: `Connection` / `ApplicationRoleConnection` (need guild integrations).
+- **Next:** `guild::{Member, PartialMember, Role, RoleTags, RoleColors}`, then `emoji` and
+  `sticker` modules. Modelling rules: D-049 … D-054.
+- Perf note: after the user change, MESSAGE_CREATE/READY decode looked ~8-13 % slower relative
+  to the `serde_json::Value` baseline (laptop was ~35 % slower overall during that run). At the
+  end of Phase 2, run the decode benches back-to-back against the Phase 1 commit `65210f8`
+  (git worktree) and record the comparison in `docs/PERFORMANCE.md`.
 
 ## Next step — Phase 2 (`djs-model` full coverage)
 1. Permissions are `u64` bitflags (D-040), serialized as decimal strings, named

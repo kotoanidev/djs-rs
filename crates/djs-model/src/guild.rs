@@ -14,6 +14,7 @@ use crate::{id::GuildId, macros::int_flags};
 ///
 /// discord.js counterpart: guilds with `available === false`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct UnavailableGuild {
     /// The guild's ID.
     pub id: GuildId,

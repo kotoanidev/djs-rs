@@ -18,6 +18,7 @@ use crate::{
 ///
 /// discord.js counterpart: `Message`.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Message {
     /// The message's ID.
     pub id: MessageId,
@@ -79,6 +80,7 @@ pub struct Message {
 /// );
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct MessageReference {
     /// The kind of reference. Defaults to [`MessageReferenceType::Default`] (a reply) when
     /// absent.

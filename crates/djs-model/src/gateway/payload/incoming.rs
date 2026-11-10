@@ -6,12 +6,14 @@ use compact_str::CompactString;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    gateway::ShardId, guild::UnavailableGuild, id::ApplicationId, message::Message, user::User,
+    application::ApplicationFlags, gateway::ShardId, guild::UnavailableGuild, id::ApplicationId,
+    message::Message, user::CurrentUser,
 };
 
 /// The data of a [Hello](https://docs.discord.com/developers/events/gateway-events#hello) event
 /// (opcode 10), sent immediately after the WebSocket connection opens.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Hello {
     /// How often to send heartbeats, in milliseconds.
     pub heartbeat_interval: u64,
@@ -25,12 +27,13 @@ pub struct Hello {
 ///
 /// discord.js counterpart: the `ClientReady` event.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Ready {
     /// The [API version](https://docs.discord.com/developers/reference#api-versioning).
     #[serde(rename = "v")]
     pub version: u8,
     /// The bot's own user.
-    pub user: User,
+    pub user: CurrentUser,
     /// The guilds the bot is in, all initially unavailable. With sharding, only the guilds of
     /// this shard are listed.
     pub guilds: Vec<UnavailableGuild>,
@@ -45,14 +48,15 @@ pub struct Ready {
     pub application: ReadyApplication,
 }
 
-/// The partial application included in [`Ready`].
-///
-/// **Coverage:** Phase 1 includes only the ID; application flags arrive with the full
-/// application model.
+/// The partial application included in [`Ready`]: its ID and flags.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct ReadyApplication {
     /// The application's ID.
     pub id: ApplicationId,
+    /// The application's flags, e.g. which privileged intents it may use.
+    #[serde(default)]
+    pub flags: ApplicationFlags,
 }
 
 /// The data of the [Message Create](https://docs.discord.com/developers/events/gateway-events#message-create)

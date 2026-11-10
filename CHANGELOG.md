@@ -8,6 +8,10 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-model`: complete user model — `user::{User, CurrentUser, AvatarDecorationData,
+  Collectibles, Nameplate, NameplatePalette, PrimaryGuild, PremiumType}` (D-052, D-054),
+  `util::Locale`, string-enum macro (C-018); `Ready::user` is now a `CurrentUser` and
+  `ReadyApplication` carries `flags`.
 - `djs-model`: all bitflags types (`u64`, integer serde, unknown bits kept; D-046/D-047):
   `message::{MessageFlags, AttachmentFlags, EmbedFlags, EmbedMediaFlags}`, `user::UserFlags`,
   `application::ApplicationFlags`, `channel::ChannelFlags`,

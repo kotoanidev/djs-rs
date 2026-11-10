@@ -3,19 +3,41 @@
 use compact_str::CompactString;
 use serde::{Deserialize, Serialize};
 
-use crate::{id::UserId, macros::int_flags, util::ImageHash};
+use crate::{
+    id::{GuildId, SkuId, UserId},
+    macros::{int_enum, int_flags, str_enum},
+    util::{ImageHash, Locale},
+};
 
 /// A Discord user — a person or a bot account.
 ///
 /// Users are global: they are not tied to a guild. Guild-specific data (nickname, roles, …)
-/// lives on guild members.
+/// lives on [guild members](crate::guild). This type holds the fields Discord sends for any
+/// user; the logged-in user's own account is a [`CurrentUser`] (D-052).
 ///
-/// **Coverage:** this is the Phase 1 subset of the
-/// [user object](https://docs.discord.com/developers/resources/user#user-object). Unknown
-/// fields are ignored during deserialization, so newer payloads always parse.
+/// Several fields are only present in some payloads: `banner` and `accent_color` only when a
+/// user is fetched directly (`GET /users/{user.id}`), and message authors of webhooks carry
+/// only the basic fields.
+///
+/// See the [user object](https://docs.discord.com/developers/resources/user#user-object).
 ///
 /// discord.js counterpart: `User`.
+///
+/// # Examples
+///
+/// ```
+/// use djs_model::user::User;
+///
+/// let user: User = serde_json::from_str(
+///     r#"{"id":"80351110224678912","username":"nelly","discriminator":"0",
+///         "global_name":"Nelly","avatar":null,"public_flags":64}"#,
+/// )?;
+/// assert_eq!(user.display_name(), "Nelly");
+/// assert_eq!(user.tag(), "nelly");
+/// # Ok::<(), serde_json::Error>(())
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct User {
     /// The user's ID.
     pub id: UserId,
@@ -36,6 +58,26 @@ pub struct User {
     /// Whether the user is an official Discord system user (part of the urgent message system).
     #[serde(default, skip_serializing_if = "core::ops::Not::not")]
     pub system: bool,
+    /// The user's [banner hash](https://docs.discord.com/developers/reference#image-formatting).
+    /// Only present when the user is fetched directly.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub banner: Option<ImageHash>,
+    /// The banner color as an RGB integer (`0xRRGGBB`), used when there is no banner image.
+    /// Only present when the user is fetched directly.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub accent_color: Option<u32>,
+    /// The user's public [flags](UserFlags) (badges).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub public_flags: Option<UserFlags>,
+    /// The user's avatar decoration.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub avatar_decoration_data: Option<Box<AvatarDecorationData>>,
+    /// The user's collectibles (nameplate, …).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub collectibles: Option<Box<Collectibles>>,
+    /// The guild whose server tag the user displays.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub primary_guild: Option<Box<PrimaryGuild>>,
 }
 
 impl User {
@@ -45,7 +87,7 @@ impl User {
     /// discord.js counterpart: `User#displayName`.
     #[must_use]
     pub fn display_name(&self) -> &str {
-        self.global_name.as_deref().unwrap_or(&self.username)
+        display_name(&self.username, self.global_name.as_deref())
     }
 
     /// Returns the user's tag: `username#1234` for legacy users, or just `username` for users
@@ -56,22 +98,243 @@ impl User {
     /// # Examples
     ///
     /// ```
-    /// # use djs_model::{id::UserId, user::User};
-    /// # let mut user = User {
-    /// #     id: UserId::new(1), username: "nelly".into(), discriminator: 0,
-    /// #     global_name: None, avatar: None, bot: false, system: false,
-    /// # };
-    /// assert_eq!(user.tag(), "nelly");
-    /// user.discriminator = 42;
-    /// assert_eq!(user.tag(), "nelly#0042");
+    /// use djs_model::user::User;
+    ///
+    /// let legacy: User = serde_json::from_str(
+    ///     r#"{"id":"1","username":"nelly","discriminator":"0042","global_name":null,"avatar":null}"#,
+    /// )?;
+    /// assert_eq!(legacy.tag(), "nelly#0042");
+    /// # Ok::<(), serde_json::Error>(())
     /// ```
     #[must_use]
     pub fn tag(&self) -> CompactString {
-        if self.discriminator == 0 {
-            self.username.clone()
-        } else {
-            compact_str::format_compact!("{}#{:04}", self.username, self.discriminator)
+        tag(&self.username, self.discriminator)
+    }
+}
+
+/// The user account the client is logged in as, with the fields Discord only sends for it
+/// (D-052).
+///
+/// Received in [`Ready`](crate::gateway::payload::Ready) and from `GET /users/@me`. With an
+/// `OAuth2` bearer token, `email` and `verified` require the `email` scope. Bots receive these
+/// fields too (`email` is then `None`).
+///
+/// See the [user object](https://docs.discord.com/developers/resources/user#user-object).
+///
+/// discord.js counterpart: `ClientUser`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct CurrentUser {
+    /// The user's ID.
+    pub id: UserId,
+    /// The user's username.
+    pub username: CompactString,
+    /// The legacy four-digit Discord tag, or `0` for migrated users. See
+    /// [`User::discriminator`].
+    #[serde(with = "discriminator")]
+    pub discriminator: u16,
+    /// The user's display name, if set.
+    pub global_name: Option<CompactString>,
+    /// The user's [avatar hash](https://docs.discord.com/developers/reference#image-formatting).
+    pub avatar: Option<ImageHash>,
+    /// Whether the user is a bot.
+    #[serde(default, skip_serializing_if = "core::ops::Not::not")]
+    pub bot: bool,
+    /// Whether the user is an official Discord system user.
+    #[serde(default, skip_serializing_if = "core::ops::Not::not")]
+    pub system: bool,
+    /// Whether the account has two-factor authentication enabled.
+    #[serde(default, skip_serializing_if = "core::ops::Not::not")]
+    pub mfa_enabled: bool,
+    /// The user's [banner hash](https://docs.discord.com/developers/reference#image-formatting).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub banner: Option<ImageHash>,
+    /// The banner color as an RGB integer (`0xRRGGBB`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub accent_color: Option<u32>,
+    /// The language the user chose in the client.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub locale: Option<Locale>,
+    /// Whether the account's email address is verified.
+    #[serde(default, skip_serializing_if = "core::ops::Not::not")]
+    pub verified: bool,
+    /// The account's email address (`OAuth2` `email` scope; always `None` for bots).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub email: Option<CompactString>,
+    /// All [flags](UserFlags) on the account, including non-public ones.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub flags: Option<UserFlags>,
+    /// The account's Nitro subscription.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub premium_type: Option<PremiumType>,
+    /// The public [flags](UserFlags) (badges).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub public_flags: Option<UserFlags>,
+    /// The user's avatar decoration.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub avatar_decoration_data: Option<Box<AvatarDecorationData>>,
+    /// The user's collectibles.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub collectibles: Option<Box<Collectibles>>,
+    /// The guild whose server tag the user displays.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub primary_guild: Option<Box<PrimaryGuild>>,
+}
+
+impl CurrentUser {
+    /// Returns the global display name if set, otherwise the username.
+    ///
+    /// discord.js counterpart: `User#displayName`.
+    #[must_use]
+    pub fn display_name(&self) -> &str {
+        display_name(&self.username, self.global_name.as_deref())
+    }
+
+    /// Returns the tag: `username#1234` for legacy users, `username` for migrated users.
+    ///
+    /// discord.js counterpart: `User#tag`.
+    #[must_use]
+    pub fn tag(&self) -> CompactString {
+        tag(&self.username, self.discriminator)
+    }
+}
+
+impl From<CurrentUser> for User {
+    /// Keeps the fields every user has and drops the account-only ones.
+    fn from(user: CurrentUser) -> Self {
+        Self {
+            id: user.id,
+            username: user.username,
+            discriminator: user.discriminator,
+            global_name: user.global_name,
+            avatar: user.avatar,
+            bot: user.bot,
+            system: user.system,
+            banner: user.banner,
+            accent_color: user.accent_color,
+            public_flags: user.public_flags,
+            avatar_decoration_data: user.avatar_decoration_data,
+            collectibles: user.collectibles,
+            primary_guild: user.primary_guild,
         }
+    }
+}
+
+fn display_name<'a>(username: &'a str, global_name: Option<&'a str>) -> &'a str {
+    global_name.unwrap_or(username)
+}
+
+fn tag(username: &str, discriminator: u16) -> CompactString {
+    if discriminator == 0 {
+        username.into()
+    } else {
+        compact_str::format_compact!("{username}#{discriminator:04}")
+    }
+}
+
+/// An [avatar decoration](https://docs.discord.com/developers/resources/user#avatar-decoration-data-object):
+/// the animated frame shown around a user's avatar.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct AvatarDecorationData {
+    /// The [decoration's image hash](https://docs.discord.com/developers/reference#image-formatting).
+    pub asset: ImageHash,
+    /// The SKU the decoration belongs to.
+    pub sku_id: SkuId,
+}
+
+/// The [collectibles](https://docs.discord.com/developers/resources/user#collectibles) a user
+/// has equipped.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct Collectibles {
+    /// The nameplate shown behind the user's name in member lists.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nameplate: Option<Nameplate>,
+}
+
+/// A [nameplate](https://docs.discord.com/developers/resources/user#nameplate): the background
+/// shown behind a user's name in member lists.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct Nameplate {
+    /// The nameplate's SKU.
+    pub sku_id: SkuId,
+    /// The path of the [nameplate asset](https://docs.discord.com/developers/reference#image-formatting).
+    pub asset: CompactString,
+    /// The nameplate's label (currently unused by Discord).
+    pub label: CompactString,
+    /// The background color.
+    pub palette: NameplatePalette,
+}
+
+str_enum! {
+    /// The background color of a [`Nameplate`].
+    pub enum NameplatePalette {
+        /// Crimson.
+        Crimson = "crimson",
+        /// Berry.
+        Berry = "berry",
+        /// Sky.
+        Sky = "sky",
+        /// Teal.
+        Teal = "teal",
+        /// Forest.
+        Forest = "forest",
+        /// Bubble gum.
+        BubbleGum = "bubble_gum",
+        /// Violet.
+        Violet = "violet",
+        /// Cobalt (seen in the docs' example user; not in the documented list).
+        Cobalt = "cobalt",
+        /// Clover.
+        ///
+        /// **Undocumented:** known from discord-api-types, not in the official docs; may
+        /// change without notice.
+        Clover = "clover",
+        /// Lemon.
+        ///
+        /// **Undocumented:** known from discord-api-types, not in the official docs; may
+        /// change without notice.
+        Lemon = "lemon",
+        /// White.
+        ///
+        /// **Undocumented:** known from discord-api-types, not in the official docs; may
+        /// change without notice.
+        White = "white",
+    }
+}
+
+/// The [primary guild](https://docs.discord.com/developers/resources/user#user-object-user-primary-guild)
+/// of a user: the guild whose server tag is shown next to their name.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct PrimaryGuild {
+    /// The guild's ID.
+    pub identity_guild_id: Option<GuildId>,
+    /// Whether the user displays the server tag. `None` when Discord cleared the identity (for
+    /// example because the guild no longer supports tags).
+    pub identity_enabled: Option<bool>,
+    /// The server tag (up to 4 characters).
+    pub tag: Option<CompactString>,
+    /// The [server tag badge hash](https://docs.discord.com/developers/reference#image-formatting).
+    pub badge: Option<ImageHash>,
+}
+
+int_enum! {
+    /// The [Nitro subscription](https://docs.discord.com/developers/resources/user#user-object-premium-types)
+    /// of a user.
+    ///
+    /// discord.js counterpart: `UserPremiumType`.
+    pub enum PremiumType: u8 {
+        /// No Nitro.
+        None = 0,
+        /// Nitro Classic.
+        NitroClassic = 1,
+        /// Nitro.
+        Nitro = 2,
+        /// Nitro Basic.
+        NitroBasic = 3,
     }
 }
 
@@ -228,27 +491,43 @@ int_flags! {
 mod tests {
     use super::*;
 
-    #[test]
-    fn deserialize_documented_example() {
-        // Example user object from the Discord API documentation.
-        let json = r#"{
-            "id": "80351110224678912",
-            "username": "Nelly",
-            "discriminator": "1337",
-            "avatar": "8342729096ea3675442027381ff50dfe",
-            "verified": true,
-            "email": "nelly@discord.com",
-            "flags": 64,
-            "banner": "06c16474723fe537c283b8efa61a30c8",
-            "accent_color": 16711680,
-            "premium_type": 1,
-            "public_flags": 64,
-            "avatar_decoration_data": {
-                "sku_id": "1144058844004233369",
-                "asset": "a_fed43ab12698df65902ba06727e20c0e"
+    /// The example user object from the Discord API documentation.
+    const DOCS_EXAMPLE: &str = r#"{
+        "id": "80351110224678912",
+        "username": "Nelly",
+        "global_name": null,
+        "discriminator": "1337",
+        "avatar": "8342729096ea3675442027381ff50dfe",
+        "verified": true,
+        "email": "nelly@discord.com",
+        "flags": 64,
+        "banner": "06c16474723fe537c283b8efa61a30c8",
+        "accent_color": 16711680,
+        "premium_type": 0,
+        "public_flags": 64,
+        "avatar_decoration_data": {
+            "sku_id": "1144058844004233369",
+            "asset": "a_fed43ab12698df65902ba06727e20c0e"
+        },
+        "collectibles": {
+            "nameplate": {
+                "sku_id": "2247558840304243311",
+                "asset": "nameplates/nameplates/twilight/",
+                "label": "",
+                "palette": "cobalt"
             }
-        }"#;
-        let user: User = serde_json::from_str(json).unwrap();
+        },
+        "primary_guild": {
+            "identity_guild_id": "1234647491267808778",
+            "identity_enabled": true,
+            "tag": "DISC",
+            "badge": "7d1734ae5a615e82bc7a4033b98fade8"
+        }
+    }"#;
+
+    #[test]
+    fn deserialize_documented_example_as_user() {
+        let user: User = serde_json::from_str(DOCS_EXAMPLE).unwrap();
         assert_eq!(user.id.get(), 80_351_110_224_678_912);
         assert_eq!(user.username, "Nelly");
         assert_eq!(user.discriminator, 1337);
@@ -258,27 +537,55 @@ mod tests {
             "8342729096ea3675442027381ff50dfe"
         );
         assert!(!user.bot);
+        assert_eq!(user.accent_color, Some(0xFF_0000));
+        assert_eq!(user.public_flags, Some(UserFlags::HYPESQUAD_ONLINE_HOUSE_1));
+        let decoration = user.avatar_decoration_data.as_ref().unwrap();
+        assert_eq!(decoration.sku_id.get(), 1_144_058_844_004_233_369);
+        assert!(decoration.asset.is_animated());
+        let nameplate = user
+            .collectibles
+            .as_ref()
+            .unwrap()
+            .nameplate
+            .as_ref()
+            .unwrap();
+        assert_eq!(nameplate.palette, NameplatePalette::Cobalt);
+        assert_eq!(nameplate.asset, "nameplates/nameplates/twilight/");
+        let guild = user.primary_guild.as_ref().unwrap();
+        assert_eq!(guild.tag.as_deref(), Some("DISC"));
+        assert_eq!(guild.identity_enabled, Some(true));
         assert_eq!(user.tag(), "Nelly#1337");
         assert_eq!(user.display_name(), "Nelly");
     }
 
     #[test]
-    fn serialize_round_trip() {
-        let user = User {
-            id: UserId::new(1),
-            username: "bot".into(),
-            discriminator: 7,
-            global_name: Some("Bot".into()),
-            avatar: None,
-            bot: true,
-            system: false,
-        };
-        let json = serde_json::to_string(&user).unwrap();
-        assert_eq!(
-            json,
-            r#"{"id":"1","username":"bot","discriminator":"0007","global_name":"Bot","avatar":null,"bot":true}"#
-        );
-        assert_eq!(serde_json::from_str::<User>(&json).unwrap(), user);
+    fn deserialize_documented_example_as_current_user() {
+        let user: CurrentUser = serde_json::from_str(DOCS_EXAMPLE).unwrap();
+        assert!(user.verified);
+        assert_eq!(user.email.as_deref(), Some("nelly@discord.com"));
+        assert_eq!(user.flags, Some(UserFlags::HYPESQUAD_ONLINE_HOUSE_1));
+        assert_eq!(user.premium_type, Some(PremiumType::None));
+        assert!(!user.mfa_enabled);
+        assert_eq!(user.locale, None);
+        let plain = User::from(user.clone());
+        assert_eq!(plain, serde_json::from_str::<User>(DOCS_EXAMPLE).unwrap());
+    }
+
+    #[test]
+    fn serialization_keeps_discord_shape() {
+        let json = r#"{"id":"1","username":"bot","discriminator":"0007","global_name":"Bot","avatar":null,"bot":true}"#;
+        let user: User = serde_json::from_str(json).unwrap();
+        // `?type` fields are written as null, absent `field?` fields are skipped (D-049).
+        assert_eq!(serde_json::to_string(&user).unwrap(), json);
+    }
+
+    #[test]
+    fn missing_nullable_fields_are_accepted() {
+        // Some partial user payloads omit `global_name`/`avatar` entirely.
+        let user: User =
+            serde_json::from_str(r#"{"id":"1","username":"a","discriminator":"0"}"#).unwrap();
+        assert_eq!(user.global_name, None);
+        assert_eq!(user.avatar, None);
     }
 
     #[test]
@@ -304,5 +611,15 @@ mod tests {
                 "{bad} should be rejected"
             );
         }
+    }
+
+    #[test]
+    fn hot_type_sizes() {
+        // Guard against accidental growth of the message author type.
+        assert!(
+            size_of::<User>() <= 256,
+            "User is {} bytes",
+            size_of::<User>()
+        );
     }
 }
