@@ -433,6 +433,21 @@ and why.
   from growing unnoticed.
 - **Alternatives:** keep everything inline (no extra allocations, larger structs).
 
+### D-055 — Exception to D-049: absent "available" means `true`
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** Booleans whose documented meaning defaults to true when omitted (`available` on
+  emojis and stickers: Discord omits it for usable items such as standard stickers) default to
+  `true` instead of `false`. Every such exception is stated in the field's rustdoc. All other
+  absent booleans default to `false` (D-049).
+- **Alternatives:** `Option<bool>`; strictly `false`.
+
+### D-056 — Partial emojis are an enum
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** The partial emoji used by reactions, components and polls is
+  `emoji::PartialEmoji::{Custom { id, name: Option<_>, animated }, Unicode { name }}`, with a
+  hand-written (non-buffering) `Deserialize`. Full guild/application emojis are `emoji::Emoji`.
+- **Alternatives:** a struct with optional `id`/`name` (like discord.js `PartialEmoji`).
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
