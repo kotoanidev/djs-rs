@@ -8,6 +8,10 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-model`: `stage_instance::{StageInstance, PrivacyLevel}`, `webhook::{Webhook,
+  WebhookType, SourceGuild, SourceChannel}` (token redacted in `Debug`), `invite::{Invite,
+  InviteWithMetadata, InviteType, InviteTargetType, InviteGuild, InviteChannel,
+  InviteRecipient, InviteRole}`.
 - `djs-model`: channel model (D-057) — `channel::Channel` enum (text, DM, voice, group DM,
   category, announcement, three thread kinds, stage, directory, forum, media, unknown) with
   per-kind structs and shared accessors, single-pass non-buffering deserialization; `Overwrite`

@@ -22,6 +22,8 @@ pub mod oauth2;
 pub mod permissions;
 pub mod rest;
 pub mod sku;
+pub mod stage_instance;
 pub mod sticker;
 pub mod user;
 pub mod util;
+pub mod webhook;

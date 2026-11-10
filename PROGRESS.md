@@ -10,7 +10,7 @@ D-041).
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-057 in `docs/DECISIONS.md`; Claude defaults C-001 …
-  C-023 (reviewable) in the same file.
+  C-025 (reviewable) in the same file.
 - Toolchains (rustup): stable 1.99.1, 1.85, 1.89 (MSRV, D-031).
 - Phase 0: foundation docs, public repo https://github.com/kotoanidev/djs-rs, 9-crate workspace,
   lints, CI (fmt, clippy all/no-default features, tests ×3 OS, rustdoc -D warnings, MSRV 1.89,
@@ -64,11 +64,12 @@ D-041).
 - Phase 2 step 4, part 1 ✅: `channel` module (D-057 enum + per-kind structs, `RawChannel`
   single-pass conversion), tests `tests/channel.rs` on all docs examples; shared test helper
   `tests/common/mod.rs` (`round_trip`, `assert_subset`).
-- **Next:** Phase 2 step 4, part 2: `stage_instance`, `invite` (+ invite types, target types,
-  invite metadata, partial invite guild/channel per D-051), `webhook` (+ webhook types, source
-  guild/channel), then `guild_template` and `audit_log`; then step 5: messages (full
-  `message::Message`, embeds, attachments, reactions, mentions, allowed mentions, snapshots,
-  polls).
+- Phase 2 step 4, part 2 ✅: `stage_instance`, `webhook`, `invite` (tests
+  `tests/invite_webhook.rs`). Open item: `Invite::target_application` (partial application)
+  is added together with the `application` module.
+- **Next:** `application` module (Application object, install params, integration types
+  config, event webhooks, team (`teams` topic) …) — pulled forward because invites, Ready and
+  interactions need it; then `guild_template` and `audit_log`; then step 5: messages.
 - Local gate script: `scratchpad/gate.sh` style (`set -euo pipefail`, no pipes hiding errors) —
   a piped gate let one clippy failure through (fixed in `cda06db`).
 - Perf note: after the user change, MESSAGE_CREATE/READY decode looked ~8-13 % slower relative

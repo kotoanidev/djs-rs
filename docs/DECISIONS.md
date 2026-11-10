@@ -566,6 +566,15 @@ Required fields that the docs' own examples omit (`Guild::nsfw_level`,
 `premium_progress_bar_enabled`, `Onboarding::mode`) get `#[serde(default)]` so older or trimmed
 payloads still parse (C-010 spirit).
 
+### C-024 — `#[serde(flatten)]` only on cold paths
+`flatten` buffers the input (allocations), so it is never used for gateway hot-path types. It is
+used where an object "extends" another on REST-only/rare paths (`InviteWithMetadata`) and for
+serializing `Channel` variants with their `type`.
+
+### C-025 — `ImageHash` stays strict
+Image hashes must be 32 hex digits (optionally `a_`-prefixed); placeholder values like the
+docs' `deadbeef` are rejected. Fixtures use real-looking hashes instead.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

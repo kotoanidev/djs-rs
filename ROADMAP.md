@@ -42,7 +42,7 @@ just with narrow scope.
 - [x] Users, members, roles, emojis, stickers (user connections follow with integrations)
 - [ ] Guilds (onboarding, welcome screen, widgets, templates, scheduled events,
       auto-moderation, audit log, integrations, bans)
-- [~] Channels & threads, forums/media ✅, stage instances, invites, webhooks
+- [x] Channels & threads, forums/media, stage instances, invites, webhooks
 - [ ] Messages, embeds, attachments, reactions, polls, message snapshots/forwarding
 - [ ] Components (classic + Components V2), modals
 - [ ] Interactions & application commands (slash, user, message, autocomplete, entry point),
