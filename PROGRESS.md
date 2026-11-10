@@ -55,10 +55,18 @@ D-041).
   widget types, integrations, `Ban`, welcome screen, onboarding, `IncidentsData`;
   `oauth2::Scope`, `gateway::Status`; tests on the docs' JSON examples (`tests/guild.rs`,
   fixtures in `tests/fixtures/docs/`, C-022).
-- **Next:** Phase 2 step 3, part 2: `guild_template` (Guild Template), `guild_scheduled_event`
-  (scheduled events + recurrence rules), `auto_moderation` (rules, triggers, actions),
-  `audit_log` (entries, changes, events), then user `Connection` (+ services, visibility) and
-  `ApplicationRoleConnection` now that integrations exist. Then step 4: channels & threads.
+- Phase 2 step 3, part 2 ✅: `guild_scheduled_event`, `auto_moderation` (tests in
+  `tests/guild.rs`).
+- Deferred (need channel/webhook/command types first): `guild_template` (its
+  `serialized_source_guild` has channels), `audit_log` (contains threads, webhooks, commands) →
+  do them right after the types they depend on. User `Connection` +
+  `ApplicationRoleConnection` can be done any time (integrations exist now).
+- **Next:** Phase 2 step 4 — `channel` module: `Channel` (+ partial/thread/DM shapes per D-051),
+  `ChannelType`, permission overwrites, thread metadata/members, forum tags, default reactions,
+  sort order/layout, video quality mode; then `stage_instance`, `invite`, `webhook`; then
+  `guild_template` and `audit_log`.
+- Local gate script: `scratchpad/gate.sh` style (`set -euo pipefail`, no pipes hiding errors) —
+  a piped gate let one clippy failure through (fixed in `cda06db`).
 - Perf note: after the user change, MESSAGE_CREATE/READY decode looked ~8-13 % slower relative
   to the `serde_json::Value` baseline (laptop was ~35 % slower overall during that run). At the
   end of Phase 2, run the decode benches back-to-back against the Phase 1 commit `65210f8`

@@ -9,10 +9,12 @@ mod macros;
 mod serde_util;
 
 pub mod application;
+pub mod auto_moderation;
 pub mod channel;
 pub mod emoji;
 pub mod gateway;
 pub mod guild;
+pub mod guild_scheduled_event;
 pub mod id;
 pub mod invite;
 pub mod message;

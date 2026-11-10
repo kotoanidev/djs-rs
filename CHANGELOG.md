@@ -8,6 +8,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-model`: `guild_scheduled_event` (events, privacy level, entity type, status, entity
+  metadata, interested users, recurrence rules) and `auto_moderation` (rules, trigger types and
+  metadata, keyword presets, event types, actions and their metadata).
 - `djs-model`: guild model — `guild::{Guild, Feature, Preview, Widget, WidgetSettings,
   WidgetChannel, WidgetMember, WidgetActivity, WidgetStyle, Integration, IntegrationType,
   IntegrationExpireBehavior, IntegrationAccount, IntegrationApplication, Ban, WelcomeScreen,
