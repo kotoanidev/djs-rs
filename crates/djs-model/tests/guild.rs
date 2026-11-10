@@ -10,50 +10,9 @@ use djs_model::{
     },
     util::Locale,
 };
-use serde::{Serialize, de::DeserializeOwned};
-use serde_json::Value;
+mod common;
 
-/// Parses a fixture into `T` and checks that every field of the JSON survives a round trip
-/// (ignoring fields that `T` does not model, which are listed in `unmodelled`).
-fn round_trip<T: Serialize + DeserializeOwned>(json: &str, unmodelled: &[&str]) -> T {
-    let value: T = serde_json::from_str(json).unwrap();
-    let mut expected: Value = serde_json::from_str(json).unwrap();
-    if let Some(object) = expected.as_object_mut() {
-        for field in unmodelled {
-            object.remove(*field);
-        }
-    }
-    let actual = serde_json::to_value(&value).unwrap();
-    assert_subset(&expected, &actual, "$");
-    value
-}
-
-/// Asserts that everything in `expected` is present and equal in `actual`.
-fn assert_subset(expected: &Value, actual: &Value, path: &str) {
-    match (expected, actual) {
-        (Value::Object(expected), Value::Object(actual)) => {
-            for (key, value) in expected {
-                let Some(actual) = actual.get(key) else {
-                    // Absent and null/false/empty collapse into the same value (D-049), so an
-                    // optional field may be skipped when serializing.
-                    let collapsible = value.is_null()
-                        || *value == Value::Bool(false)
-                        || value.as_array().is_some_and(Vec::is_empty);
-                    assert!(collapsible, "{path}.{key} was lost");
-                    continue;
-                };
-                assert_subset(value, actual, &format!("{path}.{key}"));
-            }
-        }
-        (Value::Array(expected), Value::Array(actual)) => {
-            assert_eq!(expected.len(), actual.len(), "{path} length");
-            for (index, (expected, actual)) in expected.iter().zip(actual).enumerate() {
-                assert_subset(expected, actual, &format!("{path}[{index}]"));
-            }
-        }
-        _ => assert_eq!(expected, actual, "{path}"),
-    }
-}
+use common::round_trip;
 
 #[test]
 fn guild() {

@@ -8,6 +8,12 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-model`: channel model (D-057) — `channel::Channel` enum (text, DM, voice, group DM,
+  category, announcement, three thread kinds, stage, directory, forum, media, unknown) with
+  per-kind structs and shared accessors, single-pass non-buffering deserialization; `Overwrite`
+  (+ `OverwriteType`), `ThreadMetadata`, `ThreadMember` (+ flags), `ForumTag`,
+  `DefaultReaction`, `FollowedChannel`, `VideoQualityMode`, `SortOrderType`, `ForumLayoutType`,
+  `AutoArchiveDuration`.
 - `djs-model`: `guild_scheduled_event` (events, privacy level, entity type, status, entity
   metadata, interested users, recurrence rules) and `auto_moderation` (rules, trigger types and
   metadata, keyword presets, event types, actions and their metadata).

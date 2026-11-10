@@ -9,7 +9,7 @@ D-041).
 **Current: Phase 2 — full `djs-model` coverage** (D-039; permissions = `u64`, D-040).
 
 ## Done
-- 2026-11-10: Owner decisions D-001 … D-056 in `docs/DECISIONS.md`; Claude defaults C-001 …
+- 2026-11-10: Owner decisions D-001 … D-057 in `docs/DECISIONS.md`; Claude defaults C-001 …
   C-023 (reviewable) in the same file.
 - Toolchains (rustup): stable 1.99.1, 1.85, 1.89 (MSRV, D-031).
 - Phase 0: foundation docs, public repo https://github.com/kotoanidev/djs-rs, 9-crate workspace,
@@ -61,10 +61,14 @@ D-041).
   `serialized_source_guild` has channels), `audit_log` (contains threads, webhooks, commands) →
   do them right after the types they depend on. User `Connection` +
   `ApplicationRoleConnection` can be done any time (integrations exist now).
-- **Next:** Phase 2 step 4 — `channel` module: `Channel` (+ partial/thread/DM shapes per D-051),
-  `ChannelType`, permission overwrites, thread metadata/members, forum tags, default reactions,
-  sort order/layout, video quality mode; then `stage_instance`, `invite`, `webhook`; then
-  `guild_template` and `audit_log`.
+- Phase 2 step 4, part 1 ✅: `channel` module (D-057 enum + per-kind structs, `RawChannel`
+  single-pass conversion), tests `tests/channel.rs` on all docs examples; shared test helper
+  `tests/common/mod.rs` (`round_trip`, `assert_subset`).
+- **Next:** Phase 2 step 4, part 2: `stage_instance`, `invite` (+ invite types, target types,
+  invite metadata, partial invite guild/channel per D-051), `webhook` (+ webhook types, source
+  guild/channel), then `guild_template` and `audit_log`; then step 5: messages (full
+  `message::Message`, embeds, attachments, reactions, mentions, allowed mentions, snapshots,
+  polls).
 - Local gate script: `scratchpad/gate.sh` style (`set -euo pipefail`, no pipes hiding errors) —
   a piped gate let one clippy failure through (fixed in `cda06db`).
 - Perf note: after the user change, MESSAGE_CREATE/READY decode looked ~8-13 % slower relative

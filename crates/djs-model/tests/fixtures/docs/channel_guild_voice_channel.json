@@ -1,0 +1,15 @@
+{
+  "id": "155101607195836416",
+  "last_message_id": "174629835082649376",
+  "type": 2,
+  "name": "ROCKET CHEESE",
+  "position": 5,
+  "parent_id": null,
+  "bitrate": 64000,
+  "user_limit": 0,
+  "rtc_region": null,
+  "guild_id": "41771983423143937",
+  "permission_overwrites": [],
+  "rate_limit_per_user": 0,
+  "nsfw": false
+}
