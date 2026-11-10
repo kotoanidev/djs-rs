@@ -322,6 +322,14 @@ and why.
   in `docs/PERFORMANCE.md` before the stage counts as done. Applies retroactively to Phase 1.
 - **Alternatives:** none (owner requirement).
 
+### D-042 — Benchmark & stress-test tooling
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** Benchmarks use `divan` (0.1.21, dev-dependency) including its `AllocProfiler`
+  (allocations per operation). CI only compiles benchmarks (`cargo bench --no-run`); measurements
+  run locally and are recorded in `docs/PERFORMANCE.md`. Stress tests measure peak memory via
+  `/proc/self/status` (VmHWM/VmRSS, Linux only) — no extra dependency.
+- **Alternatives:** criterion; measuring in CI with regression tracking; `dhat`.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
@@ -395,5 +403,4 @@ subscribers are pruned automatically; there is no cost when nobody subscribes.
 
 ## Open questions (to ask the owner when relevant)
 
-- **Benchmark harness** (`criterion` vs `divan`).
 - **Guide/book**: mdBook hosted on GitHub Pages?
