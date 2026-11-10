@@ -99,7 +99,7 @@ fn widget() {
     );
     assert!(settings.enabled);
     let widget: Widget = round_trip(include_str!("fixtures/docs/guild_widget.json"), &[]);
-    assert!(!widget.channels.is_empty());
+    assert_eq!(widget.channels.len(), 2);
     assert_eq!(widget.members[0].status, Status::Online);
 }
 
@@ -113,7 +113,7 @@ fn ban() {
 #[test]
 fn welcome_screen() {
     let screen: WelcomeScreen = round_trip(include_str!("fixtures/docs/welcome_screen.json"), &[]);
-    assert!(!screen.welcome_channels.is_empty());
+    assert_eq!(screen.welcome_channels.len(), 5);
 }
 
 #[test]
@@ -123,7 +123,7 @@ fn onboarding() {
     assert_eq!(onboarding.mode, OnboardingMode::Default);
     let prompt = &onboarding.prompts[0];
     assert_eq!(prompt.kind, PromptType::MultipleChoice);
-    assert!(!prompt.options.is_empty());
+    assert_eq!(prompt.options.len(), 2);
 }
 
 #[test]
