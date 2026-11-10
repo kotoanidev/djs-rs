@@ -296,6 +296,19 @@ and why.
   The high-level `djs-rs` client wraps shards in tasks for the user.
 - **Alternatives:** shard spawns its own task and delivers events over an mpsc channel.
 
+### D-038 — `tracing-subscriber` as a dev-dependency for examples and tests
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** Examples (and tests, when useful) install a `tracing-subscriber` `fmt`
+  subscriber filtered by `RUST_LOG`, so library diagnostics are visible. It is a
+  dev-dependency only; library users never get it.
+- **Alternatives:** examples use `println!` only.
+
+### D-039 — Vertical-slice architecture accepted; continue with Phase 2
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** The Phase 1 architecture (model → REST → gateway → client) and the Claude
+  defaults C-008 … C-016 are accepted. Next: Phase 2 (full `djs-model` coverage).
+- **Alternatives:** sharding (Phase 4) first; architecture changes.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)

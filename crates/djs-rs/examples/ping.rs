@@ -8,12 +8,22 @@
 //!    `DISCORD_TOKEN=your-token`. The file is git-ignored.
 //! 3. Run `cargo run --example ping` and send `!ping` in a channel the bot can see.
 //!
+//! Library logs are printed according to `RUST_LOG` (default: `info`), e.g.
+//! `RUST_LOG=djs_gateway=debug,djs_rest=debug cargo run --example ping`.
+//!
 //! Press Ctrl+C to disconnect cleanly.
 
 use djs_rs::prelude::*;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+        )
+        .init();
+
     let token = config_value("DISCORD_TOKEN")
         .ok_or("DISCORD_TOKEN is not set (put it in .env or the environment)")?;
 
