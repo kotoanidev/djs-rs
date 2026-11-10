@@ -162,6 +162,25 @@ and why.
   (licenses, advisories, bans, sources).
 - **Alternatives:** basic (fmt/clippy/test on Linux); none.
 
+### D-020 — Build order: vertical slice first
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** First build a minimal end-to-end "ping-pong" bot that exercises every layer
+  (core models, REST, gateway, `Client::on`), then widen each layer to the full API surface.
+  This validates the architecture before hundreds of types are written.
+- **Alternatives:** layer-by-layer (each crate complete before the next); full `djs-model` first.
+
+### D-021 — Copyright holder: "The djs-rs contributors"
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** `LICENSE-MIT` and `NOTICE` name "The djs-rs contributors".
+- **Alternatives:** "KotoAni Dev Team", "kotoanidev".
+
+### D-022 — crates.io: publish at the first real release
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** Crates are not published (and names not reserved) until they contain real
+  functionality — crates.io policy forbids name-squatting placeholders. `publish = false`
+  stays until then.
+- **Alternatives:** publish minimal 0.0.1 placeholders now; never publish (git dependency only).
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
@@ -187,9 +206,6 @@ does not affect downstream users, who control their own profiles.)
 ### C-005 — Conventional Commits, Keep a Changelog
 Commit messages follow Conventional Commits; `CHANGELOG.md` follows Keep a Changelog.
 
-### C-006 — Copyright holder in LICENSE-MIT: "The djs-rs contributors"
-Neutral placeholder; the owner may want a specific name instead (see open questions).
-
 ### C-007 — `Cargo.lock` is committed
 Reproducible CI and MSRV checks (current Cargo guidance for libraries as well).
 
@@ -197,8 +213,6 @@ Reproducible CI and MSRV checks (current Cargo guidance for libraries as well).
 
 ## Open questions (to ask the owner when relevant)
 
-- **Copyright holder** in `LICENSE-MIT` / `NOTICE` (currently "The djs-rs contributors").
-- **Reserve crate names on crates.io now?** Requires the owner's crates.io token.
 - **rustls crypto provider:** `aws-lc-rs` (rustls default, needs cmake/C toolchain, faster) vs
   `ring` (simpler to build). Ask when implementing `djs-rest`.
 - **Snowflake / ID representation** (e.g. typed `Id<Marker>` over `NonZeroU64`). Ask at the
@@ -209,4 +223,5 @@ Reproducible CI and MSRV checks (current Cargo guidance for libraries as well).
   `EventHandler` trait; handler concurrency model).
 - **Integration testing against real Discord** (needs a test bot token + test guild).
 - **Benchmark harness** (`criterion` vs `divan`).
+- **Logging / diagnostics** (`tracing` vs `log` vs none; ≈ discord.js `debug`/`warn` events).
 - **Guide/book**: mdBook hosted on GitHub Pages?

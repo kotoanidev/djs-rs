@@ -4,29 +4,28 @@
 > from this file alone. Read `CLAUDE.md` and `docs/DECISIONS.md` first.
 
 ## Current phase
-**Phase 0 — Foundation: complete** (pending green CI run). Waiting for the owner to approve
-the phase order in `ROADMAP.md` before starting Phase 1.
+**Phase 1 — Vertical slice ("ping-pong" bot)** — not started; first step is a round of
+owner decisions (see "Next step").
 
 ## Done
-- 2026-11-10: Owner answered the initial decision round (D-001 … D-019 in `docs/DECISIONS.md`).
+- 2026-11-10: Owner decisions D-001 … D-022 recorded in `docs/DECISIONS.md`.
 - 2026-11-10: Rust stable 1.99.1 + 1.85 (MSRV) installed via rustup on the dev machine.
-- 2026-11-10: Foundation documents: `CLAUDE.md`, `docs/DECISIONS.md`, `ROADMAP.md`,
-  `PROGRESS.md`, `README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, licenses, `NOTICE`.
-- 2026-11-10: Public repo created: https://github.com/kotoanidev/djs-rs
-- 2026-11-10: Cargo workspace with 9 placeholder crates (each with README used as crate docs),
-  workspace lints, `rustfmt.toml`, `clippy.toml`, `deny.toml`, `rust-toolchain.toml`,
-  GitHub Actions CI (`.github/workflows/ci.yml`), `docs/ARCHITECTURE.md`.
-  Local gate passes: fmt, clippy `-D warnings`, tests, rustdoc `-D warnings`, MSRV 1.85 check.
+- 2026-11-10: Phase 0 complete — foundation docs, public repo
+  https://github.com/kotoanidev/djs-rs, 9-crate workspace skeleton, lints/configs, CI.
+  First CI run fully green (fmt, clippy, tests ×3 OS, rustdoc, MSRV 1.85, cargo-deny).
+- 2026-11-10: Roadmap restructured for D-020 (vertical slice first).
 
 ## In progress
 - Nothing.
 
 ## Next step
-1. Confirm the first CI run on GitHub is green (`gh run list --limit 1`); fix if not.
-2. Get the owner's approval of the phase order in `ROADMAP.md`.
-3. Start Phase 1 (or whatever the owner picks) — first ask the open questions relevant to it
-   (see `docs/DECISIONS.md` → "Open questions").
+1. Ask the owner the Phase 1 decision round (from "Open questions" in `docs/DECISIONS.md`):
+   Snowflake/ID representation, string storage in models, error handling style,
+   logging/diagnostics, rustls crypto provider, event handler concurrency model, and the
+   exact dependency set for the slice (tokio, hyper, hyper-util, hyper-rustls/rustls,
+   tokio-websockets, serde, serde_json, zstd, …).
+2. Record answers as D-023+ and implement the slice in this order:
+   `djs-model` core → `djs-rest` core → `djs-gateway` core → `djs-rs` core → `examples/ping.rs`.
 
 ## Blocked on the owner
-- Approval of the phase order in `ROADMAP.md`.
-- Open questions listed in `docs/DECISIONS.md` (asked when the relevant phase starts).
+- Phase 1 decision round (above).
