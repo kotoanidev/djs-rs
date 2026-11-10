@@ -181,6 +181,31 @@ and why.
   stays until then.
 - **Alternatives:** publish minimal 0.0.1 placeholders now; never publish (git dependency only).
 
+### D-023 — Snowflake IDs: generic `Id<Marker>` over `NonZeroU64`
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** One generic ID type `Id<T>` wrapping `NonZeroU64` with a zero-sized marker
+  (`PhantomData`), plus aliases (`UserId = Id<UserMarker>`, `ChannelId = Id<ChannelMarker>`,
+  …). Mixing ID kinds is a compile error; `Id<T>` and `Option<Id<T>>` are both 8 bytes.
+  Snowflake helpers (`timestamp()`, `get()`, …) live on `Id<T>`.
+- **Alternatives:** separate newtypes per entity (serenity style); a single `Snowflake` type.
+
+### D-024 — Model strings: `CompactString`
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** Model string fields use `compact_str::CompactString` (24 bytes, strings ≤ 24
+  bytes stored inline without allocation).
+- **Alternatives:** `Box<str>`, `String`.
+
+### D-025 — Errors: `thiserror`
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** Error types are derived with `thiserror`, kept small (kind + boxed source).
+- **Alternatives:** hand-written error types.
+
+### D-026 — Diagnostics: `tracing`
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** The library emits diagnostics through `tracing` (spans + structured fields);
+  users choose the subscriber. No separate `Debug`/`Warn` client events.
+- **Alternatives:** `tracing` + `Events::Debug`/`Events::Warn`; `log`; events only.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
@@ -215,13 +240,8 @@ Reproducible CI and MSRV checks (current Cargo guidance for libraries as well).
 
 - **rustls crypto provider:** `aws-lc-rs` (rustls default, needs cmake/C toolchain, faster) vs
   `ring` (simpler to build). Ask when implementing `djs-rest`.
-- **Snowflake / ID representation** (e.g. typed `Id<Marker>` over `NonZeroU64`). Ask at the
-  start of `djs-model`.
-- **String storage in models** (`String` vs `Box<str>` vs small-string crates). Affects memory.
-- **Error handling style** (`thiserror` vs hand-written error types).
 - **Event handler API details** (closure registration as approved in D-006 vs additional
   `EventHandler` trait; handler concurrency model).
 - **Integration testing against real Discord** (needs a test bot token + test guild).
 - **Benchmark harness** (`criterion` vs `divan`).
-- **Logging / diagnostics** (`tracing` vs `log` vs none; ≈ discord.js `debug`/`warn` events).
 - **Guide/book**: mdBook hosted on GitHub Pages?
