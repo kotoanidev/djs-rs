@@ -14,6 +14,23 @@ readme = "README.md"
 publish = false
 
 [dependencies]
+bytes.workspace = true
+djs-model.workspace = true
+http.workspace = true
+http-body-util.workspace = true
+hyper = { workspace = true, features = ["client", "http1", "http2"] }
+hyper-rustls = { workspace = true, features = ["http1", "http2", "ring", "tls12", "webpki-roots"] }
+hyper-util = { workspace = true, features = ["client-legacy", "http1", "http2", "tokio"] }
+rustls = { workspace = true, features = ["ring", "std", "tls12"] }
+serde = { workspace = true, features = ["std"] }
+serde_json.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["sync", "time"] }
+tracing = { workspace = true, features = ["std"] }
+
+[dev-dependencies]
+hyper = { workspace = true, features = ["server", "http1"] }
+tokio = { workspace = true, features = ["macros", "net", "rt-multi-thread", "test-util"] }
 
 [lints]
 workspace = true

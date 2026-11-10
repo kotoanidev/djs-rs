@@ -270,6 +270,15 @@ and why.
   uses mocks only.
 - **Alternatives:** owner runs examples manually; token in GitHub Secrets for live CI.
 
+### D-035 — `rustls` as a direct dependency for explicit crypto provider selection
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** `djs-rest` and `djs-gateway` depend on `rustls` directly (same version that
+  `hyper-rustls`/`tokio-websockets` already pull in) and pass
+  `rustls::crypto::ring::default_provider()` explicitly. This avoids rustls' process-level
+  provider auto-detection, which panics when an application enables both `ring` and
+  `aws-lc-rs` (common, e.g. via reqwest).
+- **Alternatives:** rely on the process-level default provider.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
