@@ -383,6 +383,29 @@ and why.
   `RoleFlags`) live in `guild` although the docs define them on the permissions page.
 - **Alternatives:** full docs names (`guild::GuildMember`, closer to discord.js `GuildMember`).
 
+### D-049 — Optional and nullable fields in received models
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** Absent (`field?`), nullable (`?type`) and both collapse to `Option<T>` in received
+  models. Serialization stays faithful to Discord's shape: `field?` fields are skipped when
+  `None` (`skip_serializing_if`), `?type`-only fields are written as `null`. Absent booleans
+  default to `false` (`#[serde(default)]`). Tri-state request bodies (PATCH: absent vs null) are
+  decided separately in Phase 3.
+- **Alternatives:** `Option<Option<T>>` wherever a field can be both absent and null.
+
+### D-050 — Arrays are `Vec<T>`
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** Array fields in model types use `Vec<T>`. Memory-optimized representations, if
+  any, belong to the cache layer (Phase 5).
+- **Alternatives:** `Box<[T]>` (8 bytes smaller, no spare capacity, less ergonomic).
+
+### D-051 — Partial objects get their own types
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** Where the docs define a differently shaped object (member without `user` in
+  `MESSAGE_CREATE`, interaction member with `permissions`, partial channels, …) it gets its own
+  type (`guild::PartialMember`, `interaction::InteractionMember`, …) with precise, non-optional
+  fields, like twilight and the discord-api-types variants.
+- **Alternatives:** one type per object with `Option` for everything that is sometimes absent.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)

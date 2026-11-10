@@ -9,7 +9,7 @@ D-041).
 **Current: Phase 2 — full `djs-model` coverage** (D-039; permissions = `u64`, D-040).
 
 ## Done
-- 2026-11-10: Owner decisions D-001 … D-048 in `docs/DECISIONS.md`; Claude defaults C-001 …
+- 2026-11-10: Owner decisions D-001 … D-051 in `docs/DECISIONS.md`; Claude defaults C-001 …
   C-017 (reviewable) in the same file.
 - Toolchains (rustup): stable 1.99.1, 1.85, 1.89 (MSRV, D-031).
 - Phase 0: foundation docs, public repo https://github.com/kotoanidev/djs-rs, 9-crate workspace,
@@ -46,8 +46,8 @@ D-041).
 - **Next:** Phase 2 step "users/members/roles/emojis/stickers": full `user::User` (all user
   object fields: `public_flags`, `flags`, `banner`, `accent_color`, `avatar_decoration_data`,
   `collectibles`, `primary_guild`, …), `guild::{Member, Role}` (+ role tags/colors), `emoji`,
-  `sticker` modules. Ask the owner before any non-mechanical choice (e.g. how to model
-  nullable-vs-absent fields if it is not already covered by C-010).
+  `sticker` modules. Modelling rules: `Option<T>` + faithful serialization (D-049), `Vec<T>`
+  (D-050), separate partial types (D-051).
 
 ## Next step — Phase 2 (`djs-model` full coverage)
 1. Permissions are `u64` bitflags (D-040), serialized as decimal strings, named
