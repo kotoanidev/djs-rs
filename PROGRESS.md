@@ -9,7 +9,7 @@ D-041).
 **Next: Phase 2 — full `djs-model` coverage** (D-039; permissions = `u64`, D-040).
 
 ## Done
-- 2026-11-10: Owner decisions D-001 … D-043 in `docs/DECISIONS.md`; Claude defaults C-001 …
+- 2026-11-10: Owner decisions D-001 … D-045 in `docs/DECISIONS.md`; Claude defaults C-001 …
   C-017 (reviewable) in the same file.
 - Toolchains (rustup): stable 1.99.1, 1.85, 1.89 (MSRV, D-031).
 - Phase 0: foundation docs, public repo https://github.com/kotoanidev/djs-rs, 9-crate workspace,
@@ -42,7 +42,9 @@ D-041).
 - Nothing. Phase 1 is closed.
 
 ## Next step — Phase 2 (`djs-model` full coverage)
-1. Permissions are `u64` bitflags (D-040), serialized as decimal strings.
+1. Permissions are `u64` bitflags (D-040), serialized as decimal strings, named
+   `djs_model::permissions::Permissions` (D-045). Module layout = one module per Discord docs
+   resource/topic page (D-044).
 2. Implement in this order (ROADMAP Phase 2): bitflags (permissions, message/user/channel/guild/
    application flags) → users/members/roles/emojis/stickers → guilds → channels/threads →
    messages/embeds/attachments/reactions/polls → components (incl. V2)/modals → interactions &

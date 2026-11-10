@@ -341,6 +341,23 @@ and why.
 - **Alternatives:** keep fixed windows like discord.js; fixed by default with an opt-in strict
   mode in `RestBuilder`.
 
+### D-044 — `djs-model` module layout mirrors the Discord API docs
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** One public module per resource/topic page of docs.discord.com
+  (`application`, `audit_log`, `auto_moderation`, `channel`, `emoji`, `entitlement`, `guild`,
+  `guild_scheduled_event`, `interaction`, `invite`, `message`, `permissions`, `poll`, `sku`,
+  `soundboard`, `stage_instance`, `sticker`, `user`, `voice`, `webhook`, …) plus the existing
+  `gateway`, `id`, `rest` and `util`. A type lives in the module of the docs page that defines
+  it, so a docs link tells you the import path. No flat re-export at the crate root.
+- **Alternatives:** twilight-style nesting (`guild::Permissions`, `channel::message::…`);
+  modules plus a flat crate-root re-export.
+
+### D-045 — Permission bitflags are named `Permissions`
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** `djs_model::permissions::Permissions` (`u64`, D-040), constants named as in the
+  Discord docs (`Permissions::SEND_MESSAGES`), consistent with `Intents`.
+- **Alternatives:** `PermissionFlags` (closer to discord.js `PermissionFlagsBits`).
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
