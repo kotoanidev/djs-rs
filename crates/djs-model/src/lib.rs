@@ -16,6 +16,7 @@ pub mod guild;
 pub mod id;
 pub mod invite;
 pub mod message;
+pub mod oauth2;
 pub mod permissions;
 pub mod rest;
 pub mod sku;

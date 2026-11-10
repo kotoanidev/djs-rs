@@ -8,6 +8,12 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-model`: guild model — `guild::{Guild, Feature, Preview, Widget, WidgetSettings,
+  WidgetChannel, WidgetMember, WidgetActivity, WidgetStyle, Integration, IntegrationType,
+  IntegrationExpireBehavior, IntegrationAccount, IntegrationApplication, Ban, WelcomeScreen,
+  WelcomeScreenChannel, Onboarding, OnboardingPrompt, PromptOption, OnboardingMode, PromptType,
+  IncidentsData}` and the level enums; `oauth2::Scope`; `gateway::Status`. Docs examples are
+  test fixtures (C-022).
 - `djs-model`: `emoji::{Emoji, PartialEmoji}` (enum with a non-buffering deserializer, D-056)
   and `sticker::{Sticker, StickerType, StickerFormatType, StickerItem, StickerPack}`; absent
   `available` means `true` (D-055).

@@ -539,6 +539,22 @@ used everywhere.
 Model types mirror Discord's JSON objects field by field; several have more than three boolean
 fields. Allowed crate-wide in `djs-model` with a reason; still denied elsewhere.
 
+### C-021 — Strict D-048 naming plus `#[doc(alias)]` for discord.js names
+Types follow D-048 strictly (`guild::Feature`, `guild::Preview`, `guild::AgeRestrictionLevel`
+for the docs' "Guild Age-Restriction Level"), and carry `#[doc(alias = "...")]` with the
+discord.js / older names (`GuildFeature`, `GuildPreview`, `NsfwLevel`) so rustdoc search finds
+them.
+
+### C-022 — JSON examples from the Discord docs are used as test fixtures
+`crates/djs-model/tests/fixtures/docs/*.json` hold the example payloads of the Discord API docs
+(factual payload data, not prose). Tests deserialize them and check that re-serializing loses
+no field (absent/null/false/empty may collapse, D-049).
+
+### C-023 — Defensive defaults for required fields missing from older payloads
+Required fields that the docs' own examples omit (`Guild::nsfw_level`,
+`premium_progress_bar_enabled`, `Onboarding::mode`) get `#[serde(default)]` so older or trimmed
+payloads still parse (C-010 spirit).
+
 ---
 
 ## Open questions (to ask the owner when relevant)

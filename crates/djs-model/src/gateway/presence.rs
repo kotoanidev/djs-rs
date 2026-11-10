@@ -1,6 +1,6 @@
 //! Presence data sent over the gateway: activities and statuses.
 
-use crate::macros::int_flags;
+use crate::macros::{int_flags, str_enum};
 
 int_flags! {
     /// [Flags of an activity](https://docs.discord.com/developers/events/gateway-events#activity-object-activity-flags):
@@ -26,5 +26,24 @@ int_flags! {
         const PARTY_PRIVACY_VOICE_CHANNEL = 1 << 7;
         /// The activity is an embedded app (Activity) running in Discord.
         const EMBEDDED = 1 << 8;
+    }
+}
+
+str_enum! {
+    /// The [online status](https://docs.discord.com/developers/events/gateway-events#update-presence-status-types)
+    /// of a user.
+    ///
+    /// discord.js counterpart: `PresenceStatus` / `PresenceUpdateStatus`.
+    pub enum Status {
+        /// Online.
+        Online = "online",
+        /// Do not disturb.
+        DoNotDisturb = "dnd",
+        /// Idle (AFK).
+        Idle = "idle",
+        /// Invisible: shown to others as offline. Only used when setting the bot's own status.
+        Invisible = "invisible",
+        /// Offline.
+        Offline = "offline",
     }
 }

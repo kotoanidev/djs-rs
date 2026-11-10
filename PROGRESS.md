@@ -10,7 +10,7 @@ D-041).
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-056 in `docs/DECISIONS.md`; Claude defaults C-001 …
-  C-020 (reviewable) in the same file.
+  C-023 (reviewable) in the same file.
 - Toolchains (rustup): stable 1.99.1, 1.85, 1.89 (MSRV, D-031).
 - Phase 0: foundation docs, public repo https://github.com/kotoanidev/djs-rs, 9-crate workspace,
   lints, CI (fmt, clippy all/no-default features, tests ×3 OS, rustdoc -D warnings, MSRV 1.89,
@@ -51,11 +51,14 @@ D-041).
   PartialMember 160 B, Role 128 B, User 144 B, CurrentUser 216 B).
 - `emoji::{Emoji, PartialEmoji}` (D-056) and `sticker` module ✅ — Phase 2 step
   "users/members/roles/emojis/stickers" is done.
-- **Next:** Phase 2 step 3 — guilds: `guild::Guild` (+ features, verification/NSFW/MFA/
-  explicit-content/notification levels, premium tier, welcome screen, onboarding, widget,
-  preview, bans, integrations (+ then user `Connection`), templates (`guild_template`),
-  scheduled events (`guild_scheduled_event`), auto-moderation (`auto_moderation`), audit log
-  (`audit_log`)). Modelling rules: D-049 … D-056.
+- Phase 2 step 3 (guilds), part 1 ✅: `guild::Guild` + level enums, `Feature`, `Preview`,
+  widget types, integrations, `Ban`, welcome screen, onboarding, `IncidentsData`;
+  `oauth2::Scope`, `gateway::Status`; tests on the docs' JSON examples (`tests/guild.rs`,
+  fixtures in `tests/fixtures/docs/`, C-022).
+- **Next:** Phase 2 step 3, part 2: `guild_template` (Guild Template), `guild_scheduled_event`
+  (scheduled events + recurrence rules), `auto_moderation` (rules, triggers, actions),
+  `audit_log` (entries, changes, events), then user `Connection` (+ services, visibility) and
+  `ApplicationRoleConnection` now that integrations exist. Then step 4: channels & threads.
 - Perf note: after the user change, MESSAGE_CREATE/READY decode looked ~8-13 % slower relative
   to the `serde_json::Value` baseline (laptop was ~35 % slower overall during that run). At the
   end of Phase 2, run the decode benches back-to-back against the Phase 1 commit `65210f8`
