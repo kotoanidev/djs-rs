@@ -25,7 +25,7 @@ just with narrow scope.
 - [x] `djs-model` core: Snowflake/ID types, intents, timestamps; minimal `User`, `Message`,
       `Guild` (unavailable/partial), gateway opcodes + Hello/Identify/Ready/Resume/
       MessageCreate payloads
-- [ ] `djs-rest` core: hyper client + rustls, auth, per-route rate limiting basics,
+- [x] `djs-rest` core: hyper client + rustls, auth, per-route rate limiting basics,
       `GET /gateway/bot`, `POST /channels/{id}/messages`
 - [ ] `djs-gateway` core: single shard — connect, zstd-stream, hello/identify, heartbeat with
       jitter + ACK tracking, resume/reconnect, dispatch → typed events
@@ -49,7 +49,8 @@ just with narrow scope.
 - [ ] (De)serialization tests against real JSON fixtures; benchmarks
 
 ## Phase 3 — `djs-rest` full coverage (≈ @discordjs/rest)
-- [ ] Complete rate limiting: buckets, global, invalid-request limit, shared-bucket keys
+- [ ] Complete rate limiting: invalid-request limit (10k/10 min), burst handler for interaction
+      callbacks, per-route quirks (old message deletes, reactions), hash lifetime sweeps
 - [ ] Retries, timeouts, audit-log reason header, `native-tls` feature
 - [ ] Multipart uploads (attachments)
 - [ ] Every v10 REST endpoint as a typed method

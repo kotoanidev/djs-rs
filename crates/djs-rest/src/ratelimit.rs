@@ -1,0 +1,428 @@
+//! Client-side [rate limiting](https://docs.discord.com/developers/topics/rate-limits).
+//!
+//! # Model
+//!
+//! Discord rate limits requests per **bucket**. A bucket is identified by the hash in the
+//! `X-RateLimit-Bucket` response header *and* the route's major parameter (channel, guild or
+//! webhook ID). Before a route's hash is known, the route template is used as its identity.
+//!
+//! - Requests in the same bucket are sent **sequentially**: each request holds the bucket's
+//!   lock until its response has updated the bucket state, so the client never has more
+//!   requests in flight than Discord allows. Different buckets proceed concurrently.
+//! - When a bucket is exhausted (`remaining == 0`), the next request sleeps until it resets,
+//!   plus a small safety offset.
+//! - A **global** limiter caps the total request rate (50/s by default) and is paused when
+//!   Discord reports a global rate limit.
+//!
+//! This mirrors the behaviour of `@discordjs/rest`'s `SequentialHandler`.
+
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex, MutexGuard, PoisonError},
+    time::Duration,
+};
+
+use http::HeaderMap;
+use tokio::time::Instant;
+
+use crate::{error::seconds, route::BucketRoute};
+
+/// Locks a std mutex, ignoring poisoning: the protected data is always left consistent.
+fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+    mutex.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+/// The identity of a bucket, before or after its hash is known.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+enum BucketId {
+    Route(&'static str),
+    Hash(Arc<str>),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+struct BucketKey {
+    id: BucketId,
+    major: u64,
+}
+
+/// Shared rate-limit state of a [`Rest`](crate::Rest) client.
+#[derive(Debug)]
+pub(crate) struct RateLimiter {
+    /// Route template → bucket hash learned from `X-RateLimit-Bucket`.
+    hashes: Mutex<HashMap<&'static str, Arc<str>>>,
+    buckets: Mutex<Buckets>,
+    global: GlobalLimiter,
+    offset: Duration,
+}
+
+#[derive(Debug)]
+struct Buckets {
+    map: HashMap<BucketKey, Arc<Bucket>>,
+    /// The map size at which idle buckets are swept next (keeps memory bounded for bots that
+    /// talk to many channels).
+    sweep_at: usize,
+}
+
+const MIN_SWEEP_THRESHOLD: usize = 1_024;
+
+impl RateLimiter {
+    /// Creates a limiter. `global_per_second == 0` disables the proactive global limit (global
+    /// 429 responses are still honoured).
+    pub(crate) fn new(global_per_second: u32, offset: Duration) -> Self {
+        Self {
+            hashes: Mutex::new(HashMap::new()),
+            buckets: Mutex::new(Buckets {
+                map: HashMap::new(),
+                sweep_at: MIN_SWEEP_THRESHOLD,
+            }),
+            global: GlobalLimiter::new(global_per_second),
+            offset,
+        }
+    }
+
+    /// Returns the bucket a request on `route` must go through.
+    ///
+    /// Once a route's hash is known, its bucket is keyed by `(hash, major)`. The first time that
+    /// key is resolved, the bucket previously keyed by the route template is *moved* to it, so
+    /// the rate-limit state learned from the response that revealed the hash carries over.
+    pub(crate) fn bucket(&self, route: BucketRoute) -> Arc<Bucket> {
+        let hash = lock(&self.hashes).get(route.template).map(Arc::clone);
+        let route_key = BucketKey {
+            id: BucketId::Route(route.template),
+            major: route.major,
+        };
+
+        let mut buckets = lock(&self.buckets);
+        if buckets.map.len() >= buckets.sweep_at {
+            Self::sweep(&mut buckets);
+        }
+        let key = match hash {
+            None => route_key,
+            Some(hash) => {
+                let hash_key = BucketKey {
+                    id: BucketId::Hash(hash),
+                    major: route.major,
+                };
+                if !buckets.map.contains_key(&hash_key)
+                    && let Some(bucket) = buckets.map.remove(&route_key)
+                {
+                    buckets.map.insert(hash_key.clone(), bucket);
+                }
+                hash_key
+            }
+        };
+        Arc::clone(
+            buckets
+                .map
+                .entry(key)
+                .or_insert_with(|| Arc::new(Bucket::default())),
+        )
+    }
+
+    /// Removes buckets that nobody is using and that are not currently limiting anything.
+    fn sweep(buckets: &mut Buckets) {
+        let now = Instant::now();
+        let before = buckets.map.len();
+        buckets.map.retain(|_, bucket| {
+            Arc::strong_count(bucket) > 1
+                || bucket
+                    .state
+                    .try_lock()
+                    .map_or(true, |state| state.is_limiting(now))
+        });
+        buckets.sweep_at = (buckets.map.len() * 2).max(MIN_SWEEP_THRESHOLD);
+        tracing::debug!(
+            removed = before - buckets.map.len(),
+            remaining = buckets.map.len(),
+            "swept idle rate-limit buckets"
+        );
+    }
+
+    /// Records the bucket hash Discord reported for a route template.
+    pub(crate) fn learn_hash(&self, template: &'static str, hash: &str) {
+        let mut hashes = lock(&self.hashes);
+        if hashes.get(template).is_none_or(|known| &**known != hash) {
+            tracing::trace!(template, hash, "learned rate-limit bucket hash");
+            hashes.insert(template, Arc::from(hash));
+        }
+    }
+
+    /// Waits until the global limiter allows another request.
+    pub(crate) async fn acquire_global(&self) {
+        self.global.acquire(self.offset).await;
+    }
+
+    /// Pauses all requests for `duration` after a global 429.
+    pub(crate) fn pause_global(&self, duration: Duration) {
+        self.global.pause(duration);
+    }
+
+    /// The safety margin added to every rate-limit wait.
+    pub(crate) const fn offset(&self) -> Duration {
+        self.offset
+    }
+}
+
+/// A single rate-limit bucket.
+#[derive(Debug, Default)]
+pub(crate) struct Bucket {
+    pub(crate) state: tokio::sync::Mutex<BucketState>,
+}
+
+/// The rate-limit state of a bucket.
+#[derive(Debug, Default)]
+pub(crate) struct BucketState {
+    remaining: Option<u32>,
+    reset_at: Option<Instant>,
+}
+
+impl BucketState {
+    /// Sleeps until a request may be sent in this bucket.
+    pub(crate) async fn wait(&mut self, offset: Duration) {
+        if self.remaining == Some(0)
+            && let Some(reset_at) = self.reset_at
+        {
+            if reset_at > Instant::now() {
+                tracing::debug!(
+                    wait_ms =
+                        u64::try_from((reset_at - Instant::now()).as_millis()).unwrap_or(u64::MAX),
+                    "rate-limit bucket exhausted, waiting for reset"
+                );
+                tokio::time::sleep_until(reset_at + offset).await;
+            }
+            self.remaining = None;
+            self.reset_at = None;
+        }
+    }
+
+    /// Updates the state from response headers.
+    pub(crate) fn update(&mut self, headers: &RateLimitHeaders<'_>, now: Instant) {
+        if let Some(remaining) = headers.remaining {
+            self.remaining = Some(remaining);
+        }
+        if let Some(reset_after) = headers.reset_after {
+            self.reset_at = Some(now + reset_after);
+        }
+    }
+
+    /// Marks the bucket as exhausted for `duration` (after a non-global 429).
+    pub(crate) fn exhaust_for(&mut self, duration: Duration, now: Instant) {
+        self.remaining = Some(0);
+        self.reset_at = Some(now + duration);
+    }
+
+    fn is_limiting(&self, now: Instant) -> bool {
+        self.remaining == Some(0) && self.reset_at.is_some_and(|reset_at| reset_at > now)
+    }
+}
+
+/// Rate-limit information from response headers.
+#[derive(Debug, Default, PartialEq)]
+pub(crate) struct RateLimitHeaders<'a> {
+    /// `X-RateLimit-Bucket`.
+    pub(crate) bucket: Option<&'a str>,
+    /// `X-RateLimit-Remaining`.
+    pub(crate) remaining: Option<u32>,
+    /// `X-RateLimit-Reset-After`.
+    pub(crate) reset_after: Option<Duration>,
+    /// `X-RateLimit-Global` (429 only).
+    pub(crate) global: bool,
+    /// `X-RateLimit-Scope` (429 only): `user`, `global` or `shared`.
+    pub(crate) scope: Option<&'a str>,
+    /// `Retry-After` (429 only), in seconds.
+    pub(crate) retry_after: Option<Duration>,
+}
+
+impl<'a> RateLimitHeaders<'a> {
+    pub(crate) fn parse(headers: &'a HeaderMap) -> Self {
+        let text = |name: &str| headers.get(name).and_then(|value| value.to_str().ok());
+        let number = |name: &str| text(name).and_then(|value| value.parse::<f64>().ok());
+        Self {
+            bucket: text("x-ratelimit-bucket"),
+            remaining: text("x-ratelimit-remaining").and_then(|value| value.parse().ok()),
+            reset_after: number("x-ratelimit-reset-after").map(seconds),
+            global: text("x-ratelimit-global")
+                .is_some_and(|value| value.eq_ignore_ascii_case("true")),
+            scope: text("x-ratelimit-scope"),
+            retry_after: number("retry-after").map(seconds),
+        }
+    }
+}
+
+/// Limits the overall request rate and handles global pauses.
+#[derive(Debug)]
+struct GlobalLimiter {
+    per_second: u32,
+    state: Mutex<GlobalState>,
+}
+
+#[derive(Debug)]
+struct GlobalState {
+    window_start: Instant,
+    used: u32,
+    paused_until: Option<Instant>,
+}
+
+const WINDOW: Duration = Duration::from_secs(1);
+
+impl GlobalLimiter {
+    fn new(per_second: u32) -> Self {
+        Self {
+            per_second,
+            state: Mutex::new(GlobalState {
+                window_start: Instant::now(),
+                used: 0,
+                paused_until: None,
+            }),
+        }
+    }
+
+    async fn acquire(&self, offset: Duration) {
+        loop {
+            let wait_until = {
+                let mut state = lock(&self.state);
+                let now = Instant::now();
+                match state.paused_until {
+                    Some(until) if until > now => Some(until + offset),
+                    _ => {
+                        state.paused_until = None;
+                        if self.per_second == 0 {
+                            return;
+                        }
+                        if now >= state.window_start + WINDOW {
+                            state.window_start = now;
+                            state.used = 0;
+                        }
+                        if state.used < self.per_second {
+                            state.used += 1;
+                            return;
+                        }
+                        Some(state.window_start + WINDOW)
+                    }
+                }
+            };
+            if let Some(until) = wait_until {
+                tracing::debug!("global rate limit reached, waiting");
+                tokio::time::sleep_until(until).await;
+            }
+        }
+    }
+
+    fn pause(&self, duration: Duration) {
+        let until = Instant::now() + duration;
+        let mut state = lock(&self.state);
+        if state.paused_until.is_none_or(|current| current < until) {
+            state.paused_until = Some(until);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use http::HeaderValue;
+
+    use super::*;
+
+    #[test]
+    fn parse_headers() {
+        let mut headers = HeaderMap::new();
+        headers.insert("x-ratelimit-bucket", HeaderValue::from_static("abcd1234"));
+        headers.insert("x-ratelimit-remaining", HeaderValue::from_static("0"));
+        headers.insert("x-ratelimit-reset-after", HeaderValue::from_static("64.57"));
+        headers.insert("x-ratelimit-global", HeaderValue::from_static("true"));
+        headers.insert("x-ratelimit-scope", HeaderValue::from_static("global"));
+        headers.insert("retry-after", HeaderValue::from_static("65"));
+        let parsed = RateLimitHeaders::parse(&headers);
+        assert_eq!(parsed.bucket, Some("abcd1234"));
+        assert_eq!(parsed.remaining, Some(0));
+        assert_eq!(parsed.reset_after, Some(Duration::from_secs_f64(64.57)));
+        assert!(parsed.global);
+        assert_eq!(parsed.scope, Some("global"));
+        assert_eq!(parsed.retry_after, Some(Duration::from_secs(65)));
+        assert_eq!(
+            RateLimitHeaders::parse(&HeaderMap::new()),
+            RateLimitHeaders::default()
+        );
+    }
+
+    #[test]
+    fn learned_hash_keeps_bucket_state() {
+        let limiter = RateLimiter::new(50, Duration::ZERO);
+        let route = BucketRoute {
+            template: "POST /channels/:id/messages",
+            major: 1,
+        };
+        let before = limiter.bucket(route);
+        limiter.learn_hash(route.template, "abc");
+        // The route bucket was migrated to the hash key: same bucket, same state.
+        let after = limiter.bucket(route);
+        assert!(Arc::ptr_eq(&before, &after));
+        assert!(Arc::ptr_eq(&after, &limiter.bucket(route)));
+        // A different major parameter is a different bucket even with the same hash.
+        let other_major = limiter.bucket(BucketRoute { major: 2, ..route });
+        assert!(!Arc::ptr_eq(&after, &other_major));
+        // Another route that turns out to share the hash shares the bucket.
+        let sibling = BucketRoute {
+            template: "PATCH /channels/:id/messages/:id",
+            major: 1,
+        };
+        let sibling_before = limiter.bucket(sibling);
+        assert!(!Arc::ptr_eq(&after, &sibling_before));
+        limiter.learn_hash(sibling.template, "abc");
+        assert!(Arc::ptr_eq(&after, &limiter.bucket(sibling)));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn global_limiter_spreads_requests_over_windows() {
+        let limiter = GlobalLimiter::new(2);
+        let start = Instant::now();
+        for _ in 0..5 {
+            limiter.acquire(Duration::ZERO).await;
+        }
+        // 2 in the first window, 2 in the second, 1 in the third.
+        assert_eq!(start.elapsed(), Duration::from_secs(2));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn global_pause() {
+        let limiter = GlobalLimiter::new(0);
+        limiter.pause(Duration::from_millis(1500));
+        let start = Instant::now();
+        limiter.acquire(Duration::from_millis(50)).await;
+        assert_eq!(start.elapsed(), Duration::from_millis(1550));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn exhausted_bucket_waits_for_reset() {
+        let mut state = BucketState::default();
+        state.exhaust_for(Duration::from_millis(300), Instant::now());
+        let start = Instant::now();
+        state.wait(Duration::from_millis(50)).await;
+        assert_eq!(start.elapsed(), Duration::from_millis(350));
+        // After waiting, the bucket is usable again without further delay.
+        let start = Instant::now();
+        state.wait(Duration::from_millis(50)).await;
+        assert_eq!(start.elapsed(), Duration::ZERO);
+    }
+
+    #[test]
+    fn sweep_keeps_active_buckets() {
+        let limiter = RateLimiter::new(50, Duration::ZERO);
+        let held = limiter.bucket(BucketRoute {
+            template: "T",
+            major: 0,
+        });
+        for major in 1..=(MIN_SWEEP_THRESHOLD as u64 + 1) {
+            drop(limiter.bucket(BucketRoute {
+                template: "T",
+                major,
+            }));
+        }
+        let buckets = lock(&limiter.buckets);
+        // The sweep ran once the threshold was reached: only the held bucket and the buckets
+        // created after the sweep remain.
+        assert!(buckets.map.len() <= 3, "{}", buckets.map.len());
+        drop(buckets);
+        assert!(Arc::strong_count(&held) >= 2);
+    }
+}

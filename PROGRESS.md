@@ -20,9 +20,12 @@
   C-008 … C-011 logged in `docs/DECISIONS.md` for owner review. Reference checkouts
   (discord-api-docs, discord-api-types, discord.js v14) live in git-ignored `.reference/` —
   re-clone with `git clone --depth 1` if missing.
+- 2026-11-10: **Phase 1 step 2 done — `djs-rest` core** (D-035: direct `rustls` dep for an explicit
+  ring provider). 11 unit + 11 mock-server integration tests + 6 doctests. A real bug was caught
+  by tests and fixed: bucket state is migrated when a route's hash is first learned.
 
 ## In progress
-- Phase 1, step 2: `djs-rest` core.
+- Phase 1, step 3: `djs-gateway` core.
 
 ## Next step (Phase 1 plan, in order)
 1. ~~**`djs-model` core**~~ ✅ — `Id<Marker>` (D-023) with markers + aliases, Snowflake helpers
@@ -30,7 +33,7 @@
    `Intents` (bitflags); minimal `User`, `Message`, `UnavailableGuild`; gateway `OpCode`,
    `Hello`, `Identify` (+ properties), `Ready`, `Resume`, `CloseCode`, dispatch envelope,
    `MessageCreate`. Strings are `CompactString` (D-024). Tests with real JSON fixtures.
-2. **`djs-rest` core** — hyper + hyper-rustls(ring, webpki-roots), `Authorization: Bot`,
+2. ~~**`djs-rest` core**~~ ✅ — hyper + hyper-rustls(ring, webpki-roots), `Authorization: Bot`,
    user-agent, per-route bucket limiter (basic) + 429 handling, `get_gateway_bot`,
    `create_message`. `thiserror` errors, `tracing` spans.
 3. **`djs-gateway` core** — single shard over tokio-websockets, zstd-stream, hello →

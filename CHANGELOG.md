@@ -20,6 +20,11 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (`Hello`, `Ready`, `MessageCreate`, `Identify`, `Resume`, `Heartbeat`), `GatewayEvent` /
   `DispatchEvent` and the single-pass `GatewayEventDeserializer`.
 - `djs-model`: `MessageReference` (+ type), `rest::{GatewayBot, SessionStartLimit, CreateMessage}`.
+- `djs-rest` core (Phase 1): `Rest` client on hyper 1.x + rustls (ring, webpki-roots) with
+  HTTP/2, `RestBuilder` (discord.js `RESTOptions` defaults), per-bucket sequential rate limiting
+  with hash learning and state migration, global limiter + global 429 pauses, retries for
+  5xx/transport/timeouts, `ApiError` parsing, typed `Route`s, `get_gateway_bot`,
+  `create_message`, idle-bucket sweeping, token redaction.
 
 ### Changed
 - MSRV raised from 1.85 to 1.89 (required by maintained `tokio-websockets` and `simd-json`).

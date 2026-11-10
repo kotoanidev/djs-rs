@@ -100,6 +100,7 @@ dependencies = [
  "hyper",
  "hyper-rustls",
  "hyper-util",
+ "rustls",
  "serde",
  "serde_json",
  "thiserror",
