@@ -399,8 +399,19 @@ Concurrent mode spawns handler futures directly (no extra boxing); sequential mo
 Each subscriber gets an unbounded channel (documented: consume promptly or drop). Closed
 subscribers are pruned automatically; there is no cost when nobody subscribes.
 
+### C-017 — Stress tests live in `tests/stress.rs`, ignored by default
+Each crate's extreme-load tests (D-041) are `#[ignore]`d integration tests in
+`tests/stress.rs`, run with `--release --ignored --nocapture`. They print `[stress]` lines,
+use in-process mock servers that also check correctness (sequence order, 429s the real API
+would return), and read memory from `/proc/self/status` (`VmRSS`/`VmHWM`, peak reset through
+`/proc/self/clear_refs`). Micro-benchmarks live in `benches/` (divan). Results go to
+`docs/PERFORMANCE.md`.
+
 ---
 
 ## Open questions (to ask the owner when relevant)
 
+- **Global REST limiter strictness** (found by the Phase 1 stress test, see
+  `docs/PERFORMANCE.md`): keep fixed one-second windows like discord.js (up to 2× the limit in a
+  sliding second at window boundaries), or switch to a strict sliding-window/GCRA limiter?
 - **Guide/book**: mdBook hosted on GitHub Pages?

@@ -4,13 +4,13 @@
 > from this file alone. Read `CLAUDE.md` and `docs/DECISIONS.md` first.
 
 ## Current phase
-**Phase 1 — Vertical slice: functionally done; live test passed.** Remaining before Phase 1 is
-closed: optimization benchmarks + extreme-load tests (D-041).
-**Then: Phase 2 — full `djs-model` coverage** (D-039; permissions = `u64`, D-040).
+**Phase 1 — Vertical slice: ✅ done** (live test passed, benchmarks + extreme-load tests done,
+D-041).
+**Next: Phase 2 — full `djs-model` coverage** (D-039; permissions = `u64`, D-040).
 
 ## Done
-- 2026-11-10: Owner decisions D-001 … D-039 in `docs/DECISIONS.md`; Claude defaults C-001 …
-  C-016 (reviewable) in the same file.
+- 2026-11-10: Owner decisions D-001 … D-042 in `docs/DECISIONS.md`; Claude defaults C-001 …
+  C-017 (reviewable) in the same file.
 - Toolchains (rustup): stable 1.99.1, 1.85, 1.89 (MSRV, D-031).
 - Phase 0: foundation docs, public repo https://github.com/kotoanidev/djs-rs, 9-crate workspace,
   lints, CI (fmt, clippy all/no-default features, tests ×3 OS, rustdoc -D warnings, MSRV 1.89,
@@ -28,14 +28,18 @@ closed: optimization benchmarks + extreme-load tests (D-041).
     connected to real Discord: TLS + zstd OK, READY OK ("djs-rs tests#3165", 1 guild),
     ClientReady handler OK, `!ping` → `Pong!` reply in 682 ms (incl. Discord API round trip),
     clean Ctrl+C shutdown (close 1000). **Phase 1 live test passed.**
+  - **Performance (D-041/D-042), results in `docs/PERFORMANCE.md`:** divan benches
+    (`djs-model/benches/decode.rs`: MESSAGE_CREATE decode 1.26 µs / 3 allocations vs 2.09 µs /
+    76 for `serde_json::Value`), ignored stress tests `tests/stress.rs` in djs-gateway (1M
+    events: 674k/s plain, 793k/s zstd, flat memory), djs-rest (246k req/s, 0 rate-limit
+    violations with 10k queued requests, 429 storm recovery) and djs-rs (Client 402k events/s
+    concurrent, 540k/s sequential, 1M handler calls/s fan-out, < 10 MiB peak). CI compiles the
+    benches (`cargo bench --workspace --no-run`).
 - Reference checkouts (git-ignored `.reference/`): discord-api-docs, discord-api-types,
   discord.js v14 — re-clone with `git clone --depth 1` if missing (discord.js: `--branch v14`).
 
 ## In progress
-- D-041 for Phase 1: benchmark harness choice (ask owner: criterion vs divan), then benchmarks
-  of hot paths (gateway decode, zstd, ID/timestamp parsing, rate limiter) + stress tests
-  (mock gateway event flood, concurrent REST through rate limiter, handler dispatch fan-out,
-  memory per event) → `docs/PERFORMANCE.md`.
+- Nothing. Phase 1 is closed.
 
 ## Next step — Phase 2 (`djs-model` full coverage)
 1. Permissions are `u64` bitflags (D-040), serialized as decimal strings.
@@ -47,6 +51,12 @@ closed: optimization benchmarks + extreme-load tests (D-041).
    expected test values independently (two earlier hand-written expectations were wrong).
 3. Each sub-area: types + rustdoc (links to docs.discord.com + discord.js counterpart) +
    fixture tests; commit + push per sub-area.
+4. When Phase 2 is done: extend `djs-model/benches/decode.rs` (all events, large GUILD_CREATE
+   decoded for real) + stress tests, update `docs/PERFORMANCE.md` (D-041).
+5. Optimization candidates noted in `docs/PERFORMANCE.md` (1 KiB REST futures, Timestamp
+   formatting) are for Phase 3 / when touching that code.
 
 ## Blocked on the owner
-- Benchmark harness choice (criterion vs divan) for D-041.
+- Open question (asked 2026-11-10): global REST limiter — keep fixed windows (like discord.js)
+  or switch to a strict sliding-window/GCRA limiter? See `docs/DECISIONS.md` → Open questions.
+  Does not block Phase 2.

@@ -1,0 +1,222 @@
+//! Extreme-load tests of the high-level `Client`: event floods through handlers (D-041).
+//!
+//! These tests are ignored by default because they take seconds and saturate the machine. Run
+//! them in release mode and read the printed numbers:
+//!
+//! ```text
+//! cargo test -p djs-rs --release --test stress -- --ignored --nocapture --test-threads 1
+//! ```
+
+#![expect(
+    clippy::cast_precision_loss,
+    reason = "throughput numbers are only printed"
+)]
+
+use std::{
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering},
+    },
+    time::{Duration, Instant},
+};
+
+use djs_rs::{HandlerMode, gateway::Compression, prelude::*};
+use futures_util::{SinkExt, StreamExt};
+use tokio::{net::TcpListener, sync::Notify, time::timeout};
+use tokio_websockets::{Message, ServerBuilder};
+
+const STEP: Duration = Duration::from_secs(60);
+
+const HELLO: &str = r#"{"t":null,"s":null,"op":10,"d":{"heartbeat_interval":600000}}"#;
+const READY: &str = r#"{"t":"READY","s":1,"op":0,"d":{"v":10,"user":{"id":"1","username":"stress-bot","discriminator":"0","global_name":null,"avatar":null,"bot":true},"guilds":[],"session_id":"s","resume_gateway_url":"ws://127.0.0.1:9","shard":[0,1],"application":{"id":"1","flags":0}}}"#;
+
+/// A realistic `MESSAGE_CREATE` dispatch (≈ 700 bytes).
+fn message_create(sequence: u64) -> String {
+    format!(
+        r#"{{"t":"MESSAGE_CREATE","s":{sequence},"op":0,"d":{{"type":0,"tts":false,"timestamp":"2026-11-10T19:42:07.123000+00:00","pinned":false,"nonce":"{sequence}","mentions":[],"mention_roles":[],"mention_everyone":false,"member":{{"roles":["1100000000000000001","1100000000000000002"],"premium_since":null,"pending":false,"nick":null,"mute":false,"joined_at":"2024-05-01T12:00:00.000000+00:00","flags":0,"deaf":false,"communication_disabled_until":null,"banner":null,"avatar":null}},"id":"{}","flags":0,"embeds":[],"edited_timestamp":null,"content":"stress message number {sequence}","components":[],"channel_id":"1200000000000000020","author":{{"username":"nelly","public_flags":0,"id":"1300000000000000003","global_name":"Nelly","discriminator":"0","clan":null,"avatar_decoration_data":null,"avatar":"a_1269e74af4df7417b13759eae50c83dc"}},"attachments":[],"guild_id":"1400000000000000002"}}}}"#,
+        1_500_000_000_000_000_000_u64 + sequence
+    )
+}
+
+/// Serves one session that sends `events` `MESSAGE_CREATE` dispatches after READY.
+async fn serve(listener: TcpListener, events: u64) {
+    let (stream, _) = timeout(STEP, listener.accept()).await.unwrap().unwrap();
+    stream.set_nodelay(true).unwrap();
+    let (_, mut ws) = ServerBuilder::new().accept(stream).await.unwrap();
+    ws.send(Message::text(HELLO.to_owned())).await.unwrap();
+    loop {
+        let message = timeout(STEP, ws.next()).await.unwrap().unwrap().unwrap();
+        if message
+            .as_text()
+            .is_some_and(|text| text.contains(r#""op":2"#))
+        {
+            break;
+        }
+    }
+    ws.send(Message::text(READY.to_owned())).await.unwrap();
+    for sequence in 2..events + 2 {
+        ws.feed(Message::text(message_create(sequence)))
+            .await
+            .unwrap();
+        if sequence % 64 == 0 {
+            ws.flush().await.unwrap();
+        }
+    }
+    ws.flush().await.unwrap();
+    while let Ok(Some(Ok(_))) = timeout(STEP, ws.next()).await {}
+}
+
+/// Counts handler invocations and wakes the test once `target` is reached.
+#[derive(Clone)]
+struct Counter {
+    count: Arc<AtomicU64>,
+    target: u64,
+    done: Arc<Notify>,
+}
+
+impl Counter {
+    fn new(target: u64) -> Self {
+        Self {
+            count: Arc::default(),
+            target,
+            done: Arc::default(),
+        }
+    }
+
+    fn hit(&self) {
+        if self.count.fetch_add(1, Ordering::Relaxed) + 1 == self.target {
+            self.done.notify_one();
+        }
+    }
+}
+
+/// Floods a client with `events` messages, registering `handlers` counting handlers, and
+/// optionally consuming the event stream as well. Returns the elapsed time.
+async fn run(events: u64, handlers: u64, mode: HandlerMode, stream: bool) -> Duration {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("ws://{}", listener.local_addr().unwrap());
+    let server = tokio::spawn(serve(listener, events));
+
+    let client = Client::builder("stress-token")
+        .intents(Intents::GUILD_MESSAGES)
+        .gateway_url(url)
+        .compression(Compression::None)
+        .handler_mode(mode)
+        .build();
+    let counter = Counter::new(events * handlers);
+    for _ in 0..handlers {
+        let counter = counter.clone();
+        client.on(Events::MessageCreate, move |_ctx, msg| {
+            let counter = counter.clone();
+            async move {
+                std::hint::black_box(&msg.content);
+                counter.hit();
+                Ok(())
+            }
+        });
+    }
+    let streamed = Counter::new(events);
+    if stream {
+        let mut events = client.events();
+        let streamed = streamed.clone();
+        tokio::spawn(async move {
+            while let Some(event) = events.next().await {
+                if event.event.name() == "MESSAGE_CREATE" {
+                    streamed.hit();
+                }
+            }
+        });
+    }
+
+    let started = Instant::now();
+    let running = {
+        let client = client.clone();
+        tokio::spawn(async move { client.login().await })
+    };
+    timeout(STEP, counter.done.notified())
+        .await
+        .expect("handlers did not finish in time");
+    if stream {
+        timeout(STEP, streamed.done.notified())
+            .await
+            .expect("stream did not finish in time");
+    }
+    let elapsed = started.elapsed();
+    client.shutdown();
+    timeout(STEP, running).await.unwrap().unwrap().unwrap();
+    server.await.unwrap();
+    elapsed
+}
+
+/// `(VmRSS, VmHWM)` of this process in KiB, from `/proc/self/status` (Linux only).
+fn memory_kib() -> Option<(u64, u64)> {
+    let status = std::fs::read_to_string("/proc/self/status").ok()?;
+    let field = |name: &str| {
+        status
+            .lines()
+            .find_map(|line| line.strip_prefix(name))?
+            .split_whitespace()
+            .next()?
+            .parse()
+            .ok()
+    };
+    Some((field("VmRSS:")?, field("VmHWM:")?))
+}
+
+/// Resets `VmHWM` to the current RSS so the next reading shows the peak of the measured part.
+fn reset_peak_memory() {
+    let _ = std::fs::write("/proc/self/clear_refs", "5");
+}
+
+async fn measure(name: &str, events: u64, handlers: u64, mode: HandlerMode, stream: bool) {
+    let before = memory_kib();
+    reset_peak_memory();
+    let elapsed = run(events, handlers, mode, stream).await;
+    let memory = match (before, memory_kib()) {
+        (Some((before, _)), Some((after, peak))) => format!(
+            "rss {} → {} MiB, peak {} MiB",
+            before / 1024,
+            after / 1024,
+            peak / 1024
+        ),
+        _ => "memory n/a".to_owned(),
+    };
+    let seconds = elapsed.as_secs_f64();
+    println!(
+        "[stress] {name}: {events} events × {handlers} handler(s) in {elapsed:.2?} = \
+         {:.0} events/s, {:.0} handler calls/s; {memory}",
+        events as f64 / seconds,
+        (events * handlers) as f64 / seconds,
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "stress test; run with --release --ignored"]
+async fn flood_1m_concurrent_handlers() {
+    measure("concurrent", 1_000_000, 1, HandlerMode::Concurrent, false).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "stress test; run with --release --ignored"]
+async fn flood_1m_sequential_handlers() {
+    measure("sequential", 1_000_000, 1, HandlerMode::Sequential, false).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "stress test; run with --release --ignored"]
+async fn flood_200k_fan_out_to_10_handlers() {
+    measure("fan-out", 200_000, 10, HandlerMode::Concurrent, false).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "stress test; run with --release --ignored"]
+async fn flood_1m_handlers_and_event_stream() {
+    measure(
+        "handler + stream",
+        1_000_000,
+        1,
+        HandlerMode::Concurrent,
+        true,
+    )
+    .await;
+}

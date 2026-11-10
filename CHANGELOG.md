@@ -8,6 +8,10 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Performance suite (D-041, D-042): divan micro-benchmarks for gateway decoding and value
+  parsing (`djs-model/benches/decode.rs`), ignored extreme-load tests for `Shard`, `Rest` and
+  `Client` (`tests/stress.rs` in each crate), results in `docs/PERFORMANCE.md`; CI compiles the
+  benchmarks.
 - Project foundation: decision log, roadmap, progress tracking, licensing (MIT OR Apache-2.0),
   contribution guidelines.
 - Cargo workspace with nine placeholder crates (`djs-rs`, `djs-model`, `djs-rest`,

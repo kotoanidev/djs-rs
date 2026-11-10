@@ -55,6 +55,16 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --workspace --all-features
 
+  benches:
+    name: benches (compile only)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      # Benchmarks are measured locally (D-042); CI only keeps them compiling.
+      - run: cargo bench --workspace --no-run
+
   docs:
     name: rustdoc
     runs-on: ubuntu-latest

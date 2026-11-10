@@ -16,7 +16,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` not started
 - [x] GitHub Actions CI (fmt, clippy, tests ×3 OS, docs, MSRV, cargo-deny) — first run green
 - [x] `docs/ARCHITECTURE.md`
 
-## Phase 1 — Vertical slice: a working "ping-pong" bot
+## Phase 1 — Vertical slice: a working "ping-pong" bot ✅
 Goal: the smallest end-to-end bot that touches every layer, to validate the architecture
 before the API surface is widened. Everything here is built to final quality (docs, tests),
 just with narrow scope.
@@ -31,9 +31,10 @@ just with narrow scope.
       jitter + ACK tracking, resume/reconnect, dispatch → typed events
 - [x] `djs-rs` core: `Client::builder`, `client.on(Events::MessageCreate, …)`, `msg.reply`,
       `login`, graceful shutdown
-- [~] `examples/ping.rs` — written; end-to-end mock tests pass in CI; **live run against real
-      Discord pending the owner's test token (D-034)**
-- [ ] Architecture review with the owner before widening
+- [x] `examples/ping.rs` — end-to-end mock tests pass in CI; live run against real Discord
+      passed (2026-11-10)
+- [x] Architecture review with the owner before widening (D-039)
+- [x] Benchmarks + extreme-load tests (D-041) — results in `docs/PERFORMANCE.md`
 
 ## Phase 2 — `djs-model` full coverage (≈ discord-api-types v10)
 - [ ] Bitflags: permissions, message/user/channel/guild/application flags
