@@ -29,7 +29,7 @@
   command queueing, zstd-stream). CI also runs clippy with `--no-default-features`.
 
 ## In progress
-- Phase 1, step 4: `djs-rs` core (high-level Client).
+- Phase 1, step 4: `djs-rs` core — implementation committed (Client, ClientBuilder, HandlerMode, Events, Context, MessageExt, EventStream); NEXT: `examples/ping.rs` + end-to-end test with mock REST + mock gateway (`crates/djs-rs/tests/`).
 
 ## Next step (Phase 1 plan, in order)
 1. ~~**`djs-model` core**~~ ✅ — `Id<Marker>` (D-023) with markers + aliases, Snowflake helpers

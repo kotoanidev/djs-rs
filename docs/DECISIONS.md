@@ -347,6 +347,24 @@ Mirrors discord-api-types, which contains both payload and REST body types (D-00
 `djs-rest` contains only the client, routing and rate limiting. Body structs are plain data with
 `Default` (+ `From<&str>` for message bodies); validated builders come with `djs-builders`.
 
+### C-013 — Structures = plain model types + extension traits taking `&Context`
+Follows the approved D-006 shape (`msg.reply(&ctx, "Pong!")`): behaviour lives in sealed
+extension traits in `djs_rs::ext` (re-exported by the prelude) instead of wrapper structs that
+store a client reference. Keeps structures small and free of reference cycles.
+
+### C-014 — Handlers return `Result<(), HandlerError>` (`Box<dyn Error + Send + Sync>`)
+Lets users write bare `Ok(())` and use `?` on any error (verified: rustc infers the async
+block's output from the bound). Errors are logged via `tracing` at `error` level.
+
+### C-015 — `Events` as associated constants; handler payloads as `Arc<Payload>`
+`Events::MessageCreate` is a zero-sized value whose type selects the payload type at compile
+time. Payloads are converted once from `Box` to `Arc` and shared by all handlers/subscribers.
+Concurrent mode spawns handler futures directly (no extra boxing); sequential mode boxes.
+
+### C-016 — `client.events()` streams are unbounded
+Each subscriber gets an unbounded channel (documented: consume promptly or drop). Closed
+subscribers are pruned automatically; there is no cost when nobody subscribes.
+
 ---
 
 ## Open questions (to ask the owner when relevant)
