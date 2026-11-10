@@ -8,6 +8,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-model`: `guild::{Member, PartialMember, Role, RoleColors, RoleTags}` with
+  `Member::display_name`/`is_timed_out`, `PartialMember::into_member`, `RoleColors::HOLOGRAPHIC`
+  and "null means true" role tags.
 - `djs-model`: complete user model — `user::{User, CurrentUser, AvatarDecorationData,
   Collectibles, Nameplate, NameplatePalette, PrimaryGuild, PremiumType}` (D-052, D-054),
   `util::Locale`, string-enum macro (C-018); `Ready::user` is now a `CurrentUser` and
@@ -51,4 +54,5 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `login`/`shutdown`, prelude; `examples/ping.rs`; end-to-end tests with mock REST + gateway.
 
 ### Changed
+- `djs-model`: received model structs are `#[non_exhaustive]` (D-053).
 - MSRV raised from 1.85 to 1.89 (required by maintained `tokio-websockets` and `simd-json`).

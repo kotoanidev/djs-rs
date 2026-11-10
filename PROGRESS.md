@@ -47,8 +47,10 @@ D-041).
   `CurrentUser` (D-052), avatar decoration, collectibles/nameplate, primary guild, premium type,
   `util::Locale`; non-exhaustive structs (D-053), boxed rare sub-objects with size guards
   (D-054)). Not yet: `Connection` / `ApplicationRoleConnection` (need guild integrations).
-- **Next:** `guild::{Member, PartialMember, Role, RoleTags, RoleColors}`, then `emoji` and
-  `sticker` modules. Modelling rules: D-049 … D-054.
+- `guild::{Member, PartialMember, Role, RoleColors, RoleTags}` ✅ (size guards: Member 304 B,
+  PartialMember 160 B, Role 128 B, User 144 B, CurrentUser 216 B).
+- **Next:** `emoji` and `sticker` modules, then guilds (Phase 2 step 3). Modelling rules:
+  D-049 … D-054.
 - Perf note: after the user change, MESSAGE_CREATE/READY decode looked ~8-13 % slower relative
   to the `serde_json::Value` baseline (laptop was ~35 % slower overall during that run). At the
   end of Phase 2, run the decode benches back-to-back against the Phase 1 commit `65210f8`
