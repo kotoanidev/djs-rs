@@ -358,6 +358,31 @@ and why.
   Discord docs (`Permissions::SEND_MESSAGES`), consistent with `Intents`.
 - **Alternatives:** `PermissionFlags` (closer to discord.js `PermissionFlagsBits`).
 
+### D-046 — Undocumented values: official docs + discord-api-types
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** `djs-model` covers everything in the official Discord docs **plus** items that
+  exist in discord-api-types but not in the docs (e.g. `UserFlags::ACTIVE_DEVELOPER`). Such items
+  are marked in rustdoc with an "**Undocumented**" note (may change without notice). Unknown
+  values are still preserved (C-010).
+- **Alternatives:** official docs only.
+
+### D-047 — All bitflags types use `u64`
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** Every bitflags type (`MessageFlags`, `UserFlags`, `ChannelFlags`, …) is backed by
+  `u64`, like `Permissions` and `Intents`: one uniform `bits()` type and room for future high
+  bits. Integer-valued flags serialize as JSON integers; only `Permissions` uses strings.
+- **Alternatives:** smallest fitting integer per type (smaller cached structs, but future bits
+  could be lost and widening would be a breaking change).
+
+### D-048 — Type naming: docs object names without the module prefix
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** Public types are named after the Discord docs object, dropping a prefix that the
+  module already provides: Guild Member → `guild::Member`, Guild Member Flags →
+  `guild::MemberFlags`, Guild Invite Flags → `invite::InviteFlags`. The prefix stays where the
+  short name would be misleading. As shown in the approved D-044 preview, `Role` (and
+  `RoleFlags`) live in `guild` although the docs define them on the permissions page.
+- **Alternatives:** full docs names (`guild::GuildMember`, closer to discord.js `GuildMember`).
+
 ---
 
 ## Defaults chosen by Claude (reviewable)

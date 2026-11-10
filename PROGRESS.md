@@ -9,7 +9,7 @@ D-041).
 **Current: Phase 2 — full `djs-model` coverage** (D-039; permissions = `u64`, D-040).
 
 ## Done
-- 2026-11-10: Owner decisions D-001 … D-045 in `docs/DECISIONS.md`; Claude defaults C-001 …
+- 2026-11-10: Owner decisions D-001 … D-048 in `docs/DECISIONS.md`; Claude defaults C-001 …
   C-017 (reviewable) in the same file.
 - Toolchains (rustup): stable 1.99.1, 1.85, 1.89 (MSRV, D-031).
 - Phase 0: foundation docs, public repo https://github.com/kotoanidev/djs-rs, 9-crate workspace,
@@ -41,7 +41,8 @@ D-041).
 ## In progress
 - Phase 2, step 2 (bitflags): `permissions::Permissions` ✅ (2026-11-10). Next: message,
   user, channel, guild, application (and other) flags — each in the module of its docs page
-  (D-044), same serde pattern as `Intents` (integers) unless the docs say string.
+  (D-044), `u64` + integer serde (D-047), names without module prefix (D-048), undocumented
+  discord-api-types items included and marked (D-046).
 
 ## Next step — Phase 2 (`djs-model` full coverage)
 1. Permissions are `u64` bitflags (D-040), serialized as decimal strings, named
