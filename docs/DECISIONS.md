@@ -206,6 +206,32 @@ and why.
   users choose the subscriber. No separate `Debug`/`Warn` client events.
 - **Alternatives:** `tracing` + `Events::Debug`/`Events::Warn`; `log`; events only.
 
+### D-027 — rustls crypto provider: `ring` default, `aws-lc-rs` optional
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** `ring` is the default rustls crypto provider (builds everywhere without cmake);
+  an `aws-lc-rs` cargo feature switches to aws-lc-rs.
+- **Alternatives:** aws-lc-rs default + ring feature; aws-lc-rs only.
+
+### D-028 — Handler execution: configurable, spawn-per-event by default
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** By default every dispatched event runs its handlers in a new tokio task (a slow
+  handler never blocks others — discord.js-like behaviour). A client option switches to
+  sequential, in-order handling per shard.
+- **Alternatives:** always spawn; always sequential.
+
+### D-029 — Event APIs: closures + `Stream`
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** Besides closure registration (`client.on(Events::X, |ctx, ev| …)`, D-006), the
+  client exposes an event `Stream` (`client.events()`) for users who want full control.
+  No `EventHandler` trait.
+- **Alternatives:** closures + `EventHandler` trait; all three; closures only.
+
+### D-030 — Root certificates: `webpki-roots`
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** TLS trust anchors come from the bundled Mozilla set (`webpki-roots`); works in
+  minimal containers and is reproducible.
+- **Alternatives:** platform verifier (system store); both behind a feature.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
@@ -238,10 +264,6 @@ Reproducible CI and MSRV checks (current Cargo guidance for libraries as well).
 
 ## Open questions (to ask the owner when relevant)
 
-- **rustls crypto provider:** `aws-lc-rs` (rustls default, needs cmake/C toolchain, faster) vs
-  `ring` (simpler to build). Ask when implementing `djs-rest`.
-- **Event handler API details** (closure registration as approved in D-006 vs additional
-  `EventHandler` trait; handler concurrency model).
 - **Integration testing against real Discord** (needs a test bot token + test guild).
 - **Benchmark harness** (`criterion` vs `divan`).
 - **Guide/book**: mdBook hosted on GitHub Pages?
