@@ -6,7 +6,7 @@
 ## Current phase
 **Phase 1 — Vertical slice: ✅ done** (live test passed, benchmarks + extreme-load tests done,
 D-041).
-**Next: Phase 2 — full `djs-model` coverage** (D-039; permissions = `u64`, D-040).
+**Current: Phase 2 — full `djs-model` coverage** (D-039; permissions = `u64`, D-040).
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-045 in `docs/DECISIONS.md`; Claude defaults C-001 …
@@ -39,7 +39,9 @@ D-041).
   discord.js v14 — re-clone with `git clone --depth 1` if missing (discord.js: `--branch v14`).
 
 ## In progress
-- Nothing. Phase 1 is closed.
+- Phase 2, step 2 (bitflags): `permissions::Permissions` ✅ (2026-11-10). Next: message,
+  user, channel, guild, application (and other) flags — each in the module of its docs page
+  (D-044), same serde pattern as `Intents` (integers) unless the docs say string.
 
 ## Next step — Phase 2 (`djs-model` full coverage)
 1. Permissions are `u64` bitflags (D-040), serialized as decimal strings, named

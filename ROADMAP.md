@@ -37,7 +37,7 @@ just with narrow scope.
 - [x] Benchmarks + extreme-load tests (D-041) — results in `docs/PERFORMANCE.md`
 
 ## Phase 2 — `djs-model` full coverage (≈ discord-api-types v10)
-- [ ] Bitflags: permissions, message/user/channel/guild/application flags
+- [~] Bitflags: permissions ✅, message/user/channel/guild/application flags
 - [ ] Users, members, roles, emojis, stickers
 - [ ] Guilds (onboarding, welcome screen, widgets, templates, scheduled events,
       auto-moderation, audit log, integrations, bans)
