@@ -48,20 +48,26 @@ The owner wants work to survive even if an assistant session ends abruptly (usag
   fails `fmt`, `clippy` or tests. If something must be pushed in a broken state to avoid losing
   it, say so explicitly in the commit message (`wip:` prefix) and in `PROGRESS.md`.
 
-### 3. Keep `PROGRESS.md` resumable
+### 3. Benchmark and stress-test every completed stage (D-041)
+
+A phase/stage is **not done** until its hot paths are benchmarked and it has survived
+extreme-load tests (throughput, concurrency, memory). Record results (machine, numbers,
+regressions) in `docs/PERFORMANCE.md` and commit them.
+
+### 4. Keep `PROGRESS.md` resumable
 
 `PROGRESS.md` must always answer: *what is done, what is in progress, what exactly is next,
 and what is blocked on the owner*. A fresh session with zero context must be able to continue
 from it alone.
 
-### 4. discord.js is a reference, not a source (D-004)
+### 5. discord.js is a reference, not a source (D-004)
 
 discord.js is Apache-2.0; this project is `MIT OR Apache-2.0`. Read discord.js and the official
 Discord API docs to understand **behaviour and API surface**, but **write all code and rustdoc
 from scratch**. Never copy or translate code or doc text verbatim. Acknowledgements live in
 `NOTICE`.
 
-### 5. Language
+### 6. Language
 
 - Talk to the owner in **Polish** (with correct diacritics).
 - Everything in the repository — code, identifiers, rustdoc, README, guides, commit messages —

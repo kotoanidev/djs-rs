@@ -309,6 +309,19 @@ and why.
   defaults C-008 … C-016 are accepted. Next: Phase 2 (full `djs-model` coverage).
 - **Alternatives:** sharding (Phase 4) first; architecture changes.
 
+### D-040 — Permissions bitfield: `u64`
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** `Permissions` is a `bitflags` type over `u64` (all current permissions fit;
+  serialized as a decimal string like Discord). Unknown bits are preserved.
+- **Alternatives:** `u128` (future-proof, closer to discord.js BigInt).
+
+### D-041 — Optimization and extreme-load tests after every completed stage
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** Every completed phase/stage ends with (1) optimization benchmarks of its hot
+  paths and (2) extreme-load / stress tests (throughput, concurrency, memory) — results recorded
+  in `docs/PERFORMANCE.md` before the stage counts as done. Applies retroactively to Phase 1.
+- **Alternatives:** none (owner requirement).
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
