@@ -1,0 +1,17 @@
+# Build output
+/target/
+**/target/
+
+# Local reference checkouts (discord.js, Discord API docs) — never committed (D-004)
+/.reference/
+
+# Editors / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Secrets (bot tokens for local testing)
+.env
+.env.*
+!.env.example

@@ -1,0 +1,10 @@
+djs-rs
+Copyright (c) 2026 The djs-rs contributors
+
+This project is an independent, from-scratch Rust implementation inspired by the API design
+and developer experience of discord.js (https://github.com/discordjs/discord.js), which is
+licensed under the Apache License 2.0. No source code or documentation text from discord.js
+is included in this repository; discord.js is used solely as a behavioural reference.
+
+djs-rs is not affiliated with, endorsed by, or sponsored by the discord.js project or
+Discord Inc. "Discord" is a trademark of Discord Inc.

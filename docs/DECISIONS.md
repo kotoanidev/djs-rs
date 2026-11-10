@@ -1,0 +1,209 @@
+# Decision log
+
+Every significant decision in djs-rs is recorded here. Decisions marked **Owner** were made by
+the project owner and are binding; changing them requires asking the owner again.
+
+Format: `D-NNN` — title. Date, who decided, the decision, alternatives that were considered,
+and why.
+
+---
+
+## Owner decisions
+
+### D-001 — Project name: `djs-rs`
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** The project, repository and main crate are named `djs-rs` (import path
+  `djs_rs`). Sub-crates use the `djs-` prefix (`djs-rest`, `djs-gateway`, …). All names were
+  verified to be free on crates.io on 2026-11-10.
+- **Alternatives:** `djs`, `kotocord`, `discord-kit`.
+
+### D-002 — Public GitHub repository, work directly on `main`
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** Public repository `github.com/kotoanidev/djs-rs`. Every significant change is
+  committed to `main` and pushed immediately so work survives interrupted sessions.
+- **Alternatives:** private repository; feature branches + PRs.
+
+### D-003 — License: `MIT OR Apache-2.0`
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** Dual-licensed under MIT or Apache-2.0 at the user's option (Rust ecosystem
+  convention, same as tokio and serde).
+- **Alternatives:** Apache-2.0 only (same as discord.js), MIT only, no license.
+
+### D-004 — discord.js is a behavioural reference only
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** discord.js (Apache-2.0) and the official Discord API documentation are used as
+  references for behaviour and API surface. All code and documentation in this repository is
+  written from scratch; nothing is copied or translated verbatim. `NOTICE` acknowledges
+  discord.js as the inspiration.
+- **Why:** keeps the dual license clean.
+- **Alternatives:** adapting fragments of discord.js under Apache-2.0 with attribution.
+
+### D-005 — Toolchain: rustup stable, edition 2024, fixed MSRV 1.85
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** Rust installed via rustup (stable). Edition 2024. MSRV fixed at **1.85** (first
+  release with edition 2024); raised only deliberately, with owner approval and a CHANGELOG note.
+  Cargo resolver v3 (MSRV-aware dependency resolution).
+- **Alternatives:** Fedora `dnf` packages; MSRV = stable − 2; latest stable only.
+
+### D-006 — API style: hybrid
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** Low-level layers (`djs-model`, `djs-rest`, `djs-gateway`, `djs-cache`) are
+  idiomatic Rust. On top of them, `djs-rs` provides a high-level layer that closely mirrors the
+  discord.js developer experience. Reference shape approved by the owner:
+
+  ```rust,ignore
+  // high level (discord.js-like)
+  let client = Client::builder(token)
+      .intents(Intents::GUILDS | Intents::GUILD_MESSAGES)
+      .build();
+
+  client.on(Events::MessageCreate, |ctx, msg| async move {
+      if msg.content == "!ping" {
+          msg.reply(&ctx, "Pong!").await?;
+      }
+      Ok(())
+  });
+
+  // low level (separate crate)
+  let rest = djs_rest::Rest::new(token);
+  rest.create_message(channel_id, &body).await?;
+  ```
+- **Why:** mirrors how discord.js itself is layered (`@discordjs/rest`, `@discordjs/ws` →
+  `discord.js`) while keeping the low layers zero-overhead.
+- **Alternatives:** faithful 1:1 port (Arc/locks everywhere); fully idiomatic Rust design.
+
+### D-007 — Cargo workspace mirroring the discord.js monorepo
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** Cargo workspace with one crate per concern:
+
+  | Crate            | discord.js counterpart   | Purpose                                  |
+  |------------------|--------------------------|------------------------------------------|
+  | `djs-rs`         | `discord.js`             | High-level client, events, structures    |
+  | `djs-model`      | `discord-api-types`      | All Discord API types                    |
+  | `djs-rest`       | `@discordjs/rest`        | REST client + rate limiting              |
+  | `djs-gateway`    | `@discordjs/ws`          | Gateway shards, sharding                 |
+  | `djs-cache`      | (part of `discord.js`)   | In-memory cache                          |
+  | `djs-builders`   | `@discordjs/builders`    | Embed/command/component builders         |
+  | `djs-collection` | `@discordjs/collection`  | `Collection` type                        |
+  | `djs-formatters` | `@discordjs/formatters`  | Markdown/mention/timestamp formatting    |
+  | `djs-util`       | `@discordjs/util`        | Shared utilities                         |
+  | `djs-voice`      | `@discordjs/voice`       | Voice (later phase, see D-017)           |
+- **Alternatives:** single crate with feature flags.
+
+### D-008 — Own Discord API models, written from scratch
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** `djs-model` is written from scratch (no `twilight-model` dependency), giving full
+  control over memory layout, zero-copy deserialization, ID types and documentation.
+- **Alternatives:** reuse `twilight-model`.
+
+### D-009 — Documentation language: English
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** All rustdoc, READMEs, guides and repository text in English.
+- **Alternatives:** English code docs + Polish guide; bilingual; Polish only.
+
+### D-010 — HTTP client: hyper 1.x directly
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** `djs-rest` uses `hyper` 1.x + `hyper-util` directly (full control over the
+  connection pool, HTTP/2, buffers), no `reqwest`.
+- **Alternatives:** `reqwest`.
+
+### D-011 — WebSocket: `tokio-websockets`
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** `djs-gateway` uses `tokio-websockets` (SIMD masking, RFC-compliant, used by
+  twilight-gateway ≥ 0.16).
+- **Alternatives:** `fastwebsockets`, `tokio-tungstenite`.
+
+### D-012 — TLS: rustls by default, native-tls optional
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** `rustls` is the default TLS backend; a `native-tls` cargo feature offers the
+  system TLS library instead.
+- **Alternatives:** rustls only; native-tls only.
+
+### D-013 — JSON: serde_json by default, simd-json optional
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** `serde_json` by default; a `simd-json` cargo feature switches hot-path parsing to
+  `simd-json`.
+- **Alternatives:** simd-json by default; serde_json only.
+
+### D-014 — Async runtime: tokio only
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** The library targets tokio exclusively (required by hyper and tokio-websockets).
+- **Alternatives:** runtime-agnostic abstraction.
+
+### D-015 — Gateway transport compression: zstd-stream default, zlib-stream optional
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** `zstd-stream` transport compression is enabled by default; `zlib-stream` is
+  available as a cargo feature; both can be disabled (no compression).
+- **Alternatives:** zlib-stream default; no compression by default.
+
+### D-016 — Cache: configurable, pluggable, DashMap by default
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** Cache behaviour is configurable like discord.js `makeCache` / `sweepers`
+  (enable/disable per resource, size limits, periodic sweeping). Storage is abstracted behind a
+  trait so users can plug their own backend; the default backend uses `DashMap`.
+- **Alternatives:** `papaya` (lock-free), `scc::HashMap`.
+
+### D-017 — Voice: later phase
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** Voice support (`djs-voice`, ≈ `@discordjs/voice`, incl. DAVE E2EE, Opus, RTP) is
+  planned as a separate crate **after** the core is complete.
+- **Alternatives:** out of scope; in parallel with the core.
+
+### D-018 — Sharding: in-process first, multi-process later
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** First implement in-process sharding (each shard is a tokio task). A
+  multi-process `ShardingManager` with IPC (like discord.js) follows in a later phase.
+- **Alternatives:** in-process only; both from the start.
+
+### D-019 — CI: full GitHub Actions pipeline
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** CI runs `rustfmt`, `clippy -D warnings`, tests on Linux/Windows/macOS, rustdoc
+  with `-D warnings` (guarantees complete docs), an MSRV (1.85) check and `cargo-deny`
+  (licenses, advisories, bans, sources).
+- **Alternatives:** basic (fmt/clippy/test on Linux); none.
+
+---
+
+## Defaults chosen by Claude (reviewable)
+
+These are lower-impact choices made during setup. The owner may override any of them.
+
+### C-001 — Discord API v10
+discord.js v14 targets API v10; so does djs-rs. (Effectively dictated by the goal.)
+
+### C-002 — Workspace lints
+`unsafe_code = "deny"` (exceptions need owner approval + `// SAFETY:`), `missing_docs = "warn"`
+(CI turns warnings into errors), `clippy::pedantic` as warnings with
+`module_name_repetitions` allowed, rustdoc broken intra-doc links denied.
+
+### C-003 — Crate layout `crates/<name>/`, `publish = false` until release
+All crates live under `crates/`. Every crate has `publish = false` so nothing is published to
+crates.io by accident; publishing is an open question for the owner.
+
+### C-004 — Release profile for workspace binaries
+`lto = "fat"`, `codegen-units = 1` for examples/benchmarks built inside this workspace. (This
+does not affect downstream users, who control their own profiles.)
+
+### C-005 — Conventional Commits, Keep a Changelog
+Commit messages follow Conventional Commits; `CHANGELOG.md` follows Keep a Changelog.
+
+### C-006 — Copyright holder in LICENSE-MIT: "The djs-rs contributors"
+Neutral placeholder; the owner may want a specific name instead (see open questions).
+
+---
+
+## Open questions (to ask the owner when relevant)
+
+- **Copyright holder** in `LICENSE-MIT` / `NOTICE` (currently "The djs-rs contributors").
+- **Reserve crate names on crates.io now?** Requires the owner's crates.io token.
+- **rustls crypto provider:** `aws-lc-rs` (rustls default, needs cmake/C toolchain, faster) vs
+  `ring` (simpler to build). Ask when implementing `djs-rest`.
+- **Snowflake / ID representation** (e.g. typed `Id<Marker>` over `NonZeroU64`). Ask at the
+  start of `djs-model`.
+- **String storage in models** (`String` vs `Box<str>` vs small-string crates). Affects memory.
+- **Error handling style** (`thiserror` vs hand-written error types).
+- **Event handler API details** (closure registration as approved in D-006 vs additional
+  `EventHandler` trait; handler concurrency model).
+- **Integration testing against real Discord** (needs a test bot token + test guild).
+- **Benchmark harness** (`criterion` vs `divan`).
+- **Guide/book**: mdBook hosted on GitHub Pages?
