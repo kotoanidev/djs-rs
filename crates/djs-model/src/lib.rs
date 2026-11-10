@@ -6,9 +6,11 @@
 )]
 
 mod macros;
+mod serde_util;
 
 pub mod application;
 pub mod channel;
+pub mod emoji;
 pub mod gateway;
 pub mod guild;
 pub mod id;
@@ -17,5 +19,6 @@ pub mod message;
 pub mod permissions;
 pub mod rest;
 pub mod sku;
+pub mod sticker;
 pub mod user;
 pub mod util;

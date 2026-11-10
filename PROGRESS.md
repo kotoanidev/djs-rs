@@ -9,7 +9,7 @@ D-041).
 **Current: Phase 2 — full `djs-model` coverage** (D-039; permissions = `u64`, D-040).
 
 ## Done
-- 2026-11-10: Owner decisions D-001 … D-054 in `docs/DECISIONS.md`; Claude defaults C-001 …
+- 2026-11-10: Owner decisions D-001 … D-056 in `docs/DECISIONS.md`; Claude defaults C-001 …
   C-020 (reviewable) in the same file.
 - Toolchains (rustup): stable 1.99.1, 1.85, 1.89 (MSRV, D-031).
 - Phase 0: foundation docs, public repo https://github.com/kotoanidev/djs-rs, 9-crate workspace,
@@ -49,8 +49,13 @@ D-041).
   (D-054)). Not yet: `Connection` / `ApplicationRoleConnection` (need guild integrations).
 - `guild::{Member, PartialMember, Role, RoleColors, RoleTags}` ✅ (size guards: Member 304 B,
   PartialMember 160 B, Role 128 B, User 144 B, CurrentUser 216 B).
-- **Next:** `emoji` and `sticker` modules, then guilds (Phase 2 step 3). Modelling rules:
-  D-049 … D-054.
+- `emoji::{Emoji, PartialEmoji}` (D-056) and `sticker` module ✅ — Phase 2 step
+  "users/members/roles/emojis/stickers" is done.
+- **Next:** Phase 2 step 3 — guilds: `guild::Guild` (+ features, verification/NSFW/MFA/
+  explicit-content/notification levels, premium tier, welcome screen, onboarding, widget,
+  preview, bans, integrations (+ then user `Connection`), templates (`guild_template`),
+  scheduled events (`guild_scheduled_event`), auto-moderation (`auto_moderation`), audit log
+  (`audit_log`)). Modelling rules: D-049 … D-056.
 - Perf note: after the user change, MESSAGE_CREATE/READY decode looked ~8-13 % slower relative
   to the `serde_json::Value` baseline (laptop was ~35 % slower overall during that run). At the
   end of Phase 2, run the decode benches back-to-back against the Phase 1 commit `65210f8`

@@ -8,6 +8,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-model`: `emoji::{Emoji, PartialEmoji}` (enum with a non-buffering deserializer, D-056)
+  and `sticker::{Sticker, StickerType, StickerFormatType, StickerItem, StickerPack}`; absent
+  `available` means `true` (D-055).
 - `djs-model`: `guild::{Member, PartialMember, Role, RoleColors, RoleTags}` with
   `Member::display_name`/`is_timed_out`, `PartialMember::into_member`, `RoleColors::HOLOGRAPHIC`
   and "null means true" role tags.
