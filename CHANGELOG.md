@@ -29,6 +29,10 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   per-shard 5 s limit, resume, heartbeats with jitter + zombie detection, reconnect backoff,
   close-code handling), `MessageSender`, `Config`/`ConfigBuilder`, `zstd-stream` compression
   (default feature), rustls with explicit ring provider.
+- `djs-rs` core (Phase 1): `Client`/`ClientBuilder`, typed `Events` (`ClientReady`,
+  `MessageCreate`), `client.on` with `Arc`-shared payloads, `HandlerMode` (concurrent by default,
+  sequential optional), `client.events()` stream, `Context`, `MessageExt::reply`,
+  `login`/`shutdown`, prelude; `examples/ping.rs`; end-to-end tests with mock REST + gateway.
 
 ### Changed
 - MSRV raised from 1.85 to 1.89 (required by maintained `tokio-websockets` and `simd-json`).

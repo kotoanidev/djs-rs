@@ -20,7 +20,7 @@ djs-builders = { path = "crates/djs-builders", version = "0.0.0" }
 djs-cache = { path = "crates/djs-cache", version = "0.0.0" }
 djs-collection = { path = "crates/djs-collection", version = "0.0.0" }
 djs-formatters = { path = "crates/djs-formatters", version = "0.0.0" }
-djs-gateway = { path = "crates/djs-gateway", version = "0.0.0" }
+djs-gateway = { path = "crates/djs-gateway", version = "0.0.0", default-features = false }
 djs-model = { path = "crates/djs-model", version = "0.0.0" }
 djs-rest = { path = "crates/djs-rest", version = "0.0.0" }
 djs-util = { path = "crates/djs-util", version = "0.0.0" }

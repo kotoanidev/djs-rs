@@ -29,9 +29,10 @@ just with narrow scope.
       `GET /gateway/bot`, `POST /channels/{id}/messages`
 - [x] `djs-gateway` core: single shard — connect, zstd-stream, hello/identify, heartbeat with
       jitter + ACK tracking, resume/reconnect, dispatch → typed events
-- [ ] `djs-rs` core: `Client::builder`, `client.on(Events::MessageCreate, …)`, `msg.reply`,
+- [x] `djs-rs` core: `Client::builder`, `client.on(Events::MessageCreate, …)`, `msg.reply`,
       `login`, graceful shutdown
-- [ ] `examples/ping.rs` working against real Discord; mock-based tests in CI
+- [~] `examples/ping.rs` — written; end-to-end mock tests pass in CI; **live run against real
+      Discord pending the owner's test token (D-034)**
 - [ ] Architecture review with the owner before widening
 
 ## Phase 2 — `djs-model` full coverage (≈ discord-api-types v10)

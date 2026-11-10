@@ -27,9 +27,13 @@
   D-037 poll-driven Shard). 3 unit (zstd) + 7 mock-gateway integration tests (identify →
   dispatch → reconnect → resume, heartbeats/latency, zombie + identify limit, fatal close,
   command queueing, zstd-stream). CI also runs clippy with `--no-default-features`.
+- 2026-11-10: **Phase 1 step 4 done — `djs-rs` core** + `examples/ping.rs` + 3 end-to-end tests
+  (mock REST + mock gateway: ping→Pong reply with message reference, sequential ordering,
+  handler errors). Claude defaults C-013 … C-016. Workspace total: 109 tests. Fixed a
+  Cargo-1.89-only manifest error (`default-features` must be set in `[workspace.dependencies]`).
 
 ## In progress
-- Phase 1, step 4: `djs-rs` core — implementation committed (Client, ClientBuilder, HandlerMode, Events, Context, MessageExt, EventStream); NEXT: `examples/ping.rs` + end-to-end test with mock REST + mock gateway (`crates/djs-rs/tests/`).
+- Phase 1, step 5: live run of `examples/ping.rs` against real Discord — **waiting for the owner's test token in `.env`** (D-034).
 
 ## Next step (Phase 1 plan, in order)
 1. ~~**`djs-model` core**~~ ✅ — `Id<Marker>` (D-023) with markers + aliases, Snowflake helpers
@@ -43,7 +47,7 @@
 3. ~~**`djs-gateway` core**~~ ✅ — single shard over tokio-websockets, zstd-stream, hello →
    identify, heartbeat with jitter + ACK/zombie detection, resume/reconnect on close codes,
    typed event stream.
-4. **`djs-rs` core** — `Client::builder(token).intents(..).build()`, `client.on(Events::
+4. ~~**`djs-rs` core**~~ ✅ — `Client::builder(token).intents(..).build()`, `client.on(Events::
    MessageCreate, |ctx, msg| async move {..})` (spawn-per-event default, sequential option,
    D-028), `client.events()` Stream (D-029), `msg.reply(&ctx, ..)`, `login()`, shutdown.
 5. `crates/djs-rs/examples/ping.rs`; run live with `.env` token (D-034); mock tests in CI.

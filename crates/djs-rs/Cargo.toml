@@ -19,7 +19,7 @@ default = ["zstd-stream"]
 zstd-stream = ["djs-gateway/zstd-stream"]
 
 [dependencies]
-djs-gateway = { workspace = true, default-features = false }
+djs-gateway.workspace = true
 djs-model.workspace = true
 djs-rest.workspace = true
 futures-core.workspace = true
