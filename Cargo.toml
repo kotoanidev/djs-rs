@@ -1,0 +1,54 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+# Shared package metadata — every crate inherits these with `<field>.workspace = true`.
+[workspace.package]
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.85"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/kotoanidev/djs-rs"
+homepage = "https://github.com/kotoanidev/djs-rs"
+keywords = ["discord", "discord-bot", "discord-api", "discordjs", "async"]
+categories = ["api-bindings", "asynchronous", "network-programming"]
+
+# Shared dependency versions. Crates reference these with `dep.workspace = true`.
+# Adding a dependency here is a significant decision — see CLAUDE.md.
+[workspace.dependencies]
+djs-builders = { path = "crates/djs-builders", version = "0.0.0" }
+djs-cache = { path = "crates/djs-cache", version = "0.0.0" }
+djs-collection = { path = "crates/djs-collection", version = "0.0.0" }
+djs-formatters = { path = "crates/djs-formatters", version = "0.0.0" }
+djs-gateway = { path = "crates/djs-gateway", version = "0.0.0" }
+djs-model = { path = "crates/djs-model", version = "0.0.0" }
+djs-rest = { path = "crates/djs-rest", version = "0.0.0" }
+djs-util = { path = "crates/djs-util", version = "0.0.0" }
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+missing_docs = "warn"
+missing_debug_implementations = "warn"
+unreachable_pub = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(docsrs)"] }
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+
+[workspace.lints.rustdoc]
+broken_intra_doc_links = "deny"
+private_intra_doc_links = "warn"
+missing_crate_level_docs = "warn"
+bare_urls = "warn"
+
+# Profiles below only affect binaries built inside this workspace (examples, benches).
+[profile.release]
+lto = "fat"
+codegen-units = 1
+
+[profile.bench]
+inherits = "release"
+debug = true

@@ -1,0 +1,23 @@
+[package]
+name = "djs-builders"
+description = "Validated builders for Discord embeds, application commands, components and modals."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+readme = "README.md"
+# Not published until the owner decides on a release (see docs/DECISIONS.md, C-003).
+publish = false
+
+[dependencies]
+
+[lints]
+workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

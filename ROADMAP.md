@@ -12,10 +12,10 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` not started
 ## Phase 0 — Foundation
 - [x] Decision log, CLAUDE.md, roadmap, progress file
 - [x] Licenses (MIT OR Apache-2.0), NOTICE, README, CONTRIBUTING, CHANGELOG
-- [ ] Cargo workspace skeleton with all crates (compiling, documented)
-- [ ] Workspace lints, rustfmt/clippy config, cargo-deny config
-- [ ] GitHub Actions CI (fmt, clippy, tests ×3 OS, docs, MSRV, cargo-deny)
-- [ ] `docs/ARCHITECTURE.md`
+- [x] Cargo workspace skeleton with all crates (compiling, documented)
+- [x] Workspace lints, rustfmt/clippy config, cargo-deny config
+- [x] GitHub Actions CI (fmt, clippy, tests ×3 OS, docs, MSRV, cargo-deny)
+- [x] `docs/ARCHITECTURE.md`
 
 ## Phase 1 — Small standalone crates
 Independent of the Discord API surface; good warm-up and immediately useful.

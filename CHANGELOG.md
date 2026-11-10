@@ -10,3 +10,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 - Project foundation: decision log, roadmap, progress tracking, licensing (MIT OR Apache-2.0),
   contribution guidelines.
+- Cargo workspace with nine placeholder crates (`djs-rs`, `djs-model`, `djs-rest`,
+  `djs-gateway`, `djs-cache`, `djs-builders`, `djs-collection`, `djs-formatters`, `djs-util`).
+- Workspace lints, rustfmt/clippy/cargo-deny configuration, GitHub Actions CI.
+- `docs/ARCHITECTURE.md`.

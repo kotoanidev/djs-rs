@@ -190,6 +190,9 @@ Commit messages follow Conventional Commits; `CHANGELOG.md` follows Keep a Chang
 ### C-006 — Copyright holder in LICENSE-MIT: "The djs-rs contributors"
 Neutral placeholder; the owner may want a specific name instead (see open questions).
 
+### C-007 — `Cargo.lock` is committed
+Reproducible CI and MSRV checks (current Cargo guidance for libraries as well).
+
 ---
 
 ## Open questions (to ask the owner when relevant)
