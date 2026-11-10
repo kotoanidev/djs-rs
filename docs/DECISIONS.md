@@ -406,6 +406,14 @@ and why.
   fields, like twilight and the discord-api-types variants.
 - **Alternatives:** one type per object with `Option` for everything that is sometimes absent.
 
+### D-052 — `User` and `CurrentUser` are separate types
+- **Date:** 2026-11-10 · **Decided by:** Owner
+- **Decision:** `user::User` holds the fields Discord sends for any user (message authors,
+  members, …). `user::CurrentUser` holds those plus the fields only sent for the current user
+  (`mfa_enabled`, `locale`, `verified`, `email`, `flags`, `premium_type`); it is used for READY
+  and `GET /users/@me`. Keeps the hot-path `User` small.
+- **Alternatives:** a single `User` with every field optional (like discord-api-types `APIUser`).
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
