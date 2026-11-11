@@ -949,6 +949,30 @@ and why.
   nested starter message of the response.
 - **Alternatives:** return only the `Channel`, like discord.js.
 
+### D-116 — The guild widget image is a URL, not a request
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** Get Guild Widget Image (a public PNG) gets no `Rest` method; the CDN/URL
+  builder step adds a function returning its URL with `?style=` (`WidgetStyle`), like
+  `Guild#widgetImageURL` in discord.js.
+- **Alternatives:** a method returning the PNG bytes; both.
+
+### D-117 — Invite metadata is optional
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** The metadata fields move into `djs_model::invite::InviteMetadata`, and
+  `InviteWithMetadata { invite, metadata: Option<InviteMetadata> }` (both flattened) serves
+  every invite list, so Get Guild Invites without `MANAGE_GUILD` (no metadata) still
+  decodes. `Deref<Target = Invite>` stays.
+- **Alternatives:** a separate `GuildInvite` type for Get Guild Invites; `Vec<Invite>`.
+
+### D-118 — Onboarding requests have their own types and generated prompt IDs
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** Modify Guild Onboarding takes `djs_model::rest::OnboardingPromptData` and
+  `PromptOptionData` (emoji as `emoji_id`/`emoji_name`/`emoji_animated`, as Discord requires
+  there), with `id: Option`. A prompt without an ID gets one generated from the current time
+  when serialized (Discord requires an ID even for new prompts; discord.js does the same).
+  `From<OnboardingPrompt>`/`From<PromptOption>` send existing ones back.
+- **Alternatives:** the same types with required IDs.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
