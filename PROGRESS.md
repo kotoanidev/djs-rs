@@ -197,7 +197,8 @@ D-041).
   `HandlerMode::Concurrent` costs ≈ 6.7 µs CPU per event under a flood (sequential: 1.8 µs)
   — recorded as an open question in `docs/DECISIONS.md`. Re-run the showcase when the cache
   (Phase 5) lands.
-- **Next:** emojis (`resources/emoji.mdx`: guild and application emojis), stickers
+- **Emojis ✅** (10 methods, `tests/emojis.rs`, C-052).
+- **Next:** stickers
   (`resources/sticker.mdx`, Create Guild Sticker is multipart with a `file` field — use
   `Request::form_file`), soundboard (`resources/soundboard.mdx`), then scheduled events,
   stage instances, invites, templates, audit log, auto moderation, polls (D-102).

@@ -883,6 +883,81 @@ routes! {
     } => DELETE "/webhooks/{webhook_id}/{webhook_token}/messages/{message_id}",
         major: webhook_id webhook_token;
 
+    // Emojis. Discord limits the guild emoji routes per guild, which the guild ID as the
+    // major parameter models.
+
+    /// [List Guild Emojis](https://docs.discord.com/developers/resources/emoji#list-guild-emojis).
+    ListGuildEmojis {
+        /// The guild.
+        guild_id: GuildId,
+    } => GET "/guilds/{guild_id}/emojis", major: guild_id;
+
+    /// [Get Guild Emoji](https://docs.discord.com/developers/resources/emoji#get-guild-emoji).
+    GetGuildEmoji {
+        /// The guild.
+        guild_id: GuildId,
+        /// The emoji.
+        emoji_id: EmojiId,
+    } => GET "/guilds/{guild_id}/emojis/{emoji_id}", major: guild_id;
+
+    /// [Create Guild Emoji](https://docs.discord.com/developers/resources/emoji#create-guild-emoji).
+    CreateGuildEmoji {
+        /// The guild.
+        guild_id: GuildId,
+    } => POST "/guilds/{guild_id}/emojis", major: guild_id;
+
+    /// [Modify Guild Emoji](https://docs.discord.com/developers/resources/emoji#modify-guild-emoji).
+    ModifyGuildEmoji {
+        /// The guild.
+        guild_id: GuildId,
+        /// The emoji.
+        emoji_id: EmojiId,
+    } => PATCH "/guilds/{guild_id}/emojis/{emoji_id}", major: guild_id;
+
+    /// [Delete Guild Emoji](https://docs.discord.com/developers/resources/emoji#delete-guild-emoji).
+    DeleteGuildEmoji {
+        /// The guild.
+        guild_id: GuildId,
+        /// The emoji.
+        emoji_id: EmojiId,
+    } => DELETE "/guilds/{guild_id}/emojis/{emoji_id}", major: guild_id;
+
+    /// [List Application Emojis](https://docs.discord.com/developers/resources/emoji#list-application-emojis).
+    ListApplicationEmojis {
+        /// The application.
+        application_id: ApplicationId,
+    } => GET "/applications/{application_id}/emojis";
+
+    /// [Get Application Emoji](https://docs.discord.com/developers/resources/emoji#get-application-emoji).
+    GetApplicationEmoji {
+        /// The application.
+        application_id: ApplicationId,
+        /// The emoji.
+        emoji_id: EmojiId,
+    } => GET "/applications/{application_id}/emojis/{emoji_id}";
+
+    /// [Create Application Emoji](https://docs.discord.com/developers/resources/emoji#create-application-emoji).
+    CreateApplicationEmoji {
+        /// The application.
+        application_id: ApplicationId,
+    } => POST "/applications/{application_id}/emojis";
+
+    /// [Modify Application Emoji](https://docs.discord.com/developers/resources/emoji#modify-application-emoji).
+    ModifyApplicationEmoji {
+        /// The application.
+        application_id: ApplicationId,
+        /// The emoji.
+        emoji_id: EmojiId,
+    } => PATCH "/applications/{application_id}/emojis/{emoji_id}";
+
+    /// [Delete Application Emoji](https://docs.discord.com/developers/resources/emoji#delete-application-emoji).
+    DeleteApplicationEmoji {
+        /// The application.
+        application_id: ApplicationId,
+        /// The emoji.
+        emoji_id: EmojiId,
+    } => DELETE "/applications/{application_id}/emojis/{emoji_id}";
+
     // Channels and threads.
 
     /// [Get Channel](https://docs.discord.com/developers/resources/channel#get-channel).

@@ -15,6 +15,7 @@ use crate::message::{AttachmentRequest, AttachmentRequestId};
 
 mod application_command;
 mod channel;
+mod emoji;
 mod error_code;
 mod guild;
 mod interaction;
@@ -34,6 +35,7 @@ pub use self::{
         ListThreadMembers, ModifyGroupDm, ModifyGuildChannel, ModifyThread, SetVoiceChannelStatus,
         StartThreadFromMessage, StartThreadInForumOrMediaChannel, StartThreadWithoutMessage,
     },
+    emoji::{CreateApplicationEmoji, CreateGuildEmoji, ModifyApplicationEmoji, ModifyGuildEmoji},
     error_code::ErrorCode,
     guild::{
         ActiveThreads, AddGuildMember, BeginGuildPrune, BulkBanResponse, BulkGuildBan,

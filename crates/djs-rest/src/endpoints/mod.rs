@@ -2,6 +2,7 @@
 
 mod application_command;
 mod channel;
+mod emoji;
 mod guild;
 mod interaction;
 mod message;
@@ -18,6 +19,12 @@ use crate::{Error, Request, Rest, Route};
 #[derive(Deserialize)]
 struct PermissionsResponse {
     permissions: Permissions,
+}
+
+/// A list that Discord wraps in an object (`{"items": [...]}`), unwrapped by the methods.
+#[derive(Deserialize)]
+struct Items<T> {
+    items: Vec<T>,
 }
 
 impl Rest {

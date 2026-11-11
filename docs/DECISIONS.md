@@ -1572,6 +1572,16 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   (the dataviz reference palette, validated for colour-vision deficiencies).
 - The harness crate is a workspace member so the quality gate keeps it compiling.
 
+### C-052 — Emoji endpoint details
+- `list_application_emojis` unwraps Discord's `{"items": [...]}` into `Vec<Emoji>` (like
+  the permission endpoints, D-110) through a private generic `Items<T>` in
+  `djs-rest/src/endpoints/mod.rs`, reused by later list endpoints with the same wrapper.
+- Guild emoji routes use the guild ID as the major parameter (Discord limits them per
+  guild); application emoji routes have none.
+- `ModifyApplicationEmoji` follows the other modify bodies (`Default`, optional `name`) even
+  though the name is its only field; `ModifyGuildEmoji::roles` is a `Patch`, whose `Clear`
+  (`null`) makes the emoji usable by everyone.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

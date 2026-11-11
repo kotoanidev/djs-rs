@@ -8,6 +8,10 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Emoji endpoints (10 methods): list, get, create, modify and delete guild emojis (with audit
+  log reasons) and application emojis; `list_application_emojis` unwraps Discord's
+  `{"items": [...]}` into a `Vec<Emoji>`. Bodies `CreateGuildEmoji`, `ModifyGuildEmoji`,
+  `CreateApplicationEmoji` and `ModifyApplicationEmoji` in `djs_model::rest`.
 - `docs/VS_NODE.md`: a reproducible benchmark showcase against discord.js 14 on Node.js
   (D-123) — decoding, an event flood through a mock gateway, the memory of cached guilds and
   REST throughput — with tables and light/dark SVG charts generated from the measured
