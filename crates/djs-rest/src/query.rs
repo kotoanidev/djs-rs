@@ -8,13 +8,13 @@ use djs_model::{
     id::Id,
     message::ReactionType,
     rest::{
-        GetApplicationCommands, GetChannelMessages, GetChannelPermissions, GetChannelPins,
-        GetCurrentUserGuilds, GetGuild, GetGuildAuditLog, GetGuildBans, GetGuildPruneCount,
-        GetGuildScheduledEvent, GetGuildScheduledEventUsers, GetInvite, GetReactions,
-        GetThreadMember, ListArchivedThreads, ListGuildMembers, ListJoinedPrivateArchivedThreads,
-        ListScheduledEventsForGuild, ListThreadMembers, SearchAuthorType, SearchEmbedType,
-        SearchFilter, SearchGuildMembers, SearchGuildMessages, SearchHasType, SearchSortMode,
-        SearchSortOrder,
+        GetAnswerVoters, GetApplicationCommands, GetChannelMessages, GetChannelPermissions,
+        GetChannelPins, GetCurrentUserGuilds, GetGuild, GetGuildAuditLog, GetGuildBans,
+        GetGuildPruneCount, GetGuildScheduledEvent, GetGuildScheduledEventUsers, GetInvite,
+        GetReactions, GetThreadMember, ListArchivedThreads, ListGuildMembers,
+        ListJoinedPrivateArchivedThreads, ListScheduledEventsForGuild, ListThreadMembers,
+        SearchAuthorType, SearchEmbedType, SearchFilter, SearchGuildMembers, SearchGuildMessages,
+        SearchHasType, SearchSortMode, SearchSortOrder,
     },
     util::Timestamp,
 };
@@ -185,6 +185,13 @@ impl Query for GetChannelMessages {
 impl Query for GetReactions {
     fn write(&self, query: &mut QueryWriter<'_>) {
         query.optional("type", self.kind.as_ref());
+        query.optional("after", self.after.as_ref());
+        query.optional("limit", self.limit.as_ref());
+    }
+}
+
+impl Query for GetAnswerVoters {
+    fn write(&self, query: &mut QueryWriter<'_>) {
         query.optional("after", self.after.as_ref());
         query.optional("limit", self.limit.as_ref());
     }

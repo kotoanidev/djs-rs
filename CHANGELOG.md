@@ -8,6 +8,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Poll endpoints: `get_answer_voters` (with the `GetAnswerVoters` query; returns the users
+  unwrapped from `{"users": [...]}`) and `end_poll`. Routes accept `u32` path parameters
+  (the poll's `answer_id`).
 - Auto Moderation endpoints (5 methods): list, get, create, modify and delete rules. Bodies
   `CreateAutoModerationRule` (one constructor per trigger type, D-128) and
   `ModifyAutoModerationRule`; `auto_moderation::Action` gets one constructor per action type

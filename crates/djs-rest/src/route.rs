@@ -176,6 +176,24 @@ impl<M> Param for Id<M> {
     }
 }
 
+/// Small numeric IDs that are not snowflakes (a poll's `answer_id`).
+impl Param for u32 {
+    fn to_segment<'a>(self) -> Segment<'a>
+    where
+        Self: 'a,
+    {
+        Segment::Id(u64::from(self))
+    }
+
+    fn major(self) -> u64 {
+        u64::from(self)
+    }
+
+    fn debug(self, name: &str, out: &mut fmt::DebugStruct<'_, '_>) {
+        out.field(name, &self);
+    }
+}
+
 impl Param for &str {
     fn to_segment<'a>(self) -> Segment<'a>
     where
@@ -1240,6 +1258,26 @@ routes! {
         /// The guild.
         guild_id: GuildId,
     } => GET "/guilds/{guild_id}/audit-logs", major: guild_id;
+
+    // Polls.
+
+    /// [Get Answer Voters](https://docs.discord.com/developers/resources/poll#get-answer-voters).
+    GetAnswerVoters {
+        /// The channel.
+        channel_id: ChannelId,
+        /// The message with the poll.
+        message_id: MessageId,
+        /// The answer's [`answer_id`](djs_model::poll::Answer::answer_id).
+        answer_id: u32,
+    } => GET "/channels/{channel_id}/polls/{message_id}/answers/{answer_id}",
+        major: channel_id;
+    /// [End Poll](https://docs.discord.com/developers/resources/poll#end-poll).
+    EndPoll {
+        /// The channel.
+        channel_id: ChannelId,
+        /// The message with the poll.
+        message_id: MessageId,
+    } => POST "/channels/{channel_id}/polls/{message_id}/expire", major: channel_id;
 
     // Auto Moderation.
 

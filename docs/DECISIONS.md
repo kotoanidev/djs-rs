@@ -1704,6 +1704,13 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - All five routes use the guild ID as major parameter; create, modify and delete take an
   audit log `reason`.
 
+### C-060 — Poll endpoint details
+- `get_answer_voters` takes the `answer_id` as a plain `u32` (the model's type for
+  `Answer::answer_id`; it is not a snowflake), and routes got a `Param` impl for `u32`.
+- Get Answer Voters returns `Vec<User>`, unwrapped from Discord's `{"users": [...]}` (as
+  C-052/C-053 for other wrapped lists).
+- Both poll routes use the channel ID as major parameter; neither takes an audit log reason.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

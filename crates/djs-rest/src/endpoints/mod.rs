@@ -11,6 +11,7 @@ mod guild_template;
 mod interaction;
 mod invite;
 mod message;
+mod poll;
 mod soundboard;
 mod stage_instance;
 mod sticker;

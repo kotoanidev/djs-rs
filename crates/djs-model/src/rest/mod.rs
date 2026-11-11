@@ -28,6 +28,7 @@ mod guild_template;
 mod interaction;
 mod invite;
 mod message;
+mod poll;
 mod soundboard;
 mod stage_instance;
 mod sticker;
@@ -70,6 +71,7 @@ pub use self::{
         GetChannelPins, GetReactions, MessageSearchResults, SearchAuthorType, SearchEmbedType,
         SearchFilter, SearchGuildMessages, SearchHasType, SearchSortMode, SearchSortOrder,
     },
+    poll::GetAnswerVoters,
     soundboard::{CreateGuildSoundboardSound, ModifyGuildSoundboardSound, SendSoundboardSound},
     stage_instance::{CreateStageInstance, ModifyStageInstance},
     sticker::{CreateGuildSticker, ModifyGuildSticker},
