@@ -19,6 +19,7 @@ mod error_code;
 mod guild;
 mod interaction;
 mod message;
+mod user;
 mod webhook;
 
 pub use self::{
@@ -48,6 +49,7 @@ pub use self::{
         GetChannelPins, GetReactions, MessageSearchResults, SearchAuthorType, SearchEmbedType,
         SearchFilter, SearchGuildMessages, SearchHasType, SearchSortMode, SearchSortOrder,
     },
+    user::{CreateDm, CreateGroupDm, CurrentUserGuild, GetCurrentUserGuilds, ModifyCurrentUser},
     webhook::EditWebhookMessage,
 };
 

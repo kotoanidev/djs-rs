@@ -8,6 +8,10 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- User endpoints (12 methods): current user (get, modify), get user, current user guilds
+  (`CurrentUserGuild`, with `shard` for large bot sharding), leave guild, create DM / group
+  DM, and the `OAuth2` (bearer token) endpoints: current user guild member, connections and
+  application role connections.
 - Guild endpoints (45 methods): get/preview/modify guild, guild channels (create, positions,
   active threads), members (get, list, search, permissions, add with an `OAuth2` token,
   modify, modify current member, roles, kick), bans (incl. bulk ban), roles (incl.

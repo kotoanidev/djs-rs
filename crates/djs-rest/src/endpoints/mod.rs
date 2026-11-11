@@ -5,6 +5,7 @@ mod channel;
 mod guild;
 mod interaction;
 mod message;
+mod user;
 
 use djs_model::{permissions::Permissions, rest::GatewayBot};
 use serde::Deserialize;

@@ -1470,6 +1470,17 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - `endpoints/guild.rs` groups its methods in several `impl Rest` blocks (guild, members,
   bans, roles, prune…, widget…) so the rustdoc page stays navigable.
 
+### C-049 — User endpoint details
+- Get Current User Guilds returns `djs_model::rest::CurrentUserGuild` (the docs' "partial
+  guild" with `owner`, `permissions` and the approximate counts; discord.js `OAuth2Guild`).
+- Create Group DM is included (not deprecated itself, no successor; only its SDK is).
+  `CreateGroupDm` redacts its access tokens in `Debug` and keys `nicks` by `UserId` in a
+  `BTreeMap` (stable output).
+- Update Current User Application Role Connection takes the model's
+  `ApplicationRoleConnection` as its body (same fields; it has `Default`).
+- `/users/@me/...` routes have no major parameter; Delete Current User Application Role
+  Connection discards its (undocumented) response body.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

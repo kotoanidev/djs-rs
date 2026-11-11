@@ -8,10 +8,10 @@ use djs_model::{
     message::ReactionType,
     rest::{
         GetApplicationCommands, GetChannelMessages, GetChannelPermissions, GetChannelPins,
-        GetGuild, GetGuildBans, GetGuildPruneCount, GetReactions, GetThreadMember,
-        ListArchivedThreads, ListGuildMembers, ListJoinedPrivateArchivedThreads, ListThreadMembers,
-        SearchAuthorType, SearchEmbedType, SearchFilter, SearchGuildMembers, SearchGuildMessages,
-        SearchHasType, SearchSortMode, SearchSortOrder,
+        GetCurrentUserGuilds, GetGuild, GetGuildBans, GetGuildPruneCount, GetReactions,
+        GetThreadMember, ListArchivedThreads, ListGuildMembers, ListJoinedPrivateArchivedThreads,
+        ListThreadMembers, SearchAuthorType, SearchEmbedType, SearchFilter, SearchGuildMembers,
+        SearchGuildMessages, SearchHasType, SearchSortMode, SearchSortOrder,
     },
     util::Timestamp,
 };
@@ -225,6 +225,16 @@ impl Query for ListJoinedPrivateArchivedThreads {
     fn write(&self, query: &mut QueryWriter<'_>) {
         query.optional("before", self.before.as_ref());
         query.optional("limit", self.limit.as_ref());
+    }
+}
+
+impl Query for GetCurrentUserGuilds {
+    fn write(&self, query: &mut QueryWriter<'_>) {
+        query.optional("before", self.before.as_ref());
+        query.optional("after", self.after.as_ref());
+        query.optional("limit", self.limit.as_ref());
+        query.optional("shard", self.shard.as_ref());
+        query.optional("with_counts", self.with_counts.as_ref());
     }
 }
 

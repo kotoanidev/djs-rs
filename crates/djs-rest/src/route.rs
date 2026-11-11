@@ -702,6 +702,63 @@ routes! {
         guild_id: GuildId,
     } => PUT "/guilds/{guild_id}/incident-actions", major: guild_id;
 
+    // Users. A guild ID inside a `/users/@me` path is not a major parameter (C-046).
+
+    /// [Get Current User](https://docs.discord.com/developers/resources/user#get-current-user).
+    GetCurrentUser => GET "/users/@me";
+
+    /// [Get User](https://docs.discord.com/developers/resources/user#get-user).
+    GetUser {
+        /// The user.
+        user_id: UserId,
+    } => GET "/users/{user_id}";
+
+    /// [Modify Current User](https://docs.discord.com/developers/resources/user#modify-current-user).
+    ModifyCurrentUser => PATCH "/users/@me";
+
+    /// [Get Current User Guilds](https://docs.discord.com/developers/resources/user#get-current-user-guilds).
+    GetCurrentUserGuilds => GET "/users/@me/guilds";
+
+    /// [Get Current User Guild Member](https://docs.discord.com/developers/resources/user#get-current-user-guild-member).
+    GetCurrentUserGuildMember {
+        /// The guild.
+        guild_id: GuildId,
+    } => GET "/users/@me/guilds/{guild_id}/member";
+
+    /// [Leave Guild](https://docs.discord.com/developers/resources/user#leave-guild).
+    LeaveGuild {
+        /// The guild.
+        guild_id: GuildId,
+    } => DELETE "/users/@me/guilds/{guild_id}";
+
+    /// [Create DM](https://docs.discord.com/developers/resources/user#create-dm).
+    CreateDm => POST "/users/@me/channels";
+
+    /// [Create Group DM](https://docs.discord.com/developers/resources/user#create-group-dm):
+    /// the same endpoint as [`CreateDm`](Self::CreateDm), with access tokens.
+    CreateGroupDm => POST "/users/@me/channels";
+
+    /// [Get Current User Connections](https://docs.discord.com/developers/resources/user#get-current-user-connections).
+    GetCurrentUserConnections => GET "/users/@me/connections";
+
+    /// [Get Current User Application Role Connection](https://docs.discord.com/developers/resources/user#get-current-user-application-role-connection).
+    GetCurrentUserApplicationRoleConnection {
+        /// The application.
+        application_id: ApplicationId,
+    } => GET "/users/@me/applications/{application_id}/role-connection";
+
+    /// [Update Current User Application Role Connection](https://docs.discord.com/developers/resources/user#update-current-user-application-role-connection).
+    UpdateCurrentUserApplicationRoleConnection {
+        /// The application.
+        application_id: ApplicationId,
+    } => PUT "/users/@me/applications/{application_id}/role-connection";
+
+    /// [Delete Current User Application Role Connection](https://docs.discord.com/developers/resources/user#delete-current-user-application-role-connection).
+    DeleteCurrentUserApplicationRoleConnection {
+        /// The application.
+        application_id: ApplicationId,
+    } => DELETE "/users/@me/applications/{application_id}/role-connection";
+
     // Channels and threads.
 
     /// [Get Channel](https://docs.discord.com/developers/resources/channel#get-channel).

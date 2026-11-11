@@ -181,8 +181,10 @@ D-041).
 - **Guilds ✅** (45 methods, `tests/guilds.rs` — it reuses the docs fixtures of
   `djs-model`; D-116..D-118, C-048). `InviteMetadata` is optional (D-117). The widget image
   URL (D-116) belongs to the CDN builder step.
-- **Next:** user endpoints (`resources/user.mdx`: current user, modify current user,
-  guilds, leave guild, DMs, connections, role connections), then webhooks.
+- **Users ✅** (12 methods, `tests/users.rs`, C-049).
+- **Next:** webhook endpoints (`resources/webhook.mdx`: create/get/modify/delete webhooks,
+  with and without token, Execute Webhook (+ Slack/GitHub-compatible), get/edit/delete
+  webhook messages — reuse `EditWebhookMessage`, D-107), then emojis/stickers/soundboard.
 - Local gate script: `scratchpad/gate.sh` style (`set -euo pipefail`, no pipes hiding errors) —
   a piped gate let one clippy failure through (fixed in `cda06db`).
 - Perf note: after the user change, MESSAGE_CREATE/READY decode looked ~8-13 % slower relative
