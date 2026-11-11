@@ -8,6 +8,13 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Application command endpoints: get/create/edit/delete and bulk overwrite of global and
+  guild commands, and their permissions (get all in a guild, get and edit one), with the
+  bodies `CreateApplicationCommand` (`chat_input`/`user`/`message` constructors),
+  `EditApplicationCommand`, `EditApplicationCommandPermissions` and the query
+  `GetApplicationCommands`.
+- `djs-rest`: `RestBuilder::bearer_token` for clients that act with a user's OAuth2 access
+  token (D-108), e.g. to edit command permissions.
 - Interaction endpoints: `create_interaction_response` and
   `create_interaction_response_with_response` (D-106), get/edit/delete of the original
   response, and create/get/edit/delete of follow-up messages, with the bodies
@@ -174,6 +181,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `login`/`shutdown`, prelude; `examples/ping.rs`; end-to-end tests with mock REST + gateway.
 
 ### Changed
+- `djs-rest`: `RestBuilder`'s `Debug` output redacts the token (it printed it before).
 - `djs-model`: `CreateMessage` is `#[non_exhaustive]` and moved to `rest::message` (still
   re-exported as `djs_model::rest::CreateMessage`).
 - `djs-rest`: `ApiError::code` is an `ErrorCode` instead of a `u32`; `ApiError` is

@@ -222,6 +222,32 @@ async fn debug_redacts_token() {
     let debug = format!("{rest:?}");
     assert!(!debug.contains("super-secret"), "{debug}");
     assert!(debug.contains("<redacted>"));
+    // The builder does not show it either.
+    for builder in [
+        Rest::builder().token("super-secret"),
+        Rest::builder().bearer_token("super-secret"),
+    ] {
+        let debug = format!("{builder:?}");
+        assert!(!debug.contains("super-secret"), "{debug}");
+        assert!(debug.contains("<redacted>"), "{debug}");
+    }
+}
+
+#[tokio::test]
+async fn bearer_tokens_use_the_bearer_scheme() {
+    let (rest, state) = mock_with(vec![Canned::json(200, "[]")], |builder| {
+        builder.bearer_token("user-access-token")
+    })
+    .await;
+    rest.request::<Vec<serde_json::Value>>(djs_rest::Request::new(Route::GetChannelMessages {
+        channel_id: CHANNEL,
+    }))
+    .await
+    .unwrap();
+    assert_eq!(
+        state.lock().unwrap().seen[0].authorization.as_deref(),
+        Some("Bearer user-access-token")
+    );
 }
 
 #[tokio::test]

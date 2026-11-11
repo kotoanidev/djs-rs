@@ -7,8 +7,9 @@ use djs_model::{
     id::Id,
     message::ReactionType,
     rest::{
-        GetChannelMessages, GetChannelPins, GetReactions, SearchAuthorType, SearchEmbedType,
-        SearchFilter, SearchGuildMessages, SearchHasType, SearchSortMode, SearchSortOrder,
+        GetApplicationCommands, GetChannelMessages, GetChannelPins, GetReactions, SearchAuthorType,
+        SearchEmbedType, SearchFilter, SearchGuildMessages, SearchHasType, SearchSortMode,
+        SearchSortOrder,
     },
     util::Timestamp,
 };
@@ -169,6 +170,12 @@ impl Query for GetChannelPins {
     fn write(&self, query: &mut QueryWriter<'_>) {
         query.optional("before", self.before.as_ref());
         query.optional("limit", self.limit.as_ref());
+    }
+}
+
+impl Query for GetApplicationCommands {
+    fn write(&self, query: &mut QueryWriter<'_>) {
+        query.optional("with_localizations", self.with_localizations.as_ref());
     }
 }
 

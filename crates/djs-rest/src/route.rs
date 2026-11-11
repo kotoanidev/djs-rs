@@ -5,7 +5,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use djs_model::{
     emoji::{Emoji, PartialEmoji},
-    id::{ApplicationId, ChannelId, EmojiId, GuildId, Id, InteractionId, MessageId, UserId},
+    id::{
+        ApplicationId, ChannelId, CommandId, EmojiId, GuildId, Id, InteractionId, MessageId, UserId,
+    },
 };
 use http::Method;
 
@@ -616,6 +618,134 @@ routes! {
         message_id: MessageId,
     } => DELETE "/webhooks/{application_id}/{interaction_token}/messages/{message_id}",
         major: application_id interaction_token, limits: INTERACTION;
+
+    // Application commands. The guild ID is not a major parameter here: Discord's major
+    // parameters only lead a path (`/guilds/{guild_id}/...`), as discord.js also assumes.
+
+    /// [Get Global Application Commands](https://docs.discord.com/developers/interactions/application-commands#get-global-application-commands).
+    GetGlobalApplicationCommands {
+        /// The application.
+        application_id: ApplicationId,
+    } => GET "/applications/{application_id}/commands";
+
+    /// [Create Global Application Command](https://docs.discord.com/developers/interactions/application-commands#create-global-application-command).
+    CreateGlobalApplicationCommand {
+        /// The application.
+        application_id: ApplicationId,
+    } => POST "/applications/{application_id}/commands";
+
+    /// [Get Global Application Command](https://docs.discord.com/developers/interactions/application-commands#get-global-application-command).
+    GetGlobalApplicationCommand {
+        /// The application.
+        application_id: ApplicationId,
+        /// The command.
+        command_id: CommandId,
+    } => GET "/applications/{application_id}/commands/{command_id}";
+
+    /// [Edit Global Application Command](https://docs.discord.com/developers/interactions/application-commands#edit-global-application-command).
+    EditGlobalApplicationCommand {
+        /// The application.
+        application_id: ApplicationId,
+        /// The command.
+        command_id: CommandId,
+    } => PATCH "/applications/{application_id}/commands/{command_id}";
+
+    /// [Delete Global Application Command](https://docs.discord.com/developers/interactions/application-commands#delete-global-application-command).
+    DeleteGlobalApplicationCommand {
+        /// The application.
+        application_id: ApplicationId,
+        /// The command.
+        command_id: CommandId,
+    } => DELETE "/applications/{application_id}/commands/{command_id}";
+
+    /// [Bulk Overwrite Global Application Commands](https://docs.discord.com/developers/interactions/application-commands#bulk-overwrite-global-application-commands).
+    BulkOverwriteGlobalApplicationCommands {
+        /// The application.
+        application_id: ApplicationId,
+    } => PUT "/applications/{application_id}/commands";
+
+    /// [Get Guild Application Commands](https://docs.discord.com/developers/interactions/application-commands#get-guild-application-commands).
+    GetGuildApplicationCommands {
+        /// The application.
+        application_id: ApplicationId,
+        /// The guild.
+        guild_id: GuildId,
+    } => GET "/applications/{application_id}/guilds/{guild_id}/commands";
+
+    /// [Create Guild Application Command](https://docs.discord.com/developers/interactions/application-commands#create-guild-application-command).
+    CreateGuildApplicationCommand {
+        /// The application.
+        application_id: ApplicationId,
+        /// The guild.
+        guild_id: GuildId,
+    } => POST "/applications/{application_id}/guilds/{guild_id}/commands";
+
+    /// [Get Guild Application Command](https://docs.discord.com/developers/interactions/application-commands#get-guild-application-command).
+    GetGuildApplicationCommand {
+        /// The application.
+        application_id: ApplicationId,
+        /// The guild.
+        guild_id: GuildId,
+        /// The command.
+        command_id: CommandId,
+    } => GET "/applications/{application_id}/guilds/{guild_id}/commands/{command_id}";
+
+    /// [Edit Guild Application Command](https://docs.discord.com/developers/interactions/application-commands#edit-guild-application-command).
+    EditGuildApplicationCommand {
+        /// The application.
+        application_id: ApplicationId,
+        /// The guild.
+        guild_id: GuildId,
+        /// The command.
+        command_id: CommandId,
+    } => PATCH "/applications/{application_id}/guilds/{guild_id}/commands/{command_id}";
+
+    /// [Delete Guild Application Command](https://docs.discord.com/developers/interactions/application-commands#delete-guild-application-command).
+    DeleteGuildApplicationCommand {
+        /// The application.
+        application_id: ApplicationId,
+        /// The guild.
+        guild_id: GuildId,
+        /// The command.
+        command_id: CommandId,
+    } => DELETE "/applications/{application_id}/guilds/{guild_id}/commands/{command_id}";
+
+    /// [Bulk Overwrite Guild Application Commands](https://docs.discord.com/developers/interactions/application-commands#bulk-overwrite-guild-application-commands).
+    BulkOverwriteGuildApplicationCommands {
+        /// The application.
+        application_id: ApplicationId,
+        /// The guild.
+        guild_id: GuildId,
+    } => PUT "/applications/{application_id}/guilds/{guild_id}/commands";
+
+    /// [Get Guild Application Command Permissions](https://docs.discord.com/developers/interactions/application-commands#get-guild-application-command-permissions).
+    GetGuildApplicationCommandPermissions {
+        /// The application.
+        application_id: ApplicationId,
+        /// The guild.
+        guild_id: GuildId,
+    } => GET "/applications/{application_id}/guilds/{guild_id}/commands/permissions";
+
+    /// [Get Application Command Permissions](https://docs.discord.com/developers/interactions/application-commands#get-application-command-permissions).
+    GetApplicationCommandPermissions {
+        /// The application.
+        application_id: ApplicationId,
+        /// The guild.
+        guild_id: GuildId,
+        /// The command.
+        command_id: CommandId,
+    } => GET "/applications/{application_id}/guilds/{guild_id}/commands/{command_id}/permissions";
+
+    /// [Edit Application Command Permissions](https://docs.discord.com/developers/interactions/application-commands#edit-application-command-permissions):
+    /// needs a Bearer token of a user who can manage the guild and the command.
+    EditApplicationCommandPermissions {
+        /// The application.
+        application_id: ApplicationId,
+        /// The guild.
+        guild_id: GuildId,
+        /// The command.
+        command_id: CommandId,
+    } => PUT "/applications/{application_id}/guilds/{guild_id}/commands/{command_id}/permissions";
 }
 
 #[cfg(test)]
@@ -702,6 +832,17 @@ mod tests {
         };
         assert_ne!(followup("a").major, followup("b").major);
         assert_eq!(followup("a").major, followup("a").major);
+
+        // A guild ID inside an application path is not a major parameter.
+        let guild_command = |guild| {
+            Route::CreateGuildApplicationCommand {
+                application_id: ApplicationId::new(3),
+                guild_id: GuildId::new(guild),
+            }
+            .bucket()
+        };
+        assert_eq!(guild_command(4), guild_command(5));
+        assert_eq!(guild_command(4).major, 0);
     }
 
     #[test]

@@ -13,12 +13,17 @@ use serde::{Deserialize, Serialize, Serializer, ser::SerializeSeq};
 
 use crate::message::{AttachmentRequest, AttachmentRequestId};
 
+mod application_command;
 mod error_code;
 mod interaction;
 mod message;
 mod webhook;
 
 pub use self::{
+    application_command::{
+        CreateApplicationCommand, EditApplicationCommand, EditApplicationCommandPermissions,
+        GetApplicationCommands,
+    },
     error_code::ErrorCode,
     interaction::CreateFollowupMessage,
     message::{

@@ -1,5 +1,6 @@
 //! Typed methods for REST endpoints, one module per resource (D-082, D-091).
 
+mod application_command;
 mod interaction;
 mod message;
 

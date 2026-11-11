@@ -1335,6 +1335,21 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   malformed 202 body gives zeros. `Rest::execute` now also returns the status code
   (crate-private) so a method can tell a 202 from a 200.
 
+### C-046 — Application command endpoint details
+- `CreateApplicationCommand` serves Create (global/guild) and, as a slice, the bulk
+  overwrites. The deprecated `dm_permission` and `default_permission` request fields are left
+  out (like the deprecated endpoints of D-105; they have successors); the response type
+  still reads them.
+  Constructors `new(name, kind)`, `chat_input(name, description)`, `user(name)`,
+  `message(name)`; `kind` is always sent so a body never relies on Discord's default.
+- `EditApplicationCommand`: `Option` fields, `Patch` for the nullable ones
+  (`name_localizations`, `description_localizations`, `default_member_permissions`).
+- The guild ID in `/applications/{application_id}/guilds/{guild_id}/...` is **not** a major
+  parameter (Discord's major parameters lead the path; discord.js agrees), so guild command
+  routes share buckets across guilds. Being wrong here only serialises more requests.
+- Batch Edit Application Command Permissions is not modelled (Discord disabled it).
+- `edit_application_command_permissions` documents that it needs a `bearer_token` client.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

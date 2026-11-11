@@ -543,10 +543,9 @@ impl<'a> Request<'a> {
 /// 3 retries, 50 requests per second globally, 50 ms rate-limit offset.
 ///
 /// discord.js counterpart: `RESTOptions`.
-#[derive(Debug)]
 #[must_use = "a builder does nothing until `build` is called"]
 pub struct RestBuilder {
-    token: Option<String>,
+    token: Option<(AuthScheme, String)>,
     api: String,
     version: u8,
     timeout: Duration,
@@ -555,6 +554,49 @@ pub struct RestBuilder {
     offset: Duration,
     user_agent_appendix: Option<String>,
     invalid_request_limit: u32,
+}
+
+/// How the token authenticates: a bot token or an `OAuth2` access token (D-108).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum AuthScheme {
+    Bot,
+    Bearer,
+}
+
+impl AuthScheme {
+    const fn prefix(self) -> &'static str {
+        match self {
+            Self::Bot => "Bot",
+            Self::Bearer => "Bearer",
+        }
+    }
+}
+
+impl fmt::Debug for RestBuilder {
+    /// Never shows the token (C-011).
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RestBuilder")
+            .field(
+                "token",
+                &match self.token {
+                    None => "<none>",
+                    Some((AuthScheme::Bot, _)) => "Bot <redacted>",
+                    Some((AuthScheme::Bearer, _)) => "Bearer <redacted>",
+                },
+            )
+            .field("api", &self.api)
+            .field("version", &self.version)
+            .field("timeout", &self.timeout)
+            .field("retries", &self.retries)
+            .field(
+                "global_requests_per_second",
+                &self.global_requests_per_second,
+            )
+            .field("offset", &self.offset)
+            .field("user_agent_appendix", &self.user_agent_appendix)
+            .field("invalid_request_limit", &self.invalid_request_limit)
+            .finish()
+    }
 }
 
 impl Default for RestBuilder {
@@ -577,9 +619,32 @@ impl RestBuilder {
     /// Sets the bot token (without the `Bot ` prefix).
     ///
     /// Without a token, only unauthenticated endpoints (webhooks with tokens, interaction
-    /// callbacks) can be used.
+    /// callbacks) can be used. Replaces a [`bearer_token`](Self::bearer_token).
     pub fn token(mut self, token: impl Into<String>) -> Self {
-        self.token = Some(token.into());
+        self.token = Some((AuthScheme::Bot, token.into()));
+        self
+    }
+
+    /// Authenticates with an `OAuth2` access token (`Authorization: Bearer …`) instead of a
+    /// bot token (D-108), to act for the user who authorized the application — e.g. for
+    /// [Edit Application Command Permissions](crate::Rest::edit_application_command_permissions).
+    /// Replaces a [`token`](Self::token).
+    ///
+    /// Discord limits requests per token, so use one client per access token: its
+    /// rate-limit state is its own.
+    ///
+    /// discord.js counterpart: `RESTOptions#authPrefix` set to `'Bearer'`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use djs_rest::Rest;
+    ///
+    /// let user_rest = Rest::builder().bearer_token("an-oauth2-access-token").build();
+    /// assert!(!format!("{user_rest:?}").contains("an-oauth2-access-token"));
+    /// ```
+    pub fn bearer_token(mut self, token: impl Into<String>) -> Self {
+        self.token = Some((AuthScheme::Bearer, token.into()));
         self
     }
 
@@ -669,13 +734,15 @@ impl RestBuilder {
 
         let token = match self.token {
             None => Token::None,
-            Some(token) => match HeaderValue::try_from(format!("Bot {token}")) {
-                Ok(mut value) => {
-                    value.set_sensitive(true);
-                    Token::Valid(value)
+            Some((scheme, token)) => {
+                match HeaderValue::try_from(format!("{} {token}", scheme.prefix())) {
+                    Ok(mut value) => {
+                        value.set_sensitive(true);
+                        Token::Valid(value)
+                    }
+                    Err(_) => Token::Invalid,
                 }
-                Err(_) => Token::Invalid,
-            },
+            }
         };
 
         let mut user_agent = format!(

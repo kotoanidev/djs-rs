@@ -167,8 +167,14 @@ D-041).
 - **Interactions ✅** (9 methods, `tests/interactions.rs`; D-106 two methods for
   `with_response`, D-107 `CreateFollowupMessage`; `EditWebhookMessage` lives in
   `rest/webhook.rs` and will be shared with the webhook endpoints).
-- **Next:** application command endpoints (`interactions/application-commands.mdx`: global
-  and guild commands, bulk overwrite, permissions), then channels and threads.
+- **Application commands ✅** (15 methods, `tests/application_commands.rs`, C-046):
+  global/guild get/create/edit/delete/bulk overwrite and permissions; bodies
+  `CreateApplicationCommand`, `EditApplicationCommand`, `EditApplicationCommandPermissions`,
+  query `GetApplicationCommands`. `RestBuilder::bearer_token` (D-108) for the permissions
+  edit; `RestBuilder`'s `Debug` now redacts the token.
+- **Next:** channels and threads (`resources/channel.mdx`: get/modify/delete channel,
+  permission overwrites, invites, follow announcement, typing, threads and thread members),
+  then guild (guild, members, roles, bans).
 - Local gate script: `scratchpad/gate.sh` style (`set -euo pipefail`, no pipes hiding errors) —
   a piped gate let one clippy failure through (fixed in `cda06db`).
 - Perf note: after the user change, MESSAGE_CREATE/READY decode looked ~8-13 % slower relative
