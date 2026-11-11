@@ -744,6 +744,28 @@ and why.
   50/s); with a burst of 50 it allows up to ~99 requests in a sliding second.
 - **Alternatives:** GCRA without bursts; GCRA with bursts (not strict).
 
+### D-090 — `Route<'a>` borrows tokens
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** Routes with tokens (interaction callbacks and follow-ups, webhooks with a
+  token) borrow them: `Route<'a>` holds `&'a str`, stays `Copy` and allocates nothing;
+  `Request` becomes `Request<'a>`.
+- **Alternatives:** owned tokens (`CompactString`) in `Route` (no lifetimes, one allocation
+  per request with a token, `Clone` only).
+
+### D-091 — Endpoint methods are named after the Discord docs
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** Endpoint methods use the endpoint names of the Discord API docs in snake_case
+  (`modify_guild`, `get_channel_messages`, `create_guild_ban`, `edit_message`), so a docs link
+  maps 1:1 to a method (like D-044 for modules). Supersedes the `edit_guild` example in D-082.
+- **Alternatives:** discord.js-style verbs (`edit_guild`, `fetch_messages`, `ban_member`).
+
+### D-092 — Query parameters: structs written by own code
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** Query parameters of an endpoint are a struct in `djs_model::rest` (e.g.
+  `GetChannelMessages { limit, before, … }`), written to the query string by a small encoder
+  in `djs-rest` (numbers, IDs, booleans, percent-encoded text). No new dependency.
+- **Alternatives:** the same structs serialized with `serde_urlencoded`.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
