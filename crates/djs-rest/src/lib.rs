@@ -5,6 +5,7 @@ mod client;
 mod endpoints;
 mod error;
 mod multipart;
+mod query;
 mod ratelimit;
 mod route;
 mod tls;

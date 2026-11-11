@@ -1244,6 +1244,18 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - Verified live (2026-11-11, Fedora): the `ping` example with `native-roots` loaded 118 system
   certificates, `GET /gateway/bot` returned 200 and the shard became ready.
 
+### C-043 — `Patch<T>` and query details (D-092, D-101)
+- `Patch<T>` is `Copy` when `T` is, `Default` = `Keep`; helpers `is_keep`/`is_clear`/`is_set`,
+  `into_set`, `as_ref`, `map`. Serializing `Keep` by itself returns a serde error (there is no
+  JSON value for "leave out") instead of silently sending `null`; bodies always skip it with
+  `skip_serializing_if = "Patch::is_keep"`. It also deserializes (`null` → `Clear`, missing
+  field with `#[serde(default)]` → `Keep`).
+- Query strings: `djs-rest` has a private `Query` trait implemented for the query structs of
+  `djs_model::rest` (allowed by the orphan rule, as the trait is local), and `Request` borrows
+  the query struct (`&'a dyn Query`) so the pairs are written straight into the URI when it
+  is built — no intermediate string. Values: integers, booleans, IDs, and text
+  percent-encoded like path segments.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

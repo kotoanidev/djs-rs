@@ -159,8 +159,11 @@ D-041).
   `Display`);
   `native-roots` feature (D-088, D-100, C-042), verified live with the `ping` example.
   **Phase 3 infrastructure is complete.**
-- **Next:** endpoints resource by resource (D-091 names, D-092 query structs, D-083 tri-state
-  enum — confirm its final names with the owner when implementing); see "Next step" below.
+- Endpoint prerequisites done: `Patch<T>` (D-101) and the query encoder
+  (`djs-rest/src/query.rs`, C-043; `Request::query` is `#[expect(dead_code)]` until the first
+  endpoint with query parameters uses it — then remove the attribute).
+- **Next:** endpoints resource by resource in the D-102 order, starting with messages and
+  reactions; see "Next step" below.
 - Local gate script: `scratchpad/gate.sh` style (`set -euo pipefail`, no pipes hiding errors) —
   a piped gate let one clippy failure through (fixed in `cda06db`).
 - Perf note: after the user change, MESSAGE_CREATE/READY decode looked ~8-13 % slower relative

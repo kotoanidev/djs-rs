@@ -8,6 +8,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-model`: `util::Patch<T>` (`Keep`/`Clear`/`Set`) for request fields that can be left
+  unchanged, cleared or set (D-083, D-101).
 - `native-roots` feature of `djs-rest`, `djs-gateway` and `djs-rs` (D-088, D-100): also trust
   the operating system's root certificates, in addition to the bundled Mozilla roots.
 - API errors (D-097..D-099): `djs_model::rest::ErrorCode` with every documented JSON error

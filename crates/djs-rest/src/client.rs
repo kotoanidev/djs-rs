@@ -21,6 +21,7 @@ use tokio::time::Instant;
 use crate::{
     error::{ApiError, BoxError, Error, ErrorKind, RateLimitedBody},
     multipart::{PreparedBody, RequestBody},
+    query::{Query, QueryWriter},
     ratelimit::{InvalidRequests, RateLimitHeaders, RateLimiter},
     route::{self, Route},
 };
@@ -185,7 +186,7 @@ impl Rest {
         let limits = bucket_route.limits;
         let template = bucket_route.template;
         let method = route.method();
-        let uri = inner.uri(route)?;
+        let uri = inner.uri(route, request.query)?;
         let reason = request.reason.map(reason_header);
         let body = PreparedBody::new(request.body, request.files);
 
@@ -303,10 +304,13 @@ impl Inner {
     }
 
     /// Builds the full URI of a route.
-    fn uri(&self, route: Route<'_>) -> Result<Uri, Error> {
+    fn uri(&self, route: Route<'_>, query: Option<&dyn Query>) -> Result<Uri, Error> {
         let mut uri = String::with_capacity(self.base.len() + 64);
         uri.push_str(&self.base);
         route.write_path(&mut uri);
+        if let Some(query) = query {
+            query.write(&mut QueryWriter::new(&mut uri));
+        }
         Uri::try_from(uri).map_err(|source| Error::with_source(ErrorKind::BuildRequest, source))
     }
 
@@ -418,6 +422,7 @@ async fn send(
 pub struct Request<'a> {
     route: Route<'a>,
     reason: Option<&'a str>,
+    query: Option<&'a dyn Query>,
     body: Option<Bytes>,
     files: &'a [FileUpload],
 }
@@ -429,6 +434,7 @@ impl<'a> Request<'a> {
         Self {
             route,
             reason: None,
+            query: None,
             body: None,
             files: &[],
         }
@@ -498,6 +504,13 @@ impl<'a> Request<'a> {
     #[must_use]
     pub const fn uploads(&self) -> &'a [FileUpload] {
         self.files
+    }
+
+    /// Sets the query parameters (D-092), written into the URI when the request is sent.
+    #[expect(dead_code, reason = "used by the endpoint methods added next")]
+    pub(crate) const fn query(mut self, query: &'a dyn Query) -> Self {
+        self.query = Some(query);
+        self
     }
 
     /// Returns the audit log reason set with [`reason`](Self::reason).
