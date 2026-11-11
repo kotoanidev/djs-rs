@@ -926,6 +926,29 @@ and why.
   attachments, flags) plus files with generated `attachments`, like D-107.
 - **Alternatives:** reuse `CreateMessage` (allows fields Discord rejects there).
 
+### D-113 — Image data has its own type with a hand-written base64 encoder
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** `djs_model::util::ImageData` holds the image as `bytes::Bytes` plus its MIME
+  type (detected from the file signature — PNG, JPEG, GIF, WebP, AVIF — or given) and
+  serializes as a `data:<type>;base64,<data>` URI. The base64 encoder is written in the crate
+  (no dependency) and streams into the serializer without an intermediate copy. Used for
+  every image field of request bodies (group DM icons, avatars, guild/role icons, emojis…).
+- **Alternatives:** the same type using the `base64` crate; plain data-URI strings.
+
+### D-114 — Forum tags sent in requests have their own type
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** Request bodies take `djs_model::rest::ForumTagData` (`id: Option<TagId>`, so
+  new tags have none), like `GuildForumTagData` in discord.js, with `From<ForumTag>` to send
+  existing tags back unchanged. The model's `ForumTag` keeps its required `id`.
+- **Alternatives:** make `ForumTag::id` optional.
+
+### D-115 — Starting a forum thread returns the thread and its message
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** Start Thread in Forum or Media Channel returns
+  `djs_model::rest::ForumThread { channel: Channel, message: Option<Message> }`, keeping the
+  nested starter message of the response.
+- **Alternatives:** return only the `Channel`, like discord.js.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
