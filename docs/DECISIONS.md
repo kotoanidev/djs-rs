@@ -1056,6 +1056,16 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   `recipient_id` is a `GenericId` (undocumented; in the docs' example it equals the channel's
   ID), `flags` default to empty, and message fields it does not list are ignored.
 
+### C-039 — REST infrastructure details (Phase 3)
+- Global limiter (D-089): the window is extended by the rate-limit offset (default 50 ms), so
+  a full burst of 50 is followed by the next request 1.05 s after the first; the log grows
+  only as far as requests are actually sent within a window.
+- Invalid requests (D-085): `Rest::invalid_requests()`, `RestBuilder::invalid_request_limit(n)`
+  (`0` = off, the default, like `global_requests_per_second(0)`), `ErrorKind::InvalidRequestLimit
+  { count, limit }`. The window is 60 slots of 10 s (constant memory, errs on the safe side);
+  a `tracing` warning at every 1 000 counted requests. The limit is checked before every
+  attempt, retries included.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

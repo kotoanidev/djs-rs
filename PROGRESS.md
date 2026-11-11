@@ -144,9 +144,9 @@ D-041).
   infrastructure first, D-085 invalid-request counter + opt-in fail-fast, D-086
   `reason: Option<&str>` parameter, D-087 files in body structs, D-088 `native-roots` feature,
   D-089 sliding-log global limiter). Done: strict global limiter (sliding log) — stress test
-  now asserts ≤ 50 per sliding second (5/5 runs).
-- **Next (Phase 3 infrastructure, in this order):** invalid-request counter (D-085) →
-  interaction callbacks / token webhooks bypass the global limit and do not queue behind one
+  now asserts ≤ 50 per sliding second (5/5 runs); invalid-request counter + opt-in limit
+  (D-085, C-039).
+- **Next (Phase 3 infrastructure, in this order):** interaction callbacks / token webhooks bypass the global limit and do not queue behind one
   another (burst handling, like discord.js `BurstHandler`) → old-message-delete sublimit →
   `X-Audit-Log-Reason` (D-086) → multipart uploads (D-087) → API errors with JSON error codes
   → `native-roots` (D-088) → then endpoints resource by resource.

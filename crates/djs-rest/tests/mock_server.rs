@@ -63,6 +63,14 @@ struct State {
 
 /// Starts a mock server that answers with `responses` in order.
 async fn mock(responses: Vec<Canned>) -> (Rest, Arc<Mutex<State>>) {
+    mock_with(responses, |builder| builder).await
+}
+
+/// Like [`mock`], with extra client options.
+async fn mock_with(
+    responses: Vec<Canned>,
+    configure: impl FnOnce(djs_rest::RestBuilder) -> djs_rest::RestBuilder,
+) -> (Rest, Arc<Mutex<State>>) {
     let state = Arc::new(Mutex::new(State {
         responses: responses.into(),
         seen: Vec::new(),
@@ -89,11 +97,13 @@ async fn mock(responses: Vec<Canned>) -> (Rest, Arc<Mutex<State>>) {
         }
     });
 
-    let rest = Rest::builder()
-        .token("test-token")
-        .api(format!("http://{address}/api"))
-        .offset(Duration::ZERO)
-        .build();
+    let rest = configure(
+        Rest::builder()
+            .token("test-token")
+            .api(format!("http://{address}/api"))
+            .offset(Duration::ZERO),
+    )
+    .build();
     (rest, state)
 }
 
@@ -339,4 +349,42 @@ async fn debug_redacts_token() {
     let debug = format!("{rest:?}");
     assert!(!debug.contains("super-secret"), "{debug}");
     assert!(debug.contains("<redacted>"));
+}
+
+#[tokio::test]
+async fn invalid_requests_are_counted_and_can_stop_the_client() {
+    let forbidden = || Canned::json(403, r#"{"message":"Missing Access","code":50001}"#);
+    let shared_429 = Canned::json(
+        429,
+        r#"{"message":"You are being rate limited.","retry_after":0.01,"global":false}"#,
+    )
+    .header("x-ratelimit-scope", "shared");
+    let (rest, state) = mock_with(
+        vec![
+            forbidden(),
+            shared_429,
+            Canned::json(200, MESSAGE),
+            forbidden(),
+        ],
+        |builder| builder.invalid_request_limit(2),
+    )
+    .await;
+    assert!(rest.create_message(CHANNEL, &"a".into()).await.is_err());
+    assert_eq!(rest.invalid_requests(), 1);
+    // A `shared` 429 is retried and not counted.
+    rest.create_message(CHANNEL, &"b".into()).await.unwrap();
+    assert_eq!(rest.invalid_requests(), 1);
+    assert!(rest.create_message(CHANNEL, &"c".into()).await.is_err());
+    assert_eq!(rest.invalid_requests(), 2);
+
+    // The limit is reached: the next request fails without reaching the server.
+    let error = rest.create_message(CHANNEL, &"d".into()).await.unwrap_err();
+    assert!(
+        matches!(
+            error.kind(),
+            ErrorKind::InvalidRequestLimit { count: 2, limit: 2 }
+        ),
+        "{error}"
+    );
+    assert_eq!(state.lock().unwrap().seen.len(), 4);
 }

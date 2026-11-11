@@ -107,6 +107,17 @@ pub enum ErrorKind {
     /// The response body could not be deserialized into the expected type.
     #[error("failed to deserialize the response body")]
     Deserialize,
+    /// The request was not sent because the client already made as many invalid requests (401,
+    /// 403, 429) in the last 10 minutes as the configured
+    /// [`invalid_request_limit`](crate::RestBuilder::invalid_request_limit) allows (D-085).
+    /// Discord temporarily bans the IP at 10 000.
+    #[error("refused to send: {count} invalid requests in the last 10 minutes (limit {limit})")]
+    InvalidRequestLimit {
+        /// The invalid requests counted in the window.
+        count: u32,
+        /// The configured limit.
+        limit: u32,
+    },
 }
 
 /// The JSON error body Discord returns with 4xx responses.

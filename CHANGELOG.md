@@ -8,6 +8,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-rest`: invalid-request counter `Rest::invalid_requests()` with warnings and an opt-in
+  fail-fast limit `RestBuilder::invalid_request_limit` (`ErrorKind::InvalidRequestLimit`,
+  D-085).
 - `djs-rs`: README section on the global allocator (mimalloc for very large bots, D-080).
 - `djs-model`: `webhook_event` module (D-076) — `WebhookEventPayload` (`PayloadType::{Ping,
   Event}`), `WebhookEvent` with `WebhookEventData` by type, `ApplicationAuthorized`,
@@ -139,6 +142,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `login`/`shutdown`, prelude; `examples/ping.rs`; end-to-end tests with mock REST + gateway.
 
 ### Changed
+- `djs-rest`: the global rate limiter is strict (a sliding log, D-089): never more than the
+  limit in any sliding second.
 - `djs-model`: `WebhookEventType` moved from `application` to `webhook_event`;
   `lobby::LobbyMessage::application_id` is an `Option`, and `LobbyMessage` gained `timestamp`
   and `edited_timestamp` (D-078).

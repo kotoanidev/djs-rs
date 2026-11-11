@@ -19,7 +19,7 @@ use tokio::time::Instant;
 
 use crate::{
     error::{ApiError, BoxError, Error, ErrorKind, RateLimitedBody},
-    ratelimit::{RateLimitHeaders, RateLimiter},
+    ratelimit::{InvalidRequests, RateLimitHeaders, RateLimiter},
     route::Route,
 };
 
@@ -69,6 +69,9 @@ struct Inner {
     timeout: Duration,
     retries: u8,
     ratelimiter: RateLimiter,
+    invalid: InvalidRequests,
+    /// `0` = no fail-fast limit.
+    invalid_request_limit: u32,
 }
 
 /// The authorization header, validated once at construction.
@@ -127,6 +130,20 @@ impl Rest {
         RestBuilder::default()
     }
 
+    /// Returns the number of invalid requests (401, 403 and 429 responses, except 429s with the
+    /// `shared` scope) this client made in the last 10 minutes.
+    ///
+    /// Discord temporarily bans the IP (for about an hour) once it sees 10 000 of them in
+    /// 10 minutes. The count is kept in 10-second slots, so it may include requests up to 10 s
+    /// older than the window. A warning is logged at every 1 000; see also
+    /// [`RestBuilder::invalid_request_limit`].
+    ///
+    /// discord.js counterpart: the `invalidRequestWarning` event.
+    #[must_use]
+    pub fn invalid_requests(&self) -> u32 {
+        self.inner.invalid.count(Instant::now())
+    }
+
     /// Sends a request and deserializes the JSON response into `T`.
     ///
     /// This is the low-level entry point used by every typed method. Use `T = ()` for endpoints
@@ -163,6 +180,7 @@ impl Rest {
 
         let mut attempt: u8 = 0;
         loop {
+            inner.check_invalid_requests()?;
             let bucket = inner.ratelimiter.bucket(bucket_route);
             let mut state = bucket.state.lock().await;
             state.wait(inner.ratelimiter.offset()).await;
@@ -198,6 +216,9 @@ impl Rest {
                 inner.ratelimiter.learn_hash(bucket_route.template, hash);
             }
             state.update(&headers, now);
+            if is_invalid(response.status, &headers) {
+                inner.invalid.record(now);
+            }
             tracing::debug!(
                 %method,
                 %uri,
@@ -241,6 +262,21 @@ impl Rest {
 }
 
 impl Inner {
+    /// Fails if the configured invalid-request limit is reached (D-085).
+    fn check_invalid_requests(&self) -> Result<(), Error> {
+        if self.invalid_request_limit == 0 {
+            return Ok(());
+        }
+        let count = self.invalid.count(Instant::now());
+        if count >= self.invalid_request_limit {
+            return Err(Error::new(ErrorKind::InvalidRequestLimit {
+                count,
+                limit: self.invalid_request_limit,
+            }));
+        }
+        Ok(())
+    }
+
     /// Builds the full URI of a route.
     fn uri(&self, route: Route) -> Result<Uri, Error> {
         let mut uri = String::with_capacity(self.base.len() + 64);
@@ -276,6 +312,18 @@ impl Inner {
         builder
             .body(Full::new(body.cloned().unwrap_or_default()))
             .map_err(|source| Error::with_source(ErrorKind::BuildRequest, source))
+    }
+}
+
+/// Whether Discord counts a response towards its invalid-request limit: 401, 403, and 429
+/// unless the limit was a `shared` resource limit.
+fn is_invalid(status: StatusCode, headers: &RateLimitHeaders<'_>) -> bool {
+    match status {
+        StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => true,
+        StatusCode::TOO_MANY_REQUESTS => !headers
+            .scope
+            .is_some_and(|scope| scope.eq_ignore_ascii_case("shared")),
+        _ => false,
     }
 }
 
@@ -378,6 +426,7 @@ pub struct RestBuilder {
     global_requests_per_second: u32,
     offset: Duration,
     user_agent_appendix: Option<String>,
+    invalid_request_limit: u32,
 }
 
 impl Default for RestBuilder {
@@ -391,6 +440,7 @@ impl Default for RestBuilder {
             global_requests_per_second: 50,
             offset: Duration::from_millis(50),
             user_agent_appendix: None,
+            invalid_request_limit: 0,
         }
     }
 }
@@ -454,6 +504,17 @@ impl RestBuilder {
         self
     }
 
+    /// Makes requests fail immediately with [`ErrorKind::InvalidRequestLimit`] once the client
+    /// made `limit` invalid requests (401, 403, 429) in the last 10 minutes (default `0`: no
+    /// limit). Discord temporarily bans the IP at 10 000, so a limit below that (for example
+    /// 9 000) stops a misbehaving bot before it is locked out (D-085).
+    ///
+    /// The count is shared by every clone of the client; see [`Rest::invalid_requests`].
+    pub const fn invalid_request_limit(mut self, limit: u32) -> Self {
+        self.invalid_request_limit = limit;
+        self
+    }
+
     /// Appends text to the `User-Agent` header, e.g. your bot's name.
     pub fn user_agent_appendix(mut self, appendix: impl Into<String>) -> Self {
         self.user_agent_appendix = Some(appendix.into());
@@ -509,6 +570,8 @@ impl RestBuilder {
                 timeout: self.timeout,
                 retries: self.retries,
                 ratelimiter: RateLimiter::new(self.global_requests_per_second, self.offset),
+                invalid: InvalidRequests::new(),
+                invalid_request_limit: self.invalid_request_limit,
             }),
         }
     }

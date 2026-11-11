@@ -253,6 +253,100 @@ impl<'a> RateLimitHeaders<'a> {
     }
 }
 
+/// Discord bans the IP for about an hour after this many invalid requests in
+/// [`INVALID_WINDOW`].
+pub(crate) const DISCORD_INVALID_REQUEST_LIMIT: u32 = 10_000;
+/// The window in which Discord counts invalid requests.
+const INVALID_WINDOW: Duration = Duration::from_secs(600);
+const INVALID_SLOTS: usize = 60;
+const INVALID_SLOT: Duration = Duration::from_secs(10);
+const _: () = assert!(INVALID_SLOT.as_secs() * INVALID_SLOTS as u64 == INVALID_WINDOW.as_secs());
+/// A warning is logged each time the count reaches a multiple of this.
+const INVALID_WARNING_STEP: u32 = 1_000;
+
+/// Counts invalid requests (401, 403 and 429 responses except `shared`-scope 429s) in a sliding
+/// 10-minute window (D-085).
+///
+/// The window is kept as 60 slots of 10 s (constant memory), so the count may include requests
+/// up to 10 s older than the window: it errs on the safe side.
+#[derive(Debug)]
+pub(crate) struct InvalidRequests {
+    state: Mutex<InvalidState>,
+}
+
+#[derive(Debug)]
+struct InvalidState {
+    slots: [u32; INVALID_SLOTS],
+    /// The slot that `slot_start` belongs to.
+    current: usize,
+    slot_start: Instant,
+    total: u32,
+}
+
+impl InvalidState {
+    /// Moves the window forward to `now`, forgetting slots that left it.
+    fn advance(&mut self, now: Instant) {
+        let steps =
+            now.saturating_duration_since(self.slot_start).as_secs() / INVALID_SLOT.as_secs();
+        if steps == 0 {
+            return;
+        }
+        if steps >= INVALID_SLOTS as u64 {
+            self.slots = [0; INVALID_SLOTS];
+            self.total = 0;
+            self.slot_start = now;
+            return;
+        }
+        for _ in 0..steps {
+            self.current = (self.current + 1) % INVALID_SLOTS;
+            self.total -= self.slots[self.current];
+            self.slots[self.current] = 0;
+        }
+        // `steps < 60`, so the conversion cannot truncate.
+        self.slot_start += INVALID_SLOT * u32::try_from(steps).unwrap_or(u32::MAX);
+    }
+}
+
+impl InvalidRequests {
+    pub(crate) fn new() -> Self {
+        Self {
+            state: Mutex::new(InvalidState {
+                slots: [0; INVALID_SLOTS],
+                current: 0,
+                slot_start: Instant::now(),
+                total: 0,
+            }),
+        }
+    }
+
+    /// Records an invalid request and returns the new count.
+    pub(crate) fn record(&self, now: Instant) -> u32 {
+        let mut state = lock(&self.state);
+        state.advance(now);
+        let current = state.current;
+        state.slots[current] += 1;
+        state.total += 1;
+        let total = state.total;
+        drop(state);
+        if total.is_multiple_of(INVALID_WARNING_STEP) {
+            tracing::warn!(
+                count = total,
+                ban_at = DISCORD_INVALID_REQUEST_LIMIT,
+                "many invalid requests (401/403/429) in the last 10 minutes; Discord bans the IP \
+                 temporarily at 10 000"
+            );
+        }
+        total
+    }
+
+    /// Returns the number of invalid requests in the window.
+    pub(crate) fn count(&self, now: Instant) -> u32 {
+        let mut state = lock(&self.state);
+        state.advance(now);
+        state.total
+    }
+}
+
 /// Limits the overall request rate and handles global pauses.
 ///
 /// A sliding log (D-089): the send times of the last `per_second` requests. A request may go
@@ -445,6 +539,30 @@ mod tests {
         let start = Instant::now();
         state.wait(Duration::from_millis(50)).await;
         assert_eq!(start.elapsed(), Duration::ZERO);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn invalid_requests_slide_out_of_the_window() {
+        let invalid = InvalidRequests::new();
+        let start = Instant::now();
+        for _ in 0..3 {
+            invalid.record(start);
+        }
+        tokio::time::advance(Duration::from_secs(300)).await;
+        assert_eq!(invalid.record(Instant::now()), 4);
+        // The first three leave the window after 10 minutes (10 s slots, so between 590 and
+        // 600 s), the fourth five minutes later.
+        tokio::time::advance(Duration::from_secs(299)).await;
+        assert_eq!(invalid.count(Instant::now()), 4);
+        tokio::time::advance(Duration::from_secs(2)).await;
+        assert_eq!(invalid.count(Instant::now()), 1);
+        tokio::time::advance(Duration::from_secs(300)).await;
+        assert_eq!(invalid.count(Instant::now()), 0);
+        // A long idle period resets everything at once.
+        invalid.record(Instant::now());
+        tokio::time::advance(Duration::from_secs(86_400)).await;
+        assert_eq!(invalid.count(Instant::now()), 0);
+        assert_eq!(invalid.record(Instant::now()), 1);
     }
 
     #[test]
