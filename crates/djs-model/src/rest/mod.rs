@@ -22,6 +22,7 @@ mod emoji;
 mod error_code;
 mod guild;
 mod guild_scheduled_event;
+mod guild_template;
 mod interaction;
 mod invite;
 mod message;
@@ -57,6 +58,7 @@ pub use self::{
         CreateGuildScheduledEvent, GetGuildScheduledEvent, GetGuildScheduledEventUsers,
         ListScheduledEventsForGuild, ModifyGuildScheduledEvent, RecurrenceRuleData,
     },
+    guild_template::{CreateGuildTemplate, ModifyGuildTemplate},
     interaction::CreateFollowupMessage,
     invite::{BulkTargetUsers, GetInvite},
     message::{

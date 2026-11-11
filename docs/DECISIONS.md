@@ -1666,6 +1666,13 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - The job status type is `invite::InviteTargetUsersJobStatus` with the code enum
   `InviteTargetUsersJobStatusCode` (discord-api-types names).
 
+### C-058 — Guild template endpoint details
+- Template codes are `&str` route parameters; Get Guild Template
+  (`/guilds/templates/{code}`) has no major parameter, the others use the guild ID.
+- None of the template endpoints takes an audit log `reason` (the docs list none).
+- Create Guild from Guild Template is not modelled: it is no longer in Discord's docs (bots
+  cannot create guilds).
+
 ---
 
 ## Open questions (to ask the owner when relevant)

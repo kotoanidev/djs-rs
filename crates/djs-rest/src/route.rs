@@ -1188,6 +1188,51 @@ routes! {
         invite_code: &'a str,
     } => GET "/invites/{invite_code}/target-users/job-status";
 
+    // Guild templates. `/guilds/templates/{template_code}` has no guild ID, so no major
+    // parameter.
+
+    /// [Get Guild Template](https://docs.discord.com/developers/resources/guild-template#get-guild-template).
+    GetGuildTemplate {
+        /// The template code.
+        template_code: &'a str,
+    } => GET "/guilds/templates/{template_code}";
+
+    /// [Get Guild Templates](https://docs.discord.com/developers/resources/guild-template#get-guild-templates).
+    GetGuildTemplates {
+        /// The guild.
+        guild_id: GuildId,
+    } => GET "/guilds/{guild_id}/templates", major: guild_id;
+
+    /// [Create Guild Template](https://docs.discord.com/developers/resources/guild-template#create-guild-template).
+    CreateGuildTemplate {
+        /// The guild.
+        guild_id: GuildId,
+    } => POST "/guilds/{guild_id}/templates", major: guild_id;
+
+    /// [Sync Guild Template](https://docs.discord.com/developers/resources/guild-template#sync-guild-template).
+    SyncGuildTemplate {
+        /// The guild.
+        guild_id: GuildId,
+        /// The template code.
+        template_code: &'a str,
+    } => PUT "/guilds/{guild_id}/templates/{template_code}", major: guild_id;
+
+    /// [Modify Guild Template](https://docs.discord.com/developers/resources/guild-template#modify-guild-template).
+    ModifyGuildTemplate {
+        /// The guild.
+        guild_id: GuildId,
+        /// The template code.
+        template_code: &'a str,
+    } => PATCH "/guilds/{guild_id}/templates/{template_code}", major: guild_id;
+
+    /// [Delete Guild Template](https://docs.discord.com/developers/resources/guild-template#delete-guild-template).
+    DeleteGuildTemplate {
+        /// The guild.
+        guild_id: GuildId,
+        /// The template code.
+        template_code: &'a str,
+    } => DELETE "/guilds/{guild_id}/templates/{template_code}", major: guild_id;
+
     // Channels and threads.
 
     /// [Get Channel](https://docs.discord.com/developers/resources/channel#get-channel).

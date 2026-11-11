@@ -5,6 +5,7 @@ mod channel;
 mod emoji;
 mod guild;
 mod guild_scheduled_event;
+mod guild_template;
 mod interaction;
 mod invite;
 mod message;

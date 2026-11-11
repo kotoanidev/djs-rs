@@ -8,6 +8,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Guild template endpoints (6 methods): get a template by code, list a guild's templates,
+  create, sync, modify and delete; bodies `CreateGuildTemplate` and `ModifyGuildTemplate`.
 - Invite endpoints (9 methods): `get_invite` (with counts and a scheduled event),
   `delete_invite`, and the target users of restricted invites — `get_target_users` parses
   Discord's CSV into user IDs (D-126), add and remove one user, bulk add and delete
