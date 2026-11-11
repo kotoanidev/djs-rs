@@ -886,6 +886,16 @@ and why.
   follow-up uses the shared `EditWebhookMessage` body (the fields are identical).
 - **Alternatives:** one `ExecuteWebhook` body for webhooks and follow-ups.
 
+### D-108 — Bearer tokens get their own client
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** `RestBuilder::bearer_token(access_token)` builds a client that authenticates
+  with `Bearer …` (OAuth2 access tokens), like `authPrefix: 'Bearer'` in discord.js. Discord
+  limits requests per token, so such a client also has its own rate-limit state. Endpoints
+  that need a bearer token (e.g. Edit Application Command Permissions) are ordinary methods
+  whose docs say so.
+- **Alternatives:** a `bearer_token: &str` parameter on those methods, overriding the header
+  for one request of the bot's client.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
