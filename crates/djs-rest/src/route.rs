@@ -1105,6 +1105,29 @@ routes! {
         event_id: ScheduledEventId,
     } => GET "/guilds/{guild_id}/scheduled-events/{event_id}/users", major: guild_id;
 
+    // Stage instances. The channel ID does not lead the path, so it is not a major parameter.
+
+    /// [Create Stage Instance](https://docs.discord.com/developers/resources/stage-instance#create-stage-instance).
+    CreateStageInstance => POST "/stage-instances";
+
+    /// [Get Stage Instance](https://docs.discord.com/developers/resources/stage-instance#get-stage-instance).
+    GetStageInstance {
+        /// The stage channel.
+        channel_id: ChannelId,
+    } => GET "/stage-instances/{channel_id}";
+
+    /// [Modify Stage Instance](https://docs.discord.com/developers/resources/stage-instance#modify-stage-instance).
+    ModifyStageInstance {
+        /// The stage channel.
+        channel_id: ChannelId,
+    } => PATCH "/stage-instances/{channel_id}";
+
+    /// [Delete Stage Instance](https://docs.discord.com/developers/resources/stage-instance#delete-stage-instance).
+    DeleteStageInstance {
+        /// The stage channel.
+        channel_id: ChannelId,
+    } => DELETE "/stage-instances/{channel_id}";
+
     // Channels and threads.
 
     /// [Get Channel](https://docs.discord.com/developers/resources/channel#get-channel).

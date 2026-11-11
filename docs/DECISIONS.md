@@ -1633,6 +1633,13 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   and `RecurrenceNWeekday` got constructors, as `#[non_exhaustive]` types used in bodies
   need them (C-048).
 
+### C-056 — Stage instance endpoint details
+- The stage instance routes have no major parameter: the channel ID does not lead their path
+  (`/stage-instances/{channel_id}`), and Discord's major parameters only lead a path, as
+  discord.js also assumes.
+- The bodies keep the optional `privacy_level` (discord.js does too) and document that
+  `Public` is deprecated.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

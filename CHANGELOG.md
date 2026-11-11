@@ -8,6 +8,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Stage instance endpoints (4 methods): create, get, modify and delete the open stage of a
+  stage channel; bodies `CreateStageInstance` and `ModifyStageInstance`.
 - Guild scheduled event endpoints (6 methods): list (with user counts), create, get, modify
   (including starting, ending and canceling through `status`), delete, and the paginated
   subscribers. `CreateGuildScheduledEvent` has a constructor per place — `stage`, `voice`,

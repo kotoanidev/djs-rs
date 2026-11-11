@@ -8,6 +8,7 @@ mod guild_scheduled_event;
 mod interaction;
 mod message;
 mod soundboard;
+mod stage_instance;
 mod sticker;
 mod user;
 mod webhook;

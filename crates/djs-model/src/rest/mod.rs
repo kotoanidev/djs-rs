@@ -22,6 +22,7 @@ mod guild_scheduled_event;
 mod interaction;
 mod message;
 mod soundboard;
+mod stage_instance;
 mod sticker;
 mod user;
 mod webhook;
@@ -59,6 +60,7 @@ pub use self::{
         SearchFilter, SearchGuildMessages, SearchHasType, SearchSortMode, SearchSortOrder,
     },
     soundboard::{CreateGuildSoundboardSound, ModifyGuildSoundboardSound, SendSoundboardSound},
+    stage_instance::{CreateStageInstance, ModifyStageInstance},
     sticker::{CreateGuildSticker, ModifyGuildSticker},
     user::{CreateDm, CreateGroupDm, CurrentUserGuild, GetCurrentUserGuilds, ModifyCurrentUser},
     webhook::{CreateWebhook, EditWebhookMessage, ExecuteWebhook, ModifyWebhook},
