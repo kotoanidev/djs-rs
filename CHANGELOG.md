@@ -8,6 +8,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `native-roots` feature of `djs-rest`, `djs-gateway` and `djs-rs` (D-088, D-100): also trust
+  the operating system's root certificates, in addition to the bundled Mozilla roots.
 - API errors (D-097..D-099): `djs_model::rest::ErrorCode` with every documented JSON error
   code, and `djs_rest::FieldError` — `ApiError::field_errors` lists the form-body errors
   (`embeds[0].title[BASE_TYPE_REQUIRED]: …`), which the error's `Display` shows like

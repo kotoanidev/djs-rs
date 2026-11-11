@@ -7,6 +7,7 @@ mod error;
 mod multipart;
 mod ratelimit;
 mod route;
+mod tls;
 
 pub use self::{
     client::{DEFAULT_API, Request, Rest, RestBuilder},

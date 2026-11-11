@@ -646,8 +646,7 @@ impl RestBuilder {
     #[must_use]
     pub fn build(self) -> Rest {
         let connector = hyper_rustls::HttpsConnectorBuilder::new()
-            .with_provider_and_webpki_roots(rustls::crypto::ring::default_provider())
-            .expect("the ring provider supports the default protocol versions")
+            .with_tls_config(crate::tls::client_config())
             .https_or_http()
             .enable_all_versions()
             .build();

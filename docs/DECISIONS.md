@@ -1214,6 +1214,18 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   not extend the path; plain string values become errors with an empty code.
   `Display`: `message (code N)` then one `path[CODE]: message` line per field error.
 
+### C-042 — `native-roots` details (D-088, D-100)
+- `djs-rest` now builds its rustls `ClientConfig` itself (`src/tls.rs`, passed to
+  `hyper_rustls::HttpsConnectorBuilder::with_tls_config`; ALPN still set by the builder for
+  HTTP/2 + HTTP/1.1), so `hyper-rustls` lost its `webpki-roots` feature and `webpki-roots`
+  became a direct dependency of `djs-rest`, as in `djs-gateway`.
+- The root-store function is duplicated in `djs-rest/src/tls.rs` and `djs-gateway/src/tls.rs`
+  (25 lines; the crates do not depend on each other and `djs-util` has no TLS dependency).
+- The system store is read once per client: when `Rest` is built and when a gateway
+  configuration is built (one connector shared by its shards).
+- Verified live (2026-11-11, Fedora): the `ping` example with `native-roots` loaded 118 system
+  certificates, `GET /gateway/bot` returned 200 and the shard became ready.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

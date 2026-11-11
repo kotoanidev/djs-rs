@@ -13,20 +13,27 @@ readme = "README.md"
 # Not published until the owner decides on a release (see docs/DECISIONS.md, C-003).
 publish = false
 
+[features]
+## Also trust the operating system's root certificates (e.g. a corporate proxy's CA), in
+## addition to the bundled `webpki-roots` (D-088, D-100).
+native-roots = ["dep:rustls-native-certs"]
+
 [dependencies]
 bytes.workspace = true
 djs-model.workspace = true
 http.workspace = true
 http-body-util.workspace = true
 hyper = { workspace = true, features = ["client", "http1", "http2"] }
-hyper-rustls = { workspace = true, features = ["http1", "http2", "ring", "tls12", "webpki-roots"] }
+hyper-rustls = { workspace = true, features = ["http1", "http2", "ring", "tls12"] }
 hyper-util = { workspace = true, features = ["client-legacy", "http1", "http2", "tokio"] }
 rustls = { workspace = true, features = ["ring", "std", "tls12"] }
+rustls-native-certs = { workspace = true, optional = true }
 serde = { workspace = true, features = ["std"] }
 serde_json.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["sync", "time"] }
 tracing = { workspace = true, features = ["std"] }
+webpki-roots.workspace = true
 
 [dev-dependencies]
 hyper = { workspace = true, features = ["server", "http1"] }

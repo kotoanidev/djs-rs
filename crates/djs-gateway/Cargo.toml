@@ -17,12 +17,16 @@ publish = false
 default = ["zstd-stream"]
 ## `zstd-stream` transport compression (D-015). Requires a C compiler (D-032).
 zstd-stream = ["dep:zstd"]
+## Also trust the operating system's root certificates (e.g. a corporate proxy's CA), in
+## addition to the bundled `webpki-roots` (D-088, D-100).
+native-roots = ["dep:rustls-native-certs"]
 
 [dependencies]
 djs-model.workspace = true
 fastrand.workspace = true
 futures-util = { workspace = true, features = ["sink", "std"] }
 rustls = { workspace = true, features = ["ring", "std", "tls12"] }
+rustls-native-certs = { workspace = true, optional = true }
 serde = { workspace = true, features = ["std"] }
 serde_json.workspace = true
 thiserror.workspace = true

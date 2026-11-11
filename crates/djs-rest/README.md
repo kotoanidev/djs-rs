@@ -39,6 +39,12 @@ println!("sent message {}", message.id);
 # }
 ```
 
+## Cargo features
+
+| Feature | Default | Description |
+|---|---|---|
+| `native-roots` | | Also trust the operating system's root certificates (e.g. a corporate proxy's CA), in addition to the bundled Mozilla roots |
+
 ## Part of djs-rs
 
 `djs-rest` is one crate of [djs-rs](https://github.com/kotoanidev/djs-rs), a high-performance
