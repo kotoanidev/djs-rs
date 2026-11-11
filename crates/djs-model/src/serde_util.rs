@@ -38,3 +38,13 @@ pub(crate) mod option_flags_string {
             .transpose()
     }
 }
+
+/// `#[serde(default, deserialize_with = "crate::serde_util::null_as_default")]`: reads an
+/// explicit `null` like an absent field (e.g. nullable localization dictionaries).
+pub(crate) fn null_as_default<'de, T, D>(deserializer: D) -> Result<T, D::Error>
+where
+    T: Default + serde::Deserialize<'de>,
+    D: serde::Deserializer<'de>,
+{
+    <Option<T> as serde::Deserialize>::deserialize(deserializer).map(Option::unwrap_or_default)
+}

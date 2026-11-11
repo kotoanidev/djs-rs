@@ -459,6 +459,17 @@ and why.
 - **Alternatives:** one flat struct with every field optional (twilight); flat struct plus typed
   views.
 
+### D-058 — JSON dictionaries are `BTreeMap<K, V>`
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** Discord's dictionary objects (`{key: value}`) are `std::collections::BTreeMap`:
+  application role connection `metadata`, localization dictionaries (`BTreeMap<Locale, _>`),
+  interaction `resolved` data (`BTreeMap<Id, _>`), … Serialization is deterministic (sorted by
+  key; snowflake keys therefore come out in chronological order). The maps are small (≤ 32
+  entries), where a B-tree is a single node and needs no hashing. Like arrays (D-050), absent,
+  `null` and empty maps collapse into an empty map.
+- **Alternatives:** `HashMap` (random output order, SipHash costs on tiny maps);
+  `Vec<(K, V)>` (keeps input order, O(n) lookup, no `.get()`); `IndexMap` (new dependency).
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
@@ -581,6 +592,16 @@ example's team members lack `role`, added in 2023), the field stays required —
 table and discord-api-types — and the fixture adds a valid value. Fields with a sensible default
 keep following C-023. `Application::flags_new` (string-encoded flags) uses the generic
 `serde_util::option_flags_string` helper.
+
+### C-027 — Names where D-048's prefix rule does not fit
+- `application_role_connection_metadata::MetadataType` (Discord:
+  `ApplicationRoleConnectionMetadataType`): dropping the whole module prefix would leave just
+  `Type`; the object itself keeps its full name `ApplicationRoleConnectionMetadata`, like `Team`
+  in `team`.
+- `user::ConnectionService` / `ConnectionVisibility`: the prefix is the object (`Connection`), not
+  the module, so it stays (discord-api-types names). `ConnectionService::X` serializes as
+  `"twitter"` (doc alias `Twitter`).
+- Every such name has a `#[doc(alias)]` for the Discord / discord.js name (C-021).
 
 ---
 

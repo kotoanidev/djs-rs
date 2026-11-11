@@ -1,9 +1,12 @@
 //! [Users](https://docs.discord.com/developers/resources/user).
 
+use std::collections::BTreeMap;
+
 use compact_str::CompactString;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    guild::PartialIntegration,
     id::{GuildId, SkuId, UserId},
     macros::{int_enum, int_flags, str_enum},
     util::{ImageHash, Locale},
@@ -485,6 +488,143 @@ int_flags! {
         /// change without notice.
         const RESTRICTED_COLLABORATOR = 1 << 51;
     }
+}
+
+/// A third-party account [connected](https://docs.discord.com/developers/resources/user#connection-object)
+/// to the current user (`GET /users/@me/connections`, `OAuth2` scope `connections`).
+///
+/// discord.js counterpart: none (discord-api-types `APIConnection`).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct Connection {
+    /// The account's ID on the service (not a snowflake).
+    pub id: CompactString,
+    /// The account's username on the service.
+    pub name: CompactString,
+    /// The service.
+    #[serde(rename = "type")]
+    pub kind: ConnectionService,
+    /// Whether the connection is revoked.
+    #[serde(default, skip_serializing_if = "core::ops::Not::not")]
+    pub revoked: bool,
+    /// The guild integrations that use the connection (partial objects).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub integrations: Vec<PartialIntegration>,
+    /// Whether the connection is verified.
+    pub verified: bool,
+    /// Whether friend sync is enabled.
+    pub friend_sync: bool,
+    /// Whether activities of the service are shown in presence updates.
+    pub show_activity: bool,
+    /// Whether Discord holds an `OAuth2` token for the service account.
+    pub two_way_link: bool,
+    /// Who can see the connection.
+    pub visibility: ConnectionVisibility,
+}
+
+str_enum! {
+    /// A [connection service](https://docs.discord.com/developers/resources/user#connection-object-services).
+    ///
+    /// discord-api-types counterpart: `ConnectionService`.
+    #[doc(alias = "Services")]
+    pub enum ConnectionService {
+        /// Amazon Music.
+        AmazonMusic = "amazon-music",
+        /// Battle.net. **Deprecated:** Battle.net connections were removed on 2026-09-22.
+        ///
+        /// **Undocumented:** known from discord-api-types, no longer in the official docs.
+        BattleNet = "battlenet",
+        /// Bluesky.
+        Bluesky = "bluesky",
+        /// Bungie.net.
+        BungieNet = "bungie",
+        /// Crunchyroll.
+        Crunchyroll = "crunchyroll",
+        /// A domain name.
+        Domain = "domain",
+        /// eBay.
+        Ebay = "ebay",
+        /// Epic Games.
+        EpicGames = "epicgames",
+        /// Facebook.
+        Facebook = "facebook",
+        /// GitHub.
+        GitHub = "github",
+        /// Instagram. Can no longer be added by users.
+        Instagram = "instagram",
+        /// League of Legends. **Deprecated:** no longer returned by Discord.
+        ///
+        /// **Undocumented:** known from discord-api-types, no longer in the official docs.
+        LeagueOfLegends = "leagueoflegends",
+        /// Mastodon.
+        Mastodon = "mastodon",
+        /// PayPal.
+        PayPal = "paypal",
+        /// PlayStation Network.
+        PlayStationNetwork = "playstation",
+        /// Reddit.
+        Reddit = "reddit",
+        /// Riot Games. **Deprecated:** no longer returned by Discord.
+        ///
+        /// **Undocumented:** known from discord-api-types, no longer in the official docs.
+        RiotGames = "riotgames",
+        /// Roblox.
+        Roblox = "roblox",
+        /// Spotify.
+        Spotify = "spotify",
+        /// Skype. Can no longer be added by users.
+        Skype = "skype",
+        /// Steam.
+        Steam = "steam",
+        /// TikTok.
+        TikTok = "tiktok",
+        /// Twitch.
+        Twitch = "twitch",
+        /// X (formerly Twitter).
+        #[doc(alias = "Twitter")]
+        X = "twitter",
+        /// Xbox.
+        Xbox = "xbox",
+        /// YouTube.
+        YouTube = "youtube",
+    }
+}
+
+int_enum! {
+    /// [Who can see](https://docs.discord.com/developers/resources/user#connection-object-visibility-types)
+    /// a [`Connection`].
+    ///
+    /// discord-api-types counterpart: `ConnectionVisibility`.
+    pub enum ConnectionVisibility: u8 {
+        /// Only the user.
+        None = 0,
+        /// Everyone.
+        Everyone = 1,
+    }
+}
+
+/// The [role connection](https://docs.discord.com/developers/resources/user#application-role-connection-object)
+/// an app stored for a user (linked roles).
+///
+/// discord.js counterpart: none (discord-api-types `APIApplicationRoleConnection`).
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct ApplicationRoleConnection {
+    /// The vanity name of the connected platform (max 50 characters).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub platform_name: Option<CompactString>,
+    /// The user's name on the connected platform (max 100 characters).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub platform_username: Option<CompactString>,
+    /// The user's values, keyed by
+    /// [`ApplicationRoleConnectionMetadata::key`](crate::application_role_connection_metadata::ApplicationRoleConnectionMetadata::key)
+    /// (each value stringified, max 100 characters; D-058).
+    #[serde(
+        default,
+        skip_serializing_if = "BTreeMap::is_empty",
+        deserialize_with = "crate::serde_util::null_as_default"
+    )]
+    pub metadata: BTreeMap<CompactString, CompactString>,
 }
 
 #[cfg(test)]

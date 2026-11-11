@@ -9,8 +9,8 @@ D-041).
 **Current: Phase 2 — full `djs-model` coverage** (D-039; permissions = `u64`, D-040).
 
 ## Done
-- 2026-11-10: Owner decisions D-001 … D-057 in `docs/DECISIONS.md`; Claude defaults C-001 …
-  C-026 (reviewable) in the same file.
+- 2026-11-10: Owner decisions D-001 … D-058 in `docs/DECISIONS.md`; Claude defaults C-001 …
+  C-027 (reviewable) in the same file.
 - Toolchains (rustup): stable 1.99.1, 1.85, 1.89 (MSRV, D-031).
 - Phase 0: foundation docs, public repo https://github.com/kotoanidev/djs-rs, 9-crate workspace,
   lints, CI (fmt, clippy all/no-default features, tests ×3 OS, rustdoc -D warnings, MSRV 1.89,
@@ -71,9 +71,16 @@ D-041).
   config, install params, event webhook status/types, Activity instances; `team` module;
   `guild::PartialGuild`. Tests `tests/application.rs`; `round_trip` now accepts nested
   unmodelled paths (`a.b`, `a[].b`). Monetization (SKU/entitlements) stays in its own step.
-- **Next:** user `Connection` (+ services, visibility) and `ApplicationRoleConnection`
-  (`user` module, needs `guild::Integration`, done); then `guild_template` and `audit_log`
-  (audit log also needs commands → may move after interactions); then step 5: messages.
+- User connections ✅: `user::{Connection, ConnectionService, ConnectionVisibility,
+  ApplicationRoleConnection}`, `guild::PartialIntegration`, module
+  `application_role_connection_metadata`; maps are `BTreeMap` (D-058), nullable dictionaries
+  via `serde_util::null_as_default`. Tests `tests/user.rs`.
+- **Next:** `guild_template` (needs only guild + channel types, done) → then step 5: messages
+  (message, embeds, attachments, reactions, mentions, allowed mentions, snapshots, polls) →
+  components → interactions & commands → `audit_log` (needs commands, webhooks, threads,
+  integrations, auto moderation, scheduled events) → monetization (SKU, entitlements,
+  subscriptions), soundboard, lobbies, application identity profile (new docs pages
+  `lobby.mdx`, `application-identity-profile.mdx`) → dispatch events + close codes.
 - Local gate script: `scratchpad/gate.sh` style (`set -euo pipefail`, no pipes hiding errors) —
   a piped gate let one clippy failure through (fixed in `cda06db`).
 - Perf note: after the user change, MESSAGE_CREATE/READY decode looked ~8-13 % slower relative

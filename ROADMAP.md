@@ -39,7 +39,7 @@ just with narrow scope.
 ## Phase 2 — `djs-model` full coverage (≈ discord-api-types v10)
 - [x] Bitflags: permissions, message/user/channel/guild/application flags (+ attachment, embed,
       member, role, system channel, invite, SKU, activity)
-- [x] Users, members, roles, emojis, stickers (user connections follow with integrations)
+- [x] Users (+ connections, role connections), members, roles, emojis, stickers
 - [ ] Guilds (onboarding, welcome screen, widgets, templates, scheduled events,
       auto-moderation, audit log, integrations, bans)
 - [x] Channels & threads, forums/media, stage instances, invites, webhooks
@@ -47,7 +47,8 @@ just with narrow scope.
 - [ ] Components (classic + Components V2), modals
 - [ ] Interactions & application commands (slash, user, message, autocomplete, entry point),
       command permissions
-- [ ] Applications, entitlements, SKUs, subscriptions, soundboard, lobbies
+- [~] Applications ✅ (+ teams, role connection metadata), entitlements, SKUs, subscriptions,
+      soundboard, lobbies
 - [ ] Every gateway dispatch event and close code
 - [ ] (De)serialization tests against real JSON fixtures; benchmarks
 

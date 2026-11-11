@@ -896,6 +896,62 @@ pub struct Integration {
     pub scopes: Vec<Scope>,
 }
 
+/// A partial [`Integration`], as listed on a user's
+/// [`Connection`](crate::user::Connection) (D-051).
+///
+/// Discord does not document which fields are present; only the ID is required here.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct PartialIntegration {
+    /// The integration's ID.
+    pub id: IntegrationId,
+    /// The integration's name.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<CompactString>,
+    /// The kind of integration.
+    #[serde(rename = "type", default, skip_serializing_if = "Option::is_none")]
+    pub kind: Option<IntegrationType>,
+    /// Whether the integration is enabled.
+    #[serde(default, skip_serializing_if = "core::ops::Not::not")]
+    pub enabled: bool,
+    /// Whether the integration is syncing.
+    #[serde(default, skip_serializing_if = "core::ops::Not::not")]
+    pub syncing: bool,
+    /// The role given to subscribers.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub role_id: Option<RoleId>,
+    /// Whether emoticons are synced (Twitch only).
+    #[serde(default, skip_serializing_if = "core::ops::Not::not")]
+    pub enable_emoticons: bool,
+    /// What happens to expired subscribers.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expire_behavior: Option<IntegrationExpireBehavior>,
+    /// The grace period before subscribers expire, in days.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expire_grace_period: Option<u32>,
+    /// The user who added the integration.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub user: Option<Box<User>>,
+    /// The integration's account.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account: Option<IntegrationAccount>,
+    /// When the integration last synced.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub synced_at: Option<Timestamp>,
+    /// The number of subscribers.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub subscriber_count: Option<u32>,
+    /// Whether the integration was revoked.
+    #[serde(default, skip_serializing_if = "core::ops::Not::not")]
+    pub revoked: bool,
+    /// The bot or `OAuth2` application of a Discord integration.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub application: Option<Box<IntegrationApplication>>,
+    /// The scopes the application was authorized for.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub scopes: Vec<Scope>,
+}
+
 str_enum! {
     /// The kind of an [`Integration`].
     pub enum IntegrationType {

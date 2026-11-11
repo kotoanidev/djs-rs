@@ -8,6 +8,10 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-model`: `user::{Connection, ConnectionService, ConnectionVisibility,
+  ApplicationRoleConnection}`, `guild::PartialIntegration` and
+  `application_role_connection_metadata::{ApplicationRoleConnectionMetadata, MetadataType}`;
+  dictionaries are `BTreeMap`s (D-058).
 - `djs-model`: `application::{Application, PartialApplication, IntegrationType,
   IntegrationTypesConfig, IntegrationTypeConfig, InstallParams, EventWebhookStatus,
   WebhookEventType, ActivityInstance, ActivityLocation, ActivityLocationKind}`,
