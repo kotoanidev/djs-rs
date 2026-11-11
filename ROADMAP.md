@@ -49,7 +49,7 @@ just with narrow scope.
 - [x] Interactions & application commands (slash, user, message, autocomplete, entry point),
       command permissions, interaction responses and modals (D-068)
 - [~] Applications ✅ (+ teams, role connection metadata), entitlements ✅, SKUs ✅,
-      subscriptions ✅, voice states/regions ✅, soundboard, lobbies, application identity profile
+      subscriptions ✅, voice states/regions ✅, soundboard ✅, lobbies ✅, application identity profile
 - [ ] Every gateway dispatch event and close code
 - [ ] (De)serialization tests against real JSON fixtures; benchmarks
 

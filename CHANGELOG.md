@@ -8,6 +8,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-model`: `soundboard::SoundboardSound`, `lobby::{Lobby, LobbyMember, LobbyMemberFlags,
+  LobbyMessage, LobbyMessageMember, LobbyInvite}`.
 - `djs-model`: `sku::{Sku, SkuType}`, `subscription::{Subscription, SubscriptionStatus}`,
   `voice::{VoiceState, VoiceRegion}`.
 - `djs-model`: `audit_log` module — `AuditLog`, `AuditLogEntry`, `AuditLogEvent`,

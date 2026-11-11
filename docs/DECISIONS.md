@@ -843,6 +843,14 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   omits `self_video`) and are always written. The `GUILD_CREATE` extras (voice states, members,
   channels, …) come with the dispatch events.
 
+### C-035 — Soundboard and lobby details
+- `soundboard::SoundboardSound` (`PartialEq` only, `volume: f64`, D-064); absent `available`
+  is `true` (D-055). The `{"items": […]}` list wrapper and the send/create bodies are REST
+  (Phase 3).
+- `lobby::{Lobby, LobbyMember, LobbyMemberFlags, LobbyMessage, LobbyMessageMember,
+  LobbyInvite}`: the nullable string dictionaries are `BTreeMap`s where `null`/absent are empty
+  (D-058, like `name_localizations`), skipped when empty. Request bodies are Phase 3.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

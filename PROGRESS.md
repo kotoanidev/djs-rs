@@ -10,7 +10,7 @@ D-041).
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-071 in `docs/DECISIONS.md`; Claude defaults C-001 …
-  C-034 (reviewable) in the same file.
+  C-035 (reviewable) in the same file.
 - Toolchains (rustup): stable 1.99.1, 1.85, 1.89 (MSRV, D-031).
 - Phase 0: foundation docs, public repo https://github.com/kotoanidev/djs-rs, 9-crate workspace,
   lints, CI (fmt, clippy all/no-default features, tests ×3 OS, rustdoc -D warnings, MSRV 1.89,
@@ -104,9 +104,11 @@ D-041).
   tests `tests/audit_log.rs` (synthetic log around the docs' example objects).
 - SKUs, subscriptions ✅ and `voice` (voice states, regions; was missing from the plan) ✅
   (C-034); tests in `tests/application.rs` and `tests/voice.rs`.
-- **Next:** soundboard, lobbies, application identity profile (docs pages `soundboard.mdx`,
-  `lobby.mdx`, `application-identity-profile.mdx`) → every dispatch event + close codes
-  (including the `GUILD_CREATE` extras) → Phase 2 benches and stress tests (D-041).
+- `soundboard`, `lobby` ✅ (C-035), tests `tests/soundboard_lobby.rs`.
+- **Next:** application identity profile (`application-identity-profile.mdx`; scope question
+  for the owner: discord.js v14 does not have it, and its `metadata` is arbitrary JSON) →
+  every dispatch event + close codes (including the `GUILD_CREATE` extras) → Phase 2 benches
+  and stress tests (D-041).
 - Local gate script: `scratchpad/gate.sh` style (`set -euo pipefail`, no pipes hiding errors) —
   a piped gate let one clippy failure through (fixed in `cda06db`).
 - Perf note: after the user change, MESSAGE_CREATE/READY decode looked ~8-13 % slower relative
