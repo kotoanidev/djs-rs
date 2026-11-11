@@ -573,6 +573,24 @@ and why.
 - **Alternatives:** one struct with every type-specific field optional (the docs' table,
   twilight).
 
+### D-070 — Audit log change values are an own JSON value type
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** `audit_log::AuditLogChange { key, old_value, new_value }` keeps the "mixed"
+  values as an own JSON-like enum `AuditLogValue` (null, bool, number, string, array, object)
+  with a conversion to any `Deserialize` type (e.g. `change.new_value_as::<Permissions>()`).
+  No new dependency; the approach of discord.js.
+- **Alternatives:** an enum of changes keyed by `key` with typed values (twilight; 100+
+  variants, the same key has different types on different objects); `serde_json::Value`
+  (serde_json would become a public dependency of `djs-model`).
+
+### D-071 — Optional audit entry info is one struct (exception to D-069)
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** the entry's `options` is one struct `AuditLogEntryOptions` with `Option`
+  fields (numbers that Discord sends as strings are decoded as numbers, the overwrite `type`
+  as `OverwriteType`), because its fields are shared by many event types. This is an explicit
+  exception to D-069.
+- **Alternatives:** an enum by `action_type` with each event's option fields (≈ 70 variants).
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
