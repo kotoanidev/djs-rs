@@ -562,6 +562,17 @@ and why.
   `message::AttachmentRequest`). All other REST request bodies stay in Phase 3.
 - **Alternatives:** model every request body, including interaction responses, in Phase 3.
 
+### D-069 — Command options are an enum keyed by option `type`
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** D-063 also covers structures that the docs describe as one table with
+  type-dependent fields. `application_command::CommandOption` is an enum by option type
+  (subcommand, subcommand group, string, integer, boolean, user, channel, role, mentionable,
+  number, attachment, unknown), each variant with exactly its fields; choices are typed
+  (`Choice<CompactString>`, `Choice<i64>`, `Choice<f64>`). Received option values in
+  interactions are an enum by type as well.
+- **Alternatives:** one struct with every type-specific field optional (the docs' table,
+  twilight).
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
