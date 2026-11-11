@@ -591,6 +591,15 @@ and why.
   exception to D-069.
 - **Alternatives:** an enum by `action_type` with each event's option fields (≈ 70 variants).
 
+### D-072 — Application identity profiles are modelled; arbitrary JSON is `util::JsonValue`
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** the `application_identity_profile` module is part of Phase 2 (discord-api-types
+  has it, discord.js v14 does not). The D-070 value type moves to `util` as the general
+  `JsonValue` (error: `JsonValueError`) and is used wherever the API has arbitrary JSON: audit
+  log change values and the profile's `metadata`.
+- **Alternatives:** reuse `audit_log::AuditLogValue` under its name; skip identity profiles for
+  now.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
