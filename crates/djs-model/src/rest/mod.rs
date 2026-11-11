@@ -11,11 +11,18 @@ use bytes::Bytes;
 use compact_str::CompactString;
 use serde::{Deserialize, Serialize, Serializer, ser::SerializeSeq};
 
-use crate::message::{AttachmentRequest, AttachmentRequestId, MessageReference};
+use crate::message::{AttachmentRequest, AttachmentRequestId};
 
 mod error_code;
+mod message;
 
-pub use self::error_code::ErrorCode;
+pub use self::{
+    error_code::ErrorCode,
+    message::{
+        BulkDeleteMessages, ChannelPins, CreateMessage, EditMessage, GetChannelMessages,
+        GetChannelPins, GetReactions,
+    },
+};
 
 /// The response of [Get Gateway Bot](https://docs.discord.com/developers/events/gateway#get-gateway-bot)
 /// (`GET /gateway/bot`): where and how to connect to the gateway.
@@ -43,104 +50,6 @@ pub struct SessionStartLimit {
     pub reset_after: u64,
     /// How many identify requests are allowed per 5 seconds (per rate-limit key).
     pub max_concurrency: u32,
-}
-
-/// The JSON body of [Create Message](https://docs.discord.com/developers/resources/message#create-message)
-/// (`POST /channels/{channel.id}/messages`).
-///
-/// **Coverage:** text content, TTS, replies and files so far. Embeds, components, allowed
-/// mentions, polls and the rest arrive with the message endpoints (Phase 3).
-///
-/// discord.js counterpart: `MessageCreateOptions` / `RESTPostAPIChannelMessageJSONBody`.
-///
-/// # Examples
-///
-/// ```
-/// use djs_model::rest::{CreateMessage, FileUpload};
-///
-/// let body = CreateMessage::from("Pong!");
-/// assert_eq!(serde_json::to_string(&body).unwrap(), r#"{"content":"Pong!"}"#);
-///
-/// // Files get their `attachments` entry automatically.
-/// let mut body = CreateMessage::from("A log");
-/// body.files.push(FileUpload::new("log.txt", "line 1\nline 2\n"));
-/// assert_eq!(
-///     serde_json::to_string(&body).unwrap(),
-///     r#"{"content":"A log","attachments":[{"id":0,"filename":"log.txt"}]}"#
-/// );
-/// ```
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct CreateMessage {
-    /// The message text (up to 2000 characters).
-    pub content: Option<CompactString>,
-    /// Whether this is a text-to-speech message.
-    pub tts: bool,
-    /// The message to reply to or forward.
-    pub message_reference: Option<MessageReference>,
-    /// Explicit attachment entries. Usually left empty: every file in [`files`](Self::files)
-    /// gets an entry automatically, unless one with its `files[n]` index is listed here.
-    pub attachments: Option<Vec<AttachmentRequest>>,
-    /// Files to upload with the message (sent as `multipart/form-data`, D-087).
-    pub files: Vec<FileUpload>,
-}
-
-impl Serialize for CreateMessage {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        #[derive(Serialize)]
-        struct Wire<'a> {
-            #[serde(skip_serializing_if = "Option::is_none")]
-            content: Option<&'a CompactString>,
-            #[serde(skip_serializing_if = "core::ops::Not::not")]
-            tts: bool,
-            #[serde(skip_serializing_if = "Option::is_none")]
-            message_reference: Option<&'a MessageReference>,
-            #[serde(skip_serializing_if = "Attachments::is_absent")]
-            attachments: Attachments<'a>,
-        }
-
-        // Destructured without `..`, so a new field cannot be forgotten here.
-        let Self {
-            content,
-            tts,
-            message_reference,
-            attachments,
-            files,
-        } = self;
-        Wire {
-            content: content.as_ref(),
-            tts: *tts,
-            message_reference: message_reference.as_ref(),
-            attachments: Attachments::new(attachments.as_deref(), files),
-        }
-        .serialize(serializer)
-    }
-}
-
-impl From<&str> for CreateMessage {
-    fn from(content: &str) -> Self {
-        Self {
-            content: Some(content.into()),
-            ..Self::default()
-        }
-    }
-}
-
-impl From<String> for CreateMessage {
-    fn from(content: String) -> Self {
-        Self {
-            content: Some(content.into()),
-            ..Self::default()
-        }
-    }
-}
-
-impl From<CompactString> for CreateMessage {
-    fn from(content: CompactString) -> Self {
-        Self {
-            content: Some(content),
-            ..Self::default()
-        }
-    }
 }
 
 /// A file uploaded with a request, e.g. a message attachment.

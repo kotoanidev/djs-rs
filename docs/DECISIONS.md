@@ -1279,6 +1279,23 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   is built — no intermediate string. Values: integers, booleans, IDs, and text
   percent-encoded like path segments.
 
+### C-044 — Endpoint conventions (from the message endpoints on)
+- Body and query structs are `#[non_exhaustive]` with `Default` (fields can be added without
+  breaking callers; build them with `default()`/`From` and assign fields). `CreateMessage`
+  became `#[non_exhaustive]` too. They live in one `djs_model::rest` submodule per docs page
+  (`rest/message.rs`, …), re-exported flat (`djs_model::rest::CreateMessage`).
+- Create bodies use `Vec` fields skipped when empty and `Option` for the rest; modify bodies
+  use `Patch` (D-101). Query field `type` is named `kind` (as in the model). Responses that
+  the docs do not name get the resource name (`ChannelPins` for Get Channel Pins).
+- Rest methods live in `djs-rest/src/endpoints/<page>.rs`; `reason: Option<&str>` is the last
+  parameter exactly where the docs say the endpoint supports `X-Audit-Log-Reason` (so not on
+  Delete Message, whose page does not mention it). Each method documents the permissions it
+  needs, the discord.js counterpart and the most likely error codes.
+- Reaction emojis are never part of the rate-limit key (Discord limits reactions per
+  channel); a custom emoji whose name is unknown is written as `_:id`.
+- Tests: `djs-rest/tests/common/mod.rs` holds the mock API (it records method, path, query,
+  headers and body); one test file per resource checks every request of its endpoints.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

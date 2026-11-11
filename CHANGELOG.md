@@ -8,6 +8,11 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Message endpoints (D-102): get/create/edit/delete/crosspost messages, bulk delete, pins
+  (get, pin, unpin) and reactions (create, delete own/user/all/all for emoji, get) as `Rest`
+  methods, with `djs_rest::ReactionEmoji` (D-103) and the bodies/queries `EditMessage`,
+  `GetChannelMessages`, `GetReactions`, `BulkDeleteMessages`, `GetChannelPins`,
+  `ChannelPins`; `CreateMessage` covers every documented field.
 - `djs-model`: `util::Patch<T>` (`Keep`/`Clear`/`Set`) for request fields that can be left
   unchanged, cleared or set (D-083, D-101).
 - `native-roots` feature of `djs-rest`, `djs-gateway` and `djs-rs` (D-088, D-100): also trust
@@ -163,6 +168,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `login`/`shutdown`, prelude; `examples/ping.rs`; end-to-end tests with mock REST + gateway.
 
 ### Changed
+- `djs-model`: `CreateMessage` is `#[non_exhaustive]` and moved to `rest::message` (still
+  re-exported as `djs_model::rest::CreateMessage`).
 - `djs-rest`: `ApiError::code` is an `ErrorCode` instead of a `u32`; `ApiError` is
   `#[non_exhaustive]` and gained `field_errors`.
 - `djs-model`: `CreateMessage` is no longer `Eq` (its files can carry an `f64` duration) and

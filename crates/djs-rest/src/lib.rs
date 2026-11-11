@@ -13,5 +13,5 @@ mod tls;
 pub use self::{
     client::{DEFAULT_API, Request, Rest, RestBuilder},
     error::{ApiError, Error, ErrorKind, FieldError},
-    route::Route,
+    route::{ReactionEmoji, Route},
 };

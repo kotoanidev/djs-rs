@@ -453,12 +453,12 @@ impl<'a> Request<'a> {
     /// use djs_model::id::{ChannelId, MessageId};
     /// use djs_rest::{Request, Route};
     ///
-    /// let route = Route::DeleteMessage {
+    /// let route = Route::PinMessage {
     ///     channel_id: ChannelId::new(1),
     ///     message_id: MessageId::new(2),
     /// };
-    /// let request = Request::new(route).reason(Some("Spam"));
-    /// assert_eq!(request.audit_log_reason(), Some("Spam"));
+    /// let request = Request::new(route).reason(Some("Important"));
+    /// assert_eq!(request.audit_log_reason(), Some("Important"));
     /// ```
     #[must_use]
     pub const fn reason(mut self, reason: Option<&'a str>) -> Self {
@@ -507,7 +507,6 @@ impl<'a> Request<'a> {
     }
 
     /// Sets the query parameters (D-092), written into the URI when the request is sent.
-    #[expect(dead_code, reason = "used by the endpoint methods added next")]
     pub(crate) const fn query(mut self, query: &'a dyn Query) -> Self {
         self.query = Some(query);
         self

@@ -3,7 +3,10 @@
 use core::fmt;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use djs_model::id::{ApplicationId, ChannelId, Id, InteractionId, MessageId};
+use djs_model::{
+    emoji::{Emoji, PartialEmoji},
+    id::{ApplicationId, ChannelId, EmojiId, Id, InteractionId, MessageId, UserId},
+};
 use http::Method;
 
 /// How the requests of a route are rate limited.
@@ -58,11 +61,84 @@ const OLD_MESSAGE_AGE_MS: u64 = 14 * 24 * 60 * 60 * 1000;
 const OLD_MESSAGE_DELETE: &str =
     "DELETE /channels/{channel_id}/messages/{message_id} (older than two weeks)";
 
+/// The emoji of a reaction endpoint (D-103), written into the path percent-encoded.
+///
+/// Discord identifies a Unicode emoji by the emoji itself and a custom emoji by `name:id`;
+/// this type writes the right form, so a wrong format is impossible.
+///
+/// discord.js counterpart: `EmojiIdentifierResolvable`.
+///
+/// # Examples
+///
+/// ```
+/// use djs_model::id::{ChannelId, EmojiId, MessageId};
+/// use djs_rest::{ReactionEmoji, Route};
+///
+/// let route = |emoji| Route::CreateReaction {
+///     channel_id: ChannelId::new(1),
+///     message_id: MessageId::new(2),
+///     emoji,
+/// };
+/// assert_eq!(
+///     route(ReactionEmoji::Unicode("👍")).path(),
+///     "/channels/1/messages/2/reactions/%F0%9F%91%8D/@me"
+/// );
+/// assert_eq!(
+///     route(ReactionEmoji::Custom { name: "ferris", id: EmojiId::new(3) }).path(),
+///     "/channels/1/messages/2/reactions/ferris%3A3/@me"
+/// );
+/// // A `&str` is a Unicode emoji.
+/// assert_eq!(ReactionEmoji::from("🔥"), ReactionEmoji::Unicode("🔥"));
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum ReactionEmoji<'a> {
+    /// A standard Unicode emoji such as `👍`.
+    Unicode(&'a str),
+    /// A custom (guild or application) emoji.
+    Custom {
+        /// The emoji's name.
+        name: &'a str,
+        /// The emoji's ID.
+        id: EmojiId,
+    },
+}
+
+impl<'a> From<&'a str> for ReactionEmoji<'a> {
+    /// A Unicode emoji.
+    fn from(emoji: &'a str) -> Self {
+        Self::Unicode(emoji)
+    }
+}
+
+impl<'a> From<&'a Emoji> for ReactionEmoji<'a> {
+    fn from(emoji: &'a Emoji) -> Self {
+        Self::Custom {
+            name: &emoji.name,
+            id: emoji.id,
+        }
+    }
+}
+
+impl<'a> From<&'a PartialEmoji> for ReactionEmoji<'a> {
+    /// A custom emoji whose name Discord no longer knows gets the name `_` (only the ID
+    /// identifies it).
+    fn from(emoji: &'a PartialEmoji) -> Self {
+        match emoji {
+            PartialEmoji::Custom { id, name, .. } => Self::Custom {
+                name: name.as_deref().unwrap_or("_"),
+                id: *id,
+            },
+            PartialEmoji::Unicode { name } => Self::Unicode(name),
+        }
+    }
+}
+
 /// A path parameter of a route.
 #[derive(Clone, Copy)]
 enum Segment<'a> {
     Id(u64),
     Text(&'a str),
+    Emoji(ReactionEmoji<'a>),
 }
 
 /// A value that can appear in a route's path.
@@ -120,6 +196,24 @@ impl Param for &str {
     }
 }
 
+impl Param for ReactionEmoji<'_> {
+    fn to_segment<'a>(self) -> Segment<'a>
+    where
+        Self: 'a,
+    {
+        Segment::Emoji(self)
+    }
+
+    fn major(self) -> u64 {
+        // Never a major parameter: all emojis of a message share the reaction buckets.
+        0
+    }
+
+    fn debug(self, name: &str, out: &mut fmt::DebugStruct<'_, '_>) {
+        out.field(name, &self);
+    }
+}
+
 /// Combines major parameter parts (webhook ID + token).
 const fn combine(hash: u64, part: u64) -> u64 {
     (hash.rotate_left(29) ^ part).wrapping_mul(0x9e37_79b9_7f4a_7c15)
@@ -154,6 +248,11 @@ fn write_template(out: &mut String, template: &str, params: &[(&str, Segment<'_>
                 let _ = fmt::Write::write_fmt(out, format_args!("{id}"));
             }
             Some((_, Segment::Text(text))) => write_text(out, text),
+            Some((_, Segment::Emoji(ReactionEmoji::Unicode(emoji)))) => write_text(out, emoji),
+            Some((_, Segment::Emoji(ReactionEmoji::Custom { name, id }))) => {
+                write_text(out, name);
+                let _ = fmt::Write::write_fmt(out, format_args!("%3A{id}"));
+            }
             None => debug_assert!(false, "unknown route parameter {{{name}}} in {template}"),
         }
         rest = after.get(close + 1..).unwrap_or("");
@@ -294,11 +393,106 @@ routes! {
     /// [Get Gateway Bot](https://docs.discord.com/developers/events/gateway#get-gateway-bot).
     GetGatewayBot => GET "/gateway/bot";
 
+    /// [Get Channel Messages](https://docs.discord.com/developers/resources/message#get-channel-messages).
+    GetChannelMessages {
+        /// The channel.
+        channel_id: ChannelId,
+    } => GET "/channels/{channel_id}/messages", major: channel_id;
+
+    /// [Get Channel Message](https://docs.discord.com/developers/resources/message#get-channel-message).
+    GetChannelMessage {
+        /// The channel.
+        channel_id: ChannelId,
+        /// The message.
+        message_id: MessageId,
+    } => GET "/channels/{channel_id}/messages/{message_id}", major: channel_id;
+
     /// [Create Message](https://docs.discord.com/developers/resources/message#create-message).
     CreateMessage {
         /// The channel to send the message in.
         channel_id: ChannelId,
     } => POST "/channels/{channel_id}/messages", major: channel_id;
+
+    /// [Crosspost Message](https://docs.discord.com/developers/resources/message#crosspost-message).
+    CrosspostMessage {
+        /// The announcement channel.
+        channel_id: ChannelId,
+        /// The message to publish.
+        message_id: MessageId,
+    } => POST "/channels/{channel_id}/messages/{message_id}/crosspost", major: channel_id;
+
+    /// [Create Reaction](https://docs.discord.com/developers/resources/message#create-reaction).
+    CreateReaction {
+        /// The channel.
+        channel_id: ChannelId,
+        /// The message.
+        message_id: MessageId,
+        /// The emoji.
+        emoji: ReactionEmoji<'a>,
+    } => PUT "/channels/{channel_id}/messages/{message_id}/reactions/{emoji}/@me",
+        major: channel_id;
+
+    /// [Delete Own Reaction](https://docs.discord.com/developers/resources/message#delete-own-reaction).
+    DeleteOwnReaction {
+        /// The channel.
+        channel_id: ChannelId,
+        /// The message.
+        message_id: MessageId,
+        /// The emoji.
+        emoji: ReactionEmoji<'a>,
+    } => DELETE "/channels/{channel_id}/messages/{message_id}/reactions/{emoji}/@me",
+        major: channel_id;
+
+    /// [Delete User Reaction](https://docs.discord.com/developers/resources/message#delete-user-reaction).
+    DeleteUserReaction {
+        /// The channel.
+        channel_id: ChannelId,
+        /// The message.
+        message_id: MessageId,
+        /// The emoji.
+        emoji: ReactionEmoji<'a>,
+        /// The user whose reaction is removed.
+        user_id: UserId,
+    } => DELETE "/channels/{channel_id}/messages/{message_id}/reactions/{emoji}/{user_id}",
+        major: channel_id;
+
+    /// [Get Reactions](https://docs.discord.com/developers/resources/message#get-reactions).
+    GetReactions {
+        /// The channel.
+        channel_id: ChannelId,
+        /// The message.
+        message_id: MessageId,
+        /// The emoji.
+        emoji: ReactionEmoji<'a>,
+    } => GET "/channels/{channel_id}/messages/{message_id}/reactions/{emoji}",
+        major: channel_id;
+
+    /// [Delete All Reactions](https://docs.discord.com/developers/resources/message#delete-all-reactions).
+    DeleteAllReactions {
+        /// The channel.
+        channel_id: ChannelId,
+        /// The message.
+        message_id: MessageId,
+    } => DELETE "/channels/{channel_id}/messages/{message_id}/reactions", major: channel_id;
+
+    /// [Delete All Reactions for Emoji](https://docs.discord.com/developers/resources/message#delete-all-reactions-for-emoji).
+    DeleteAllReactionsForEmoji {
+        /// The channel.
+        channel_id: ChannelId,
+        /// The message.
+        message_id: MessageId,
+        /// The emoji.
+        emoji: ReactionEmoji<'a>,
+    } => DELETE "/channels/{channel_id}/messages/{message_id}/reactions/{emoji}",
+        major: channel_id;
+
+    /// [Edit Message](https://docs.discord.com/developers/resources/message#edit-message).
+    EditMessage {
+        /// The channel.
+        channel_id: ChannelId,
+        /// The message.
+        message_id: MessageId,
+    } => PATCH "/channels/{channel_id}/messages/{message_id}", major: channel_id;
 
     /// [Delete Message](https://docs.discord.com/developers/resources/message#delete-message).
     /// Messages older than two weeks are deleted under a separate rate limit.
@@ -308,6 +502,34 @@ routes! {
         /// The message to delete.
         message_id: MessageId,
     } => DELETE "/channels/{channel_id}/messages/{message_id}", major: channel_id;
+
+    /// [Bulk Delete Messages](https://docs.discord.com/developers/resources/message#bulk-delete-messages).
+    BulkDeleteMessages {
+        /// The channel.
+        channel_id: ChannelId,
+    } => POST "/channels/{channel_id}/messages/bulk-delete", major: channel_id;
+
+    /// [Get Channel Pins](https://docs.discord.com/developers/resources/message#get-channel-pins).
+    GetChannelPins {
+        /// The channel.
+        channel_id: ChannelId,
+    } => GET "/channels/{channel_id}/messages/pins", major: channel_id;
+
+    /// [Pin Message](https://docs.discord.com/developers/resources/message#pin-message).
+    PinMessage {
+        /// The channel.
+        channel_id: ChannelId,
+        /// The message.
+        message_id: MessageId,
+    } => PUT "/channels/{channel_id}/messages/pins/{message_id}", major: channel_id;
+
+    /// [Unpin Message](https://docs.discord.com/developers/resources/message#unpin-message).
+    UnpinMessage {
+        /// The channel.
+        channel_id: ChannelId,
+        /// The message.
+        message_id: MessageId,
+    } => DELETE "/channels/{channel_id}/messages/pins/{message_id}", major: channel_id;
 
     /// [Create Interaction Response](https://docs.discord.com/developers/interactions/receiving-and-responding#create-interaction-response):
     /// the initial response to an interaction (within 3 seconds). Not bound to the global rate
