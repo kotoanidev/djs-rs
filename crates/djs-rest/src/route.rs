@@ -1279,6 +1279,20 @@ routes! {
         message_id: MessageId,
     } => POST "/channels/{channel_id}/polls/{message_id}/expire", major: channel_id;
 
+    // Applications.
+
+    /// [Get Current Application](https://docs.discord.com/developers/resources/application#get-current-application).
+    GetCurrentApplication => GET "/applications/@me";
+    /// [Edit Current Application](https://docs.discord.com/developers/resources/application#edit-current-application).
+    EditCurrentApplication => PATCH "/applications/@me";
+    /// [Get Application Activity Instance](https://docs.discord.com/developers/resources/application#get-application-activity-instance).
+    GetApplicationActivityInstance {
+        /// The application.
+        application_id: ApplicationId,
+        /// The instance (`i-…`).
+        instance_id: &'a str,
+    } => GET "/applications/{application_id}/activity-instances/{instance_id}";
+
     // Monetization: SKUs, entitlements and subscriptions.
 
     /// [List SKUs](https://docs.discord.com/developers/resources/sku#list-skus).

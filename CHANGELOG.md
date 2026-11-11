@@ -8,6 +8,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Application endpoints: `get_current_application`, `edit_current_application` (body
+  `EditCurrentApplication`) and `get_application_activity_instance`;
+  `InstallParams::new`.
 - Monetization endpoints (9 methods): `list_skus`; `list_entitlements` (with the
   `ListEntitlements` query), `get_entitlement`, `consume_entitlement`,
   `create_test_entitlement` (`CreateTestEntitlement::guild` / `::user`, D-130) and

@@ -1731,6 +1731,14 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   `ends_at` are already `Option`s); `subscription_id` and `promotion_id`, which appear only in
   Discord's examples, are still not modelled.
 
+### C-062 — Application endpoint details
+- `EditCurrentApplication` uses `Patch` only for `icon` and `cover_image` (the only fields
+  Discord documents as nullable); everything else is an `Option`.
+- Activity instance IDs (`i-…`) are `&str` route parameters; the application routes have no
+  major parameter.
+- `InstallParams` got a `new(scopes, permissions)` constructor so it can be used in the body
+  (C-048).
+
 ---
 
 ## Open questions (to ask the owner when relevant)

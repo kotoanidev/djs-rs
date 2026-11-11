@@ -16,6 +16,7 @@ use crate::{
     message::{AttachmentRequest, AttachmentRequestId},
 };
 
+mod application;
 mod application_command;
 mod audit_log;
 mod auto_moderation;
@@ -38,6 +39,7 @@ mod user;
 mod webhook;
 
 pub use self::{
+    application::EditCurrentApplication,
     application_command::{
         CreateApplicationCommand, EditApplicationCommand, EditApplicationCommandPermissions,
         GetApplicationCommands,

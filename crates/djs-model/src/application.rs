@@ -189,6 +189,18 @@ pub struct InstallParams {
     pub permissions: Permissions,
 }
 
+impl InstallParams {
+    /// An authorization link for `scopes`, requesting `permissions` for the bot role (only
+    /// used with the `bot` scope).
+    #[must_use]
+    pub fn new(scopes: impl IntoIterator<Item = Scope>, permissions: Permissions) -> Self {
+        Self {
+            scopes: scopes.into_iter().collect(),
+            permissions,
+        }
+    }
+}
+
 int_enum! {
     /// [Whether webhook events are enabled](https://docs.discord.com/developers/resources/application#application-object-application-event-webhook-status).
     ///
