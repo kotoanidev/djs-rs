@@ -996,6 +996,15 @@ and why.
   `Authorization` header, like `auth: false` in discord.js.
 - **Alternatives:** always send the client's token.
 
+### D-122 — Sounds have their own data-URI type
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** `djs_model::util::SoundData` holds a sound as `Bytes` with its media type
+  (detected from the MP3 or OGG signature, or given) and serializes as a data URI with the
+  same streaming base64 encoder as `ImageData` (D-113), so an image cannot be sent as a
+  sound by mistake. Used by Create Guild Soundboard Sound.
+- **Alternatives:** `ImageData::with_content_type`; renaming `ImageData` to a general
+  `DataUri`.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
