@@ -543,6 +543,25 @@ and why.
   fields have methods.
 - **Alternatives:** one struct with optional `custom_id`/`url`/`sku_id` (discord.js, twilight).
 
+### D-067 — `Interaction` is a struct with an `InteractionData` enum
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** `interaction::Interaction` holds the fields every interaction has (id, token,
+  guild/channel, member/user, locales, entitlements, permissions, …) directly, and
+  `data: InteractionData` is the enum keyed by the interaction `type` (D-063):
+  `Ping`, `ApplicationCommand(CommandData)`, `MessageComponent(ComponentData)`,
+  `Autocomplete(CommandData)`, `ModalSubmit(ModalSubmitData)`, `Unknown`. Decoding stays
+  single-pass.
+- **Alternatives:** an enum of whole interactions (`Interaction::Command(CommandInteraction)`,
+  …), duplicating the common fields in every variant (closer to discord.js subclasses).
+
+### D-068 — Interaction responses are modelled in Phase 2
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** the interaction response object (callback type + data: messages, deferrals,
+  updates, autocomplete results, modals, activity launch) and the callback response objects are
+  part of Phase 2 in `interaction`, with the minimal request types they need (`poll::CreatePoll`,
+  `message::AttachmentRequest`). All other REST request bodies stay in Phase 3.
+- **Alternatives:** model every request body, including interaction responses, in Phase 3.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)

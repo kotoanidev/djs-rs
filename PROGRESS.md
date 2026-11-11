@@ -9,7 +9,7 @@ D-041).
 **Current: Phase 2 — full `djs-model` coverage** (D-039; permissions = `u64`, D-040).
 
 ## Done
-- 2026-11-10: Owner decisions D-001 … D-066 in `docs/DECISIONS.md`; Claude defaults C-001 …
+- 2026-11-10: Owner decisions D-001 … D-068 in `docs/DECISIONS.md`; Claude defaults C-001 …
   C-030 (reviewable) in the same file.
 - Toolchains (rustup): stable 1.99.1, 1.85, 1.89 (MSRV, D-031).
 - Phase 0: foundation docs, public repo https://github.com/kotoanidev/djs-rs, 9-crate workspace,
