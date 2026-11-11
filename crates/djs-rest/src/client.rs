@@ -532,10 +532,6 @@ impl<'a> Request<'a> {
 
     /// Sends `fields` as text form fields, which makes the request `multipart/form-data`
     /// (for endpoints that do not read `payload_json`).
-    #[expect(
-        dead_code,
-        reason = "used by Create Guild Sticker, the next endpoint step"
-    )]
     pub(crate) const fn form_text(mut self, fields: &'a [(&'static str, &'a str)]) -> Self {
         self.form_text = fields;
         self

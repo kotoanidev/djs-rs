@@ -8,6 +8,11 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Sticker endpoints (8 methods): get any sticker, list and get Discord's sticker packs
+  (`list_sticker_packs` unwraps `{"sticker_packs": [...]}`), and list, get, create, modify and
+  delete guild stickers. `create_guild_sticker` sends `CreateGuildSticker` as
+  `multipart/form-data` fields with the file, as Discord requires; `ModifyGuildSticker` is
+  JSON.
 - Emoji endpoints (10 methods): list, get, create, modify and delete guild emojis (with audit
   log reasons) and application emojis; `list_application_emojis` unwraps Discord's
   `{"items": [...]}` into a `Vec<Emoji>`. Bodies `CreateGuildEmoji`, `ModifyGuildEmoji`,

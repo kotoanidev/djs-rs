@@ -184,9 +184,8 @@ D-041).
 - **Users ✅** (12 methods, `tests/users.rs`, C-049).
 - **Webhooks ✅** (14 methods, `tests/webhooks.rs`, D-119..D-121, C-050). Token routes
   skip the bot token (`Route::authenticated`, derived from a `*_token` parameter).
-- In progress: `util::SoundData` ✅ (D-122); multipart text form fields
-  (`multipart::Form`, `Request::form_text`, crate-private, `#[expect(dead_code)]` until
-  Create Guild Sticker uses it — then remove the attribute).
+- `util::SoundData` ✅ (D-122); multipart text form fields (`multipart::Form`,
+  `Request::form_text`, crate-private).
 - **Showcase vs discord.js ✅ (D-123, C-051):** `docs/VS_NODE.md` (linked from the README),
   charts in `docs/vs-node/`, harness in `benches/vs-node/` (workspace crate `djs-vs-node`,
   `node/` scripts, `package.json` + lockfile pinning discord.js 14.28.1, @discordjs/ws 1.2.3,
@@ -198,9 +197,11 @@ D-041).
   — recorded as an open question in `docs/DECISIONS.md`. Re-run the showcase when the cache
   (Phase 5) lands.
 - **Emojis ✅** (10 methods, `tests/emojis.rs`, C-052).
-- **Next:** stickers
-  (`resources/sticker.mdx`, Create Guild Sticker is multipart with a `file` field — use
-  `Request::form_file`), soundboard (`resources/soundboard.mdx`), then scheduled events,
+- **Stickers ✅** (8 methods, `tests/stickers.rs`, C-053); `Request::form_text` is now used
+  (its `#[expect(dead_code)]` is gone).
+- **Next:** soundboard (`resources/soundboard.mdx`: Send Soundboard Sound, List Default
+  Soundboard Sounds, guild sounds — list unwraps `{items}` via `Items<T>`, create with
+  `SoundData` (D-122) and `volume: f64`), then scheduled events,
   stage instances, invites, templates, audit log, auto moderation, polls (D-102).
 - Local gate script: `scratchpad/gate.sh` style (`set -euo pipefail`, no pipes hiding errors) —
   a piped gate let one clippy failure through (fixed in `cda06db`).

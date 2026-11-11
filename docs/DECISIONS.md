@@ -1582,6 +1582,17 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   though the name is its only field; `ModifyGuildEmoji::roles` is a `Patch`, whose `Clear`
   (`null`) makes the emoji usable by everyone.
 
+### C-053 — Sticker endpoint details
+- `CreateGuildSticker` is not `Serialize`: Discord takes its parameters as
+  `multipart/form-data` fields. `create_guild_sticker` sends the file as `file`, then `name`,
+  `description` and `tags` as text fields (the order @discordjs/rest uses: files first). The
+  description is always sent, empty by default, like discord.js does.
+- `CreateGuildSticker::new(name, tags, file)` takes the tags because Discord requires them.
+- `list_sticker_packs` unwraps `{"sticker_packs": [...]}` (as C-052) through a private
+  struct in `endpoints/sticker.rs`; the field name differs from `Items<T>`.
+- Guild sticker routes use the guild ID as the major parameter; Get Sticker and the sticker
+  pack routes have none.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

@@ -7,7 +7,7 @@ use djs_model::{
     emoji::{Emoji, PartialEmoji},
     id::{
         ApplicationId, ChannelId, CommandId, EmojiId, GenericId, GuildId, Id, IntegrationId,
-        InteractionId, MessageId, RoleId, UserId, WebhookId,
+        InteractionId, MessageId, RoleId, StickerId, StickerPackId, UserId, WebhookId,
     },
 };
 use http::Method;
@@ -957,6 +957,59 @@ routes! {
         /// The emoji.
         emoji_id: EmojiId,
     } => DELETE "/applications/{application_id}/emojis/{emoji_id}";
+
+    // Stickers.
+
+    /// [Get Sticker](https://docs.discord.com/developers/resources/sticker#get-sticker).
+    GetSticker {
+        /// The sticker.
+        sticker_id: StickerId,
+    } => GET "/stickers/{sticker_id}";
+
+    /// [List Sticker Packs](https://docs.discord.com/developers/resources/sticker#list-sticker-packs).
+    ListStickerPacks => GET "/sticker-packs";
+
+    /// [Get Sticker Pack](https://docs.discord.com/developers/resources/sticker#get-sticker-pack).
+    GetStickerPack {
+        /// The sticker pack.
+        pack_id: StickerPackId,
+    } => GET "/sticker-packs/{pack_id}";
+
+    /// [List Guild Stickers](https://docs.discord.com/developers/resources/sticker#list-guild-stickers).
+    ListGuildStickers {
+        /// The guild.
+        guild_id: GuildId,
+    } => GET "/guilds/{guild_id}/stickers", major: guild_id;
+
+    /// [Get Guild Sticker](https://docs.discord.com/developers/resources/sticker#get-guild-sticker).
+    GetGuildSticker {
+        /// The guild.
+        guild_id: GuildId,
+        /// The sticker.
+        sticker_id: StickerId,
+    } => GET "/guilds/{guild_id}/stickers/{sticker_id}", major: guild_id;
+
+    /// [Create Guild Sticker](https://docs.discord.com/developers/resources/sticker#create-guild-sticker).
+    CreateGuildSticker {
+        /// The guild.
+        guild_id: GuildId,
+    } => POST "/guilds/{guild_id}/stickers", major: guild_id;
+
+    /// [Modify Guild Sticker](https://docs.discord.com/developers/resources/sticker#modify-guild-sticker).
+    ModifyGuildSticker {
+        /// The guild.
+        guild_id: GuildId,
+        /// The sticker.
+        sticker_id: StickerId,
+    } => PATCH "/guilds/{guild_id}/stickers/{sticker_id}", major: guild_id;
+
+    /// [Delete Guild Sticker](https://docs.discord.com/developers/resources/sticker#delete-guild-sticker).
+    DeleteGuildSticker {
+        /// The guild.
+        guild_id: GuildId,
+        /// The sticker.
+        sticker_id: StickerId,
+    } => DELETE "/guilds/{guild_id}/stickers/{sticker_id}", major: guild_id;
 
     // Channels and threads.
 
