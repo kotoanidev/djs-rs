@@ -1,6 +1,7 @@
 //! Typed REST API routes.
 
 use core::fmt;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use djs_model::id::{ApplicationId, ChannelId, Id, InteractionId, MessageId};
 use http::Method;
@@ -49,6 +50,13 @@ pub(crate) struct BucketRoute {
     /// How the route is limited.
     pub(crate) limits: Limits,
 }
+
+/// Messages older than this are deleted under a separate, stricter rate limit.
+const OLD_MESSAGE_AGE_MS: u64 = 14 * 24 * 60 * 60 * 1000;
+
+/// The bucket template of [`Route::DeleteMessage`] for messages older than two weeks.
+const OLD_MESSAGE_DELETE: &str =
+    "DELETE /channels/{channel_id}/messages/{message_id} (older than two weeks)";
 
 /// A path parameter of a route.
 #[derive(Clone, Copy)]
@@ -223,8 +231,8 @@ macro_rules! routes {
                 }
             }
 
-            /// Returns the rate-limit grouping of the route.
-            pub(crate) fn bucket(self) -> BucketRoute {
+            /// Returns the rate-limit grouping of the route, before route-specific exceptions.
+            fn base_bucket(self) -> BucketRoute {
                 match self {
                     $(
                         #[allow(unused_variables, reason = "not every route has a major parameter")]
@@ -257,6 +265,31 @@ macro_rules! routes {
     (@limits $limits:ident) => { Limits::$limits };
 }
 
+impl Route<'_> {
+    /// Returns the rate-limit grouping of the route.
+    pub(crate) fn bucket(self) -> BucketRoute {
+        let now_ms = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_or(0, |since| {
+                u64::try_from(since.as_millis()).unwrap_or(u64::MAX)
+            });
+        self.bucket_at(now_ms)
+    }
+
+    /// [`bucket`](Self::bucket) at the Unix time `now_ms` (milliseconds).
+    fn bucket_at(self, now_ms: u64) -> BucketRoute {
+        let mut bucket = self.base_bucket();
+        // Deleting a message older than two weeks is limited separately from newer ones
+        // (https://github.com/discord/discord-api-docs/issues/1295; discord.js does the same).
+        if let Self::DeleteMessage { message_id, .. } = self
+            && now_ms.saturating_sub(message_id.timestamp_ms()) > OLD_MESSAGE_AGE_MS
+        {
+            bucket.template = OLD_MESSAGE_DELETE;
+        }
+        bucket
+    }
+}
+
 routes! {
     /// [Get Gateway Bot](https://docs.discord.com/developers/events/gateway#get-gateway-bot).
     GetGatewayBot => GET "/gateway/bot";
@@ -266,6 +299,15 @@ routes! {
         /// The channel to send the message in.
         channel_id: ChannelId,
     } => POST "/channels/{channel_id}/messages", major: channel_id;
+
+    /// [Delete Message](https://docs.discord.com/developers/resources/message#delete-message).
+    /// Messages older than two weeks are deleted under a separate rate limit.
+    DeleteMessage {
+        /// The channel of the message.
+        channel_id: ChannelId,
+        /// The message to delete.
+        message_id: MessageId,
+    } => DELETE "/channels/{channel_id}/messages/{message_id}", major: channel_id;
 
     /// [Create Interaction Response](https://docs.discord.com/developers/interactions/receiving-and-responding#create-interaction-response):
     /// the initial response to an interaction (within 3 seconds). Not bound to the global rate
@@ -432,6 +474,39 @@ mod tests {
         };
         assert_ne!(followup("a").major, followup("b").major);
         assert_eq!(followup("a").major, followup("a").major);
+    }
+
+    #[test]
+    fn old_message_deletes_have_their_own_bucket() {
+        let created_ms = 1_794_398_400_000;
+        let route = Route::DeleteMessage {
+            channel_id: ChannelId::new(1),
+            message_id: MessageId::from_timestamp_ms(created_ms).unwrap(),
+        };
+        assert_eq!(
+            route.path(),
+            format!(
+                "/channels/1/messages/{}",
+                MessageId::from_timestamp_ms(created_ms).unwrap()
+            )
+        );
+        let new = route.bucket_at(created_ms + OLD_MESSAGE_AGE_MS);
+        assert_eq!(
+            new.template,
+            "DELETE /channels/{channel_id}/messages/{message_id}"
+        );
+        let old = route.bucket_at(created_ms + OLD_MESSAGE_AGE_MS + 1);
+        assert_eq!(old.template, OLD_MESSAGE_DELETE);
+        // Same channel: the major parameter does not change.
+        assert_eq!((old.major, old.limits), (new.major, new.limits));
+        // A clock before the message (or before 1970) never makes it old.
+        assert_eq!(route.bucket_at(0).template, new.template);
+        // With the real clock, a message from 2015 is old.
+        let ancient = Route::DeleteMessage {
+            channel_id: ChannelId::new(1),
+            message_id: MessageId::new(1 << 22),
+        };
+        assert_eq!(ancient.bucket().template, OLD_MESSAGE_DELETE);
     }
 
     #[test]
