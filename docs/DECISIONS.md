@@ -704,6 +704,25 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - `message` is split into private submodules (`embed`, `attachment`, `interaction_metadata`)
   re-exported from `message`, so public paths stay `message::Embed` etc.
 
+### C-030 — Component model details
+- Components are sent as well as received, but their structs are `#[non_exhaustive]` (D-053):
+  each has a `new(..)` constructor taking the required fields; optional fields are public and set
+  afterwards. `From` converts every struct (and every button kind) into `Component`.
+- The user, role and mentionable selects share `AutoPopulatedSelect` (identical structures; like
+  `TextChannel` for two channel variants); radio and checkbox group options share
+  `GroupOption`.
+- `id` is `Option<i32>` (a "32 bit integer"); `min_values`/`max_values` are `Option<u8>`,
+  `min_length`/`max_length` `Option<u16>` (Discord's defaults differ per component).
+- `required` (inputs) and `divider` (separator) are `true` when absent and always written, like
+  `available` (D-055).
+- `Button::Unknown` is boxed (it keeps every button field), so `Component` stays at 120 bytes.
+- The undocumented `ContentInventoryEntry` (16) is a known `ComponentType` decoded as
+  `Component::Unknown`; the undocumented loading state's `0` is `LoadingState::Unspecified`
+  (`Unknown` is taken by the macro's catch-all variant).
+- The docs' component examples are JSONC; the fixture `component_reference_examples.json` holds
+  them with comments removed. Interaction-data examples (with `...additionalInteractionFields`)
+  are left for the interactions step.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

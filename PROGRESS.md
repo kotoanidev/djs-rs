@@ -10,7 +10,7 @@ D-041).
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-066 in `docs/DECISIONS.md`; Claude defaults C-001 …
-  C-029 (reviewable) in the same file.
+  C-030 (reviewable) in the same file.
 - Toolchains (rustup): stable 1.99.1, 1.85, 1.89 (MSRV, D-031).
 - Phase 0: foundation docs, public repo https://github.com/kotoanidev/djs-rs, 9-crate workspace,
   lints, CI (fmt, clippy all/no-default features, tests ×3 OS, rustdoc -D warnings, MSRV 1.89,
@@ -84,9 +84,12 @@ D-041).
   Quick bench after the change: MESSAGE_CREATE decode 1.51 µs median, 3 allocations / 881 B
   (Phase 1: 1.26 µs, 3 / 305 B, when only a subset was decoded); `serde_json::Value` baseline
   2.37 µs in the same run.
-- **Next:** components (classic + V2, unfurled media item, content scan metadata flags) and
-  modals → add `Message::components`, `SnapshotMessage::components`, `Embed::components` →
-  then interactions & commands (adds `Message::resolved`, the interaction object, command
+- Components ✅ (D-065 one `Component` enum, D-066 button variants; C-030): `component`
+  module, `Message`/`SnapshotMessage`/`Embed::components`; tests `tests/component.rs` on all 26
+  message/modal examples of the docs (JSONC → `fixtures/docs/component_reference_examples.json`).
+  Size guards: Component 120 B, Message 648 B, Embed 232 B. The modal itself (an interaction
+  response) and the modal-submit / component interaction data come with interactions.
+- **Next:** interactions & commands (adds `Message::resolved`, the interaction object, command
   types) → `audit_log` (needs commands, webhooks, threads, integrations, auto moderation,
   scheduled events) → monetization (SKU, entitlements,
   subscriptions), soundboard, lobbies, application identity profile (new docs pages

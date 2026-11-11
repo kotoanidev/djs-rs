@@ -4,7 +4,7 @@ use compact_str::CompactString;
 use serde::{Deserialize, Serialize};
 
 use super::{EmbedFlags, EmbedMediaFlags};
-use crate::{macros::str_enum, util::Timestamp};
+use crate::{component::Component, macros::str_enum, util::Timestamp};
 
 /// An [embed](https://docs.discord.com/developers/resources/message#embed-object): a rich
 /// content block (link previews, images, videos, or a bot's custom "rich" embed).
@@ -58,6 +58,10 @@ pub struct Embed {
     /// The fields (max 25).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fields: Vec<EmbedField>,
+    /// The components of a [component embed](https://docs.discord.com/developers/link-previews/component-embeds)
+    /// ([`EmbedType::Components`]): link buttons, sections and containers.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub components: Vec<Component>,
     /// The embed's flags.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub flags: Option<EmbedFlags>,

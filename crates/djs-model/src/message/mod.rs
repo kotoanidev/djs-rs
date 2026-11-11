@@ -27,6 +27,7 @@ pub use self::{
 use crate::{
     application::PartialApplication,
     channel::{Channel, ChannelType},
+    component::Component,
     emoji::PartialEmoji,
     guild::PartialMember,
     id::{ApplicationId, ChannelId, GuildId, MessageId, RoleId, SkuId, UserId, WebhookId},
@@ -51,8 +52,8 @@ use crate::{
 /// [`poll`](Self::poll) is absent, except in DMs, in messages that mention the bot and in the
 /// bot's own messages.
 ///
-/// Rare sub-objects are boxed so a typical message stays small (D-054). The message components
-/// and `resolved` data are added with the components and interactions steps (D-062).
+/// Rare sub-objects are boxed so a typical message stays small (D-054). The `resolved` data is
+/// added with the interactions step (D-062).
 ///
 /// Contains floats (through [`Attachment`]), so it is `PartialEq` but not `Eq` (D-064).
 ///
@@ -151,6 +152,11 @@ pub struct Message {
     /// [`interaction_metadata`](Self::interaction_metadata).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub interaction: Option<Box<MessageInteraction>>,
+    /// The components (buttons, select menus, or Components V2 layout with
+    /// [`IS_COMPONENTS_V2`](MessageFlags::IS_COMPONENTS_V2)). Empty without the
+    /// `MESSAGE_CONTENT` privileged intent (see above).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub components: Vec<Component>,
     /// The thread started from this message (with the current user's thread member, if any).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub thread: Option<Box<Channel>>,
@@ -650,7 +656,7 @@ pub struct MessageSnapshot {
 }
 
 /// The fields of a forwarded message kept in a [`MessageSnapshot`]: a partial [`Message`]
-/// (D-051). Its components are added with the components step (D-062).
+/// (D-051).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 #[doc(alias = "MessageSnapshotFields")]
@@ -688,6 +694,9 @@ pub struct SnapshotMessage {
     /// The stickers.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub sticker_items: Vec<StickerItem>,
+    /// The components.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub components: Vec<Component>,
 }
 
 /// A [reaction](https://docs.discord.com/developers/resources/message#reaction-object) to a
@@ -959,14 +968,14 @@ mod tests {
     fn sizes() {
         // Guards against accidental growth of the hottest gateway type (D-054). A typical
         // message is decoded into one allocation of this size (plus its strings and vectors).
-        assert!(size_of::<Message>() <= 624, "{}", size_of::<Message>());
+        assert!(size_of::<Message>() <= 648, "{}", size_of::<Message>());
         assert!(size_of::<Mention>() <= 152, "{}", size_of::<Mention>());
         assert!(
             size_of::<Attachment>() <= 312,
             "{}",
             size_of::<Attachment>()
         );
-        assert!(size_of::<Embed>() <= 208, "{}", size_of::<Embed>());
+        assert!(size_of::<Embed>() <= 232, "{}", size_of::<Embed>());
         assert_eq!(size_of::<ReferencedMessage>(), 16);
     }
 

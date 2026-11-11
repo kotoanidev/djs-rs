@@ -8,6 +8,12 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-model`: `component` module — the `Component` enum (D-065) with every documented
+  component (action rows, buttons as `Button::{Interactive, Link, Premium}` (D-066), the five
+  select menus, text inputs, sections, text displays, thumbnails, media galleries, files,
+  separators, containers, labels, file uploads, radio and checkbox groups, checkboxes),
+  `UnfurledMediaItem` (+ flags, content scan metadata), constructors for sending;
+  `Message::components`, `SnapshotMessage::components`, `Embed::components`.
 - `djs-model`: the full message model — `message::Message` with every documented field
   (gateway extras `member`, `channel_type`; D-062: components and `resolved` follow later),
   `Mention` (D-060), `ReferencedMessage` (D-061), `Nonce`, `Attachment`, `Embed` and its parts,
