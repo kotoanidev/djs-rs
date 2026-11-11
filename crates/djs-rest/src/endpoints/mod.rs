@@ -1,6 +1,7 @@
 //! Typed methods for REST endpoints, one module per resource (D-082, D-091).
 
 mod application_command;
+mod audit_log;
 mod channel;
 mod emoji;
 mod guild;

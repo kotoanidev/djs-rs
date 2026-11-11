@@ -8,6 +8,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `get_guild_audit_log` with the `GetGuildAuditLog` query (user, action type, `before` /
+  `after`, limit).
 - Guild template endpoints (6 methods): get a template by code, list a guild's templates,
   create, sync, modify and delete; bodies `CreateGuildTemplate` and `ModifyGuildTemplate`.
 - Invite endpoints (9 methods): `get_invite` (with counts and a scheduled event),

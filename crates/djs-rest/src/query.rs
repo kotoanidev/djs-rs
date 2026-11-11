@@ -4,15 +4,17 @@
 use core::fmt::{self, Write as _};
 
 use djs_model::{
+    audit_log::AuditLogEvent,
     id::Id,
     message::ReactionType,
     rest::{
         GetApplicationCommands, GetChannelMessages, GetChannelPermissions, GetChannelPins,
-        GetCurrentUserGuilds, GetGuild, GetGuildBans, GetGuildPruneCount, GetGuildScheduledEvent,
-        GetGuildScheduledEventUsers, GetInvite, GetReactions, GetThreadMember, ListArchivedThreads,
-        ListGuildMembers, ListJoinedPrivateArchivedThreads, ListScheduledEventsForGuild,
-        ListThreadMembers, SearchAuthorType, SearchEmbedType, SearchFilter, SearchGuildMembers,
-        SearchGuildMessages, SearchHasType, SearchSortMode, SearchSortOrder,
+        GetCurrentUserGuilds, GetGuild, GetGuildAuditLog, GetGuildBans, GetGuildPruneCount,
+        GetGuildScheduledEvent, GetGuildScheduledEventUsers, GetInvite, GetReactions,
+        GetThreadMember, ListArchivedThreads, ListGuildMembers, ListJoinedPrivateArchivedThreads,
+        ListScheduledEventsForGuild, ListThreadMembers, SearchAuthorType, SearchEmbedType,
+        SearchFilter, SearchGuildMembers, SearchGuildMessages, SearchHasType, SearchSortMode,
+        SearchSortOrder,
     },
     util::Timestamp,
 };
@@ -153,6 +155,12 @@ impl<T: QueryValue> QueryValue for SearchFilter<T> {
     }
 }
 
+impl QueryValue for AuditLogEvent {
+    fn write(&self, out: &mut String) {
+        self.value().write(out);
+    }
+}
+
 impl QueryValue for ReactionType {
     fn write(&self, out: &mut String) {
         self.value().write(out);
@@ -264,6 +272,16 @@ impl Query for GetGuildBans {
         query.optional("limit", self.limit.as_ref());
         query.optional("before", self.before.as_ref());
         query.optional("after", self.after.as_ref());
+    }
+}
+
+impl Query for GetGuildAuditLog {
+    fn write(&self, query: &mut QueryWriter<'_>) {
+        query.optional("user_id", self.user_id.as_ref());
+        query.optional("action_type", self.action_type.as_ref());
+        query.optional("before", self.before.as_ref());
+        query.optional("after", self.after.as_ref());
+        query.optional("limit", self.limit.as_ref());
     }
 }
 

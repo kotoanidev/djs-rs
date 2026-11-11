@@ -1233,6 +1233,14 @@ routes! {
         template_code: &'a str,
     } => DELETE "/guilds/{guild_id}/templates/{template_code}", major: guild_id;
 
+    // Audit log.
+
+    /// [Get Guild Audit Log](https://docs.discord.com/developers/resources/audit-log#get-guild-audit-log).
+    GetGuildAuditLog {
+        /// The guild.
+        guild_id: GuildId,
+    } => GET "/guilds/{guild_id}/audit-logs", major: guild_id;
+
     // Channels and threads.
 
     /// [Get Channel](https://docs.discord.com/developers/resources/channel#get-channel).

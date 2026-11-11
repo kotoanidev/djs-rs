@@ -17,6 +17,7 @@ use crate::{
 };
 
 mod application_command;
+mod audit_log;
 mod channel;
 mod emoji;
 mod error_code;
@@ -37,6 +38,7 @@ pub use self::{
         CreateApplicationCommand, EditApplicationCommand, EditApplicationCommandPermissions,
         GetApplicationCommands,
     },
+    audit_log::GetGuildAuditLog,
     channel::{
         ArchivedThreads, CreateChannelInvite, EditChannelPermissions, FollowAnnouncementChannel,
         ForumTagData, ForumThread, ForumThreadMessage, GetChannelPermissions, GetThreadMember,
