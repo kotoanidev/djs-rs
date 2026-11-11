@@ -16,6 +16,7 @@ pub mod emoji;
 pub mod gateway;
 pub mod guild;
 pub mod guild_scheduled_event;
+pub mod guild_template;
 pub mod id;
 pub mod invite;
 pub mod message;

@@ -8,6 +8,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-model`: `guild_template::{GuildTemplate, SerializedSourceGuild, TemplateRole,
+  TemplateChannel, TemplateOverwrite, TemplateForumTag}` with `u64` placeholder IDs (D-059).
 - `djs-model`: `user::{Connection, ConnectionService, ConnectionVisibility,
   ApplicationRoleConnection}`, `guild::PartialIntegration` and
   `application_role_connection_metadata::{ApplicationRoleConnectionMetadata, MetadataType}`;

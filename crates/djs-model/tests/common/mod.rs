@@ -1,5 +1,6 @@
 //! Helpers shared by the integration tests.
 
+use djs_model::util::Timestamp;
 use serde::{Serialize, de::DeserializeOwned};
 use serde_json::Value;
 
@@ -49,7 +50,8 @@ fn remove_path(value: &mut Value, segments: &[&str]) {
 }
 
 /// Asserts that everything in `expected` is present and equal in `actual`. Absent and
-/// null/false/empty collapse into the same value (D-049), so such fields may be missing.
+/// null/false/empty collapse into the same value (D-049), so such fields may be missing, and
+/// timestamps only need to denote the same instant.
 pub(crate) fn assert_subset(expected: &Value, actual: &Value, path: &str) {
     match (expected, actual) {
         (Value::Object(expected), Value::Object(actual)) => {
@@ -69,6 +71,14 @@ pub(crate) fn assert_subset(expected: &Value, actual: &Value, path: &str) {
             for (index, (expected, actual)) in expected.iter().zip(actual).enumerate() {
                 assert_subset(expected, actual, &format!("{path}[{index}]"));
             }
+        }
+        (Value::String(expected), Value::String(actual)) if expected != actual => {
+            // Timestamps are always written with microseconds; compare them as instants.
+            let parse = |text: &str| text.parse::<Timestamp>().ok();
+            assert!(
+                parse(expected).is_some() && parse(expected) == parse(actual),
+                "{path}: {expected:?} != {actual:?}"
+            );
         }
         _ => assert_eq!(expected, actual, "{path}"),
     }

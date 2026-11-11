@@ -9,8 +9,8 @@ D-041).
 **Current: Phase 2 — full `djs-model` coverage** (D-039; permissions = `u64`, D-040).
 
 ## Done
-- 2026-11-10: Owner decisions D-001 … D-058 in `docs/DECISIONS.md`; Claude defaults C-001 …
-  C-027 (reviewable) in the same file.
+- 2026-11-10: Owner decisions D-001 … D-059 in `docs/DECISIONS.md`; Claude defaults C-001 …
+  C-028 (reviewable) in the same file.
 - Toolchains (rustup): stable 1.99.1, 1.85, 1.89 (MSRV, D-031).
 - Phase 0: foundation docs, public repo https://github.com/kotoanidev/djs-rs, 9-crate workspace,
   lints, CI (fmt, clippy all/no-default features, tests ×3 OS, rustdoc -D warnings, MSRV 1.89,
@@ -75,7 +75,10 @@ D-041).
   ApplicationRoleConnection}`, `guild::PartialIntegration`, module
   `application_role_connection_metadata`; maps are `BTreeMap` (D-058), nullable dictionaries
   via `serde_util::null_as_default`. Tests `tests/user.rs`.
-- **Next:** `guild_template` (needs only guild + channel types, done) → then step 5: messages
+- `guild_template` ✅ (D-059: separate snapshot types, `u64` placeholder IDs; C-028), test in
+  `tests/guild.rs`. The test helper now compares timestamps as instants (Discord writes
+  `+00:00` or `.000000+00:00`).
+- **Next:** step 5: messages
   (message, embeds, attachments, reactions, mentions, allowed mentions, snapshots, polls) →
   components → interactions & commands → `audit_log` (needs commands, webhooks, threads,
   integrations, auto moderation, scheduled events) → monetization (SKU, entitlements,

@@ -470,6 +470,18 @@ and why.
 - **Alternatives:** `HashMap` (random output order, SipHash costs on tiny maps);
   `Vec<(K, V)>` (keeps input order, O(n) lookup, no `.get()`); `IndexMap` (new dependency).
 
+### D-059 — Guild template snapshots use separate types with `u64` placeholder IDs
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** `guild_template::SerializedSourceGuild` and its `TemplateRole`,
+  `TemplateChannel`, `TemplateOverwrite` (+ `TemplateForumTag`) are separate, fully typed
+  structs. Their placeholder IDs (`0` = `@everyone`, channels `1`, `2`, …) are plain `u64`
+  (written as integers, also read from numeric strings), because `Id<T>` cannot hold `0` and
+  the snapshot has its own field set. The types can be reused for the "create guild" REST body
+  in Phase 3.
+- **Alternatives:** the same types without the `Template` prefix (`guild_template::Role`,
+  `Channel`, clashing with `guild::Role` / `channel::Channel` in imports); an untyped
+  `serde_json::Value` snapshot.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
@@ -602,6 +614,14 @@ keep following C-023. `Application::flags_new` (string-encoded flags) uses the g
   the module, so it stays (discord-api-types names). `ConnectionService::X` serializes as
   `"twitter"` (doc alias `Twitter`).
 - Every such name has a `#[doc(alias)]` for the Discord / discord.js name (C-021).
+
+### C-028 — Field optionality of the template snapshot types
+The snapshot follows the "create guild" format, where most fields are optional: those are
+`Option`s (levels, AFK timeout, region, channel settings). Fields every snapshot has, and that
+other parts reference, are required (`name`, `preferred_locale`, role/channel `id`, channel
+`type`). Role and overwrite fields that may be `null` in that format (`permissions`, `color`,
+`hoist`, `mentionable`, `allow`, `deny`) read `null` as the default
+(`serde_util::null_as_default`).
 
 ---
 

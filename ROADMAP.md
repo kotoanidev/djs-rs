@@ -40,8 +40,8 @@ just with narrow scope.
 - [x] Bitflags: permissions, message/user/channel/guild/application flags (+ attachment, embed,
       member, role, system channel, invite, SKU, activity)
 - [x] Users (+ connections, role connections), members, roles, emojis, stickers
-- [ ] Guilds (onboarding, welcome screen, widgets, templates, scheduled events,
-      auto-moderation, audit log, integrations, bans)
+- [~] Guilds (onboarding, welcome screen, widgets, templates, scheduled events,
+      auto-moderation, integrations, bans ✅; audit log after interactions)
 - [x] Channels & threads, forums/media, stage instances, invites, webhooks
 - [ ] Messages, embeds, attachments, reactions, polls, message snapshots/forwarding
 - [ ] Components (classic + Components V2), modals

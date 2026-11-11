@@ -154,3 +154,71 @@ fn scheduled_event_with_recurrence() {
         (4, RecurrenceWeekday::Wednesday)
     );
 }
+
+#[test]
+fn guild_template() {
+    use djs_model::{
+        channel::{ChannelType, OverwriteType},
+        guild_template::{GuildTemplate, TemplateChannel},
+        permissions::Permissions,
+    };
+
+    let template: GuildTemplate = round_trip(
+        include_str!("fixtures/docs/guild_template.json"),
+        // The example writes permissions as an integer; they are written back as a string.
+        &["serialized_source_guild.roles[].permissions"],
+    );
+    assert_eq!(template.code, "hgM48av5Q69A");
+    assert_eq!(template.usage_count, 49_605);
+    assert_eq!(template.creator.id, template.creator_id);
+    assert_eq!(template.is_dirty, None);
+    let guild = &template.serialized_source_guild;
+    assert_eq!(guild.preferred_locale, Locale::EnglishUs);
+    assert_eq!(guild.verification_level, Some(VerificationLevel::None));
+    assert_eq!(guild.afk_timeout, Some(300));
+    assert_eq!(guild.system_channel_id, Some(2));
+    assert_eq!(guild.afk_channel_id, None);
+
+    let everyone = &guild.roles[0];
+    assert_eq!(everyone.id, 0);
+    assert_eq!(everyone.name, "@everyone");
+    assert_eq!(everyone.permissions.bits(), 104_324_689);
+
+    let [category, general] = guild.channels.as_slice() else {
+        panic!("two channels expected");
+    };
+    assert_eq!(
+        (category.id, category.kind),
+        (1, ChannelType::GuildCategory)
+    );
+    assert_eq!(general.parent_id, Some(category.id));
+    assert_eq!(general.bitrate, Some(64_000));
+
+    // Placeholder IDs are written as integers, and also read from numeric strings.
+    let json = serde_json::to_value(&template).unwrap();
+    assert_eq!(
+        json["serialized_source_guild"]["channels"][1]["parent_id"],
+        1
+    );
+    assert_eq!(
+        json["serialized_source_guild"]["roles"][0]["permissions"],
+        "104324689"
+    );
+    let channel: TemplateChannel = serde_json::from_str(
+        r#"{"id":"3","type":0,"name":"x","parent_id":"1",
+            "permission_overwrites":[{"id":0,"type":0,"allow":null,"deny":"1024"}]}"#,
+    )
+    .unwrap();
+    assert_eq!((channel.id, channel.parent_id), (3, Some(1)));
+    let overwrite = channel.permission_overwrites[0];
+    assert_eq!(overwrite.kind, OverwriteType::Role);
+    assert_eq!(overwrite.allow, Permissions::empty());
+    assert_eq!(overwrite.deny, Permissions::VIEW_CHANNEL);
+    for id in ["-1", r#""x""#, "1.5"] {
+        let json = format!(r#"{{"id":{id},"type":0,"name":"x"}}"#);
+        assert!(
+            serde_json::from_str::<TemplateChannel>(&json).is_err(),
+            "{id}"
+        );
+    }
+}
