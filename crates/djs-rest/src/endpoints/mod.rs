@@ -2,6 +2,7 @@
 
 mod application;
 mod application_command;
+mod application_role_connection_metadata;
 mod audit_log;
 mod auto_moderation;
 mod channel;

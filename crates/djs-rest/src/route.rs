@@ -1293,6 +1293,19 @@ routes! {
         instance_id: &'a str,
     } => GET "/applications/{application_id}/activity-instances/{instance_id}";
 
+    // Application role connection metadata.
+
+    /// [Get Application Role Connection Metadata Records](https://docs.discord.com/developers/resources/application-role-connection-metadata#get-application-role-connection-metadata-records).
+    GetApplicationRoleConnectionMetadataRecords {
+        /// The application.
+        application_id: ApplicationId,
+    } => GET "/applications/{application_id}/role-connections/metadata";
+    /// [Update Application Role Connection Metadata Records](https://docs.discord.com/developers/resources/application-role-connection-metadata#update-application-role-connection-metadata-records).
+    UpdateApplicationRoleConnectionMetadataRecords {
+        /// The application.
+        application_id: ApplicationId,
+    } => PUT "/applications/{application_id}/role-connections/metadata";
+
     // Monetization: SKUs, entitlements and subscriptions.
 
     /// [List SKUs](https://docs.discord.com/developers/resources/sku#list-skus).

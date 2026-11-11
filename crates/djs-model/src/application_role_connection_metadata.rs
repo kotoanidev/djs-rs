@@ -44,6 +44,46 @@ pub struct ApplicationRoleConnectionMetadata {
     pub description_localizations: BTreeMap<Locale, CompactString>,
 }
 
+impl ApplicationRoleConnectionMetadata {
+    /// A record without translations.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use djs_model::application_role_connection_metadata::{
+    ///     ApplicationRoleConnectionMetadata, MetadataType,
+    /// };
+    ///
+    /// let record = ApplicationRoleConnectionMetadata::new(
+    ///     MetadataType::IntegerGreaterThanOrEqual,
+    ///     "level",
+    ///     "Level",
+    ///     "The player's level",
+    /// );
+    /// assert_eq!(
+    ///     serde_json::to_string(&record)?,
+    ///     r#"{"type":2,"key":"level","name":"Level","description":"The player's level"}"#
+    /// );
+    /// # Ok::<(), serde_json::Error>(())
+    /// ```
+    #[must_use]
+    pub fn new(
+        kind: MetadataType,
+        key: impl Into<CompactString>,
+        name: impl Into<CompactString>,
+        description: impl Into<CompactString>,
+    ) -> Self {
+        Self {
+            kind,
+            key: key.into(),
+            name: name.into(),
+            name_localizations: BTreeMap::new(),
+            description: description.into(),
+            description_localizations: BTreeMap::new(),
+        }
+    }
+}
+
 int_enum! {
     /// The [comparison](https://docs.discord.com/developers/resources/application-role-connection-metadata#application-role-connection-metadata-object-application-role-connection-metadata-type)
     /// of an [`ApplicationRoleConnectionMetadata`] record.

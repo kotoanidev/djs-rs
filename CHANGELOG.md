@@ -8,6 +8,10 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Application role connection metadata endpoints:
+  `get_application_role_connection_metadata_records` and
+  `update_application_role_connection_metadata_records`;
+  `ApplicationRoleConnectionMetadata::new`.
 - Application endpoints: `get_current_application`, `edit_current_application` (body
   `EditCurrentApplication`) and `get_application_activity_instance`;
   `InstallParams::new`.

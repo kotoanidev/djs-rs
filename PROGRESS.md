@@ -211,8 +211,8 @@ D-041).
 - **Monetization ✅** (SKUs, entitlements, subscriptions: 9 methods,
   `tests/monetization.rs`, D-130, C-061).
 - **Application ✅** (3 methods, `tests/applications.rs`, C-062).
-- **Next:** role connections (`resources/application-role-connection-metadata.mdx`), then
-  OAuth2, lobbies, voice (D-102).
+- **Role connection metadata ✅** (2 methods, `tests/role_connections.rs`).
+- **Next:** OAuth2 (`topics/oauth2.mdx`), then lobbies, voice (D-102).
 - Local gate script: `scratchpad/gate.sh` style (`set -euo pipefail`, no pipes hiding errors) —
   a piped gate let one clippy failure through (fixed in `cda06db`).
 - Perf note: after the user change, MESSAGE_CREATE/READY decode looked ~8-13 % slower relative
