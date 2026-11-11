@@ -15,3 +15,7 @@
 .env
 .env.*
 !.env.example
+
+# The Node.js side of the discord.js showcase (D-123)
+/benches/vs-node/node_modules/
+/benches/vs-node/out/

@@ -1,0 +1,38 @@
+[package]
+name = "djs-vs-node"
+description = "The Rust side of the djs-rs vs discord.js showcase (docs/VS_NODE.md, D-123)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+# A benchmark harness, never published.
+publish = false
+
+[[bin]]
+name = "vs-node"
+path = "src/bin/vs-node.rs"
+
+[[bin]]
+name = "vs-node-mimalloc"
+path = "src/bin/vs-node-mimalloc.rs"
+
+[dependencies]
+bytes.workspace = true
+djs-gateway.workspace = true
+djs-model.workspace = true
+djs-rest.workspace = true
+djs-rs = { path = "../../crates/djs-rs", default-features = false }
+futures-util = { workspace = true, features = ["sink", "std"] }
+http-body-util.workspace = true
+hyper = { workspace = true, features = ["server", "http1"] }
+hyper-util = { workspace = true, features = ["tokio"] }
+mimalloc.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio = { workspace = true, features = ["macros", "net", "rt-multi-thread", "sync", "time"] }
+tokio-websockets = { workspace = true, features = ["server", "ring"] }
+
+[lints]
+workspace = true

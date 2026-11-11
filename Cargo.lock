@@ -251,6 +251,26 @@ name = "djs-util"
 version = "0.0.0"
 
 [[package]]
+name = "djs-vs-node"
+version = "0.0.0"
+dependencies = [
+ "bytes",
+ "djs-gateway",
+ "djs-model",
+ "djs-rest",
+ "djs-rs",
+ "futures-util",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "mimalloc",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-websockets",
+]
+
+[[package]]
 name = "equivalent"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
