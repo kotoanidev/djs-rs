@@ -657,6 +657,23 @@ and why.
 - **Alternatives:** an enum of `Message` and an SDK DM type (heuristic distinction, the docs'
   examples would not decode); reuse `Message` with relaxed fields (weakens a hot-path type).
 
+### D-080 — Measure the concurrent-mode regression with mimalloc (dev-dependency only)
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** `mimalloc` is added as a **dev-dependency of `djs-rs` only** (stress tests), to
+  check whether the Phase 2 drop in `HandlerMode::Concurrent` (per-event allocations freed on
+  tokio worker threads) is caused by glibc malloc. If it is, the documentation recommends a
+  global allocator; the library API and dependencies do not change.
+- **Alternatives:** reduce per-event allocations in the model now (public type changes, maybe a
+  new dependency); only record it and revisit the dispatch design in Phase 8.
+
+### D-081 — Decoded model size is addressed in Phase 5
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** The decoded model being ≈ 1.2× the JSON (large `Activity`, `Presence` /
+  `ClientStatus`, `PresenceUser`; 24-byte string enums) is addressed together with the cache
+  in Phase 5, which stores its own compact types, and measured on real cache workloads.
+- **Alternatives:** shrink the raw types now (box rare `Activity` parts and `PresenceUser`
+  fields, smaller `Unknown` in string enums); only change the string enums now.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
