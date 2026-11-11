@@ -426,6 +426,7 @@ mod tests {
     use http::HeaderValue;
 
     use super::*;
+    use crate::route::Limits;
 
     #[test]
     fn parse_headers() {
@@ -455,6 +456,7 @@ mod tests {
         let route = BucketRoute {
             template: "POST /channels/:id/messages",
             major: 1,
+            limits: Limits::NORMAL,
         };
         let before = limiter.bucket(route);
         limiter.learn_hash(route.template, "abc");
@@ -469,6 +471,7 @@ mod tests {
         let sibling = BucketRoute {
             template: "PATCH /channels/:id/messages/:id",
             major: 1,
+            limits: Limits::NORMAL,
         };
         let sibling_before = limiter.bucket(sibling);
         assert!(!Arc::ptr_eq(&after, &sibling_before));
@@ -571,11 +574,13 @@ mod tests {
         let held = limiter.bucket(BucketRoute {
             template: "T",
             major: 0,
+            limits: Limits::NORMAL,
         });
         for major in 1..=(MIN_SWEEP_THRESHOLD as u64 + 1) {
             drop(limiter.bucket(BucketRoute {
                 template: "T",
                 major,
+                limits: Limits::NORMAL,
             }));
         }
         let buckets = lock(&limiter.buckets);

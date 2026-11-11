@@ -162,7 +162,7 @@ impl Rest {
     ///
     /// Returns an [`Error`] if the request cannot be built or sent, Discord responds with an error
     /// status, or the response body does not match `T`.
-    pub async fn request<T: DeserializeOwned>(&self, request: Request) -> Result<T, Error> {
+    pub async fn request<T: DeserializeOwned>(&self, request: Request<'_>) -> Result<T, Error> {
         let body = self.execute(request).await?;
         // An empty body (204 No Content) deserializes like `null`, which fits `()` and `Option`.
         let body: &[u8] = if body.is_empty() { b"null" } else { &body };
@@ -171,10 +171,14 @@ impl Rest {
     }
 
     /// Sends a request and returns the raw response body on success.
-    async fn execute(&self, request: Request) -> Result<Bytes, Error> {
+    ///
+    /// Log fields name the route template, never the URI: paths can contain tokens.
+    async fn execute(&self, request: Request<'_>) -> Result<Bytes, Error> {
         let inner = &*self.inner;
         let route = request.route;
         let bucket_route = route.bucket();
+        let limits = bucket_route.limits;
+        let template = bucket_route.template;
         let method = route.method();
         let uri = inner.uri(route)?;
 
@@ -182,9 +186,17 @@ impl Rest {
         loop {
             inner.check_invalid_requests()?;
             let bucket = inner.ratelimiter.bucket(bucket_route);
-            let mut state = bucket.state.lock().await;
-            state.wait(inner.ratelimiter.offset()).await;
-            inner.ratelimiter.acquire_global().await;
+            // Burst routes (interaction callbacks) do not wait for one another.
+            let mut state = if limits.burst {
+                None
+            } else {
+                let mut state = bucket.state.lock().await;
+                state.wait(inner.ratelimiter.offset()).await;
+                Some(state)
+            };
+            if limits.global {
+                inner.ratelimiter.acquire_global().await;
+            }
 
             let http_request = inner.build_request(&method, &uri, request.body.as_ref())?;
             let started = Instant::now();
@@ -203,7 +215,7 @@ impl Rest {
                     };
                     if attempt < inner.retries {
                         attempt += 1;
-                        tracing::warn!(%method, %uri, attempt, %error, "request failed, retrying");
+                        tracing::warn!(route = template, attempt, %error, "request failed, retrying");
                         continue;
                     }
                     return Err(error);
@@ -215,13 +227,14 @@ impl Rest {
             if let Some(hash) = headers.bucket {
                 inner.ratelimiter.learn_hash(bucket_route.template, hash);
             }
-            state.update(&headers, now);
+            if let Some(state) = &mut state {
+                state.update(&headers, now);
+            }
             if is_invalid(response.status, &headers) {
                 inner.invalid.record(now);
             }
             tracing::debug!(
-                %method,
-                %uri,
+                route = template,
                 status = response.status.as_u16(),
                 elapsed_ms = millis(started.elapsed()),
                 remaining = headers.remaining,
@@ -233,22 +246,27 @@ impl Rest {
                 StatusCode::TOO_MANY_REQUESTS => {
                     let (retry_after, global) = rate_limited(&response.body, &headers);
                     tracing::warn!(
-                        %method,
-                        %uri,
+                        route = template,
                         global,
                         scope = headers.scope,
                         retry_after_ms = millis(retry_after),
                         "rate limited by Discord, retrying"
                     );
-                    if global {
-                        inner.ratelimiter.pause_global(retry_after);
-                    } else {
-                        state.exhaust_for(retry_after, now);
+                    match &mut state {
+                        _ if global && limits.global => inner.ratelimiter.pause_global(retry_after),
+                        Some(state) => state.exhaust_for(retry_after, now),
+                        // A burst route only delays the request that was limited.
+                        None => tokio::time::sleep(retry_after + inner.ratelimiter.offset()).await,
                     }
                 }
                 status if status.is_server_error() && attempt < inner.retries => {
                     attempt += 1;
-                    tracing::warn!(%method, %uri, status = status.as_u16(), attempt, "server error, retrying");
+                    tracing::warn!(
+                        route = template,
+                        status = status.as_u16(),
+                        attempt,
+                        "server error, retrying"
+                    );
                 }
                 status => {
                     let error = serde_json::from_slice::<ApiError>(&response.body)
@@ -278,7 +296,7 @@ impl Inner {
     }
 
     /// Builds the full URI of a route.
-    fn uri(&self, route: Route) -> Result<Uri, Error> {
+    fn uri(&self, route: Route<'_>) -> Result<Uri, Error> {
         let mut uri = String::with_capacity(self.base.len() + 64);
         uri.push_str(&self.base);
         route.write_path(&mut uri);
@@ -378,15 +396,15 @@ async fn send(
 /// assert_eq!(request.route(), Route::CreateMessage { channel_id: ChannelId::new(1) });
 /// ```
 #[derive(Clone, Debug)]
-pub struct Request {
-    route: Route,
+pub struct Request<'a> {
+    route: Route<'a>,
     body: Option<Bytes>,
 }
 
-impl Request {
+impl<'a> Request<'a> {
     /// Creates a request without a body.
     #[must_use]
-    pub const fn new(route: Route) -> Self {
+    pub const fn new(route: Route<'a>) -> Self {
         Self { route, body: None }
     }
 
@@ -404,7 +422,7 @@ impl Request {
 
     /// Returns the route of the request.
     #[must_use]
-    pub const fn route(&self) -> Route {
+    pub const fn route(&self) -> Route<'a> {
         self.route
     }
 }

@@ -10,11 +10,12 @@ use std::{
 
 use bytes::Bytes;
 use djs_model::{
-    id::{ChannelId, MessageId},
+    id::{ApplicationId, ChannelId, InteractionId, MessageId},
+    interaction::InteractionResponse,
     message::MessageReference,
     rest::CreateMessage,
 };
-use djs_rest::{ErrorKind, Rest};
+use djs_rest::{ErrorKind, Rest, Route};
 use http::{Request, Response, StatusCode};
 use http_body_util::{BodyExt, Full};
 use hyper::{body::Incoming, server::conn::http1, service::service_fn};
@@ -387,4 +388,109 @@ async fn invalid_requests_are_counted_and_can_stop_the_client() {
         "{error}"
     );
     assert_eq!(state.lock().unwrap().seen.len(), 4);
+}
+
+/// A response that exhausts its bucket for 5 seconds.
+fn exhausting(status: u16, body: &str) -> Canned {
+    Canned::json(status, body)
+        .header("x-ratelimit-limit", "1")
+        .header("x-ratelimit-remaining", "0")
+        .header("x-ratelimit-reset-after", "5")
+        .header("x-ratelimit-bucket", "interaction")
+}
+
+#[tokio::test]
+async fn interaction_callbacks_are_neither_queued_nor_globally_limited() {
+    let (rest, state) = mock_with(
+        (0..6).map(|_| exhausting(204, "")).collect(),
+        // A global limit of 1 request per second would serialize normal routes.
+        |builder| builder.global_requests_per_second(1),
+    )
+    .await;
+    let start = Instant::now();
+    let mut callbacks = tokio::task::JoinSet::new();
+    for i in 0..6_u64 {
+        let rest = rest.clone();
+        callbacks.spawn(async move {
+            let token = format!("interaction-token-for-tests-{i}");
+            let route = Route::CreateInteractionResponse {
+                interaction_id: InteractionId::new(1_300_000_000_000_000_100 + i),
+                interaction_token: &token,
+            };
+            let request = djs_rest::Request::new(route)
+                .json(&InteractionResponse::DeferredUpdateMessage)
+                .unwrap();
+            rest.request::<()>(request).await
+        });
+    }
+    for result in callbacks.join_all().await {
+        result.unwrap();
+    }
+    // Neither the exhausted bucket nor the global limit delayed any callback.
+    assert!(
+        start.elapsed() < Duration::from_millis(500),
+        "{:?}",
+        start.elapsed()
+    );
+    let seen = state.lock().unwrap().seen.clone();
+    assert_eq!(seen.len(), 6);
+    assert!(seen.iter().all(|request| {
+        request.method == "POST"
+            && request
+                .path
+                .starts_with("/api/v10/interactions/1300000000000000")
+            && request.path.ends_with("/callback")
+            && request.body == r#"{"type":6}"#
+    }));
+}
+
+#[tokio::test]
+async fn interaction_webhooks_skip_the_global_limit() {
+    let (rest, state) = mock_with(
+        (0..3).map(|_| Canned::json(200, MESSAGE)).collect(),
+        |builder| builder.global_requests_per_second(1),
+    )
+    .await;
+    let start = Instant::now();
+    for i in 0..3 {
+        let token = format!("interaction-token-for-tests-{i}");
+        let route = Route::CreateFollowupMessage {
+            application_id: ApplicationId::new(1_300_000_000_000_000_200),
+            interaction_token: &token,
+        };
+        let request = djs_rest::Request::new(route)
+            .json(&CreateMessage::from("followup"))
+            .unwrap();
+        rest.request::<serde_json::Value>(request).await.unwrap();
+    }
+    assert!(
+        start.elapsed() < Duration::from_millis(500),
+        "{:?}",
+        start.elapsed()
+    );
+    assert_eq!(state.lock().unwrap().seen.len(), 3);
+}
+
+#[tokio::test]
+async fn rate_limited_interaction_callback_waits_alone() {
+    let (rest, state) = mock(vec![
+        Canned::json(
+            429,
+            r#"{"message":"You are being rate limited.","retry_after":0.15,"global":false}"#,
+        )
+        .header("x-ratelimit-scope", "user"),
+        Canned::json(204, ""),
+    ])
+    .await;
+    let route = Route::CreateInteractionResponse {
+        interaction_id: InteractionId::new(1_300_000_000_000_000_100),
+        interaction_token: "interaction-token-for-tests",
+    };
+    let request = djs_rest::Request::new(route)
+        .json(&InteractionResponse::Pong)
+        .unwrap();
+    rest.request::<()>(request).await.unwrap();
+    let seen = state.lock().unwrap().seen.clone();
+    assert_eq!(seen.len(), 2);
+    assert!(seen[1].at - seen[0].at >= Duration::from_millis(150));
 }

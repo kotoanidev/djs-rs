@@ -8,6 +8,11 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-rest`: `Route<'a>` can borrow tokens (D-090); interaction routes
+  `CreateInteractionResponse`, `{Get,Edit,Delete}OriginalInteractionResponse`,
+  `{Create,Get,Edit,Delete}FollowupMessage`. Interaction endpoints skip the global rate limit
+  and callbacks are never queued behind one another; tokens are percent-encoded in paths,
+  redacted in `Debug` and never logged.
 - `djs-rest`: invalid-request counter `Rest::invalid_requests()` with warnings and an opt-in
   fail-fast limit `RestBuilder::invalid_request_limit` (`ErrorKind::InvalidRequestLimit`,
   D-085).
@@ -142,6 +147,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `login`/`shutdown`, prelude; `examples/ping.rs`; end-to-end tests with mock REST + gateway.
 
 ### Changed
+- `djs-rest`: `Request` is `Request<'a>` and `Request::route` returns `Route<'a>` (D-090).
 - `djs-rest`: the global rate limiter is strict (a sliding log, D-089): never more than the
   limit in any sliding second.
 - `djs-model`: `WebhookEventType` moved from `application` to `webhook_event`;

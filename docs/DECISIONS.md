@@ -1087,6 +1087,20 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   { count, limit }`. The window is 60 slots of 10 s (constant memory, errs on the safe side);
   a `tracing` warning at every 1 000 counted requests. The limit is checked before every
   attempt, retries included.
+- Routes (D-090, D-091): every endpoint is one line of the private `routes!` macro (variant,
+  fields, method, path template, major parameters, limits), which generates `Route<'a>`
+  (`Copy`, `#[non_exhaustive]`, variant docs show `METHOD /path`), `method()`, `path()`, the
+  rate-limit key and a `Debug` that prints `<redacted>` for fields whose name ends in `token`.
+  Text segments (tokens) are percent-encoded (everything but RFC 3986 unreserved characters),
+  so a token cannot change the path. A route with several major parameters (webhook id +
+  token) combines them; a token enters the key as its FNV-1a hash, so the key stays a `u64`.
+- Interaction limits: interaction endpoints (`/interactions/...`, `/webhooks/{application_id}/
+  {interaction_token}...`) skip the global limiter and do not pause it on a global 429
+  (Discord: they are not bound to the global limit). Callbacks are additionally *burst*
+  routes (like discord.js' `BurstHandler`): they never wait for their bucket, so concurrent
+  callbacks are sent at once; a 429 delays only the request that got it.
+- Logging: request log fields name the route template (`POST /interactions/{interaction_id}/
+  {interaction_token}/callback`), never the URI, which can contain tokens.
 
 ---
 
