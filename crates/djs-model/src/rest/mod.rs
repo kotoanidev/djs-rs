@@ -20,7 +20,8 @@ pub use self::{
     error_code::ErrorCode,
     message::{
         BulkDeleteMessages, ChannelPins, CreateMessage, EditMessage, GetChannelMessages,
-        GetChannelPins, GetReactions,
+        GetChannelPins, GetReactions, MessageSearchResults, SearchAuthorType, SearchEmbedType,
+        SearchFilter, SearchGuildMessages, SearchHasType, SearchSortMode, SearchSortOrder,
     },
 };
 

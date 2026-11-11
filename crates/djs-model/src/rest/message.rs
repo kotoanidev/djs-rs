@@ -6,11 +6,13 @@ use serde::{Deserialize, Serialize, Serializer};
 
 use super::{Attachments, FileUpload};
 use crate::{
+    channel::{Channel, ThreadMember},
     component::Component,
-    id::{MessageId, StickerId, UserId},
+    id::{ChannelId, MessageId, RoleId, StickerId, UserId},
+    macros::str_enum,
     message::{
-        AllowedMentions, AttachmentRequest, Embed, MessageFlags, MessagePin, MessageReference,
-        Nonce, ReactionType, SharedClientTheme,
+        AllowedMentions, AttachmentRequest, Embed, Message, MessageFlags, MessagePin,
+        MessageReference, Nonce, ReactionType, SharedClientTheme,
     },
     poll::CreatePoll,
     util::{Patch, Timestamp},
@@ -336,6 +338,196 @@ pub struct ChannelPins {
     pub items: Vec<MessagePin>,
     /// Whether there are older pins.
     pub has_more: bool,
+}
+
+/// The query of [Search Guild Messages](https://docs.discord.com/developers/resources/message#search-guild-messages)
+/// (`GET /guilds/{guild.id}/messages/search`). Every filter is optional; list filters match
+/// any of their values.
+///
+/// The endpoint needs `READ_MESSAGE_HISTORY` and depends on the `MESSAGE_CONTENT` privileged
+/// intent. While the guild is not indexed yet, the request fails with
+/// `ErrorKind::NotYetIndexed` of `djs-rest` (D-104).
+///
+/// # Examples
+///
+/// ```
+/// use djs_model::rest::{SearchFilter, SearchGuildMessages, SearchHasType};
+///
+/// let mut query = SearchGuildMessages::default();
+/// query.content = Some("release".into());
+/// query.has = vec![SearchFilter::Include(SearchHasType::Link)];
+/// query.author_type = vec![SearchFilter::Exclude(djs_model::rest::SearchAuthorType::Bot)];
+/// ```
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct SearchGuildMessages {
+    /// How many messages (1-25; Discord's default is 25).
+    pub limit: Option<u8>,
+    /// How many results to skip (max 9975).
+    pub offset: Option<u16>,
+    /// Messages before this message.
+    pub max_id: Option<MessageId>,
+    /// Messages after this message.
+    pub min_id: Option<MessageId>,
+    /// How many words may lie between the matching words of `content` (max 100; default 2).
+    pub slop: Option<u8>,
+    /// Text the messages contain (max 1024 characters).
+    pub content: Option<CompactString>,
+    /// Messages in these channels (max 500).
+    pub channel_id: Vec<ChannelId>,
+    /// Messages by these kinds of authors (or not, with [`SearchFilter::Exclude`]).
+    pub author_type: Vec<SearchFilter<SearchAuthorType>>,
+    /// Messages by these users (max 100).
+    pub author_id: Vec<UserId>,
+    /// Messages mentioning these users (max 100).
+    pub mentions: Vec<UserId>,
+    /// Messages mentioning these roles (max 100).
+    pub mentions_role_id: Vec<RoleId>,
+    /// Messages that do (or do not) mention `@everyone`.
+    pub mention_everyone: Option<bool>,
+    /// Messages replying to these users (max 100).
+    pub replied_to_user_id: Vec<UserId>,
+    /// Messages replying to these messages (max 100).
+    pub replied_to_message_id: Vec<MessageId>,
+    /// Messages that are (or are not) pinned.
+    pub pinned: Option<bool>,
+    /// Messages that have (or do not have) these things.
+    pub has: Vec<SearchFilter<SearchHasType>>,
+    /// Messages with these kinds of embeds.
+    pub embed_type: Vec<SearchEmbedType>,
+    /// Messages with embeds from these providers, case-sensitive (e.g. `Tenor`; max 100).
+    pub embed_provider: Vec<CompactString>,
+    /// Messages with links to these host names (e.g. `discordapp.com`; max 100).
+    pub link_hostname: Vec<CompactString>,
+    /// Messages with attachments of these file names (max 100).
+    pub attachment_filename: Vec<CompactString>,
+    /// Messages with attachments of these extensions (e.g. `txt`; max 100).
+    pub attachment_extension: Vec<CompactString>,
+    /// How to sort (Discord's default: by time).
+    pub sort_by: Option<SearchSortMode>,
+    /// The direction (Discord's default: descending); ignored when sorting by relevance.
+    pub sort_order: Option<SearchSortOrder>,
+    /// Whether to include age-restricted channels (Discord's default: no).
+    pub include_nsfw: Option<bool>,
+}
+
+/// A search filter value that includes or excludes matching messages (Discord writes an
+/// exclusion with a leading `-`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum SearchFilter<T> {
+    /// Only messages that match.
+    Include(T),
+    /// Only messages that do not match.
+    Exclude(T),
+}
+
+impl<T> From<T> for SearchFilter<T> {
+    /// Includes the value.
+    fn from(value: T) -> Self {
+        Self::Include(value)
+    }
+}
+
+str_enum! {
+    /// An [author type](https://docs.discord.com/developers/resources/message#search-guild-messages-author-types)
+    /// of a message search.
+    pub enum SearchAuthorType {
+        /// Messages of user accounts.
+        User = "user",
+        /// Messages of bot accounts.
+        Bot = "bot",
+        /// Messages of webhooks.
+        Webhook = "webhook",
+    }
+}
+
+str_enum! {
+    /// Something a message [has](https://docs.discord.com/developers/resources/message#search-guild-messages-search-has-types),
+    /// for a message search.
+    pub enum SearchHasType {
+        /// An image.
+        Image = "image",
+        /// A sound attachment.
+        Sound = "sound",
+        /// A video.
+        Video = "video",
+        /// An attachment.
+        File = "file",
+        /// A sticker.
+        Sticker = "sticker",
+        /// An embed.
+        Embed = "embed",
+        /// A link.
+        Link = "link",
+        /// A poll.
+        Poll = "poll",
+        /// A forwarded message.
+        Snapshot = "snapshot",
+    }
+}
+
+str_enum! {
+    /// An [embed type](https://docs.discord.com/developers/resources/message#search-guild-messages-search-embed-types)
+    /// of a message search (broader than the embed types of messages).
+    pub enum SearchEmbedType {
+        /// Image embeds.
+        Image = "image",
+        /// Video embeds.
+        Video = "video",
+        /// GIF (`gifv`) embeds.
+        Gif = "gif",
+        /// Sound embeds.
+        Sound = "sound",
+        /// Article embeds.
+        Article = "article",
+    }
+}
+
+str_enum! {
+    /// A [sort mode](https://docs.discord.com/developers/resources/message#search-guild-messages-search-sort-modes)
+    /// of a message search.
+    pub enum SearchSortMode {
+        /// By creation time (the default).
+        Timestamp = "timestamp",
+        /// By relevance to the search.
+        Relevance = "relevance",
+    }
+}
+
+str_enum! {
+    /// The direction of a message search's sorting.
+    pub enum SearchSortOrder {
+        /// Oldest first.
+        Ascending = "asc",
+        /// Newest first (the default).
+        Descending = "desc",
+    }
+}
+
+/// The response of [Search Guild Messages](https://docs.discord.com/developers/resources/message#search-guild-messages-response-body).
+///
+/// Messages come without their `reactions`. Do not paginate by the number of messages
+/// returned: the search may return fewer than the limit.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct MessageSearchResults {
+    /// Whether the guild is going through a deep historical indexing.
+    pub doing_deep_historical_index: bool,
+    /// How many documents the current indexing has processed, if one is running.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub documents_indexed: Option<u64>,
+    /// How many messages match in total (may be inexact while messages are being created
+    /// or deleted).
+    pub total_results: u64,
+    /// The matching messages; each inner list holds one message (Discord used to add
+    /// surrounding messages for context).
+    pub messages: Vec<Vec<Message>>,
+    /// The threads the messages are in.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub threads: Vec<Channel>,
+    /// The current user's thread member for each returned thread it has joined.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub members: Vec<ThreadMember>,
 }
 
 #[cfg(test)]

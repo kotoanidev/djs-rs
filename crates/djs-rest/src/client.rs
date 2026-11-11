@@ -169,7 +169,7 @@ impl Rest {
     /// Returns an [`Error`] if the request cannot be built or sent, Discord responds with an error
     /// status, or the response body does not match `T`.
     pub async fn request<T: DeserializeOwned>(&self, request: Request<'_>) -> Result<T, Error> {
-        let body = self.execute(request).await?;
+        let (_, body) = self.execute(request).await?;
         // An empty body (204 No Content) deserializes like `null`, which fits `()` and `Option`.
         let body: &[u8] = if body.is_empty() { b"null" } else { &body };
         serde_json::from_slice(body)
@@ -179,7 +179,7 @@ impl Rest {
     /// Sends a request and returns the raw response body on success.
     ///
     /// Log fields name the route template, never the URI: paths can contain tokens.
-    async fn execute(&self, request: Request<'_>) -> Result<Bytes, Error> {
+    pub(crate) async fn execute(&self, request: Request<'_>) -> Result<(StatusCode, Bytes), Error> {
         let inner = &*self.inner;
         let route = request.route;
         let bucket_route = route.bucket();
@@ -250,7 +250,7 @@ impl Rest {
             );
 
             match response.status {
-                status if status.is_success() => return Ok(response.body),
+                status if status.is_success() => return Ok((status, response.body)),
                 StatusCode::TOO_MANY_REQUESTS => {
                     let (retry_after, global) = rate_limited(&response.body, &headers);
                     tracing::warn!(

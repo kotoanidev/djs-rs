@@ -5,7 +5,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use djs_model::{
     emoji::{Emoji, PartialEmoji},
-    id::{ApplicationId, ChannelId, EmojiId, Id, InteractionId, MessageId, UserId},
+    id::{ApplicationId, ChannelId, EmojiId, GuildId, Id, InteractionId, MessageId, UserId},
 };
 use http::Method;
 
@@ -398,6 +398,12 @@ routes! {
         /// The channel.
         channel_id: ChannelId,
     } => GET "/channels/{channel_id}/messages", major: channel_id;
+
+    /// [Search Guild Messages](https://docs.discord.com/developers/resources/message#search-guild-messages).
+    SearchGuildMessages {
+        /// The guild.
+        guild_id: GuildId,
+    } => GET "/guilds/{guild_id}/messages/search", major: guild_id;
 
     /// [Get Channel Message](https://docs.discord.com/developers/resources/message#get-channel-message).
     GetChannelMessage {

@@ -1296,6 +1296,18 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - Tests: `djs-rest/tests/common/mod.rs` holds the mock API (it records method, path, query,
   headers and body); one test file per resource checks every request of its endpoints.
 
+### C-045 — Message search details (D-104)
+- Query struct `SearchGuildMessages` with one field per documented parameter; list
+  parameters are `Vec`s written as repeated keys (`?author_id=1&author_id=2`).
+- Negatable filters (author types, "has" types) are `SearchFilter<T>` with `Include(T)` and
+  `Exclude(T)` (written with a leading `-`), `From<T>` = include. Enum names follow the docs'
+  tables: `SearchAuthorType`, `SearchHasType`, `SearchEmbedType`, `SearchSortMode`, plus
+  `SearchSortOrder` (`Ascending` = `asc`, `Descending` = `desc`; the docs have no table).
+- The response is `MessageSearchResults` (the docs only call it "Response Body").
+- `ErrorKind::NotYetIndexed { retry_after: Duration, documents_indexed: u64 }`; a missing or
+  malformed 202 body gives zeros. `Rest::execute` now also returns the status code
+  (crate-private) so a method can tell a 202 from a 200.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

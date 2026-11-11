@@ -162,11 +162,11 @@ D-041).
 - Endpoint prerequisites done: `Patch<T>` (D-101) and the query encoder
   (`djs-rest/src/query.rs`, C-043; `Request::query` is `#[expect(dead_code)]` until the first
   endpoint with query parameters uses it — then remove the attribute).
-- Endpoints (D-102 order, C-044 conventions): **messages and reactions ✅** (16 methods,
-  `tests/messages.rs`) except Search Guild Messages.
-- **Next:** Search Guild Messages (D-104: new `ErrorKind::NotYetIndexed` for the 202
-  "index not ready" answer; array query parameters are repeated keys `?a=1&a=2`; the response
-  has `messages: Vec<Vec<Message>>`), then interactions and application commands.
+- Endpoints (D-102 order, C-044 conventions): **messages and reactions ✅** (17 methods incl.
+  Search Guild Messages, D-104/C-045; `tests/messages.rs`).
+- **Next:** interactions and application commands (the 8 interaction routes exist already;
+  add `Rest` methods for them, then the application command endpoints of
+  `interactions/application-commands.mdx`), then channels and threads.
 - Local gate script: `scratchpad/gate.sh` style (`set -euo pipefail`, no pipes hiding errors) —
   a piped gate let one clippy failure through (fixed in `cda06db`).
 - Perf note: after the user change, MESSAGE_CREATE/READY decode looked ~8-13 % slower relative

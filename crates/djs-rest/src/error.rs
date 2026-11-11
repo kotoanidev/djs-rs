@@ -113,6 +113,16 @@ pub enum ErrorKind {
     /// The response body could not be deserialized into the expected type.
     #[error("failed to deserialize the response body")]
     Deserialize,
+    /// [Search Guild Messages](crate::Rest::search_guild_messages) found the guild not indexed
+    /// yet (Discord answered `202 Accepted`, D-104). Retry after `retry_after`; Discord sends
+    /// zero when it wants "a short delay".
+    #[error("the guild is not indexed for search yet; retry after {retry_after:?}")]
+    NotYetIndexed {
+        /// How long to wait before retrying.
+        retry_after: Duration,
+        /// How many documents the running indexing has processed so far.
+        documents_indexed: u64,
+    },
     /// The request was not sent because the client already made as many invalid requests (401,
     /// 403, 429) in the last 10 minutes as the configured
     /// [`invalid_request_limit`](crate::RestBuilder::invalid_request_limit) allows (D-085).
@@ -299,6 +309,24 @@ impl RateLimitedBody {
     pub(crate) fn retry_after(&self) -> Duration {
         seconds(self.retry_after)
     }
+}
+
+/// The error for a `202 Accepted` answer of Search Guild Messages (D-104), whose body looks
+/// like `{"message": …, "code": 110000, "documents_indexed": 0, "retry_after": 2}`.
+pub(crate) fn not_yet_indexed(body: &[u8]) -> Error {
+    #[derive(Deserialize, Default)]
+    struct NotIndexed {
+        #[serde(default)]
+        retry_after: f64,
+        #[serde(default)]
+        documents_indexed: u64,
+    }
+
+    let body: NotIndexed = serde_json::from_slice(body).unwrap_or_default();
+    Error::new(ErrorKind::NotYetIndexed {
+        retry_after: seconds(body.retry_after),
+        documents_indexed: body.documents_indexed,
+    })
 }
 
 /// Converts a (possibly malformed) number of seconds into a `Duration`, clamping invalid values

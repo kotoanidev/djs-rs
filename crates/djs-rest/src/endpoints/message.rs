@@ -2,16 +2,17 @@
 //! messages, reactions and pins.
 
 use djs_model::{
-    id::{ChannelId, MessageId, UserId},
+    id::{ChannelId, GuildId, MessageId, UserId},
     message::Message,
     rest::{
         BulkDeleteMessages, ChannelPins, CreateMessage, EditMessage, GetChannelMessages,
-        GetChannelPins, GetReactions,
+        GetChannelPins, GetReactions, MessageSearchResults, SearchGuildMessages,
     },
     user::User,
 };
+use http::StatusCode;
 
-use crate::{Error, ReactionEmoji, Request, Rest, Route};
+use crate::{Error, ErrorKind, ReactionEmoji, Request, Rest, Route, error::not_yet_indexed};
 
 impl Rest {
     /// [Get Channel Messages](https://docs.discord.com/developers/resources/message#get-channel-messages):
@@ -47,6 +48,58 @@ impl Rest {
     ) -> Result<Vec<Message>, Error> {
         self.request(Request::new(Route::GetChannelMessages { channel_id }).query(query))
             .await
+    }
+
+    /// [Search Guild Messages](https://docs.discord.com/developers/resources/message#search-guild-messages):
+    /// searches the messages of a guild (without their reactions).
+    ///
+    /// Needs `READ_MESSAGE_HISTORY`, and depends on the `MESSAGE_CONTENT` privileged intent.
+    /// The search may return fewer messages than the limit, so page with `offset` or the IDs
+    /// rather than by counting.
+    ///
+    /// discord.js counterpart: none (discord.js does not wrap this endpoint).
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # async fn example(rest: djs_rest::Rest, guild_id: djs_model::id::GuildId) -> Result<(), djs_rest::Error> {
+    /// use djs_model::rest::SearchGuildMessages;
+    /// use djs_rest::ErrorKind;
+    ///
+    /// let mut query = SearchGuildMessages::default();
+    /// query.content = Some("release notes".into());
+    /// let results = loop {
+    ///     match rest.search_guild_messages(guild_id, &query).await {
+    ///         Err(error) => match error.kind() {
+    ///             ErrorKind::NotYetIndexed { retry_after, .. } => {
+    ///                 tokio::time::sleep((*retry_after).max(std::time::Duration::from_secs(1))).await;
+    ///             }
+    ///             _ => return Err(error),
+    ///         },
+    ///         Ok(results) => break results,
+    ///     }
+    /// };
+    /// println!("{} matching messages", results.total_results);
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// [`ErrorKind::NotYetIndexed`] while the guild is not indexed yet (D-104); otherwise see
+    /// [`Rest::request`].
+    pub async fn search_guild_messages(
+        &self,
+        guild_id: GuildId,
+        query: &SearchGuildMessages,
+    ) -> Result<MessageSearchResults, Error> {
+        let request = Request::new(Route::SearchGuildMessages { guild_id }).query(query);
+        let (status, body) = self.execute(request).await?;
+        if status == StatusCode::ACCEPTED {
+            return Err(not_yet_indexed(&body));
+        }
+        serde_json::from_slice(&body)
+            .map_err(|source| Error::with_source(ErrorKind::Deserialize, source))
     }
 
     /// [Get Channel Message](https://docs.discord.com/developers/resources/message#get-channel-message):

@@ -2,15 +2,15 @@
 //! and audit log reason of every request.
 
 use djs_model::{
-    id::{ChannelId, EmojiId, MessageId, UserId},
+    id::{ChannelId, EmojiId, GuildId, MessageId, UserId},
     message::ReactionType,
     rest::{
         BulkDeleteMessages, CreateMessage, EditMessage, FileUpload, GetChannelMessages,
-        GetChannelPins, GetReactions,
+        GetChannelPins, GetReactions, SearchFilter, SearchGuildMessages, SearchHasType,
     },
     util::Patch,
 };
-use djs_rest::ReactionEmoji;
+use djs_rest::{ErrorKind, ReactionEmoji};
 
 mod common;
 
@@ -274,4 +274,52 @@ fn check(seen: &[common::Seen], expected: &[Expected]) {
         assert_eq!(request.body, *body, "{what}");
         assert_eq!(request.audit_log_reason.as_deref(), *reason, "{what}");
     }
+}
+
+#[tokio::test]
+async fn search_guild_messages() {
+    let (rest, state) = mock(vec![
+        Canned::json(
+            202,
+            r#"{"message":"Index not yet available. Try again later","code":110000,"documents_indexed":7,"retry_after":2}"#,
+        ),
+        Canned::json(
+            200,
+            &format!(r#"{{"doing_deep_historical_index":false,"total_results":1,"messages":[[{MESSAGE}]]}}"#),
+        ),
+    ])
+    .await;
+    let guild = GuildId::new(1_100_000_000_000_000_000);
+    let mut query = SearchGuildMessages::default();
+    query.content = Some("pong".into());
+    query.has = vec![SearchFilter::Exclude(SearchHasType::Link)];
+    query.author_id = vec![UserId::new(1), UserId::new(2)];
+
+    let error = rest.search_guild_messages(guild, &query).await.unwrap_err();
+    let ErrorKind::NotYetIndexed {
+        retry_after,
+        documents_indexed,
+    } = error.kind()
+    else {
+        panic!("expected NotYetIndexed, got {error}");
+    };
+    assert_eq!(
+        (*retry_after, *documents_indexed),
+        (std::time::Duration::from_secs(2), 7)
+    );
+
+    let results = rest.search_guild_messages(guild, &query).await.unwrap();
+    assert_eq!(results.total_results, 1);
+    assert_eq!(results.messages[0][0].id, MSG);
+    assert_eq!(results.threads.len(), 0);
+
+    let seen = seen(&state);
+    assert_eq!(
+        seen[0].path,
+        format!("/api/v10/guilds/{guild}/messages/search")
+    );
+    assert_eq!(
+        seen[0].query,
+        "content=pong&author_id=1&author_id=2&has=-link"
+    );
 }

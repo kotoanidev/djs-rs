@@ -12,7 +12,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (get, pin, unpin) and reactions (create, delete own/user/all/all for emoji, get) as `Rest`
   methods, with `djs_rest::ReactionEmoji` (D-103) and the bodies/queries `EditMessage`,
   `GetChannelMessages`, `GetReactions`, `BulkDeleteMessages`, `GetChannelPins`,
-  `ChannelPins`; `CreateMessage` covers every documented field.
+  `ChannelPins`; `CreateMessage` covers every documented field. Search Guild Messages
+  (`SearchGuildMessages`, `SearchFilter`, `MessageSearchResults`) with
+  `ErrorKind::NotYetIndexed` while the guild is not indexed (D-104).
 - `djs-model`: `util::Patch<T>` (`Keep`/`Clear`/`Set`) for request fields that can be left
   unchanged, cleared or set (D-083, D-101).
 - `native-roots` feature of `djs-rest`, `djs-gateway` and `djs-rs` (D-088, D-100): also trust
