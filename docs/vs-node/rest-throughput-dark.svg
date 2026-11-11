@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="232" viewBox="0 0 840 232" role="img" aria-labelledby="title desc" font-family="system-ui, -apple-system, &quot;Segoe UI&quot;, Roboto, sans-serif">
+<title id="title">REST: concurrent Create Message calls against a mock API</title>
+<desc id="desc">djs-rest: 221 k/s · 8.6×; djs-rest + mimalloc: 207 k/s · 8.1×; @discordjs/rest: 26 k/s</desc>
+<rect x="0.5" y="0.5" width="839" height="231" rx="8" fill="#1a1a19" stroke="rgba(255,255,255,0.10)"/>
+<text x="24" y="34" font-size="16" font-weight="600" fill="#f0efec">REST: concurrent Create Message calls against a mock API</text>
+<text x="24" y="55" font-size="12.5" fill="#c3c2b7">requests per second, higher is better · 64 in flight, 4 client CPUs</text>
+<rect x="24" y="68" width="12" height="12" rx="3" fill="#3987e5"/>
+<text x="42" y="78.5" font-size="12.5" fill="#c3c2b7">djs-rs (Rust)</text>
+<rect x="150" y="68" width="12" height="12" rx="3" fill="#d95926"/>
+<text x="168" y="78.5" font-size="12.5" fill="#c3c2b7">Node.js (discord.js and its packages)</text>
+<line x1="324" y1="100" x2="324" y2="200" stroke="#383835" stroke-width="1"/>
+<text x="324" y="216" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">0</text>
+<line x1="411.3333333333333" y1="100" x2="411.3333333333333" y2="200" stroke="#2c2c2a" stroke-width="1"/>
+<text x="411.3333333333333" y="216" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">100 k</text>
+<line x1="498.66666666666663" y1="100" x2="498.66666666666663" y2="200" stroke="#2c2c2a" stroke-width="1"/>
+<text x="498.66666666666663" y="216" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">200 k</text>
+<line x1="586" y1="100" x2="586" y2="200" stroke="#2c2c2a" stroke-width="1"/>
+<text x="586" y="216" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">300 k</text>
+<text x="312" y="120.5" font-size="13" text-anchor="end" fill="#f0efec">djs-rest</text>
+<path d="M324,106H513.1459111120829A4,4 0 0 1 517.1459111120829,110V122A4,4 0 0 1 513.1459111120829,126H324Z" fill="#3987e5"><title>djs-rest: 221 k/s · 8.6×</title></path>
+<text x="525.1459111120829" y="120.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">221 k/s · 8.6×</text>
+<text x="312" y="152.5" font-size="13" text-anchor="end" fill="#f0efec">djs-rest + mimalloc</text>
+<path d="M324,138H500.3728451972327A4,4 0 0 1 504.3728451972327,142V154A4,4 0 0 1 500.3728451972327,158H324Z" fill="#3987e5"><title>djs-rest + mimalloc: 207 k/s · 8.1×</title></path>
+<text x="512.3728451972327" y="152.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">207 k/s · 8.1×</text>
+<text x="312" y="184.5" font-size="13" text-anchor="end" fill="#f0efec">@discordjs/rest</text>
+<path d="M324,170H342.39408590612493A4,4 0 0 1 346.39408590612493,174V186A4,4 0 0 1 342.39408590612493,190H324Z" fill="#d95926"><title>@discordjs/rest: 26 k/s</title></path>
+<text x="354.39408590612493" y="184.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">26 k/s</text>
+</svg>

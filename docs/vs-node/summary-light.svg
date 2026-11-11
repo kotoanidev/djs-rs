@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="368" viewBox="0 0 840 368" role="img" aria-labelledby="title desc" font-family="system-ui, -apple-system, &quot;Segoe UI&quot;, Roboto, sans-serif">
+<title id="title">How many times better djs-rs is than discord.js</title>
+<desc id="desc">Memory, idle bot (RSS, connected, no guilds): 19× less; REST throughput (requests/s): 8.6× more; REST p99 latency: 7.2× lower; Decode GUILD_CREATE (1000 members): 5.0× faster; Decode MESSAGE_CREATE: 3.6× faster; Memory, 500,000 members (RSS): 2.7× less; Event flood, gateway layer (events/s): 2.4× more; Event flood, default clients (events/s): 2.2× more</desc>
+<rect x="0.5" y="0.5" width="839" height="367" rx="8" fill="#fcfcfb" stroke="rgba(11,11,11,0.10)"/>
+<text x="24" y="34" font-size="16" font-weight="600" fill="#0b0b0b">How many times better djs-rs is than discord.js</text>
+<text x="24" y="55" font-size="12.5" fill="#52514e">ratio per scenario (default configurations, system allocator), higher is better</text>
+
+<line x1="324" y1="76" x2="324" y2="336" stroke="#c3c2b7" stroke-width="1"/>
+<text x="324" y="352" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">0×</text>
+<line x1="389.5" y1="76" x2="389.5" y2="336" stroke="#e1e0d9" stroke-width="1"/>
+<text x="389.5" y="352" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">5×</text>
+<line x1="455" y1="76" x2="455" y2="336" stroke="#e1e0d9" stroke-width="1"/>
+<text x="455" y="352" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">10×</text>
+<line x1="520.5" y1="76" x2="520.5" y2="336" stroke="#e1e0d9" stroke-width="1"/>
+<text x="520.5" y="352" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">15×</text>
+<line x1="586" y1="76" x2="586" y2="336" stroke="#e1e0d9" stroke-width="1"/>
+<text x="586" y="352" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">20×</text>
+<text x="312" y="96.5" font-size="13" text-anchor="end" fill="#0b0b0b">Memory, idle bot (RSS, connected, no guilds)</text>
+<path d="M324,82H567.617350611951A4,4 0 0 1 571.617350611951,86V98A4,4 0 0 1 567.617350611951,102H324Z" fill="#2a78d6"><title>Memory, idle bot (RSS, connected, no guilds): 19× less</title></path>
+<text x="579.617350611951" y="96.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">19× less</text>
+<text x="312" y="128.5" font-size="13" text-anchor="end" fill="#0b0b0b">REST throughput (requests/s)</text>
+<path d="M324,114H432.9856983747775A4,4 0 0 1 436.9856983747775,118V130A4,4 0 0 1 432.9856983747775,134H324Z" fill="#2a78d6"><title>REST throughput (requests/s): 8.6× more</title></path>
+<text x="444.9856983747775" y="128.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">8.6× more</text>
+<text x="312" y="160.5" font-size="13" text-anchor="end" fill="#0b0b0b">REST p99 latency</text>
+<path d="M324,146H414.27236363636365A4,4 0 0 1 418.27236363636365,150V162A4,4 0 0 1 414.27236363636365,166H324Z" fill="#2a78d6"><title>REST p99 latency: 7.2× lower</title></path>
+<text x="426.27236363636365" y="160.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">7.2× lower</text>
+<text x="312" y="192.5" font-size="13" text-anchor="end" fill="#0b0b0b">Decode GUILD_CREATE (1000 members)</text>
+<path d="M324,178H385.41897297519245A4,4 0 0 1 389.41897297519245,182V194A4,4 0 0 1 385.41897297519245,198H324Z" fill="#2a78d6"><title>Decode GUILD_CREATE (1000 members): 5.0× faster</title></path>
+<text x="397.41897297519245" y="192.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">5.0× faster</text>
+<text x="312" y="224.5" font-size="13" text-anchor="end" fill="#0b0b0b">Decode MESSAGE_CREATE</text>
+<path d="M324,210H367.2264283651871A4,4 0 0 1 371.2264283651871,214V226A4,4 0 0 1 367.2264283651871,230H324Z" fill="#2a78d6"><title>Decode MESSAGE_CREATE: 3.6× faster</title></path>
+<text x="379.2264283651871" y="224.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">3.6× faster</text>
+<text x="312" y="256.5" font-size="13" text-anchor="end" fill="#0b0b0b">Memory, 500,000 members (RSS)</text>
+<path d="M324,242H356.00834804808A4,4 0 0 1 360.00834804808,246V258A4,4 0 0 1 356.00834804808,262H324Z" fill="#2a78d6"><title>Memory, 500,000 members (RSS): 2.7× less</title></path>
+<text x="368.00834804808" y="256.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">2.7× less</text>
+<text x="312" y="288.5" font-size="13" text-anchor="end" fill="#0b0b0b">Event flood, gateway layer (events/s)</text>
+<path d="M324,274H350.8461415421486A4,4 0 0 1 354.8461415421486,278V290A4,4 0 0 1 350.8461415421486,294H324Z" fill="#2a78d6"><title>Event flood, gateway layer (events/s): 2.4× more</title></path>
+<text x="362.8461415421486" y="288.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">2.4× more</text>
+<text x="312" y="320.5" font-size="13" text-anchor="end" fill="#0b0b0b">Event flood, default clients (events/s)</text>
+<path d="M324,306H348.5644341877179A4,4 0 0 1 352.5644341877179,310V322A4,4 0 0 1 348.5644341877179,326H324Z" fill="#2a78d6"><title>Event flood, default clients (events/s): 2.2× more</title></path>
+<text x="360.5644341877179" y="320.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">2.2× more</text>
+</svg>

@@ -1544,8 +1544,43 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   means the path authenticates the request (D-121); an invalid client token is then not an
   error either.
 
+### C-051 — How the discord.js showcase measures (D-123)
+- @discordjs/ws is pinned to 1.2.3 and @discordjs/rest to 2.6.3: the versions discord.js
+  14.28.1 itself depends on, so npm installs one copy of each (the @discordjs/ws 2.x line
+  belongs to discord.js 15).
+- One generator (`benches/vs-node/src/payloads.rs`) produces every payload, with IDs unique
+  per guild; the mock gateway and mock API are one Rust process on CPUs 4-11, clients run on
+  CPUs 0-3 and decode loops on CPU 2 (the laptop's performance cores are 0-3).
+- CPU time is `utime + stime` of `/proc/self/stat` (`USER_HZ` = 100), memory `VmRSS` /
+  `VmHWM` of `/proc/self/status`, read the same way in Rust and Node.js. Decode: 1 s warm-up,
+  15 rounds of ≈ 200 ms, median. Flood: the window runs from the first to the last counted
+  event. REST: 64 workers, one channel each, 300 000 requests after a 30 000-request warm-up,
+  the proactive global limit lifted in both, rate-limit headers that never run out. Three runs
+  per configuration; the median run is shown.
+- Workloads: 1 000 000 `MESSAGE_CREATE` (≈ 0.9 KiB) after one 1000-member guild; memory with
+  0, 100 and 500 guilds of 1000 members, 20 channels, 10 roles and 20 emojis (no presences).
+  The gateway is uncompressed for both.
+- The Rust memory runner uses a djs-gateway `Shard` (the `Client` does not surface
+  `GUILD_CREATE` yet) and keeps `Box<AvailableGuild>` per guild in a `HashMap`; discord.js is
+  measured after `gc()` (`--expose-gc`). The discord.js decode runner calls the exported
+  `Guild` / `Message` constructors that its handlers use and empties the client-wide user
+  and channel caches after each `GUILD_CREATE`.
+- Variants shown besides the defaults: the mimalloc binary, `HandlerMode::Sequential`, the
+  gateway layers alone (djs-gateway `Shard` vs @discordjs/ws `WebSocketManager`), discord.js
+  without its message cache, and `JSON.parse` alone as the Node.js floor.
+- Charts are light/dark SVG pairs embedded with `<picture>`; blue is djs-rs and orange Node.js
+  (the dataviz reference palette, validated for colour-vision deficiencies).
+- The harness crate is a workspace member so the quality gate keeps it compiling.
+
 ---
 
 ## Open questions (to ask the owner when relevant)
+
+- **Cost of `HandlerMode::Concurrent` under event floods** (found by the showcase, D-123):
+  spawning a tokio task per handler call wakes idle worker threads, so the default client
+  uses ≈ 6.7 µs CPU per `MESSAGE_CREATE` vs 1.8 µs with `HandlerMode::Sequential`
+  (`docs/VS_NODE.md`, section 2). Options: keep it; run the handler calls of the events read
+  in one poll in one task; make `Sequential` the default; a per-shard dispatcher. Ask before
+  the next change to the `Client` (Phase 4/5).
 
 - **Guide/book**: mdBook hosted on GitHub Pages?

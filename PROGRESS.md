@@ -187,6 +187,16 @@ D-041).
 - In progress: `util::SoundData` ✅ (D-122); multipart text form fields
   (`multipart::Form`, `Request::form_text`, crate-private, `#[expect(dead_code)]` until
   Create Guild Sticker uses it — then remove the attribute).
+- **Showcase vs discord.js ✅ (D-123, C-051):** `docs/VS_NODE.md` (linked from the README),
+  charts in `docs/vs-node/`, harness in `benches/vs-node/` (workspace crate `djs-vs-node`,
+  `node/` scripts, `package.json` + lockfile pinning discord.js 14.28.1, @discordjs/ws 1.2.3,
+  @discordjs/rest 2.6.3). Re-run with `benches/vs-node/run.sh` (≈ 5 min; afterwards check
+  the numbers quoted in the prose of `VS_NODE.md`). Result 2026-11-11: idle memory 19× less,
+  decode 3.6–5× faster, flood 2.2× (default `Client`) / 4.2× (sequential handlers), memory
+  2.7–4.7× less, REST 8.6× the requests and 7× lower p99. Finding: the default
+  `HandlerMode::Concurrent` costs ≈ 6.7 µs CPU per event under a flood (sequential: 1.8 µs)
+  — recorded as an open question in `docs/DECISIONS.md`. Re-run the showcase when the cache
+  (Phase 5) lands.
 - **Next:** emojis (`resources/emoji.mdx`: guild and application emojis), stickers
   (`resources/sticker.mdx`, Create Guild Sticker is multipart with a `file` field — use
   `Request::form_file`), soundboard (`resources/soundboard.mdx`), then scheduled events,

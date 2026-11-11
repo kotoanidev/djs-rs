@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="388" viewBox="0 0 840 388" role="img" aria-labelledby="title desc" font-family="system-ui, -apple-system, &quot;Segoe UI&quot;, Roboto, sans-serif">
+<title id="title">Memory after receiving the guilds at startup</title>
+<desc id="desc">100 guilds · 100,000 members, djs-rs: 41.8 MiB · 4.7× less; 100 guilds · 100,000 members, djs-rs + mimalloc: 54.3 MiB · 3.6× less; 100 guilds · 100,000 members, discord.js Client (default caches): 196.0 MiB; 500 guilds · 500,000 members, djs-rs: 183.6 MiB · 2.7× less; 500 guilds · 500,000 members, djs-rs + mimalloc: 208.4 MiB · 2.4× less; 500 guilds · 500,000 members, discord.js Client (default caches): 504.7 MiB</desc>
+<rect x="0.5" y="0.5" width="839" height="387" rx="8" fill="#fcfcfb" stroke="rgba(11,11,11,0.10)"/>
+<text x="24" y="34" font-size="16" font-weight="600" fill="#0b0b0b">Memory after receiving the guilds at startup</text>
+<text x="24" y="55" font-size="12.5" fill="#52514e">resident memory (RSS) of the whole process, lower is better · Node.js after a full GC</text>
+<rect x="24" y="68" width="12" height="12" rx="3" fill="#2a78d6"/>
+<text x="42" y="78.5" font-size="12.5" fill="#52514e">djs-rs (Rust)</text>
+<rect x="150" y="68" width="12" height="12" rx="3" fill="#eb6834"/>
+<text x="168" y="78.5" font-size="12.5" fill="#52514e">Node.js (discord.js and its packages)</text>
+<line x1="324" y1="100" x2="324" y2="356" stroke="#c3c2b7" stroke-width="1"/>
+<text x="324" y="372" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">0 MiB</text>
+<line x1="411.3333333333333" y1="100" x2="411.3333333333333" y2="356" stroke="#e1e0d9" stroke-width="1"/>
+<text x="411.3333333333333" y="372" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">200 MiB</text>
+<line x1="498.66666666666663" y1="100" x2="498.66666666666663" y2="356" stroke="#e1e0d9" stroke-width="1"/>
+<text x="498.66666666666663" y="372" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">400 MiB</text>
+<line x1="586" y1="100" x2="586" y2="356" stroke="#e1e0d9" stroke-width="1"/>
+<text x="586" y="372" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">600 MiB</text>
+<text x="24" y="119" font-size="12.5" font-weight="600" fill="#52514e">100 guilds · 100,000 members</text>
+<text x="312" y="150.5" font-size="13" text-anchor="end" fill="#0b0b0b">djs-rs</text>
+<path d="M324,136H338.2700651041667A4,4 0 0 1 342.2700651041667,140V152A4,4 0 0 1 338.2700651041667,156H324Z" fill="#2a78d6"><title>djs-rs: 41.8 MiB · 4.7× less</title></path>
+<text x="350.2700651041667" y="150.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">41.8 MiB · 4.7× less</text>
+<text x="312" y="182.5" font-size="13" text-anchor="end" fill="#0b0b0b">djs-rs + mimalloc</text>
+<path d="M324,168H343.7147526041667A4,4 0 0 1 347.7147526041667,172V184A4,4 0 0 1 343.7147526041667,188H324Z" fill="#2a78d6"><title>djs-rs + mimalloc: 54.3 MiB · 3.6× less</title></path>
+<text x="355.7147526041667" y="182.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">54.3 MiB · 3.6× less</text>
+<text x="312" y="214.5" font-size="13" text-anchor="end" fill="#0b0b0b">discord.js Client (default caches)</text>
+<path d="M324,200H405.5917838541667A4,4 0 0 1 409.5917838541667,204V216A4,4 0 0 1 405.5917838541667,220H324Z" fill="#eb6834"><title>discord.js Client (default caches): 196.0 MiB</title></path>
+<text x="417.5917838541667" y="214.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">196.0 MiB</text>
+<text x="24" y="245" font-size="12.5" font-weight="600" fill="#52514e">500 guilds · 500,000 members</text>
+<text x="312" y="276.5" font-size="13" text-anchor="end" fill="#0b0b0b">djs-rs</text>
+<path d="M324,262H400.17779947916665A4,4 0 0 1 404.17779947916665,266V278A4,4 0 0 1 400.17779947916665,282H324Z" fill="#2a78d6"><title>djs-rs: 183.6 MiB · 2.7× less</title></path>
+<text x="412.17779947916665" y="276.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">183.6 MiB · 2.7× less</text>
+<text x="312" y="308.5" font-size="13" text-anchor="end" fill="#0b0b0b">djs-rs + mimalloc</text>
+<path d="M324,294H411.01088541666667A4,4 0 0 1 415.01088541666667,298V310A4,4 0 0 1 411.01088541666667,314H324Z" fill="#2a78d6"><title>djs-rs + mimalloc: 208.4 MiB · 2.4× less</title></path>
+<text x="423.01088541666667" y="308.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">208.4 MiB · 2.4× less</text>
+<text x="312" y="340.5" font-size="13" text-anchor="end" fill="#0b0b0b">discord.js Client (default caches)</text>
+<path d="M324,326H540.3870312500001A4,4 0 0 1 544.3870312500001,330V342A4,4 0 0 1 540.3870312500001,346H324Z" fill="#eb6834"><title>discord.js Client (default caches): 504.7 MiB</title></path>
+<text x="552.3870312500001" y="340.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">504.7 MiB</text>
+</svg>

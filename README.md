@@ -10,6 +10,16 @@ familiar discord.js developer experience — `Client`, events, rich structures, 
 builders, collectors — on top of low-level layers designed for maximum throughput and minimal
 memory use, with complete documentation for every public item.
 
+## How it compares with discord.js
+
+Measured on one machine against discord.js 14.28.1 on Node.js 22, with the same inputs and the
+same mock Discord servers — [the full results, method and caveats](docs/VS_NODE.md):
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/vs-node/summary-dark.svg">
+  <img alt="How many times better djs-rs is than discord.js, per scenario; the numbers are in docs/VS_NODE.md" src="docs/vs-node/summary-light.svg">
+</picture>
+
 ## Planned example
 
 ```rust,ignore

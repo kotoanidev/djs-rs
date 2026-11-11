@@ -5,6 +5,9 @@ This file records the results, the machine they were measured on and every regre
 optimization candidate found. Benchmarks use [divan](https://docs.rs/divan) with its allocation
 profiler (D-042). They are measured locally; CI only checks that they compile.
 
+The side-by-side comparison with discord.js on Node.js (D-123) is a separate page:
+[`VS_NODE.md`](VS_NODE.md).
+
 ## How to reproduce
 
 ```bash

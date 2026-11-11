@@ -8,6 +8,11 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `docs/VS_NODE.md`: a reproducible benchmark showcase against discord.js 14 on Node.js
+  (D-123) — decoding, an event flood through a mock gateway, the memory of cached guilds and
+  REST throughput — with tables and light/dark SVG charts generated from the measured
+  results. The harness (`benches/vs-node/`: the `djs-vs-node` workspace crate, Node scripts
+  with pinned npm packages, `run.sh`) re-runs everything and regenerates the page.
 - `djs-model`: `util::SoundData` (D-122) for sounds sent as data URIs (MP3/Ogg detected from
   the file signature), sharing `ImageData`'s streaming base64 encoder.
 - Webhook endpoints (14 methods): create, list (channel, guild), get, modify and delete
