@@ -15,6 +15,7 @@ pub mod auto_moderation;
 pub mod channel;
 pub mod component;
 pub mod emoji;
+pub mod entitlement;
 pub mod gateway;
 pub mod guild;
 pub mod guild_scheduled_event;

@@ -124,3 +124,23 @@ fn invite_target_application() {
     assert_eq!(target.name.as_deref(), Some("Watch Together"));
     assert_eq!(target.flags, Some(ApplicationFlags::empty()));
 }
+
+#[test]
+fn entitlement() {
+    use djs_model::{
+        entitlement::{Entitlement, EntitlementType},
+        util::Timestamp,
+    };
+
+    let entitlement: Entitlement = round_trip(
+        include_str!("fixtures/docs/entitlement_entitlement.json"),
+        // Shown in the example but documented nowhere (nor in discord-api-types).
+        &["promotion_id", "gift_code_flags", "subscription_id"],
+    );
+    assert_eq!(entitlement.kind, EntitlementType::ApplicationSubscription);
+    assert!(!entitlement.deleted && !entitlement.consumed);
+    let during: Timestamp = "2022-10-01T00:00:00+00:00".parse().unwrap();
+    let after: Timestamp = "2022-10-14T17:00:18.704163+00:00".parse().unwrap();
+    assert!(entitlement.is_active(during));
+    assert!(!entitlement.is_active(after));
+}

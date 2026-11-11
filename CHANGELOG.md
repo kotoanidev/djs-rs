@@ -8,6 +8,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-model`: `entitlement::{Entitlement, EntitlementType}` (with `Entitlement::is_active`).
 - `djs-model`: `application_command` module — `ApplicationCommand`, `CommandType`, the
   `CommandOption` enum (D-069) with typed `Choice<T>`s, entry point handler types, command
   permissions (with the `@everyone` / all-channels constants); `interaction::InteractionContextType`.
