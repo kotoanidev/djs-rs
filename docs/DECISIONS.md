@@ -523,6 +523,26 @@ and why.
 - **Alternatives:** a public newtype with bitwise `Eq`/`Hash`; other representations (text,
   integer milliseconds).
 
+### D-065 — One `Component` enum for every nesting level
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** `component::Component` is a single enum with one precise struct per component
+  type (D-063) plus `Unknown`. Children are `Vec<Component>` (action rows, sections,
+  containers) or `Box<Component>` (section accessory, label child), so a known type decodes in
+  any position, including positions Discord allows only later. Valid nesting when sending is
+  checked by the builders (Phase 6).
+- **Alternatives:** one union per context (`ActionRowChild`, `ContainerChild`,
+  `SectionAccessory`, `LabelChild`, …) like discord-api-types; newly allowed children would end
+  up as `Unknown` until a library update.
+
+### D-066 — `Button` is an enum keyed by `style`
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** in the spirit of D-063, `component::Button` is
+  `Button::{Interactive(InteractiveButton), Link(LinkButton), Premium(PremiumButton),
+  Unknown(UnknownButton)}`: styles 1-4 carry a `custom_id` (+ label/emoji), style 5 a `url`
+  (+ label/emoji), style 6 only an `sku_id`. Impossible combinations cannot be built; shared
+  fields have methods.
+- **Alternatives:** one struct with optional `custom_id`/`url`/`sku_id` (discord.js, twilight).
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
