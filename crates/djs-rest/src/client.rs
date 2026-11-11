@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use http::{
-    HeaderMap, HeaderValue, StatusCode, Uri,
+    HeaderMap, HeaderName, HeaderValue, StatusCode, Uri,
     header::{AUTHORIZATION, CONTENT_TYPE, USER_AGENT},
 };
 use http_body_util::{BodyExt, Full};
@@ -20,8 +20,11 @@ use tokio::time::Instant;
 use crate::{
     error::{ApiError, BoxError, Error, ErrorKind, RateLimitedBody},
     ratelimit::{InvalidRequests, RateLimitHeaders, RateLimiter},
-    route::Route,
+    route::{self, Route},
 };
+
+/// The header that carries the [audit log reason](Request::reason).
+const AUDIT_LOG_REASON: HeaderName = HeaderName::from_static("x-audit-log-reason");
 
 /// The default API base URL.
 pub const DEFAULT_API: &str = "https://discord.com/api";
@@ -181,6 +184,7 @@ impl Rest {
         let template = bucket_route.template;
         let method = route.method();
         let uri = inner.uri(route)?;
+        let reason = request.reason.map(reason_header);
 
         let mut attempt: u8 = 0;
         loop {
@@ -198,7 +202,8 @@ impl Rest {
                 inner.ratelimiter.acquire_global().await;
             }
 
-            let http_request = inner.build_request(&method, &uri, request.body.as_ref())?;
+            let http_request =
+                inner.build_request(&method, &uri, reason.as_ref(), request.body.as_ref())?;
             let started = Instant::now();
             let response = match tokio::time::timeout(
                 inner.timeout,
@@ -308,6 +313,7 @@ impl Inner {
         &self,
         method: &http::Method,
         uri: &Uri,
+        reason: Option<&HeaderValue>,
         body: Option<&Bytes>,
     ) -> Result<http::Request<Full<Bytes>>, Error> {
         let mut builder = http::Request::builder()
@@ -324,6 +330,9 @@ impl Inner {
                 ));
             }
         }
+        if let Some(reason) = reason {
+            builder = builder.header(AUDIT_LOG_REASON, reason.clone());
+        }
         if body.is_some() {
             builder = builder.header(CONTENT_TYPE, HeaderValue::from_static("application/json"));
         }
@@ -331,6 +340,14 @@ impl Inner {
             .body(Full::new(body.cloned().unwrap_or_default()))
             .map_err(|source| Error::with_source(ErrorKind::BuildRequest, source))
     }
+}
+
+/// Encodes an audit log reason for its header: percent-encoded UTF-8, which Discord decodes.
+fn reason_header(reason: &str) -> HeaderValue {
+    let mut encoded = String::with_capacity(reason.len());
+    route::write_text(&mut encoded, reason);
+    // Percent-encoding leaves only visible ASCII, which is always a valid header value.
+    HeaderValue::try_from(encoded).unwrap_or_else(|_| HeaderValue::from_static(""))
 }
 
 /// Whether Discord counts a response towards its invalid-request limit: 401, 403, and 429
@@ -398,6 +415,7 @@ async fn send(
 #[derive(Clone, Debug)]
 pub struct Request<'a> {
     route: Route<'a>,
+    reason: Option<&'a str>,
     body: Option<Bytes>,
 }
 
@@ -405,7 +423,43 @@ impl<'a> Request<'a> {
     /// Creates a request without a body.
     #[must_use]
     pub const fn new(route: Route<'a>) -> Self {
-        Self { route, body: None }
+        Self {
+            route,
+            reason: None,
+            body: None,
+        }
+    }
+
+    /// Sets the reason shown in the guild's
+    /// [audit log](https://docs.discord.com/developers/resources/audit-log) for the action
+    /// (the `X-Audit-Log-Reason` header, sent percent-encoded, so any text is allowed). Only
+    /// endpoints whose docs mention the header use it; `None` sends no reason.
+    ///
+    /// discord.js counterpart: the `reason` option of `REST#request`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use djs_model::id::{ChannelId, MessageId};
+    /// use djs_rest::{Request, Route};
+    ///
+    /// let route = Route::DeleteMessage {
+    ///     channel_id: ChannelId::new(1),
+    ///     message_id: MessageId::new(2),
+    /// };
+    /// let request = Request::new(route).reason(Some("Spam"));
+    /// assert_eq!(request.audit_log_reason(), Some("Spam"));
+    /// ```
+    #[must_use]
+    pub const fn reason(mut self, reason: Option<&'a str>) -> Self {
+        self.reason = reason;
+        self
+    }
+
+    /// Returns the audit log reason set with [`reason`](Self::reason).
+    #[must_use]
+    pub const fn audit_log_reason(&self) -> Option<&'a str> {
+        self.reason
     }
 
     /// Sets a JSON body.

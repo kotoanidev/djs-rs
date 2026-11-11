@@ -127,7 +127,7 @@ const fn combine(hash: u64, part: u64) -> u64 {
 
 /// Writes `text` as one path segment, percent-encoding everything but unreserved characters
 /// (RFC 3986), so a parameter can never change the structure of the path.
-fn write_text(out: &mut String, text: &str) {
+pub(crate) fn write_text(out: &mut String, text: &str) {
     const HEX: &[u8; 16] = b"0123456789ABCDEF";
     for byte in text.bytes() {
         if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~') {

@@ -29,6 +29,7 @@ struct Seen {
     path: String,
     authorization: Option<String>,
     content_type: Option<String>,
+    audit_log_reason: Option<String>,
     user_agent: String,
     body: String,
     at: Instant,
@@ -120,6 +121,7 @@ async fn handle(state: &Mutex<State>, request: Request<Incoming>) -> Response<Fu
         path: request.uri().path().to_owned(),
         authorization: header("authorization"),
         content_type: header("content-type"),
+        audit_log_reason: header("x-audit-log-reason"),
         user_agent: header("user-agent").unwrap_or_default(),
         body: String::new(),
         at: Instant::now(),
@@ -493,4 +495,31 @@ async fn rate_limited_interaction_callback_waits_alone() {
     let seen = state.lock().unwrap().seen.clone();
     assert_eq!(seen.len(), 2);
     assert!(seen[1].at - seen[0].at >= Duration::from_millis(150));
+}
+
+#[tokio::test]
+async fn audit_log_reason_is_sent_percent_encoded() {
+    let (rest, state) = mock(vec![Canned::json(204, ""), Canned::json(204, "")]).await;
+    let route = Route::DeleteMessage {
+        channel_id: CHANNEL,
+        message_id: MessageId::new(1_300_000_000_000_000_000),
+    };
+    let request = djs_rest::Request::new(route).reason(Some("Spam: «bad» links\r\nX-Evil: 1"));
+    rest.request::<()>(request).await.unwrap();
+    rest.request::<()>(djs_rest::Request::new(route))
+        .await
+        .unwrap();
+
+    let seen = state.lock().unwrap().seen.clone();
+    assert_eq!(seen[0].method, "DELETE");
+    assert_eq!(
+        seen[0].path,
+        "/api/v10/channels/1200000000000000000/messages/1300000000000000000"
+    );
+    // Non-ASCII text and line breaks cannot reach the header unencoded.
+    assert_eq!(
+        seen[0].audit_log_reason.as_deref(),
+        Some("Spam%3A%20%C2%ABbad%C2%BB%20links%0D%0AX-Evil%3A%201")
+    );
+    assert_eq!(seen[1].audit_log_reason, None);
 }

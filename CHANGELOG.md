@@ -14,6 +14,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   weeks get their own rate-limit bucket). Interaction endpoints skip the global rate limit
   and callbacks are never queued behind one another; tokens are percent-encoded in paths,
   redacted in `Debug` and never logged.
+- `djs-rest`: `Request::reason` sets the audit log reason (`X-Audit-Log-Reason`, sent
+  percent-encoded, D-086).
 - `djs-rest`: invalid-request counter `Rest::invalid_requests()` with warnings and an opt-in
   fail-fast limit `RestBuilder::invalid_request_limit` (`ErrorKind::InvalidRequestLimit`,
   D-085).

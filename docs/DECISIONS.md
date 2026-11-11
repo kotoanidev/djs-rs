@@ -1102,6 +1102,12 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - Old message deletes: `Route::DeleteMessage` for a message older than 14 days (from its ID,
   against the system clock) uses its own bucket template, like discord.js (Discord limits
   them separately, discord-api-docs issue 1295). Same major parameter.
+- Audit log reason (D-086): `Request::reason(Option<&'a str>)` (the same type as the endpoint
+  methods' `reason` parameter, so they pass it through) and the getter
+  `Request::audit_log_reason()`. The text is percent-encoded with the path encoder
+  (everything but RFC 3986 unreserved characters — a superset of `encodeURIComponent`, which
+  Discord decodes the same way), so line breaks or non-ASCII text can never break the header.
+  Like discord.js, `Some("")` sends an empty header.
 - Logging: request log fields name the route template (`POST /interactions/{interaction_id}/
   {interaction_token}/callback`), never the URI, which can contain tokens.
 
