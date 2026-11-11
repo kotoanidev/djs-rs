@@ -13,7 +13,7 @@ use crate::gateway::{
 /// A payload received from the gateway, decoded according to its opcode.
 ///
 /// Decode payloads with [`GatewayEventDeserializer`].
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub enum GatewayEvent {
     /// An event was dispatched (opcode 0), with its sequence number.
@@ -41,7 +41,7 @@ pub enum GatewayEvent {
 /// [`DispatchEvent::Unknown`] with its name.
 ///
 /// Large events are boxed to keep this enum small.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub enum DispatchEvent {
     /// `MESSAGE_CREATE`: a message was sent.

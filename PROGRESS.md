@@ -10,7 +10,7 @@ D-041).
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-064 in `docs/DECISIONS.md`; Claude defaults C-001 …
-  C-028 (reviewable) in the same file.
+  C-029 (reviewable) in the same file.
 - Toolchains (rustup): stable 1.99.1, 1.85, 1.89 (MSRV, D-031).
 - Phase 0: foundation docs, public repo https://github.com/kotoanidev/djs-rs, 9-crate workspace,
   lints, CI (fmt, clippy all/no-default features, tests ×3 OS, rustdoc -D warnings, MSRV 1.89,
@@ -78,10 +78,17 @@ D-041).
 - `guild_template` ✅ (D-059: separate snapshot types, `u64` placeholder IDs; C-028), test in
   `tests/guild.rs`. The test helper now compares timestamps as instants (Discord writes
   `+00:00` or `.000000+00:00`).
-- **Next:** step 5: messages
-  (message, embeds, attachments, reactions, mentions, allowed mentions, snapshots, polls) →
-  components → interactions & commands → `audit_log` (needs commands, webhooks, threads,
-  integrations, auto moderation, scheduled events) → monetization (SKU, entitlements,
+- Step 5 (messages) ✅: full `message::Message` (D-060 mentions, D-061 referenced message,
+  D-062 order, D-064 floats; C-029), `poll`, `interaction` (types messages need). Tests
+  `tests/message.rs`; size guards: Message 624 B, Mention 152 B, Attachment 312 B, Embed 208 B.
+  Quick bench after the change: MESSAGE_CREATE decode 1.51 µs median, 3 allocations / 881 B
+  (Phase 1: 1.26 µs, 3 / 305 B, when only a subset was decoded); `serde_json::Value` baseline
+  2.37 µs in the same run.
+- **Next:** components (classic + V2, unfurled media item, content scan metadata flags) and
+  modals → add `Message::components`, `SnapshotMessage::components`, `Embed::components` →
+  then interactions & commands (adds `Message::resolved`, the interaction object, command
+  types) → `audit_log` (needs commands, webhooks, threads, integrations, auto moderation,
+  scheduled events) → monetization (SKU, entitlements,
   subscriptions), soundboard, lobbies, application identity profile (new docs pages
   `lobby.mdx`, `application-identity-profile.mdx`) → dispatch events + close codes.
 - Local gate script: `scratchpad/gate.sh` style (`set -euo pipefail`, no pipes hiding errors) —

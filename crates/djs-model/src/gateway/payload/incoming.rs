@@ -65,7 +65,7 @@ pub struct ReadyApplication {
 /// Dereferences to the contained [`Message`].
 ///
 /// discord.js counterpart: the `MessageCreate` event.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct MessageCreate(pub Message);
 

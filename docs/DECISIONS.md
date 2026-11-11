@@ -664,6 +664,26 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 `hoist`, `mentionable`, `allow`, `deny`) read `null` as the default
 (`serde_util::null_as_default`).
 
+### C-029 — Message model details
+- **Names** (D-048 "prefix stays where the short name would be misleading"): `Message` stays on
+  generic or clashing names (`MessageType`, `MessageFlags`, `MessageReference`,
+  `MessageActivity` (vs presence activities), `MessageCall`, `MessageSnapshot`, `MessagePin`);
+  the rest are short (`Embed*`, `Attachment`, `Reaction`, `ChannelMention`, `AllowedMentions`,
+  `AllowedMentionType`, `RoleSubscriptionData`, `SharedClientTheme`, `BaseTheme`, `Mention`,
+  `ReferencedMessage`, `Nonce`). The snapshot's partial message is `SnapshotMessage`; the
+  interaction metadata variants are `CommandMetadata`, `ComponentMetadata`,
+  `ModalSubmitMetadata`, `UnknownMetadata` (as in the D-063 preview). All with doc aliases.
+- `GuildInstallOwner::{Guild(GuildId), BotDm}` represents the guild-install owner, which Discord
+  sends as `"0"` for DMs with the bot (`Id` cannot be `0`).
+- `Attachment::application` is a `PartialApplication` (clips carry a partial object).
+- Required arrays (`mentions`, `mention_roles`, `attachments`, `embeds`) default to empty when
+  absent (C-023) and are always written. Flags of received types (`Message`, `Attachment`) are
+  plain flags defaulting to empty, like `Channel`; `Embed::flags` stays an `Option` because
+  embeds are also sent.
+- `Nonce` is `Integer(i64)` or `String`; integers beyond `i64` are kept as their text.
+- `message` is split into private submodules (`embed`, `attachment`, `interaction_metadata`)
+  re-exported from `message`, so public paths stay `message::Embed` etc.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

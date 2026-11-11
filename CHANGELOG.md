@@ -8,6 +8,13 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-model`: the full message model — `message::Message` with every documented field
+  (gateway extras `member`, `channel_type`; D-062: components and `resolved` follow later),
+  `Mention` (D-060), `ReferencedMessage` (D-061), `Nonce`, `Attachment`, `Embed` and its parts,
+  `Reaction`, `ChannelMention`, `AllowedMentions`, `MessageActivity`, `MessageCall`,
+  `MessageSnapshot`, `RoleSubscriptionData`, `MessagePin`, `SharedClientTheme`, the
+  `InteractionMetadata` enum (D-063); `poll` module; `interaction::{InteractionType,
+  MessageInteraction, AuthorizingIntegrationOwners, GuildInstallOwner}`.
 - `djs-model`: `guild_template::{GuildTemplate, SerializedSourceGuild, TemplateRole,
   TemplateChannel, TemplateOverwrite, TemplateForumTag}` with `u64` placeholder IDs (D-059).
 - `djs-model`: `user::{Connection, ConnectionService, ConnectionVisibility,
@@ -87,5 +94,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `login`/`shutdown`, prelude; `examples/ping.rs`; end-to-end tests with mock REST + gateway.
 
 ### Changed
+- `djs-model`: `Message`, `MessageCreate`, `GatewayEvent` and `DispatchEvent` are `PartialEq`
+  but no longer `Eq`, because messages contain floats (D-064).
 - `djs-model`: received model structs are `#[non_exhaustive]` (D-053).
 - MSRV raised from 1.85 to 1.89 (required by maintained `tokio-websockets` and `simd-json`).

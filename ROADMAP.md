@@ -43,7 +43,8 @@ just with narrow scope.
 - [~] Guilds (onboarding, welcome screen, widgets, templates, scheduled events,
       auto-moderation, integrations, bans ✅; audit log after interactions)
 - [x] Channels & threads, forums/media, stage instances, invites, webhooks
-- [ ] Messages, embeds, attachments, reactions, polls, message snapshots/forwarding
+- [x] Messages, embeds, attachments, reactions, polls, message snapshots/forwarding
+      (components and `resolved` are added with their steps, D-062)
 - [ ] Components (classic + Components V2), modals
 - [ ] Interactions & application commands (slash, user, message, autocomplete, entry point),
       command permissions

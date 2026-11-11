@@ -342,7 +342,7 @@ int_enum! {
 }
 
 /// (De)serializes a discriminator: a string of digits on the wire, `u16` in memory.
-mod discriminator {
+pub(crate) mod discriminator {
     use core::fmt;
 
     use serde::{
@@ -354,7 +354,7 @@ mod discriminator {
         clippy::trivially_copy_pass_by_ref,
         reason = "signature required by serde(with)"
     )]
-    pub(super) fn serialize<S: Serializer>(value: &u16, serializer: S) -> Result<S::Ok, S::Error> {
+    pub(crate) fn serialize<S: Serializer>(value: &u16, serializer: S) -> Result<S::Ok, S::Error> {
         if *value == 0 {
             serializer.serialize_str("0")
         } else {
@@ -362,7 +362,7 @@ mod discriminator {
         }
     }
 
-    pub(super) fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<u16, D::Error> {
+    pub(crate) fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<u16, D::Error> {
         struct DiscriminatorVisitor;
 
         impl Visitor<'_> for DiscriminatorVisitor {
