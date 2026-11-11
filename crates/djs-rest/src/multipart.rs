@@ -27,15 +27,30 @@ pub(crate) struct PreparedBody {
     content_type: Option<HeaderValue>,
 }
 
+/// The form parts of a request besides its JSON body.
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct Form<'a> {
+    /// Files sent as `files[n]` (D-087).
+    pub(crate) files: &'a [FileUpload],
+    /// A file sent under its own field name (e.g. `target_users_file`, D-111).
+    pub(crate) file: Option<(&'a str, &'a FileUpload)>,
+    /// Text fields (e.g. a sticker's `name`), for endpoints that take their parameters as
+    /// form fields instead of `payload_json`.
+    pub(crate) text: &'a [(&'a str, &'a str)],
+}
+
+impl Form<'_> {
+    /// Whether the request has no form parts, so it is sent as plain JSON.
+    const fn is_empty(&self) -> bool {
+        self.files.is_empty() && self.file.is_none() && self.text.is_empty()
+    }
+}
+
 impl PreparedBody {
-    /// A body of `json` alone, or — with files — a multipart body with the files as
-    /// `files[n]`, then `form_file` under its own field name, then `json` as `payload_json`.
-    pub(crate) fn new(
-        json: Option<Bytes>,
-        files: &[FileUpload],
-        form_file: Option<(&str, &FileUpload)>,
-    ) -> Self {
-        if files.is_empty() && form_file.is_none() {
+    /// A body of `json` alone, or — with form parts — a multipart body with the files as
+    /// `files[n]`, then the named file, then the text fields, then `json` as `payload_json`.
+    pub(crate) fn new(json: Option<Bytes>, form: &Form<'_>) -> Self {
+        if form.is_empty() {
             return Self {
                 content_type: json
                     .is_some()
@@ -43,7 +58,7 @@ impl PreparedBody {
                 chunks: json.into_iter().collect(),
             };
         }
-        multipart(json, files, form_file, &boundary())
+        multipart(json, form, &boundary())
     }
 
     /// The `Content-Type` of the body, if it has one.
@@ -113,20 +128,16 @@ enum FieldName<'a> {
     Named(&'a str),
 }
 
-/// Builds a multipart body (RFC 7578): every file as `files[n]`, then `form_file`, then
-/// `payload_json`.
-fn multipart(
-    json: Option<Bytes>,
-    files: &[FileUpload],
-    form_file: Option<(&str, &FileUpload)>,
-    boundary: &str,
-) -> PreparedBody {
-    let parts = files
+/// Builds a multipart body (RFC 7578): every file as `files[n]`, then the named file, then
+/// the text fields, then `payload_json`.
+fn multipart(json: Option<Bytes>, form: &Form<'_>, boundary: &str) -> PreparedBody {
+    let parts = form
+        .files
         .iter()
         .enumerate()
         .map(|(index, file)| (FieldName::Indexed(index), file))
-        .chain(form_file.map(|(name, file)| (FieldName::Named(name), file)));
-    let mut chunks = Vec::with_capacity(files.len() * 2 + 5);
+        .chain(form.file.map(|(name, file)| (FieldName::Named(name), file)));
+    let mut chunks = Vec::with_capacity(form.files.len() * 2 + 5);
     // Text between data chunks: the end of the previous part and the next part's headers.
     let mut text = String::with_capacity(256);
     for (index, (field, file)) in parts.enumerate() {
@@ -153,6 +164,16 @@ fn multipart(
         chunks.push(file.data.clone());
     }
     text.push_str("\r\n");
+    for (name, value) in form.text {
+        let _ = write!(
+            text,
+            "--{boundary}\r\nContent-Disposition: form-data; name=\""
+        );
+        write_quoted(&mut text, name);
+        text.push_str("\"\r\n\r\n");
+        text.push_str(value);
+        text.push_str("\r\n");
+    }
     if let Some(json) = json {
         let _ = write!(
             text,
@@ -281,12 +302,12 @@ mod tests {
 
     #[tokio::test]
     async fn json_only() {
-        let body = PreparedBody::new(Some(Bytes::from_static(b"{}")), &[], None);
+        let body = PreparedBody::new(Some(Bytes::from_static(b"{}")), &Form::default());
         assert_eq!(body.content_type().unwrap(), "application/json");
         assert_eq!(body.body().size_hint().exact(), Some(2));
         assert_eq!(collect(&body).await.1, b"{}");
 
-        let empty = PreparedBody::new(None, &[], None);
+        let empty = PreparedBody::new(None, &Form::default());
         assert!(empty.content_type().is_none());
         assert!(empty.body().is_end_stream());
         assert_eq!(collect(&empty).await.0.len(), 0);
@@ -300,8 +321,10 @@ mod tests {
         let files = [image, text];
         let body = multipart(
             Some(Bytes::from_static(b"{\"content\":\"hi\"}")),
-            &files,
-            None,
+            &Form {
+                files: &files,
+                ..Form::default()
+            },
             "XYZ",
         );
         assert_eq!(
@@ -337,7 +360,14 @@ mod tests {
     #[tokio::test]
     async fn multipart_without_json_and_with_empty_file() {
         let files = [FileUpload::new("empty.bin", Bytes::new())];
-        let body = multipart(None, &files, None, "B");
+        let body = multipart(
+            None,
+            &Form {
+                files: &files,
+                ..Form::default()
+            },
+            "B",
+        );
         assert_eq!(
             String::from_utf8(collect(&body).await.1).unwrap(),
             "--B\r\nContent-Disposition: form-data; name=\"files[0]\"; filename=\"empty.bin\"\r\n\
@@ -350,8 +380,10 @@ mod tests {
         let csv = FileUpload::new("users.csv", "1\n2\n");
         let body = PreparedBody::new(
             Some(Bytes::from_static(b"{}")),
-            &[],
-            Some(("target_users_file", &csv)),
+            &Form {
+                file: Some(("target_users_file", &csv)),
+                ..Form::default()
+            },
         );
         let content_type = body.content_type().unwrap().to_str().unwrap();
         let boundary = content_type

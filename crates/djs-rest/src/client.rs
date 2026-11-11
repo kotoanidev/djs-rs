@@ -20,7 +20,7 @@ use tokio::time::Instant;
 
 use crate::{
     error::{ApiError, BoxError, Error, ErrorKind, RateLimitedBody},
-    multipart::{PreparedBody, RequestBody},
+    multipart::{Form, PreparedBody, RequestBody},
     query::{Query, QueryWriter},
     ratelimit::{InvalidRequests, RateLimitHeaders, RateLimiter},
     route::{self, Route},
@@ -187,7 +187,7 @@ impl Rest {
         let template = bucket_route.template;
         let uri = inner.uri(route, request.query)?;
         let reason = request.reason.map(reason_header);
-        let body = PreparedBody::new(request.body, request.files, request.form_file);
+        let body = request.prepare_body();
 
         let mut attempt: u8 = 0;
         loop {
@@ -428,6 +428,8 @@ pub struct Request<'a> {
     files: &'a [FileUpload],
     /// A file sent under its own form field name instead of `files[n]` (D-111).
     form_file: Option<(&'static str, &'a FileUpload)>,
+    /// Text form fields, for endpoints without `payload_json` (Create Guild Sticker).
+    form_text: &'a [(&'static str, &'a str)],
 }
 
 impl<'a> Request<'a> {
@@ -441,6 +443,7 @@ impl<'a> Request<'a> {
             body: None,
             files: &[],
             form_file: None,
+            form_text: &[],
         }
     }
 
@@ -514,6 +517,27 @@ impl<'a> Request<'a> {
     /// makes the request `multipart/form-data` like [`files`](Self::files).
     pub(crate) const fn form_file(mut self, name: &'static str, file: &'a FileUpload) -> Self {
         self.form_file = Some((name, file));
+        self
+    }
+
+    /// Builds the body once, for every attempt.
+    fn prepare_body(self) -> PreparedBody {
+        let form = Form {
+            files: self.files,
+            file: self.form_file,
+            text: self.form_text,
+        };
+        PreparedBody::new(self.body, &form)
+    }
+
+    /// Sends `fields` as text form fields, which makes the request `multipart/form-data`
+    /// (for endpoints that do not read `payload_json`).
+    #[expect(
+        dead_code,
+        reason = "used by Create Guild Sticker, the next endpoint step"
+    )]
+    pub(crate) const fn form_text(mut self, fields: &'a [(&'static str, &'a str)]) -> Self {
+        self.form_text = fields;
         self
     }
 

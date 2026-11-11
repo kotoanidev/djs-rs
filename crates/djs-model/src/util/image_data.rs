@@ -146,7 +146,7 @@ const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwx
 const CHUNK: usize = 768;
 
 /// Writes `data` as standard, padded base64 ([RFC 4648 §4](https://www.rfc-editor.org/rfc/rfc4648#section-4)).
-fn write_base64(data: &[u8], out: &mut impl fmt::Write) -> fmt::Result {
+pub(super) fn write_base64(data: &[u8], out: &mut impl fmt::Write) -> fmt::Result {
     let mut buffer = [0_u8; CHUNK / 3 * 4];
     for chunk in data.chunks(CHUNK) {
         let (groups, rest) = chunk.as_chunks::<3>();

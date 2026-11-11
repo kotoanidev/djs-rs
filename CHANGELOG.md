@@ -8,6 +8,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-model`: `util::SoundData` (D-122) for sounds sent as data URIs (MP3/Ogg detected from
+  the file signature), sharing `ImageData`'s streaming base64 encoder.
 - Webhook endpoints (14 methods): create, list (channel, guild), get, modify and delete
   webhooks (also with the webhook's token), `execute_webhook` and `execute_webhook_and_wait`
   (D-119; bodies `CreateWebhook`, `ModifyWebhook`, `ExecuteWebhook` with files, threads and

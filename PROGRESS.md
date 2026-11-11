@@ -184,6 +184,9 @@ D-041).
 - **Users ✅** (12 methods, `tests/users.rs`, C-049).
 - **Webhooks ✅** (14 methods, `tests/webhooks.rs`, D-119..D-121, C-050). Token routes
   skip the bot token (`Route::authenticated`, derived from a `*_token` parameter).
+- In progress: `util::SoundData` ✅ (D-122); multipart text form fields
+  (`multipart::Form`, `Request::form_text`, crate-private, `#[expect(dead_code)]` until
+  Create Guild Sticker uses it — then remove the attribute).
 - **Next:** emojis (`resources/emoji.mdx`: guild and application emojis), stickers
   (`resources/sticker.mdx`, Create Guild Sticker is multipart with a `file` field — use
   `Request::form_file`), soundboard (`resources/soundboard.mdx`), then scheduled events,

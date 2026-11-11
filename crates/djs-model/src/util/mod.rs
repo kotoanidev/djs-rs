@@ -5,6 +5,7 @@ mod image_hash;
 mod json_value;
 mod locale;
 mod patch;
+mod sound_data;
 mod timestamp;
 
 pub use self::{
@@ -13,5 +14,6 @@ pub use self::{
     json_value::{JsonValue, JsonValueError},
     locale::Locale,
     patch::Patch,
+    sound_data::{SoundData, SoundDataError},
     timestamp::{ParseTimestampError, Timestamp},
 };
