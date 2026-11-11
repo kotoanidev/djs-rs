@@ -1055,6 +1055,26 @@ and why.
   user IDs, for Update Target Users and Create Channel Invite alike.
 - **Alternatives:** two methods (IDs and file); only `&FileUpload`.
 
+### D-128 — Create Auto Moderation Rule has one constructor per trigger type
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `CreateAutoModerationRule` is one struct with public fields and the
+  constructors `keyword(name, keywords, actions)`, `spam(name, actions)`,
+  `keyword_preset(name, presets, actions)`, `mention_spam(name, limit, actions)` and
+  `member_profile(name, keywords, actions)`, which set `trigger_type`, the matching
+  `event_type` (`MESSAGE_SEND`, or `MEMBER_UPDATE` for member profiles) and the trigger
+  metadata that type requires. The rest (allow list, regexes, `enabled`, exemptions) is set
+  through the public fields. Same pattern as D-125.
+- **Alternatives:** one generic `new(name, event_type, trigger_type, actions)`.
+
+### D-129 — Auto Moderation actions have one constructor per action type
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `auto_moderation::Action` gets `block_message()`,
+  `block_message_with(custom_message)`, `send_alert_message(channel_id)`,
+  `timeout(duration_seconds: u32)` and `block_member_interaction()`, each setting the kind
+  and the metadata it requires.
+- **Alternatives:** a generic `Action::new(kind, metadata)` with `ActionMetadata`
+  constructors; `timeout` taking a `core::time::Duration`.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
