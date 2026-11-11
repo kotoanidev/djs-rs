@@ -818,6 +818,16 @@ and why.
   available.
 - **Alternatives:** only the raw JSON value.
 
+### D-100 — `native-roots` covers REST and the gateway, adding to the bundled roots
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** Completes D-088. The `native-roots` feature exists in `djs-rest` and
+  `djs-gateway` and is forwarded by `djs-rs` (a TLS-intercepting proxy affects both kinds of
+  connection). When enabled, the operating system's certificates are trusted *in addition
+  to* the bundled `webpki-roots`: building a client never fails because of the system store;
+  certificates that cannot be loaded are skipped with a `tracing` warning.
+- **Alternatives:** REST only; trusting only the system's certificates (like reqwest's
+  `rustls-tls-native-roots`), failing when the store is empty or unreadable.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
