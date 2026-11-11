@@ -766,6 +766,36 @@ and why.
   in `djs-rest` (numbers, IDs, booleans, percent-encoded text). No new dependency.
 - **Alternatives:** the same structs serialized with `serde_urlencoded`.
 
+### D-093 — File data is `bytes::Bytes`
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** The data of an upload is `bytes::Bytes`: cheap to clone (retries, the same
+  file sent to many channels), no copy from `include_bytes!` (`Bytes::from_static`) or a
+  `Vec<u8>`, and a multipart body that does not copy file data. `bytes` becomes a dependency
+  of `djs-model` (it was already in the tree through `hyper` and `djs-rest`).
+- **Alternatives:** `Vec<u8>`; `Cow<'static, [u8]>`.
+
+### D-094 — The `attachments` array is generated from the files
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** Like discord.js, every file of a body gets an entry in the serialized
+  `attachments` array (`id` = its `files[n]` placeholder index, plus its file name and
+  metadata such as the description), appended to the attachments the caller lists explicitly
+  (e.g. existing ones kept when editing).
+- **Alternatives:** the caller fills `attachments` with the placeholders by hand.
+
+### D-095 — Content type guessed from the file name extension
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** A file part without an explicit content type gets one from its file name
+  extension (own small table of the common image, video, audio and text types), otherwise
+  `application/octet-stream`. No dependency.
+- **Alternatives:** detection from the file's magic bytes (like discord.js with
+  magic-bytes.js); no guessing (explicit type or `application/octet-stream`).
+
+### D-096 — The upload type is named `FileUpload`
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** `djs_model::rest::FileUpload` (avoids clashing with the model's `Attachment`
+  and the future `AttachmentBuilder` of `djs-builders`).
+- **Alternatives:** `RawFile` (like `@discordjs/rest`); `UploadFile`.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
