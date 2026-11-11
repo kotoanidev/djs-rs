@@ -6,8 +6,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use djs_model::{
     emoji::{Emoji, PartialEmoji},
     id::{
-        ApplicationId, ChannelId, CommandId, EmojiId, GenericId, GuildId, Id, InteractionId,
-        MessageId, RoleId, UserId,
+        ApplicationId, ChannelId, CommandId, EmojiId, GenericId, GuildId, Id, IntegrationId,
+        InteractionId, MessageId, RoleId, UserId,
     },
 };
 use http::Method;
@@ -395,6 +395,312 @@ impl Route<'_> {
 routes! {
     /// [Get Gateway Bot](https://docs.discord.com/developers/events/gateway#get-gateway-bot).
     GetGatewayBot => GET "/gateway/bot";
+
+    // Guilds.
+
+    /// [Get Guild](https://docs.discord.com/developers/resources/guild#get-guild).
+    GetGuild {
+        /// The guild.
+        guild_id: GuildId,
+    } => GET "/guilds/{guild_id}", major: guild_id;
+
+    /// [Get Guild Preview](https://docs.discord.com/developers/resources/guild#get-guild-preview).
+    GetGuildPreview {
+        /// The guild.
+        guild_id: GuildId,
+    } => GET "/guilds/{guild_id}/preview", major: guild_id;
+
+    /// [Modify Guild](https://docs.discord.com/developers/resources/guild#modify-guild).
+    ModifyGuild {
+        /// The guild.
+        guild_id: GuildId,
+    } => PATCH "/guilds/{guild_id}", major: guild_id;
+
+    /// [Get Guild Channels](https://docs.discord.com/developers/resources/guild#get-guild-channels).
+    GetGuildChannels {
+        /// The guild.
+        guild_id: GuildId,
+    } => GET "/guilds/{guild_id}/channels", major: guild_id;
+
+    /// [Create Guild Channel](https://docs.discord.com/developers/resources/guild#create-guild-channel).
+    CreateGuildChannel {
+        /// The guild.
+        guild_id: GuildId,
+    } => POST "/guilds/{guild_id}/channels", major: guild_id;
+
+    /// [Modify Guild Channel Positions](https://docs.discord.com/developers/resources/guild#modify-guild-channel-positions).
+    ModifyGuildChannelPositions {
+        /// The guild.
+        guild_id: GuildId,
+    } => PATCH "/guilds/{guild_id}/channels", major: guild_id;
+
+    /// [List Active Guild Threads](https://docs.discord.com/developers/resources/guild#list-active-guild-threads).
+    ListActiveGuildThreads {
+        /// The guild.
+        guild_id: GuildId,
+    } => GET "/guilds/{guild_id}/threads/active", major: guild_id;
+
+    /// [Get Guild Member](https://docs.discord.com/developers/resources/guild#get-guild-member).
+    GetGuildMember {
+        /// The guild.
+        guild_id: GuildId,
+        /// The user.
+        user_id: UserId,
+    } => GET "/guilds/{guild_id}/members/{user_id}", major: guild_id;
+
+    /// [List Guild Members](https://docs.discord.com/developers/resources/guild#list-guild-members).
+    ListGuildMembers {
+        /// The guild.
+        guild_id: GuildId,
+    } => GET "/guilds/{guild_id}/members", major: guild_id;
+
+    /// [Search Guild Members](https://docs.discord.com/developers/resources/guild#search-guild-members).
+    SearchGuildMembers {
+        /// The guild.
+        guild_id: GuildId,
+    } => GET "/guilds/{guild_id}/members/search", major: guild_id;
+
+    /// [Get Guild Member Permissions](https://docs.discord.com/developers/resources/guild#get-guild-member-permissions).
+    GetGuildMemberPermissions {
+        /// The guild.
+        guild_id: GuildId,
+        /// The user.
+        user_id: UserId,
+    } => GET "/guilds/{guild_id}/permissions/member/{user_id}", major: guild_id;
+
+    /// [Add Guild Member](https://docs.discord.com/developers/resources/guild#add-guild-member).
+    AddGuildMember {
+        /// The guild.
+        guild_id: GuildId,
+        /// The user.
+        user_id: UserId,
+    } => PUT "/guilds/{guild_id}/members/{user_id}", major: guild_id;
+
+    /// [Modify Guild Member](https://docs.discord.com/developers/resources/guild#modify-guild-member).
+    ModifyGuildMember {
+        /// The guild.
+        guild_id: GuildId,
+        /// The user.
+        user_id: UserId,
+    } => PATCH "/guilds/{guild_id}/members/{user_id}", major: guild_id;
+
+    /// [Modify Current Member](https://docs.discord.com/developers/resources/guild#modify-current-member).
+    ModifyCurrentMember {
+        /// The guild.
+        guild_id: GuildId,
+    } => PATCH "/guilds/{guild_id}/members/@me", major: guild_id;
+
+    /// [Add Guild Member Role](https://docs.discord.com/developers/resources/guild#add-guild-member-role).
+    AddGuildMemberRole {
+        /// The guild.
+        guild_id: GuildId,
+        /// The user.
+        user_id: UserId,
+        /// The role.
+        role_id: RoleId,
+    } => PUT "/guilds/{guild_id}/members/{user_id}/roles/{role_id}", major: guild_id;
+
+    /// [Remove Guild Member Role](https://docs.discord.com/developers/resources/guild#remove-guild-member-role).
+    RemoveGuildMemberRole {
+        /// The guild.
+        guild_id: GuildId,
+        /// The user.
+        user_id: UserId,
+        /// The role.
+        role_id: RoleId,
+    } => DELETE "/guilds/{guild_id}/members/{user_id}/roles/{role_id}", major: guild_id;
+
+    /// [Remove Guild Member](https://docs.discord.com/developers/resources/guild#remove-guild-member).
+    RemoveGuildMember {
+        /// The guild.
+        guild_id: GuildId,
+        /// The user.
+        user_id: UserId,
+    } => DELETE "/guilds/{guild_id}/members/{user_id}", major: guild_id;
+
+    /// [Get Guild Bans](https://docs.discord.com/developers/resources/guild#get-guild-bans).
+    GetGuildBans {
+        /// The guild.
+        guild_id: GuildId,
+    } => GET "/guilds/{guild_id}/bans", major: guild_id;
+
+    /// [Get Guild Ban](https://docs.discord.com/developers/resources/guild#get-guild-ban).
+    GetGuildBan {
+        /// The guild.
+        guild_id: GuildId,
+        /// The user.
+        user_id: UserId,
+    } => GET "/guilds/{guild_id}/bans/{user_id}", major: guild_id;
+
+    /// [Create Guild Ban](https://docs.discord.com/developers/resources/guild#create-guild-ban).
+    CreateGuildBan {
+        /// The guild.
+        guild_id: GuildId,
+        /// The user.
+        user_id: UserId,
+    } => PUT "/guilds/{guild_id}/bans/{user_id}", major: guild_id;
+
+    /// [Remove Guild Ban](https://docs.discord.com/developers/resources/guild#remove-guild-ban).
+    RemoveGuildBan {
+        /// The guild.
+        guild_id: GuildId,
+        /// The user.
+        user_id: UserId,
+    } => DELETE "/guilds/{guild_id}/bans/{user_id}", major: guild_id;
+
+    /// [Bulk Guild Ban](https://docs.discord.com/developers/resources/guild#bulk-guild-ban).
+    BulkGuildBan {
+        /// The guild.
+        guild_id: GuildId,
+    } => POST "/guilds/{guild_id}/bulk-ban", major: guild_id;
+
+    /// [Get Guild Roles](https://docs.discord.com/developers/resources/guild#get-guild-roles).
+    GetGuildRoles {
+        /// The guild.
+        guild_id: GuildId,
+    } => GET "/guilds/{guild_id}/roles", major: guild_id;
+
+    /// [Get Guild Role](https://docs.discord.com/developers/resources/guild#get-guild-role).
+    GetGuildRole {
+        /// The guild.
+        guild_id: GuildId,
+        /// The role.
+        role_id: RoleId,
+    } => GET "/guilds/{guild_id}/roles/{role_id}", major: guild_id;
+
+    /// [Get Guild Role Permissions](https://docs.discord.com/developers/resources/guild#get-guild-role-permissions).
+    GetGuildRolePermissions {
+        /// The guild.
+        guild_id: GuildId,
+        /// The role.
+        role_id: RoleId,
+    } => GET "/guilds/{guild_id}/permissions/role/{role_id}", major: guild_id;
+
+    /// [Get Guild Role Member Counts](https://docs.discord.com/developers/resources/guild#get-guild-role-member-counts).
+    GetGuildRoleMemberCounts {
+        /// The guild.
+        guild_id: GuildId,
+    } => GET "/guilds/{guild_id}/roles/member-counts", major: guild_id;
+
+    /// [Create Guild Role](https://docs.discord.com/developers/resources/guild#create-guild-role).
+    CreateGuildRole {
+        /// The guild.
+        guild_id: GuildId,
+    } => POST "/guilds/{guild_id}/roles", major: guild_id;
+
+    /// [Modify Guild Role Positions](https://docs.discord.com/developers/resources/guild#modify-guild-role-positions).
+    ModifyGuildRolePositions {
+        /// The guild.
+        guild_id: GuildId,
+    } => PATCH "/guilds/{guild_id}/roles", major: guild_id;
+
+    /// [Modify Guild Role](https://docs.discord.com/developers/resources/guild#modify-guild-role).
+    ModifyGuildRole {
+        /// The guild.
+        guild_id: GuildId,
+        /// The role.
+        role_id: RoleId,
+    } => PATCH "/guilds/{guild_id}/roles/{role_id}", major: guild_id;
+
+    /// [Delete Guild Role](https://docs.discord.com/developers/resources/guild#delete-guild-role).
+    DeleteGuildRole {
+        /// The guild.
+        guild_id: GuildId,
+        /// The role.
+        role_id: RoleId,
+    } => DELETE "/guilds/{guild_id}/roles/{role_id}", major: guild_id;
+
+    /// [Get Guild Prune Count](https://docs.discord.com/developers/resources/guild#get-guild-prune-count).
+    GetGuildPruneCount {
+        /// The guild.
+        guild_id: GuildId,
+    } => GET "/guilds/{guild_id}/prune", major: guild_id;
+
+    /// [Begin Guild Prune](https://docs.discord.com/developers/resources/guild#begin-guild-prune).
+    BeginGuildPrune {
+        /// The guild.
+        guild_id: GuildId,
+    } => POST "/guilds/{guild_id}/prune", major: guild_id;
+
+    /// [Get Guild Voice Regions](https://docs.discord.com/developers/resources/guild#get-guild-voice-regions).
+    GetGuildVoiceRegions {
+        /// The guild.
+        guild_id: GuildId,
+    } => GET "/guilds/{guild_id}/regions", major: guild_id;
+
+    /// [Get Guild Invites](https://docs.discord.com/developers/resources/guild#get-guild-invites).
+    GetGuildInvites {
+        /// The guild.
+        guild_id: GuildId,
+    } => GET "/guilds/{guild_id}/invites", major: guild_id;
+
+    /// [Get Guild Integrations](https://docs.discord.com/developers/resources/guild#get-guild-integrations).
+    GetGuildIntegrations {
+        /// The guild.
+        guild_id: GuildId,
+    } => GET "/guilds/{guild_id}/integrations", major: guild_id;
+
+    /// [Delete Guild Integration](https://docs.discord.com/developers/resources/guild#delete-guild-integration).
+    DeleteGuildIntegration {
+        /// The guild.
+        guild_id: GuildId,
+        /// The integration.
+        integration_id: IntegrationId,
+    } => DELETE "/guilds/{guild_id}/integrations/{integration_id}", major: guild_id;
+
+    /// [Get Guild Widget Settings](https://docs.discord.com/developers/resources/guild#get-guild-widget-settings).
+    GetGuildWidgetSettings {
+        /// The guild.
+        guild_id: GuildId,
+    } => GET "/guilds/{guild_id}/widget", major: guild_id;
+
+    /// [Modify Guild Widget](https://docs.discord.com/developers/resources/guild#modify-guild-widget).
+    ModifyGuildWidget {
+        /// The guild.
+        guild_id: GuildId,
+    } => PATCH "/guilds/{guild_id}/widget", major: guild_id;
+
+    /// [Get Guild Widget](https://docs.discord.com/developers/resources/guild#get-guild-widget).
+    GetGuildWidget {
+        /// The guild.
+        guild_id: GuildId,
+    } => GET "/guilds/{guild_id}/widget.json", major: guild_id;
+
+    /// [Get Guild Vanity URL](https://docs.discord.com/developers/resources/guild#get-guild-vanity-url).
+    GetGuildVanityUrl {
+        /// The guild.
+        guild_id: GuildId,
+    } => GET "/guilds/{guild_id}/vanity-url", major: guild_id;
+
+    /// [Get Guild Welcome Screen](https://docs.discord.com/developers/resources/guild#get-guild-welcome-screen).
+    GetGuildWelcomeScreen {
+        /// The guild.
+        guild_id: GuildId,
+    } => GET "/guilds/{guild_id}/welcome-screen", major: guild_id;
+
+    /// [Modify Guild Welcome Screen](https://docs.discord.com/developers/resources/guild#modify-guild-welcome-screen).
+    ModifyGuildWelcomeScreen {
+        /// The guild.
+        guild_id: GuildId,
+    } => PATCH "/guilds/{guild_id}/welcome-screen", major: guild_id;
+
+    /// [Get Guild Onboarding](https://docs.discord.com/developers/resources/guild#get-guild-onboarding).
+    GetGuildOnboarding {
+        /// The guild.
+        guild_id: GuildId,
+    } => GET "/guilds/{guild_id}/onboarding", major: guild_id;
+
+    /// [Modify Guild Onboarding](https://docs.discord.com/developers/resources/guild#modify-guild-onboarding).
+    ModifyGuildOnboarding {
+        /// The guild.
+        guild_id: GuildId,
+    } => PUT "/guilds/{guild_id}/onboarding", major: guild_id;
+
+    /// [Modify Guild Incident Actions](https://docs.discord.com/developers/resources/guild#modify-guild-incident-actions).
+    ModifyGuildIncidentActions {
+        /// The guild.
+        guild_id: GuildId,
+    } => PUT "/guilds/{guild_id}/incident-actions", major: guild_id;
 
     // Channels and threads.
 

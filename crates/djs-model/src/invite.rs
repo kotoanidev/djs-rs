@@ -64,9 +64,10 @@ pub struct Invite {
 }
 
 /// An invite together with its [metadata](https://docs.discord.com/developers/resources/invite#invite-metadata-object),
-/// as returned by the endpoints that list invites of a guild or channel.
+/// as returned by the endpoints that create or list invites of a guild or channel.
 ///
-/// Dereferences to the [`Invite`].
+/// The metadata is optional (D-117): Get Guild Invites only includes it when the bot has
+/// `MANAGE_GUILD`. Dereferences to the [`Invite`].
 ///
 /// discord.js counterpart: `Invite` (with `uses`, `maxUses`, …).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -76,6 +77,19 @@ pub struct InviteWithMetadata {
     /// The invite.
     #[serde(flatten)]
     pub invite: Invite,
+    /// The usage statistics, when Discord sends them.
+    #[serde(flatten)]
+    pub metadata: Option<InviteMetadata>,
+}
+
+/// The [metadata of an invite](https://docs.discord.com/developers/resources/invite#invite-metadata-object):
+/// how often it was used and for how long it is valid.
+///
+/// discord.js counterpart: `Invite#uses`, `#maxUses`, `#maxAge`, `#temporary`,
+/// `#createdTimestamp`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct InviteMetadata {
     /// How many times the invite was used.
     pub uses: u32,
     /// How many times the invite may be used; `0` means unlimited.

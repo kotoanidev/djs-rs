@@ -43,10 +43,17 @@ fn invite_with_metadata() {
     }
     let json = invite.to_string();
     let with_metadata: InviteWithMetadata = round_trip(&json, &[]);
-    assert_eq!(with_metadata.uses, 0);
-    assert!(!with_metadata.temporary);
+    let metadata = with_metadata.metadata.unwrap();
+    assert_eq!(metadata.uses, 0);
+    assert!(!metadata.temporary);
     // Derefs to the invite.
     assert_eq!(with_metadata.code, "0vCdhLbwjZZTWZLD");
+
+    // Without `MANAGE_GUILD`, Get Guild Invites sends no metadata (D-117).
+    let without: InviteWithMetadata =
+        round_trip(include_str!("fixtures/docs/invite_invite_object.json"), &[]);
+    assert_eq!(without.metadata, None);
+    assert_eq!(without.code, "0vCdhLbwjZZTWZLD");
 }
 
 #[test]

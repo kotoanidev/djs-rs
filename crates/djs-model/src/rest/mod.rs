@@ -16,6 +16,7 @@ use crate::message::{AttachmentRequest, AttachmentRequestId};
 mod application_command;
 mod channel;
 mod error_code;
+mod guild;
 mod interaction;
 mod message;
 mod webhook;
@@ -33,6 +34,14 @@ pub use self::{
         StartThreadFromMessage, StartThreadInForumOrMediaChannel, StartThreadWithoutMessage,
     },
     error_code::ErrorCode,
+    guild::{
+        ActiveThreads, AddGuildMember, BeginGuildPrune, BulkBanResponse, BulkGuildBan,
+        CreateGuildBan, CreateGuildChannel, CreateGuildRole, GetGuild, GetGuildBans,
+        GetGuildPruneCount, ListGuildMembers, ModifyCurrentMember, ModifyGuild,
+        ModifyGuildChannelPosition, ModifyGuildIncidentActions, ModifyGuildMember,
+        ModifyGuildOnboarding, ModifyGuildRole, ModifyGuildRolePosition, ModifyGuildWelcomeScreen,
+        ModifyGuildWidget, OnboardingPromptData, PromptOptionData, SearchGuildMembers, VanityUrl,
+    },
     interaction::CreateFollowupMessage,
     message::{
         BulkDeleteMessages, ChannelPins, CreateMessage, EditMessage, GetChannelMessages,

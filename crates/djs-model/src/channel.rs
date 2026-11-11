@@ -841,6 +841,43 @@ pub struct Overwrite {
 }
 
 impl Overwrite {
+    /// An overwrite of `kind` for the role or user `id`.
+    #[must_use]
+    pub const fn new(
+        id: GenericId,
+        kind: OverwriteType,
+        allow: Permissions,
+        deny: Permissions,
+    ) -> Self {
+        Self {
+            id,
+            kind,
+            allow,
+            deny,
+        }
+    }
+
+    /// An overwrite for a role (`@everyone` has the guild's ID).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use djs_model::{channel::Overwrite, id::RoleId, permissions::Permissions};
+    ///
+    /// let read_only = Overwrite::role(RoleId::new(1), Permissions::VIEW_CHANNEL, Permissions::SEND_MESSAGES);
+    /// assert_eq!(read_only.role_id(), Some(RoleId::new(1)));
+    /// ```
+    #[must_use]
+    pub const fn role(role_id: RoleId, allow: Permissions, deny: Permissions) -> Self {
+        Self::new(role_id.cast(), OverwriteType::Role, allow, deny)
+    }
+
+    /// An overwrite for a member.
+    #[must_use]
+    pub const fn member(user_id: UserId, allow: Permissions, deny: Permissions) -> Self {
+        Self::new(user_id.cast(), OverwriteType::Member, allow, deny)
+    }
+
     /// The role this overwrite applies to, if it is a role overwrite.
     #[must_use]
     pub fn role_id(&self) -> Option<RoleId> {
@@ -1009,6 +1046,26 @@ pub struct DefaultReaction {
     pub emoji_id: Option<EmojiId>,
     /// A Unicode emoji.
     pub emoji_name: Option<CompactString>,
+}
+
+impl DefaultReaction {
+    /// A custom emoji of the guild.
+    #[must_use]
+    pub const fn custom(emoji_id: EmojiId) -> Self {
+        Self {
+            emoji_id: Some(emoji_id),
+            emoji_name: None,
+        }
+    }
+
+    /// A Unicode emoji (e.g. `"👍"`).
+    #[must_use]
+    pub fn unicode(emoji: impl Into<CompactString>) -> Self {
+        Self {
+            emoji_id: None,
+            emoji_name: Some(emoji.into()),
+        }
+    }
 }
 
 /// A [tag](https://docs.discord.com/developers/resources/channel#forum-tag-object) that can be

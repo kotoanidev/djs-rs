@@ -8,6 +8,15 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Guild endpoints (45 methods): get/preview/modify guild, guild channels (create, positions,
+  active threads), members (get, list, search, permissions, add with an `OAuth2` token,
+  modify, modify current member, roles, kick), bans (incl. bulk ban), roles (incl.
+  permissions, member counts, positions), prune, voice regions, invites, integrations,
+  widget settings and widget, vanity URL, welcome screen, onboarding (`OnboardingPromptData`
+  with generated prompt IDs, D-118) and incident actions. Deprecated Modify Current User Nick
+  and request fields are left out; the widget image will be a URL (D-116).
+- `djs-model`: constructors `Overwrite::{new, role, member}`, `DefaultReaction::{custom,
+  unicode}`, `WelcomeScreenChannel::new` (these types could not be built outside the crate).
 - Channel and thread endpoints (28 methods): get, modify (`modify_channel`,
   `modify_thread`, `modify_group_dm` with `ModifyGuildChannel`, `ModifyThread`,
   `ModifyGroupDm`, D-109) and delete channels; computed member/role permissions (returned as
@@ -194,6 +203,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `login`/`shutdown`, prelude; `examples/ping.rs`; end-to-end tests with mock REST + gateway.
 
 ### Changed
+- `djs-model`: `InviteWithMetadata`'s metadata moved into `InviteMetadata`, now optional
+  (`metadata: Option<InviteMetadata>`, D-117).
 - `djs-rest`: `RestBuilder`'s `Debug` output redacts the token (it printed it before).
 - `djs-model`: `CreateMessage` is `#[non_exhaustive]` and moved to `rest::message` (still
   re-exported as `djs_model::rest::CreateMessage`).

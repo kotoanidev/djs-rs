@@ -17,16 +17,9 @@ use djs_model::{
         StartThreadInForumOrMediaChannel, StartThreadWithoutMessage,
     },
 };
-use serde::Deserialize;
 
+use super::PermissionsResponse;
 use crate::{Error, Request, Rest, Route};
-
-/// The response of the computed channel permission endpoints, unwrapped by the methods
-/// (D-110).
-#[derive(Deserialize)]
-struct PermissionsResponse {
-    permissions: Permissions,
-}
 
 impl Rest {
     /// [Get Channel](https://docs.discord.com/developers/resources/channel#get-channel):

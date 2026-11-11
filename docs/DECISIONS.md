@@ -1449,6 +1449,27 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   `ListJoinedPrivateArchivedThreads`; `limit` is `u8` where the docs give a maximum of 100,
   `u16` where they give none.
 
+### C-048 — Guild endpoint details
+- Deprecated request fields are left out (like C-046): Modify Guild `region`, role
+  `color` (use `colors`), Create Guild Ban `delete_message_days` (use
+  `delete_message_seconds`), the Begin Guild Prune body `reason` (the method's `reason` sets
+  the header). Modify Current User Nick is left out (D-105).
+- Single-value responses are unwrapped like D-110: Get Guild Prune Count → `u32` (`0` when
+  Discord sends `null`), Begin Guild Prune → `Option<u32>` (`None` without
+  `compute_prune_count`). Get Guild Role Member Counts → `HashMap<RoleId, u32>`. Add Guild
+  Member → `Option<Member>` (`None` on 204, already a member).
+- Get Guild Prune Count's `include_roles` is comma-separated as documented
+  (`QueryWriter::comma_separated`); every other list query uses repeated keys.
+- Positions endpoints take slices: `&[ModifyGuildChannelPosition]`,
+  `&[ModifyGuildRolePosition]` (constructors `new(id, position)`).
+- `AddGuildMember` redacts its access token in `Debug` (C-011). Generated onboarding prompt
+  IDs use the current time plus a process-wide 12-bit counter in the increment bits.
+- Model types used inside request bodies need public constructors because they are
+  `#[non_exhaustive]`: added for `Overwrite`, `DefaultReaction` and `WelcomeScreenChannel`
+  (check this for every new request that embeds a model type).
+- `endpoints/guild.rs` groups its methods in several `impl Rest` blocks (guild, members,
+  bans, roles, prune…, widget…) so the rustdoc page stays navigable.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

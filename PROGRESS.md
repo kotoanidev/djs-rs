@@ -178,9 +178,11 @@ D-041).
   C-047). The multipart writer accepts one file under its own field name
   (`Request::form_file`, crate-private, D-111) — reuse it for the invite target-user
   endpoints.
-- **Next:** guild endpoints (`resources/guild.mdx`: guild, channels incl. Create Guild
-  Channel (reuse `ForumTagData`, `Overwrite`), members, roles, bans, prune, widget,
-  onboarding, …), then users.
+- **Guilds ✅** (45 methods, `tests/guilds.rs` — it reuses the docs fixtures of
+  `djs-model`; D-116..D-118, C-048). `InviteMetadata` is optional (D-117). The widget image
+  URL (D-116) belongs to the CDN builder step.
+- **Next:** user endpoints (`resources/user.mdx`: current user, modify current user,
+  guilds, leave guild, DMs, connections, role connections), then webhooks.
 - Local gate script: `scratchpad/gate.sh` style (`set -euo pipefail`, no pipes hiding errors) —
   a piped gate let one clippy failure through (fixed in `cda06db`).
 - Perf note: after the user change, MESSAGE_CREATE/READY decode looked ~8-13 % slower relative

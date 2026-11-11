@@ -2,12 +2,21 @@
 
 mod application_command;
 mod channel;
+mod guild;
 mod interaction;
 mod message;
 
-use djs_model::rest::GatewayBot;
+use djs_model::{permissions::Permissions, rest::GatewayBot};
+use serde::Deserialize;
 
 use crate::{Error, Request, Rest, Route};
+
+/// The response of the computed permission endpoints (channel and guild), unwrapped by the
+/// methods (D-110).
+#[derive(Deserialize)]
+struct PermissionsResponse {
+    permissions: Permissions,
+}
 
 impl Rest {
     /// [Get Gateway Bot](https://docs.discord.com/developers/events/gateway#get-gateway-bot):

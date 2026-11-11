@@ -8,8 +8,9 @@ use djs_model::{
     message::ReactionType,
     rest::{
         GetApplicationCommands, GetChannelMessages, GetChannelPermissions, GetChannelPins,
-        GetReactions, GetThreadMember, ListArchivedThreads, ListJoinedPrivateArchivedThreads,
-        ListThreadMembers, SearchAuthorType, SearchEmbedType, SearchFilter, SearchGuildMessages,
+        GetGuild, GetGuildBans, GetGuildPruneCount, GetReactions, GetThreadMember,
+        ListArchivedThreads, ListGuildMembers, ListJoinedPrivateArchivedThreads, ListThreadMembers,
+        SearchAuthorType, SearchEmbedType, SearchFilter, SearchGuildMembers, SearchGuildMessages,
         SearchHasType, SearchSortMode, SearchSortOrder,
     },
     util::Timestamp,
@@ -49,6 +50,19 @@ impl<'a> QueryWriter<'a> {
     pub(crate) fn each<V: QueryValue>(&mut self, name: &str, values: &[V]) {
         for value in values {
             self.pair(name, value);
+        }
+    }
+
+    /// Writes a list parameter as one comma-separated value (`?ids=1,2`), for the few
+    /// endpoints that document it so; nothing when `values` is empty.
+    pub(crate) fn comma_separated<V: QueryValue>(&mut self, name: &str, values: &[V]) {
+        let Some((first, rest)) = values.split_first() else {
+            return;
+        };
+        self.pair(name, first);
+        for value in rest {
+            self.out.push(',');
+            value.write(self.out);
         }
     }
 
@@ -214,6 +228,41 @@ impl Query for ListJoinedPrivateArchivedThreads {
     }
 }
 
+impl Query for GetGuild {
+    fn write(&self, query: &mut QueryWriter<'_>) {
+        query.optional("with_counts", self.with_counts.as_ref());
+    }
+}
+
+impl Query for ListGuildMembers {
+    fn write(&self, query: &mut QueryWriter<'_>) {
+        query.optional("limit", self.limit.as_ref());
+        query.optional("after", self.after.as_ref());
+    }
+}
+
+impl Query for SearchGuildMembers {
+    fn write(&self, query: &mut QueryWriter<'_>) {
+        query.pair("query", self.query.as_str());
+        query.optional("limit", self.limit.as_ref());
+    }
+}
+
+impl Query for GetGuildBans {
+    fn write(&self, query: &mut QueryWriter<'_>) {
+        query.optional("limit", self.limit.as_ref());
+        query.optional("before", self.before.as_ref());
+        query.optional("after", self.after.as_ref());
+    }
+}
+
+impl Query for GetGuildPruneCount {
+    fn write(&self, query: &mut QueryWriter<'_>) {
+        query.optional("days", self.days.as_ref());
+        query.comma_separated("include_roles", &self.include_roles);
+    }
+}
+
 impl Query for SearchGuildMessages {
     fn write(&self, query: &mut QueryWriter<'_>) {
         // `..` is required for a `#[non_exhaustive]` struct of another crate; the test
@@ -307,6 +356,16 @@ mod tests {
         let mut out = "/channels/1/messages".to_owned();
         example.write(&mut QueryWriter::new(&mut out));
         out
+    }
+
+    #[test]
+    fn comma_separated_lists() {
+        let mut out = String::from("/guilds/1/prune");
+        let mut query = QueryWriter::new(&mut out);
+        query.comma_separated::<MessageId>("ids", &[]);
+        query.comma_separated("include_roles", &[MessageId::new(2), MessageId::new(3)]);
+        query.comma_separated("one", &[MessageId::new(4)]);
+        assert_eq!(out, "/guilds/1/prune?include_roles=2,3&one=4");
     }
 
     #[test]

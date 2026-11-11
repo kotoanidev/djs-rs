@@ -1063,6 +1063,19 @@ pub struct WelcomeScreenChannel {
     pub emoji_name: Option<CompactString>,
 }
 
+impl WelcomeScreenChannel {
+    /// A suggested channel without an emoji.
+    #[must_use]
+    pub fn new(channel_id: ChannelId, description: impl Into<CompactString>) -> Self {
+        Self {
+            channel_id,
+            description: description.into(),
+            emoji_id: None,
+            emoji_name: None,
+        }
+    }
+}
+
 /// The [onboarding](https://docs.discord.com/developers/resources/guild#guild-onboarding-object)
 /// flow of a guild: questions that give new members channels and roles.
 ///

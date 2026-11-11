@@ -221,7 +221,7 @@ async fn invite_follow_typing_and_group_dm_endpoints() {
         .create_channel_invite(CHANNEL, &invite, Some("event"))
         .await
         .unwrap();
-    assert_eq!(created.max_uses, 1);
+    assert_eq!(created.metadata.unwrap().max_uses, 1);
     let followed = rest
         .follow_announcement_channel(CHANNEL, &FollowAnnouncementChannel::new(THREAD_ID), None)
         .await
