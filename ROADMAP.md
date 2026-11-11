@@ -57,7 +57,7 @@ just with narrow scope.
 ## Phase 3 — `djs-rest` full coverage (≈ @discordjs/rest)
 - [ ] Complete rate limiting: invalid-request limit (10k/10 min), burst handler for interaction
       callbacks, per-route quirks (old message deletes, reactions), hash lifetime sweeps
-- [ ] Retries, timeouts, audit-log reason header, `native-tls` feature
+- [ ] Retries, timeouts, audit-log reason header (D-086), `native-roots` feature (D-088)
 - [ ] Strict GCRA global limiter (D-043) instead of fixed one-second windows
 - [ ] Multipart uploads (attachments)
 - [ ] Every v10 REST endpoint as a typed method

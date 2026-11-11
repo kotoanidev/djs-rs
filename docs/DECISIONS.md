@@ -700,6 +700,40 @@ and why.
   tests (D-041).
 - **Alternatives:** endpoints first on the current infrastructure, then the rest.
 
+### D-085 — Invalid requests: count, warn, optional fail-fast threshold
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** `djs-rest` counts invalid requests (401, 403 and 429 except `shared`-scope
+  429s) in a sliding 10-minute window, warns through `tracing` like discord.js, exposes the
+  count on `Rest`, and offers an opt-in threshold in `RestBuilder`: once reached, further
+  requests fail immediately with an error instead of risking Discord's IP ban (10 000 per
+  10 minutes). Off by default.
+- **Alternatives:** only count and warn (discord.js); block by default.
+
+### D-086 — Audit-log reasons are an `Option<&str>` parameter
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** Every endpoint method that supports `X-Audit-Log-Reason` takes a last
+  parameter `reason: Option<&str>` (sent URL-encoded). `Request` gets the same option for the
+  low-level API.
+- **Alternatives:** a `reason` field in the body structs (plus option structs for endpoints
+  without a body); a `rest.reason(..)` wrapper with the same methods.
+
+### D-087 — File uploads are part of the body structs
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** Bodies of endpoints that accept files have a `files` field of uploads (name +
+  data; not serialized into the JSON part); `Rest` sends `multipart/form-data` automatically
+  when files are present, like `{ files }` in discord.js. The upload type lives in
+  `djs_model::rest` (C-012).
+- **Alternatives:** a separate `files: &[File]` parameter; separate `*_with_files` methods.
+
+### D-088 — Optional `native-roots` feature
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** An optional cargo feature `native-roots` loads the operating system's root
+  certificates through the new optional dependency `rustls-native-certs`, keeping rustls as
+  the only TLS stack (useful behind corporate proxies with own CAs). `webpki-roots` stays the
+  default. Replaces the ROADMAP's "`native-tls` feature".
+- **Alternatives:** a `native-tls` feature (`hyper-tls` + `native-tls`, a second TLS stack);
+  nothing beyond rustls + webpki-roots.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
