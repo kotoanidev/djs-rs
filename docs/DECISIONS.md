@@ -1403,6 +1403,28 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - Batch Edit Application Command Permissions is not modelled (Discord disabled it).
 - `edit_application_command_permissions` documents that it needs a `bearer_token` client.
 
+### C-047 — Channel endpoint details
+- Route variants follow the docs' endpoint names: `DeleteChannel` for "Delete/Close
+  Channel"; Start Thread without Message and Start Thread in Forum or Media Channel are two
+  variants of the same `POST /channels/{channel_id}/threads` (so they share a bucket).
+- Permission overwrite endpoints take `overwrite_id: GenericId` (a role or user ID, e.g.
+  `role_id.cast()`) next to the body, like the path; `EditChannelPermissions::new(kind)`.
+- `StartThreadWithoutMessage` has a required `kind` (always sent; Discord's default is
+  slated to go away). Modify bodies use `Patch` for the nullable fields, create bodies
+  `Option`. `ModifyGroupDm::icon` is a `Patch<ImageData>` (null removes the icon).
+- `modify_group_dm` has no `reason` (DMs have no audit log); thread member endpoints and
+  lists have none either (the docs do not mention the header).
+- Create Channel Invite returns `InviteWithMetadata` (like discord-api-types'
+  `APIExtendedInvite`); its JSON body is always sent, `{}` when empty, as Discord requires.
+- Endpoints whose response the docs do not describe (Set Voice Channel Status, Trigger
+  Typing Indicator, Group DM Add/Remove Recipient) discard any body
+  (`Rest::request_ignoring_body`, crate-private).
+- `GroupDmAddRecipient` redacts its access token in `Debug` (C-011).
+- Query structs: `GetChannelPermissions` (shared by member and role permissions),
+  `GetThreadMember`, `ListThreadMembers`, `ListArchivedThreads` (public and private),
+  `ListJoinedPrivateArchivedThreads`; `limit` is `u8` where the docs give a maximum of 100,
+  `u16` where they give none.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

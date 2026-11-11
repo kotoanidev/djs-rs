@@ -188,7 +188,7 @@ impl Rest {
         let method = route.method();
         let uri = inner.uri(route, request.query)?;
         let reason = request.reason.map(reason_header);
-        let body = PreparedBody::new(request.body, request.files);
+        let body = PreparedBody::new(request.body, request.files, request.form_file);
 
         let mut attempt: u8 = 0;
         loop {
@@ -425,6 +425,8 @@ pub struct Request<'a> {
     query: Option<&'a dyn Query>,
     body: Option<Bytes>,
     files: &'a [FileUpload],
+    /// A file sent under its own form field name instead of `files[n]` (D-111).
+    form_file: Option<(&'static str, &'a FileUpload)>,
 }
 
 impl<'a> Request<'a> {
@@ -437,6 +439,7 @@ impl<'a> Request<'a> {
             query: None,
             body: None,
             files: &[],
+            form_file: None,
         }
     }
 
@@ -504,6 +507,13 @@ impl<'a> Request<'a> {
     #[must_use]
     pub const fn uploads(&self) -> &'a [FileUpload] {
         self.files
+    }
+
+    /// Uploads `file` as the form field `name` (e.g. `target_users_file`, D-111), which
+    /// makes the request `multipart/form-data` like [`files`](Self::files).
+    pub(crate) const fn form_file(mut self, name: &'static str, file: &'a FileUpload) -> Self {
+        self.form_file = Some((name, file));
+        self
     }
 
     /// Sets the query parameters (D-092), written into the URI when the request is sent.

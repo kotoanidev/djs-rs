@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize, Serializer, ser::SerializeSeq};
 use crate::message::{AttachmentRequest, AttachmentRequestId};
 
 mod application_command;
+mod channel;
 mod error_code;
 mod interaction;
 mod message;
@@ -23,6 +24,13 @@ pub use self::{
     application_command::{
         CreateApplicationCommand, EditApplicationCommand, EditApplicationCommandPermissions,
         GetApplicationCommands,
+    },
+    channel::{
+        ArchivedThreads, CreateChannelInvite, EditChannelPermissions, FollowAnnouncementChannel,
+        ForumTagData, ForumThread, ForumThreadMessage, GetChannelPermissions, GetThreadMember,
+        GroupDmAddRecipient, ListArchivedThreads, ListJoinedPrivateArchivedThreads,
+        ListThreadMembers, ModifyGroupDm, ModifyGuildChannel, ModifyThread, SetVoiceChannelStatus,
+        StartThreadFromMessage, StartThreadInForumOrMediaChannel, StartThreadWithoutMessage,
     },
     error_code::ErrorCode,
     interaction::CreateFollowupMessage,

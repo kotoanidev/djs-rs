@@ -7,9 +7,10 @@ use djs_model::{
     id::Id,
     message::ReactionType,
     rest::{
-        GetApplicationCommands, GetChannelMessages, GetChannelPins, GetReactions, SearchAuthorType,
-        SearchEmbedType, SearchFilter, SearchGuildMessages, SearchHasType, SearchSortMode,
-        SearchSortOrder,
+        GetApplicationCommands, GetChannelMessages, GetChannelPermissions, GetChannelPins,
+        GetReactions, GetThreadMember, ListArchivedThreads, ListJoinedPrivateArchivedThreads,
+        ListThreadMembers, SearchAuthorType, SearchEmbedType, SearchFilter, SearchGuildMessages,
+        SearchHasType, SearchSortMode, SearchSortOrder,
     },
     util::Timestamp,
 };
@@ -176,6 +177,40 @@ impl Query for GetChannelPins {
 impl Query for GetApplicationCommands {
     fn write(&self, query: &mut QueryWriter<'_>) {
         query.optional("with_localizations", self.with_localizations.as_ref());
+    }
+}
+
+impl Query for GetChannelPermissions {
+    fn write(&self, query: &mut QueryWriter<'_>) {
+        query.optional("implicit", self.implicit.as_ref());
+    }
+}
+
+impl Query for GetThreadMember {
+    fn write(&self, query: &mut QueryWriter<'_>) {
+        query.optional("with_member", self.with_member.as_ref());
+    }
+}
+
+impl Query for ListThreadMembers {
+    fn write(&self, query: &mut QueryWriter<'_>) {
+        query.optional("with_member", self.with_member.as_ref());
+        query.optional("after", self.after.as_ref());
+        query.optional("limit", self.limit.as_ref());
+    }
+}
+
+impl Query for ListArchivedThreads {
+    fn write(&self, query: &mut QueryWriter<'_>) {
+        query.optional("before", self.before.as_ref());
+        query.optional("limit", self.limit.as_ref());
+    }
+}
+
+impl Query for ListJoinedPrivateArchivedThreads {
+    fn write(&self, query: &mut QueryWriter<'_>) {
+        query.optional("before", self.before.as_ref());
+        query.optional("limit", self.limit.as_ref());
     }
 }
 

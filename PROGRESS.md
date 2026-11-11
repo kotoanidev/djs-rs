@@ -172,9 +172,15 @@ D-041).
   `CreateApplicationCommand`, `EditApplicationCommand`, `EditApplicationCommandPermissions`,
   query `GetApplicationCommands`. `RestBuilder::bearer_token` (D-108) for the permissions
   edit; `RestBuilder`'s `Debug` now redacts the token.
-- **Next:** channels and threads (`resources/channel.mdx`: get/modify/delete channel,
-  permission overwrites, invites, follow announcement, typing, threads and thread members),
-  then guild (guild, members, roles, bans).
+- `util::ImageData` (D-113, hand-written streaming base64) ✅ — benchmark it with large
+  images in the Phase 3 bench stage.
+- **Channels and threads ✅** (28 methods, `tests/channels.rs`, D-109..D-112, D-114, D-115,
+  C-047). The multipart writer accepts one file under its own field name
+  (`Request::form_file`, crate-private, D-111) — reuse it for the invite target-user
+  endpoints.
+- **Next:** guild endpoints (`resources/guild.mdx`: guild, channels incl. Create Guild
+  Channel (reuse `ForumTagData`, `Overwrite`), members, roles, bans, prune, widget,
+  onboarding, …), then users.
 - Local gate script: `scratchpad/gate.sh` style (`set -euo pipefail`, no pipes hiding errors) —
   a piped gate let one clippy failure through (fixed in `cda06db`).
 - Perf note: after the user change, MESSAGE_CREATE/READY decode looked ~8-13 % slower relative

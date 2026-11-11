@@ -6,7 +6,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use djs_model::{
     emoji::{Emoji, PartialEmoji},
     id::{
-        ApplicationId, ChannelId, CommandId, EmojiId, GuildId, Id, InteractionId, MessageId, UserId,
+        ApplicationId, ChannelId, CommandId, EmojiId, GenericId, GuildId, Id, InteractionId,
+        MessageId, RoleId, UserId,
     },
 };
 use http::Method;
@@ -394,6 +395,188 @@ impl Route<'_> {
 routes! {
     /// [Get Gateway Bot](https://docs.discord.com/developers/events/gateway#get-gateway-bot).
     GetGatewayBot => GET "/gateway/bot";
+
+    // Channels and threads.
+
+    /// [Get Channel](https://docs.discord.com/developers/resources/channel#get-channel).
+    GetChannel {
+        /// The channel.
+        channel_id: ChannelId,
+    } => GET "/channels/{channel_id}", major: channel_id;
+
+    /// [Modify Channel](https://docs.discord.com/developers/resources/channel#modify-channel).
+    ModifyChannel {
+        /// The channel.
+        channel_id: ChannelId,
+    } => PATCH "/channels/{channel_id}", major: channel_id;
+
+    /// [Delete/Close Channel](https://docs.discord.com/developers/resources/channel#deleteclose-channel).
+    DeleteChannel {
+        /// The channel.
+        channel_id: ChannelId,
+    } => DELETE "/channels/{channel_id}", major: channel_id;
+
+    /// [Get Channel Member Permissions](https://docs.discord.com/developers/resources/channel#get-channel-member-permissions).
+    GetChannelMemberPermissions {
+        /// The channel.
+        channel_id: ChannelId,
+        /// The user.
+        user_id: UserId,
+    } => GET "/channels/{channel_id}/permissions/member/{user_id}", major: channel_id;
+
+    /// [Get Channel Role Permissions](https://docs.discord.com/developers/resources/channel#get-channel-role-permissions).
+    GetChannelRolePermissions {
+        /// The channel.
+        channel_id: ChannelId,
+        /// The role.
+        role_id: RoleId,
+    } => GET "/channels/{channel_id}/permissions/role/{role_id}", major: channel_id;
+
+    /// [Set Voice Channel Status](https://docs.discord.com/developers/resources/channel#set-voice-channel-status).
+    SetVoiceChannelStatus {
+        /// The channel.
+        channel_id: ChannelId,
+    } => PUT "/channels/{channel_id}/voice-status", major: channel_id;
+
+    /// [Edit Channel Permissions](https://docs.discord.com/developers/resources/channel#edit-channel-permissions).
+    EditChannelPermissions {
+        /// The channel.
+        channel_id: ChannelId,
+        /// The role or user of the overwrite.
+        overwrite_id: GenericId,
+    } => PUT "/channels/{channel_id}/permissions/{overwrite_id}", major: channel_id;
+
+    /// [Delete Channel Permission](https://docs.discord.com/developers/resources/channel#delete-channel-permission).
+    DeleteChannelPermission {
+        /// The channel.
+        channel_id: ChannelId,
+        /// The role or user of the overwrite.
+        overwrite_id: GenericId,
+    } => DELETE "/channels/{channel_id}/permissions/{overwrite_id}", major: channel_id;
+
+    /// [Get Channel Invites](https://docs.discord.com/developers/resources/channel#get-channel-invites).
+    GetChannelInvites {
+        /// The channel.
+        channel_id: ChannelId,
+    } => GET "/channels/{channel_id}/invites", major: channel_id;
+
+    /// [Create Channel Invite](https://docs.discord.com/developers/resources/channel#create-channel-invite).
+    CreateChannelInvite {
+        /// The channel.
+        channel_id: ChannelId,
+    } => POST "/channels/{channel_id}/invites", major: channel_id;
+
+    /// [Follow Announcement Channel](https://docs.discord.com/developers/resources/channel#follow-announcement-channel).
+    FollowAnnouncementChannel {
+        /// The channel.
+        channel_id: ChannelId,
+    } => POST "/channels/{channel_id}/followers", major: channel_id;
+
+    /// [Trigger Typing Indicator](https://docs.discord.com/developers/resources/channel#trigger-typing-indicator).
+    TriggerTypingIndicator {
+        /// The channel.
+        channel_id: ChannelId,
+    } => POST "/channels/{channel_id}/typing", major: channel_id;
+
+    /// [Group DM Add Recipient](https://docs.discord.com/developers/resources/channel#group-dm-add-recipient).
+    GroupDmAddRecipient {
+        /// The channel.
+        channel_id: ChannelId,
+        /// The user.
+        user_id: UserId,
+    } => PUT "/channels/{channel_id}/recipients/{user_id}", major: channel_id;
+
+    /// [Group DM Remove Recipient](https://docs.discord.com/developers/resources/channel#group-dm-remove-recipient).
+    GroupDmRemoveRecipient {
+        /// The channel.
+        channel_id: ChannelId,
+        /// The user.
+        user_id: UserId,
+    } => DELETE "/channels/{channel_id}/recipients/{user_id}", major: channel_id;
+
+    /// [Start Thread from Message](https://docs.discord.com/developers/resources/channel#start-thread-from-message).
+    StartThreadFromMessage {
+        /// The channel.
+        channel_id: ChannelId,
+        /// The message the thread starts from.
+        message_id: MessageId,
+    } => POST "/channels/{channel_id}/messages/{message_id}/threads", major: channel_id;
+
+    /// [Start Thread without Message](https://docs.discord.com/developers/resources/channel#start-thread-without-message).
+    StartThreadWithoutMessage {
+        /// The channel.
+        channel_id: ChannelId,
+    } => POST "/channels/{channel_id}/threads", major: channel_id;
+
+    /// [Start Thread in Forum or Media Channel](https://docs.discord.com/developers/resources/channel#start-thread-in-forum-or-media-channel):
+    /// the same endpoint as [`StartThreadWithoutMessage`](Self::StartThreadWithoutMessage), with
+    /// a message body.
+    StartThreadInForumOrMediaChannel {
+        /// The channel.
+        channel_id: ChannelId,
+    } => POST "/channels/{channel_id}/threads", major: channel_id;
+
+    /// [Join Thread](https://docs.discord.com/developers/resources/channel#join-thread).
+    JoinThread {
+        /// The thread.
+        channel_id: ChannelId,
+    } => PUT "/channels/{channel_id}/thread-members/@me", major: channel_id;
+
+    /// [Add Thread Member](https://docs.discord.com/developers/resources/channel#add-thread-member).
+    AddThreadMember {
+        /// The thread.
+        channel_id: ChannelId,
+        /// The user.
+        user_id: UserId,
+    } => PUT "/channels/{channel_id}/thread-members/{user_id}", major: channel_id;
+
+    /// [Leave Thread](https://docs.discord.com/developers/resources/channel#leave-thread).
+    LeaveThread {
+        /// The thread.
+        channel_id: ChannelId,
+    } => DELETE "/channels/{channel_id}/thread-members/@me", major: channel_id;
+
+    /// [Remove Thread Member](https://docs.discord.com/developers/resources/channel#remove-thread-member).
+    RemoveThreadMember {
+        /// The thread.
+        channel_id: ChannelId,
+        /// The user.
+        user_id: UserId,
+    } => DELETE "/channels/{channel_id}/thread-members/{user_id}", major: channel_id;
+
+    /// [Get Thread Member](https://docs.discord.com/developers/resources/channel#get-thread-member).
+    GetThreadMember {
+        /// The thread.
+        channel_id: ChannelId,
+        /// The user.
+        user_id: UserId,
+    } => GET "/channels/{channel_id}/thread-members/{user_id}", major: channel_id;
+
+    /// [List Thread Members](https://docs.discord.com/developers/resources/channel#list-thread-members).
+    ListThreadMembers {
+        /// The thread.
+        channel_id: ChannelId,
+    } => GET "/channels/{channel_id}/thread-members", major: channel_id;
+
+    /// [List Public Archived Threads](https://docs.discord.com/developers/resources/channel#list-public-archived-threads).
+    ListPublicArchivedThreads {
+        /// The channel.
+        channel_id: ChannelId,
+    } => GET "/channels/{channel_id}/threads/archived/public", major: channel_id;
+
+    /// [List Private Archived Threads](https://docs.discord.com/developers/resources/channel#list-private-archived-threads).
+    ListPrivateArchivedThreads {
+        /// The channel.
+        channel_id: ChannelId,
+    } => GET "/channels/{channel_id}/threads/archived/private", major: channel_id;
+
+    /// [List Joined Private Archived Threads](https://docs.discord.com/developers/resources/channel#list-joined-private-archived-threads).
+    ListJoinedPrivateArchivedThreads {
+        /// The channel.
+        channel_id: ChannelId,
+    } => GET "/channels/{channel_id}/users/@me/threads/archived/private", major: channel_id;
+
+    // Messages.
 
     /// [Get Channel Messages](https://docs.discord.com/developers/resources/message#get-channel-messages).
     GetChannelMessages {

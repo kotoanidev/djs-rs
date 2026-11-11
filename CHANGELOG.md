@@ -8,6 +8,16 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Channel and thread endpoints (28 methods): get, modify (`modify_channel`,
+  `modify_thread`, `modify_group_dm` with `ModifyGuildChannel`, `ModifyThread`,
+  `ModifyGroupDm`, D-109) and delete channels; computed member/role permissions (returned as
+  `Permissions`, D-110); voice channel status; permission overwrites; invites (with
+  `target_user_ids` or a CSV `target_users_file`, D-111); following announcement channels;
+  typing; group DM recipients; starting threads from a message, without one, or as a forum
+  post (`ForumThreadMessage`, D-112, returning `ForumThread` with the starter message,
+  D-115); thread members; archived thread lists (`ArchivedThreads`). New request types
+  include `ForumTagData` (D-114), `EditChannelPermissions`, `CreateChannelInvite` and the
+  thread queries.
 - `djs-model`: `util::ImageData` (D-113) for images sent in request bodies, serialized as a
   `data:` URI by a streaming base64 encoder; the media type is detected from the file
   signature (PNG, JPEG, GIF, WebP, AVIF) or given.

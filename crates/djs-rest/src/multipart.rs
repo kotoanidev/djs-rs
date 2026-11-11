@@ -1,4 +1,4 @@
-//! Request bodies: JSON, or `multipart/form-data` with files (D-087, D-093, D-095).
+//! Request bodies: JSON, or `multipart/form-data` with files (D-087, D-093, D-095, D-111).
 //!
 //! A multipart body is a list of [`Bytes`] chunks — part headers, then each file's data as
 //! is — so file data is never copied, not even for retries (cloning a chunk only bumps a
@@ -29,9 +29,13 @@ pub(crate) struct PreparedBody {
 
 impl PreparedBody {
     /// A body of `json` alone, or — with files — a multipart body with the files as
-    /// `files[n]` and `json` as `payload_json`.
-    pub(crate) fn new(json: Option<Bytes>, files: &[FileUpload]) -> Self {
-        if files.is_empty() {
+    /// `files[n]`, then `form_file` under its own field name, then `json` as `payload_json`.
+    pub(crate) fn new(
+        json: Option<Bytes>,
+        files: &[FileUpload],
+        form_file: Option<(&str, &FileUpload)>,
+    ) -> Self {
+        if files.is_empty() && form_file.is_none() {
             return Self {
                 content_type: json
                     .is_some()
@@ -39,7 +43,7 @@ impl PreparedBody {
                 chunks: json.into_iter().collect(),
             };
         }
-        multipart(json, files, &boundary())
+        multipart(json, files, form_file, &boundary())
     }
 
     /// The `Content-Type` of the body, if it has one.
@@ -100,20 +104,47 @@ fn boundary() -> String {
     )
 }
 
-/// Builds a multipart body (RFC 7578): every file as `files[n]`, then `payload_json`.
-fn multipart(json: Option<Bytes>, files: &[FileUpload], boundary: &str) -> PreparedBody {
-    let mut chunks = Vec::with_capacity(files.len() * 2 + 3);
+/// The form field name of a file part.
+#[derive(Clone, Copy)]
+enum FieldName<'a> {
+    /// `files[n]`.
+    Indexed(usize),
+    /// A field of its own (e.g. `target_users_file`).
+    Named(&'a str),
+}
+
+/// Builds a multipart body (RFC 7578): every file as `files[n]`, then `form_file`, then
+/// `payload_json`.
+fn multipart(
+    json: Option<Bytes>,
+    files: &[FileUpload],
+    form_file: Option<(&str, &FileUpload)>,
+    boundary: &str,
+) -> PreparedBody {
+    let parts = files
+        .iter()
+        .enumerate()
+        .map(|(index, file)| (FieldName::Indexed(index), file))
+        .chain(form_file.map(|(name, file)| (FieldName::Named(name), file)));
+    let mut chunks = Vec::with_capacity(files.len() * 2 + 5);
     // Text between data chunks: the end of the previous part and the next part's headers.
     let mut text = String::with_capacity(256);
-    for (index, file) in files.iter().enumerate() {
+    for (index, (field, file)) in parts.enumerate() {
         if index > 0 {
             text.push_str("\r\n");
         }
         // Writing to a `String` cannot fail.
         let _ = write!(
             text,
-            "--{boundary}\r\nContent-Disposition: form-data; name=\"files[{index}]\"; filename=\""
+            "--{boundary}\r\nContent-Disposition: form-data; name=\""
         );
+        match field {
+            FieldName::Indexed(n) => {
+                let _ = write!(text, "files[{n}]");
+            }
+            FieldName::Named(name) => write_quoted(&mut text, name),
+        }
+        text.push_str("\"; filename=\"");
         write_quoted(&mut text, &file.name);
         text.push_str("\"\r\nContent-Type: ");
         text.push_str(content_type(file));
@@ -250,12 +281,12 @@ mod tests {
 
     #[tokio::test]
     async fn json_only() {
-        let body = PreparedBody::new(Some(Bytes::from_static(b"{}")), &[]);
+        let body = PreparedBody::new(Some(Bytes::from_static(b"{}")), &[], None);
         assert_eq!(body.content_type().unwrap(), "application/json");
         assert_eq!(body.body().size_hint().exact(), Some(2));
         assert_eq!(collect(&body).await.1, b"{}");
 
-        let empty = PreparedBody::new(None, &[]);
+        let empty = PreparedBody::new(None, &[], None);
         assert!(empty.content_type().is_none());
         assert!(empty.body().is_end_stream());
         assert_eq!(collect(&empty).await.0.len(), 0);
@@ -270,6 +301,7 @@ mod tests {
         let body = multipart(
             Some(Bytes::from_static(b"{\"content\":\"hi\"}")),
             &files,
+            None,
             "XYZ",
         );
         assert_eq!(
@@ -305,11 +337,39 @@ mod tests {
     #[tokio::test]
     async fn multipart_without_json_and_with_empty_file() {
         let files = [FileUpload::new("empty.bin", Bytes::new())];
-        let body = multipart(None, &files, "B");
+        let body = multipart(None, &files, None, "B");
         assert_eq!(
             String::from_utf8(collect(&body).await.1).unwrap(),
             "--B\r\nContent-Disposition: form-data; name=\"files[0]\"; filename=\"empty.bin\"\r\n\
              Content-Type: application/octet-stream\r\n\r\n\r\n--B--\r\n"
+        );
+    }
+
+    #[tokio::test]
+    async fn named_form_file() {
+        let csv = FileUpload::new("users.csv", "1\n2\n");
+        let body = PreparedBody::new(
+            Some(Bytes::from_static(b"{}")),
+            &[],
+            Some(("target_users_file", &csv)),
+        );
+        let content_type = body.content_type().unwrap().to_str().unwrap();
+        let boundary = content_type
+            .strip_prefix("multipart/form-data; boundary=")
+            .unwrap();
+        assert_eq!(
+            String::from_utf8(collect(&body).await.1).unwrap(),
+            format!(
+                "--{boundary}\r\n\
+                 Content-Disposition: form-data; name=\"target_users_file\"; filename=\"users.csv\"\r\n\
+                 Content-Type: text/csv; charset=utf-8\r\n\r\n\
+                 1\n2\n\r\n\
+                 --{boundary}\r\n\
+                 Content-Disposition: form-data; name=\"payload_json\"\r\n\
+                 Content-Type: application/json\r\n\r\n\
+                 {{}}\r\n\
+                 --{boundary}--\r\n"
+            )
         );
     }
 
