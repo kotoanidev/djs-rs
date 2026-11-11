@@ -515,6 +515,14 @@ and why.
   fields are exposed through methods.
 - **Alternatives:** flat structs with every variant's fields optional; deciding case by case.
 
+### D-064 — Floats are `f64`; types containing them derive only `PartialEq`
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** JSON floats (`Attachment::duration_secs`, `number` command options, …) are `f64`.
+  Types that contain one, directly or through a field (e.g. `Message` via `Attachment`), derive
+  `PartialEq` but not `Eq`/`Hash`. All other types keep `Eq` (and `Hash` where they had it).
+- **Alternatives:** a public newtype with bitwise `Eq`/`Hash`; other representations (text,
+  integer milliseconds).
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
