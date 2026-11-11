@@ -600,6 +600,31 @@ and why.
 - **Alternatives:** reuse `audit_log::AuditLogValue` under its name; skip identity profiles for
   now.
 
+### D-073 — Gateway events with extra fields get their own payload types
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** an event whose payload is an object plus extra fields gets its own type that
+  holds the object and the extras (e.g. `GuildMemberAdd { guild_id, member }` dereferencing to
+  `Member`; `GuildCreate::Available(AvailableGuild { guild, members, channels, … })`), decoded
+  in a single pass like `Mention` (D-060), without `serde(flatten)` on the decode path. Base
+  types stay lean for the cache; every event has its own payload type, like `MessageCreate`.
+- **Alternatives:** add the extras as `Option`/`Vec` fields to the base types (as for
+  `Message::member`).
+
+### D-074 — Partial presence users have typed optional fields
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** the `user` of `PRESENCE_UPDATE` is a `PresenceUser { id, …optional typed
+  fields }`, decoded in one pass (fast on the most frequent event). A field with an unexpected
+  type makes the event fail to decode.
+- **Alternatives:** keep only `id`; optional fields decoded leniently (invalid → `None`, needs
+  buffering).
+
+### D-075 — Unix-time integers are decoded as `Timestamp`
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** Unix-time integers in events (`Activity::created_at` and timestamps in ms,
+  `TypingStart::timestamp` and `voice_start_time` in s) are `util::Timestamp`s, written back as
+  integers in the same unit.
+- **Alternatives:** raw `u64`s with the unit in the docs.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
