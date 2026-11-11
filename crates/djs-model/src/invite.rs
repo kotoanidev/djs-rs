@@ -5,6 +5,7 @@ use compact_str::CompactString;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    application::PartialApplication,
     channel::ChannelType,
     guild::{AgeRestrictionLevel, Feature, RoleColors, VerificationLevel, WelcomeScreen},
     guild_scheduled_event::GuildScheduledEvent,
@@ -40,6 +41,9 @@ pub struct Invite {
     /// Whose stream a stream invite shows.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub target_user: Option<Box<User>>,
+    /// The embedded application an Activity invite opens.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target_application: Option<Box<PartialApplication>>,
     /// The approximate number of online members (`with_counts=true`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub approximate_presence_count: Option<u32>,

@@ -10,7 +10,7 @@ D-041).
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-057 in `docs/DECISIONS.md`; Claude defaults C-001 …
-  C-025 (reviewable) in the same file.
+  C-026 (reviewable) in the same file.
 - Toolchains (rustup): stable 1.99.1, 1.85, 1.89 (MSRV, D-031).
 - Phase 0: foundation docs, public repo https://github.com/kotoanidev/djs-rs, 9-crate workspace,
   lints, CI (fmt, clippy all/no-default features, tests ×3 OS, rustdoc -D warnings, MSRV 1.89,
@@ -65,11 +65,15 @@ D-041).
   single-pass conversion), tests `tests/channel.rs` on all docs examples; shared test helper
   `tests/common/mod.rs` (`round_trip`, `assert_subset`).
 - Phase 2 step 4, part 2 ✅: `stage_instance`, `webhook`, `invite` (tests
-  `tests/invite_webhook.rs`). Open item: `Invite::target_application` (partial application)
-  is added together with the `application` module.
-- **Next:** `application` module (Application object, install params, integration types
-  config, event webhooks, team (`teams` topic) …) — pulled forward because invites, Ready and
-  interactions need it; then `guild_template` and `audit_log`; then step 5: messages.
+  `tests/invite_webhook.rs`).
+- `application` module ✅ (pulled forward: invites, Ready and interactions need it):
+  `Application`, `PartialApplication` (→ `Invite::target_application`), integration types +
+  config, install params, event webhook status/types, Activity instances; `team` module;
+  `guild::PartialGuild`. Tests `tests/application.rs`; `round_trip` now accepts nested
+  unmodelled paths (`a.b`, `a[].b`). Monetization (SKU/entitlements) stays in its own step.
+- **Next:** user `Connection` (+ services, visibility) and `ApplicationRoleConnection`
+  (`user` module, needs `guild::Integration`, done); then `guild_template` and `audit_log`
+  (audit log also needs commands → may move after interactions); then step 5: messages.
 - Local gate script: `scratchpad/gate.sh` style (`set -euo pipefail`, no pipes hiding errors) —
   a piped gate let one clippy failure through (fixed in `cda06db`).
 - Perf note: after the user change, MESSAGE_CREATE/READY decode looked ~8-13 % slower relative

@@ -467,6 +467,39 @@ pub struct Guild {
     pub incidents_data: Option<Box<IncidentsData>>,
 }
 
+/// A partial [`Guild`], as attached to an application (D-051).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct PartialGuild {
+    /// The guild's ID.
+    pub id: GuildId,
+    /// The guild's name.
+    pub name: CompactString,
+    /// The [icon hash](https://docs.discord.com/developers/reference#image-formatting).
+    pub icon: Option<ImageHash>,
+    /// The [invite splash hash](https://docs.discord.com/developers/reference#image-formatting).
+    #[serde(default)]
+    pub splash: Option<ImageHash>,
+    /// The [banner hash](https://docs.discord.com/developers/reference#image-formatting).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub banner: Option<ImageHash>,
+    /// The guild's description.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<CompactString>,
+    /// The guild's features.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub features: Vec<Feature>,
+    /// The guild's verification level.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub verification_level: Option<VerificationLevel>,
+    /// The vanity invite code.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vanity_url_code: Option<CompactString>,
+    /// The welcome screen of a Community guild.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub welcome_screen: Option<Box<WelcomeScreen>>,
+}
+
 int_enum! {
     /// The [default notification level](https://docs.discord.com/developers/resources/guild#guild-object-default-message-notification-level)
     /// of a guild's members.

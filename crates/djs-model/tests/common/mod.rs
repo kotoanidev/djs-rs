@@ -3,19 +3,49 @@
 use serde::{Serialize, de::DeserializeOwned};
 use serde_json::Value;
 
-/// Parses `json` into `T` and checks that serializing it again keeps every field of the input
-/// (ignoring the top-level fields listed in `unmodelled`).
+/// Parses `json` into `T` and checks that serializing it again keeps every field of the input,
+/// ignoring the fields listed in `unmodelled`.
+///
+/// Each entry of `unmodelled` is a path: `field`, `object.field`, or `array[].field` (every
+/// element of the array).
 pub(crate) fn round_trip<T: Serialize + DeserializeOwned>(json: &str, unmodelled: &[&str]) -> T {
     let value: T = serde_json::from_str(json).unwrap();
     let mut expected: Value = serde_json::from_str(json).unwrap();
-    if let Some(object) = expected.as_object_mut() {
-        for field in unmodelled {
-            object.remove(*field);
-        }
+    for path in unmodelled {
+        let segments: Vec<&str> = path.split('.').collect();
+        remove_path(&mut expected, &segments);
     }
     let actual = serde_json::to_value(&value).unwrap();
     assert_subset(&expected, &actual, "$");
     value
+}
+
+/// Removes the field at `segments` (see [`round_trip`]) from `value`.
+fn remove_path(value: &mut Value, segments: &[&str]) {
+    let Some((first, rest)) = segments.split_first() else {
+        return;
+    };
+    let (key, every_element) = match first.strip_suffix("[]") {
+        Some(key) => (key, true),
+        None => (*first, false),
+    };
+    let Some(object) = value.as_object_mut() else {
+        return;
+    };
+    if rest.is_empty() && !every_element {
+        object.remove(key);
+        return;
+    }
+    let Some(child) = object.get_mut(key) else {
+        return;
+    };
+    if every_element {
+        for element in child.as_array_mut().into_iter().flatten() {
+            remove_path(element, rest);
+        }
+    } else {
+        remove_path(child, rest);
+    }
 }
 
 /// Asserts that everything in `expected` is present and equal in `actual`. Absent and

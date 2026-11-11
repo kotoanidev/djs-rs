@@ -24,6 +24,7 @@ pub mod rest;
 pub mod sku;
 pub mod stage_instance;
 pub mod sticker;
+pub mod team;
 pub mod user;
 pub mod util;
 pub mod webhook;

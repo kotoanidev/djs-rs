@@ -8,6 +8,11 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-model`: `application::{Application, PartialApplication, IntegrationType,
+  IntegrationTypesConfig, IntegrationTypeConfig, InstallParams, EventWebhookStatus,
+  WebhookEventType, ActivityInstance, ActivityLocation, ActivityLocationKind}`,
+  `team::{Team, Member, MembershipState, MemberRole}`, `guild::PartialGuild` and
+  `Invite::target_application`.
 - `djs-model`: `stage_instance::{StageInstance, PrivacyLevel}`, `webhook::{Webhook,
   WebhookType, SourceGuild, SourceChannel}` (token redacted in `Debug`), `invite::{Invite,
   InviteWithMetadata, InviteType, InviteTargetType, InviteGuild, InviteChannel,

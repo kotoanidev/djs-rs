@@ -575,6 +575,13 @@ serializing `Channel` variants with their `type`.
 Image hashes must be 32 hex digits (optionally `a_`-prefixed); placeholder values like the
 docs' `deadbeef` are rejected. Fixtures use real-looking hashes instead.
 
+### C-026 — Outdated docs examples are corrected in the fixture, not in the model
+When a docs example omits a required field that has no meaningful default (the application
+example's team members lack `role`, added in 2023), the field stays required — as in the docs
+table and discord-api-types — and the fixture adds a valid value. Fields with a sensible default
+keep following C-023. `Application::flags_new` (string-encoded flags) uses the generic
+`serde_util::option_flags_string` helper.
+
 ---
 
 ## Open questions (to ask the owner when relevant)
