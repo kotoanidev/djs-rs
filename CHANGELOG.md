@@ -8,6 +8,10 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Soundboard endpoints (7 methods): `send_soundboard_sound` in a voice channel, the default
+  sounds, and list (unwrapped from `{"items": [...]}`), get, create, modify and delete guild
+  sounds. Bodies `SendSoundboardSound`, `CreateGuildSoundboardSound` (a `SoundData` sound,
+  D-122) and `ModifyGuildSoundboardSound`.
 - Sticker endpoints (8 methods): get any sticker, list and get Discord's sticker packs
   (`list_sticker_packs` unwraps `{"sticker_packs": [...]}`), and list, get, create, modify and
   delete guild stickers. `create_guild_sticker` sends `CreateGuildSticker` as

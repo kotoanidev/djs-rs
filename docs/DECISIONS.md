@@ -1593,6 +1593,15 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - Guild sticker routes use the guild ID as the major parameter; Get Sticker and the sticker
   pack routes have none.
 
+### C-054 — Soundboard endpoint details
+- The sound bodies keep `emoji_id` and `emoji_name` as two fields, like `SoundboardSound`
+  itself, instead of one emoji enum.
+- `send_soundboard_sound` discards the response (Discord does not document one) and uses the
+  channel ID as the major parameter; guild sound routes use the guild ID; the default sounds
+  route has none. `list_guild_soundboard_sounds` unwraps `{"items": [...]}` with `Items<T>`
+  (C-052).
+- Bodies with a `volume: f64` derive `PartialEq` only (no `Eq`/`Hash`).
+
 ---
 
 ## Open questions (to ask the owner when relevant)

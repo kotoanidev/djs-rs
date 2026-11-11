@@ -199,9 +199,8 @@ D-041).
 - **Emojis ✅** (10 methods, `tests/emojis.rs`, C-052).
 - **Stickers ✅** (8 methods, `tests/stickers.rs`, C-053); `Request::form_text` is now used
   (its `#[expect(dead_code)]` is gone).
-- **Next:** soundboard (`resources/soundboard.mdx`: Send Soundboard Sound, List Default
-  Soundboard Sounds, guild sounds — list unwraps `{items}` via `Items<T>`, create with
-  `SoundData` (D-122) and `volume: f64`), then scheduled events,
+- **Soundboard ✅** (7 methods, `tests/soundboard.rs`, C-054).
+- **Next:** guild scheduled events (`resources/guild-scheduled-event.mdx`), then
   stage instances, invites, templates, audit log, auto moderation, polls (D-102).
 - Local gate script: `scratchpad/gate.sh` style (`set -euo pipefail`, no pipes hiding errors) —
   a piped gate let one clippy failure through (fixed in `cda06db`).

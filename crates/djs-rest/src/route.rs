@@ -7,7 +7,8 @@ use djs_model::{
     emoji::{Emoji, PartialEmoji},
     id::{
         ApplicationId, ChannelId, CommandId, EmojiId, GenericId, GuildId, Id, IntegrationId,
-        InteractionId, MessageId, RoleId, StickerId, StickerPackId, UserId, WebhookId,
+        InteractionId, MessageId, RoleId, SoundboardSoundId, StickerId, StickerPackId, UserId,
+        WebhookId,
     },
 };
 use http::Method;
@@ -1010,6 +1011,53 @@ routes! {
         /// The sticker.
         sticker_id: StickerId,
     } => DELETE "/guilds/{guild_id}/stickers/{sticker_id}", major: guild_id;
+
+    // Soundboard.
+
+    /// [Send Soundboard Sound](https://docs.discord.com/developers/resources/soundboard#send-soundboard-sound).
+    SendSoundboardSound {
+        /// The voice channel.
+        channel_id: ChannelId,
+    } => POST "/channels/{channel_id}/send-soundboard-sound", major: channel_id;
+
+    /// [List Default Soundboard Sounds](https://docs.discord.com/developers/resources/soundboard#list-default-soundboard-sounds).
+    ListDefaultSoundboardSounds => GET "/soundboard-default-sounds";
+
+    /// [List Guild Soundboard Sounds](https://docs.discord.com/developers/resources/soundboard#list-guild-soundboard-sounds).
+    ListGuildSoundboardSounds {
+        /// The guild.
+        guild_id: GuildId,
+    } => GET "/guilds/{guild_id}/soundboard-sounds", major: guild_id;
+
+    /// [Get Guild Soundboard Sound](https://docs.discord.com/developers/resources/soundboard#get-guild-soundboard-sound).
+    GetGuildSoundboardSound {
+        /// The guild.
+        guild_id: GuildId,
+        /// The sound.
+        sound_id: SoundboardSoundId,
+    } => GET "/guilds/{guild_id}/soundboard-sounds/{sound_id}", major: guild_id;
+
+    /// [Create Guild Soundboard Sound](https://docs.discord.com/developers/resources/soundboard#create-guild-soundboard-sound).
+    CreateGuildSoundboardSound {
+        /// The guild.
+        guild_id: GuildId,
+    } => POST "/guilds/{guild_id}/soundboard-sounds", major: guild_id;
+
+    /// [Modify Guild Soundboard Sound](https://docs.discord.com/developers/resources/soundboard#modify-guild-soundboard-sound).
+    ModifyGuildSoundboardSound {
+        /// The guild.
+        guild_id: GuildId,
+        /// The sound.
+        sound_id: SoundboardSoundId,
+    } => PATCH "/guilds/{guild_id}/soundboard-sounds/{sound_id}", major: guild_id;
+
+    /// [Delete Guild Soundboard Sound](https://docs.discord.com/developers/resources/soundboard#delete-guild-soundboard-sound).
+    DeleteGuildSoundboardSound {
+        /// The guild.
+        guild_id: GuildId,
+        /// The sound.
+        sound_id: SoundboardSoundId,
+    } => DELETE "/guilds/{guild_id}/soundboard-sounds/{sound_id}", major: guild_id;
 
     // Channels and threads.
 

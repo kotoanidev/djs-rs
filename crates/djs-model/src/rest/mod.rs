@@ -20,6 +20,7 @@ mod error_code;
 mod guild;
 mod interaction;
 mod message;
+mod soundboard;
 mod sticker;
 mod user;
 mod webhook;
@@ -52,6 +53,7 @@ pub use self::{
         GetChannelPins, GetReactions, MessageSearchResults, SearchAuthorType, SearchEmbedType,
         SearchFilter, SearchGuildMessages, SearchHasType, SearchSortMode, SearchSortOrder,
     },
+    soundboard::{CreateGuildSoundboardSound, ModifyGuildSoundboardSound, SendSoundboardSound},
     sticker::{CreateGuildSticker, ModifyGuildSticker},
     user::{CreateDm, CreateGroupDm, CurrentUserGuild, GetCurrentUserGuilds, ModifyCurrentUser},
     webhook::{CreateWebhook, EditWebhookMessage, ExecuteWebhook, ModifyWebhook},

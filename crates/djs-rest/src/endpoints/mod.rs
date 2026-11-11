@@ -6,6 +6,7 @@ mod emoji;
 mod guild;
 mod interaction;
 mod message;
+mod soundboard;
 mod sticker;
 mod user;
 mod webhook;
