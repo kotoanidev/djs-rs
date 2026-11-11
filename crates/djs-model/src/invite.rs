@@ -227,3 +227,43 @@ int_flags! {
         const IS_GUEST_INVITE = 1 << 0;
     }
 }
+
+/// The [state of the job](https://docs.discord.com/developers/resources/invite#get-target-users-job-status)
+/// that processes an invite's target users file, which Discord does asynchronously.
+///
+/// discord.js counterpart: `TargetUsersJobStatusForInvite`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct InviteTargetUsersJobStatus {
+    /// Where the job is.
+    pub status: InviteTargetUsersJobStatusCode,
+    /// How many users the file lists.
+    pub total_users: u32,
+    /// How many of them were processed so far.
+    pub processed_users: u32,
+    /// When the job was created.
+    pub created_at: Timestamp,
+    /// When the job finished.
+    #[serde(default)]
+    pub completed_at: Option<Timestamp>,
+    /// Why the job failed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error_message: Option<CompactString>,
+}
+
+int_enum! {
+    /// The [status](https://docs.discord.com/developers/resources/invite#get-target-users-job-status-status-codes)
+    /// of an [`InviteTargetUsersJobStatus`].
+    ///
+    /// discord.js counterpart: `InviteTargetUsersJobStatus`.
+    pub enum InviteTargetUsersJobStatusCode: u8 {
+        /// No status given.
+        Unspecified = 0,
+        /// The file is still being processed.
+        Processing = 1,
+        /// The file was processed.
+        Completed = 2,
+        /// Processing failed; see [`InviteTargetUsersJobStatus::error_message`].
+        Failed = 3,
+    }
+}

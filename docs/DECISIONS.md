@@ -1653,6 +1653,19 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - The bodies keep the optional `privacy_level` (discord.js does too) and document that
   `Public` is deprecated.
 
+### C-057 — Invite endpoint details
+- Invite codes are `&str` route parameters, not major parameters; the methods take the code
+  only (not a `discord.gg/…` URL).
+- `get_target_users` reads the raw body through `Rest::execute` and skips an optional
+  `user_id` header, blank lines and surrounding whitespace; the error of a bad line names
+  the line number.
+- `FileUpload::target_users` writes IDs separated by `\n` without a header, like discord.js,
+  as `users.csv` with `text/csv`.
+- One `BulkTargetUsers` body serves Bulk-Add and Bulk-Delete Target Users. Update Target
+  Users discards its (undocumented) response; the other target user endpoints return 204.
+- The job status type is `invite::InviteTargetUsersJobStatus` with the code enum
+  `InviteTargetUsersJobStatusCode` (discord-api-types names).
+
 ---
 
 ## Open questions (to ask the owner when relevant)

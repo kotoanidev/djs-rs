@@ -203,8 +203,9 @@ D-041).
 - **Guild scheduled events ✅** (6 methods, `tests/scheduled_events.rs`, D-124, D-125,
   C-055). Fixed `GuildScheduledEventUser::member` (now `PartialMember`).
 - **Stage instances ✅** (4 methods, `tests/stage_instances.rs`, C-056).
-- **Next:** invites (`resources/invite.mdx`; incl. the target users file with `form_file`,
-  D-111), then guild templates, audit log, auto moderation, polls (D-102).
+- **Invites ✅** (9 methods, `tests/invites.rs`, D-126, D-127, C-057).
+- **Next:** guild templates (`resources/guild-template.mdx`), then audit log, auto
+  moderation, polls (D-102).
 - Local gate script: `scratchpad/gate.sh` style (`set -euo pipefail`, no pipes hiding errors) —
   a piped gate let one clippy failure through (fixed in `cda06db`).
 - Perf note: after the user change, MESSAGE_CREATE/READY decode looked ~8-13 % slower relative

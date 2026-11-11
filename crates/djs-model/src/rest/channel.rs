@@ -335,7 +335,8 @@ pub struct CreateChannelInvite {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub role_ids: Vec<RoleId>,
     /// A CSV file of the only users who can accept the invite, instead of
-    /// [`target_user_ids`](Self::target_user_ids); sent as `multipart/form-data`.
+    /// [`target_user_ids`](Self::target_user_ids); sent as `multipart/form-data`. Build it with
+    /// [`FileUpload::target_users`] (D-127).
     #[serde(skip)]
     pub target_users_file: Option<FileUpload>,
 }

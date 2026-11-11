@@ -9,7 +9,7 @@ use djs_model::{
     rest::{
         GetApplicationCommands, GetChannelMessages, GetChannelPermissions, GetChannelPins,
         GetCurrentUserGuilds, GetGuild, GetGuildBans, GetGuildPruneCount, GetGuildScheduledEvent,
-        GetGuildScheduledEventUsers, GetReactions, GetThreadMember, ListArchivedThreads,
+        GetGuildScheduledEventUsers, GetInvite, GetReactions, GetThreadMember, ListArchivedThreads,
         ListGuildMembers, ListJoinedPrivateArchivedThreads, ListScheduledEventsForGuild,
         ListThreadMembers, SearchAuthorType, SearchEmbedType, SearchFilter, SearchGuildMembers,
         SearchGuildMessages, SearchHasType, SearchSortMode, SearchSortOrder,
@@ -264,6 +264,16 @@ impl Query for GetGuildBans {
         query.optional("limit", self.limit.as_ref());
         query.optional("before", self.before.as_ref());
         query.optional("after", self.after.as_ref());
+    }
+}
+
+impl Query for GetInvite {
+    fn write(&self, query: &mut QueryWriter<'_>) {
+        query.optional("with_counts", self.with_counts.as_ref());
+        query.optional(
+            "guild_scheduled_event_id",
+            self.guild_scheduled_event_id.as_ref(),
+        );
     }
 }
 

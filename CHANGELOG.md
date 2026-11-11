@@ -8,6 +8,12 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Invite endpoints (9 methods): `get_invite` (with counts and a scheduled event),
+  `delete_invite`, and the target users of restricted invites — `get_target_users` parses
+  Discord's CSV into user IDs (D-126), add and remove one user, bulk add and delete
+  (`BulkTargetUsers`), `update_target_users` uploads a CSV file built with
+  `FileUpload::target_users` (D-127), and `get_target_users_job_status`
+  (`InviteTargetUsersJobStatus` in `djs_model::invite`).
 - Stage instance endpoints (4 methods): create, get, modify and delete the open stage of a
   stage channel; bodies `CreateStageInstance` and `ModifyStageInstance`.
 - Guild scheduled event endpoints (6 methods): list (with user counts), create, get, modify

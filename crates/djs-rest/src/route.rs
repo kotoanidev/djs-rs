@@ -1128,6 +1128,66 @@ routes! {
         channel_id: ChannelId,
     } => DELETE "/stage-instances/{channel_id}";
 
+    // Invites. The invite code is part of the path but not a major parameter.
+
+    /// [Get Invite](https://docs.discord.com/developers/resources/invite#get-invite).
+    GetInvite {
+        /// The invite code.
+        invite_code: &'a str,
+    } => GET "/invites/{invite_code}";
+
+    /// [Delete Invite](https://docs.discord.com/developers/resources/invite#delete-invite).
+    DeleteInvite {
+        /// The invite code.
+        invite_code: &'a str,
+    } => DELETE "/invites/{invite_code}";
+
+    /// [Get Target Users](https://docs.discord.com/developers/resources/invite#get-target-users).
+    GetTargetUsers {
+        /// The invite code.
+        invite_code: &'a str,
+    } => GET "/invites/{invite_code}/target-users";
+
+    /// [Add Target User](https://docs.discord.com/developers/resources/invite#add-target-user).
+    AddTargetUser {
+        /// The invite code.
+        invite_code: &'a str,
+        /// The user.
+        user_id: UserId,
+    } => PUT "/invites/{invite_code}/target-users/{user_id}";
+
+    /// [Remove Target User](https://docs.discord.com/developers/resources/invite#remove-target-user).
+    RemoveTargetUser {
+        /// The invite code.
+        invite_code: &'a str,
+        /// The user.
+        user_id: UserId,
+    } => DELETE "/invites/{invite_code}/target-users/{user_id}";
+
+    /// [Update Target Users](https://docs.discord.com/developers/resources/invite#update-target-users).
+    UpdateTargetUsers {
+        /// The invite code.
+        invite_code: &'a str,
+    } => PUT "/invites/{invite_code}/target-users";
+
+    /// [Bulk-Add Target Users](https://docs.discord.com/developers/resources/invite#bulk-add-target-users).
+    BulkAddTargetUsers {
+        /// The invite code.
+        invite_code: &'a str,
+    } => POST "/invites/{invite_code}/target-users/bulk-add";
+
+    /// [Bulk-Delete Target Users](https://docs.discord.com/developers/resources/invite#bulk-delete-target-users).
+    BulkDeleteTargetUsers {
+        /// The invite code.
+        invite_code: &'a str,
+    } => POST "/invites/{invite_code}/target-users/bulk-delete";
+
+    /// [Get Target Users Job Status](https://docs.discord.com/developers/resources/invite#get-target-users-job-status).
+    GetTargetUsersJobStatus {
+        /// The invite code.
+        invite_code: &'a str,
+    } => GET "/invites/{invite_code}/target-users/job-status";
+
     // Channels and threads.
 
     /// [Get Channel](https://docs.discord.com/developers/resources/channel#get-channel).

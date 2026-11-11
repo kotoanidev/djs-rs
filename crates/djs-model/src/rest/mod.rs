@@ -5,13 +5,16 @@
 //! discord.js counterpart: the `RESTPost…JSONBody` / `RESTGet…Result` types of
 //! discord-api-types.
 
-use core::fmt;
+use core::fmt::{self, Write as _};
 
 use bytes::Bytes;
 use compact_str::CompactString;
 use serde::{Deserialize, Serialize, Serializer, ser::SerializeSeq};
 
-use crate::message::{AttachmentRequest, AttachmentRequestId};
+use crate::{
+    id::UserId,
+    message::{AttachmentRequest, AttachmentRequestId},
+};
 
 mod application_command;
 mod channel;
@@ -20,6 +23,7 @@ mod error_code;
 mod guild;
 mod guild_scheduled_event;
 mod interaction;
+mod invite;
 mod message;
 mod soundboard;
 mod stage_instance;
@@ -54,6 +58,7 @@ pub use self::{
         ListScheduledEventsForGuild, ModifyGuildScheduledEvent, RecurrenceRuleData,
     },
     interaction::CreateFollowupMessage,
+    invite::{BulkTargetUsers, GetInvite},
     message::{
         BulkDeleteMessages, ChannelPins, CreateMessage, EditMessage, GetChannelMessages,
         GetChannelPins, GetReactions, MessageSearchResults, SearchAuthorType, SearchEmbedType,
@@ -165,6 +170,35 @@ impl FileUpload {
             duration_secs: None,
             waveform: None,
             is_spoiler: false,
+        }
+    }
+
+    /// A CSV file named `users.csv` listing `user_ids`, one per line (D-127): the
+    /// `target_users_file` of Update Target Users and Create Channel Invite.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use djs_model::{id::UserId, rest::FileUpload};
+    ///
+    /// let file = FileUpload::target_users([UserId::new(7), UserId::new(8)]);
+    /// assert_eq!(file.name, "users.csv");
+    /// assert_eq!(&file.data[..], b"7\n8");
+    /// assert_eq!(file.content_type.as_deref(), Some("text/csv"));
+    /// ```
+    #[must_use]
+    pub fn target_users(user_ids: impl IntoIterator<Item = UserId>) -> Self {
+        let mut csv = String::new();
+        for (index, id) in user_ids.into_iter().enumerate() {
+            if index > 0 {
+                csv.push('\n');
+            }
+            // Writing to a `String` cannot fail.
+            let _ = write!(csv, "{id}");
+        }
+        Self {
+            content_type: Some(CompactString::const_new("text/csv")),
+            ..Self::new("users.csv", csv)
         }
     }
 }

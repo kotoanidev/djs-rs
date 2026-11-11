@@ -6,6 +6,7 @@ mod emoji;
 mod guild;
 mod guild_scheduled_event;
 mod interaction;
+mod invite;
 mod message;
 mod soundboard;
 mod stage_instance;
