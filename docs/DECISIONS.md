@@ -506,6 +506,15 @@ and why.
   thanks to `#[non_exhaustive]`, D-053).
 - **Alternatives:** components first, then messages.
 
+### D-063 — Every `type`-discriminated union is an enum of precise variants
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** D-057 becomes the general rule: every documented union keyed by a `type` field
+  (message interaction metadata, components, interaction data, command options, audit log
+  changes, …) is an enum with one precise struct per variant plus an `Unknown` variant. Decoding
+  stays single-pass and non-buffering (a private flat struct converted by `type`); shared
+  fields are exposed through methods.
+- **Alternatives:** flat structs with every variant's fields optional; deciding case by case.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
