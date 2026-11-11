@@ -973,6 +973,29 @@ and why.
   `From<OnboardingPrompt>`/`From<PromptOption>` send existing ones back.
 - **Alternatives:** the same types with required IDs.
 
+### D-119 — Webhook query parameters live in the body structs
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** `ExecuteWebhook` and `EditWebhookMessage` carry `thread_id` and
+  `with_components` as fields that are sent in the query string, not in the JSON (like the
+  `threadId`/`withComponents` options of discord.js). Get and Delete Webhook Message take
+  `thread_id: Option<ChannelId>` as an argument. Execute Webhook's `wait` follows D-106:
+  `execute_webhook` (no response) and `execute_webhook_and_wait` (returns the `Message`).
+- **Alternatives:** separate query structs as an extra argument; plain method arguments.
+
+### D-120 — Slack- and GitHub-compatible webhooks are not modelled
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** Execute Slack-Compatible Webhook and Execute GitHub-Compatible Webhook are
+  left out: they take third-party payloads meant to be sent by those services, and
+  discord.js does not support them either.
+- **Alternatives:** methods taking the raw JSON payload (and the `X-GitHub-Event` header).
+
+### D-121 — Token-authenticated routes are sent without the bot token
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** Routes authenticated by a webhook or interaction token in their path
+  (`/webhooks/{id}/{token}…`, `/interactions/{id}/{token}/callback`) are sent without the
+  `Authorization` header, like `auth: false` in discord.js.
+- **Alternatives:** always send the client's token.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
