@@ -1075,6 +1075,15 @@ and why.
 - **Alternatives:** a generic `Action::new(kind, metadata)` with `ActionMetadata`
   constructors; `timeout` taking a `core::time::Duration`.
 
+### D-130 — Create Test Entitlement has guild and user constructors
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `djs_model::rest::CreateTestEntitlement` has public fields and the
+  constructors `guild(sku_id, guild_id)` and `user(sku_id, user_id)`, which set `owner_id`
+  and `owner_type`. `owner_type` is a new `int_enum!`
+  `entitlement::EntitlementOwnerType { Guild = 1, User = 2 }` (discord.js has the same enum).
+- **Alternatives:** an `EntitlementOwner::{Guild, User}` enum with custom serialization; a
+  generic `new(sku_id, owner_id, owner_type)`.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
