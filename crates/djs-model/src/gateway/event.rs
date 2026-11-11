@@ -7,7 +7,7 @@ use serde::de::{DeserializeSeed, Deserializer, Error as DeError, IgnoredAny, Map
 
 use crate::gateway::{
     OpCode,
-    payload::{Hello, MessageCreate, Ready},
+    payload::{self, Hello},
 };
 
 /// A payload received from the gateway, decoded according to its opcode.
@@ -34,38 +34,224 @@ pub enum GatewayEvent {
     Unknown(OpCode),
 }
 
-/// The event carried by a [`GatewayEvent::Dispatch`].
-///
-/// **Coverage:** Phase 1 decodes the events needed by the vertical slice. Every other event is
-/// skipped efficiently (its data is validated but not stored) and reported as
-/// [`DispatchEvent::Unknown`] with its name.
-///
-/// Large events are boxed to keep this enum small.
-#[derive(Clone, Debug, PartialEq)]
-#[non_exhaustive]
-pub enum DispatchEvent {
-    /// `MESSAGE_CREATE`: a message was sent.
-    MessageCreate(Box<MessageCreate>),
-    /// `READY`: the session was established.
-    Ready(Box<Ready>),
-    /// `RESUMED`: a resume completed and all missed events were replayed.
-    Resumed,
-    /// An event this version of the library does not decode, with its name
-    /// (for example `"GUILD_CREATE"`).
-    Unknown(CompactString),
+/// Defines [`DispatchEvent`] (variants, [`name`](DispatchEvent::name)) and the routing of
+/// `t` to the payload types from one list, so they cannot drift apart.
+macro_rules! dispatch_events {
+    ($(#[doc = $doc:literal] $name:literal => $variant:ident($ty:ty),)*) => {
+        /// The event carried by a [`GatewayEvent::Dispatch`]: every documented dispatch event,
+        /// with its own payload type (D-073) from [`payload`](crate::gateway::payload).
+        ///
+        /// Large payloads are boxed to keep this enum small; small `Copy` payloads are inline.
+        /// Events this version does not know are skipped efficiently (validated, not stored)
+        /// and reported as [`Unknown`](Self::Unknown) with their name.
+        #[derive(Clone, Debug, PartialEq)]
+        #[non_exhaustive]
+        pub enum DispatchEvent {
+            $(#[doc = $doc] $variant($ty),)*
+            /// `RESUMED`: a resume completed and all missed events were replayed.
+            Resumed,
+            /// An event this version of the library does not decode, with its name.
+            Unknown(CompactString),
+        }
+
+        impl DispatchEvent {
+            /// Returns the event name as sent by Discord, such as `"MESSAGE_CREATE"`.
+            #[must_use]
+            pub fn name(&self) -> &str {
+                match self {
+                    $(Self::$variant(_) => $name,)*
+                    Self::Resumed => "RESUMED",
+                    Self::Unknown(name) => name,
+                }
+            }
+
+            /// Decodes the data of the event named `name` from the next map value.
+            fn decode<'de, A: MapAccess<'de>>(name: &str, map: &mut A) -> Result<Self, A::Error> {
+                Ok(match name {
+                    $($name => Self::$variant(map.next_value()?),)*
+                    "RESUMED" => {
+                        map.next_value::<IgnoredAny>()?;
+                        Self::Resumed
+                    }
+                    other => {
+                        map.next_value::<IgnoredAny>()?;
+                        Self::Unknown(CompactString::from(other))
+                    }
+                })
+            }
+        }
+
+        /// Serializes the event's data (the `d` field of the payload): the payload type's own
+        /// JSON shape; `null` for [`Resumed`](Self::Resumed) and [`Unknown`](Self::Unknown)
+        /// events (whose data is not kept).
+        impl serde::Serialize for DispatchEvent {
+            fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+                match self {
+                    $(Self::$variant(data) => data.serialize(serializer),)*
+                    Self::Resumed | Self::Unknown(_) => serializer.serialize_unit(),
+                }
+            }
+        }
+    };
 }
 
-impl DispatchEvent {
-    /// Returns the event name as sent by Discord, such as `"MESSAGE_CREATE"`.
-    #[must_use]
-    pub fn name(&self) -> &str {
-        match self {
-            Self::MessageCreate(_) => "MESSAGE_CREATE",
-            Self::Ready(_) => "READY",
-            Self::Resumed => "RESUMED",
-            Self::Unknown(name) => name,
-        }
-    }
+dispatch_events! {
+    /// `READY`: the session was established.
+    "READY" => Ready(Box<payload::Ready>),
+    /// `RATE_LIMITED`: a gateway command was rate limited.
+    "RATE_LIMITED" => RateLimited(Box<payload::RateLimited>),
+    /// `APPLICATION_COMMAND_PERMISSIONS_UPDATE`: a command's permissions were updated.
+    "APPLICATION_COMMAND_PERMISSIONS_UPDATE" => ApplicationCommandPermissionsUpdate(Box<payload::ApplicationCommandPermissionsUpdate>),
+    /// `AUTO_MODERATION_RULE_CREATE`: an auto moderation rule was created.
+    "AUTO_MODERATION_RULE_CREATE" => AutoModerationRuleCreate(Box<payload::AutoModerationRuleCreate>),
+    /// `AUTO_MODERATION_RULE_UPDATE`: an auto moderation rule was updated.
+    "AUTO_MODERATION_RULE_UPDATE" => AutoModerationRuleUpdate(Box<payload::AutoModerationRuleUpdate>),
+    /// `AUTO_MODERATION_RULE_DELETE`: an auto moderation rule was deleted.
+    "AUTO_MODERATION_RULE_DELETE" => AutoModerationRuleDelete(Box<payload::AutoModerationRuleDelete>),
+    /// `AUTO_MODERATION_ACTION_EXECUTION`: an auto moderation action ran.
+    "AUTO_MODERATION_ACTION_EXECUTION" => AutoModerationActionExecution(Box<payload::AutoModerationActionExecution>),
+    /// `CHANNEL_CREATE`: a guild channel was created.
+    "CHANNEL_CREATE" => ChannelCreate(Box<payload::ChannelCreate>),
+    /// `CHANNEL_UPDATE`: a channel was updated.
+    "CHANNEL_UPDATE" => ChannelUpdate(Box<payload::ChannelUpdate>),
+    /// `CHANNEL_DELETE`: a channel was deleted.
+    "CHANNEL_DELETE" => ChannelDelete(Box<payload::ChannelDelete>),
+    /// `CHANNEL_INFO`: ephemeral channel data (answer to a channel info request).
+    "CHANNEL_INFO" => ChannelInfo(Box<payload::ChannelInfo>),
+    /// `CHANNEL_PINS_UPDATE`: a message was pinned or unpinned.
+    "CHANNEL_PINS_UPDATE" => ChannelPinsUpdate(Box<payload::ChannelPinsUpdate>),
+    /// `THREAD_CREATE`: a thread was created or the bot was added to one.
+    "THREAD_CREATE" => ThreadCreate(Box<payload::ThreadCreate>),
+    /// `THREAD_UPDATE`: a thread was updated.
+    "THREAD_UPDATE" => ThreadUpdate(Box<payload::ThreadUpdate>),
+    /// `THREAD_DELETE`: a thread was deleted.
+    "THREAD_DELETE" => ThreadDelete(Box<payload::ThreadDelete>),
+    /// `THREAD_LIST_SYNC`: the active threads of channels the bot gained access to.
+    "THREAD_LIST_SYNC" => ThreadListSync(Box<payload::ThreadListSync>),
+    /// `THREAD_MEMBER_UPDATE`: the bot's thread member was updated.
+    "THREAD_MEMBER_UPDATE" => ThreadMemberUpdate(Box<payload::ThreadMemberUpdate>),
+    /// `THREAD_MEMBERS_UPDATE`: users were added to or removed from a thread.
+    "THREAD_MEMBERS_UPDATE" => ThreadMembersUpdate(Box<payload::ThreadMembersUpdate>),
+    /// `ENTITLEMENT_CREATE`: an entitlement was created.
+    "ENTITLEMENT_CREATE" => EntitlementCreate(Box<payload::EntitlementCreate>),
+    /// `ENTITLEMENT_UPDATE`: an entitlement was updated or ended.
+    "ENTITLEMENT_UPDATE" => EntitlementUpdate(Box<payload::EntitlementUpdate>),
+    /// `ENTITLEMENT_DELETE`: an entitlement was deleted.
+    "ENTITLEMENT_DELETE" => EntitlementDelete(Box<payload::EntitlementDelete>),
+    /// `GUILD_CREATE`: a guild was loaded, became available or was joined.
+    "GUILD_CREATE" => GuildCreate(Box<payload::GuildCreate>),
+    /// `GUILD_UPDATE`: a guild was updated.
+    "GUILD_UPDATE" => GuildUpdate(Box<payload::GuildUpdate>),
+    /// `GUILD_DELETE`: a guild became unavailable or the bot left it.
+    "GUILD_DELETE" => GuildDelete(payload::GuildDelete),
+    /// `GUILD_AUDIT_LOG_ENTRY_CREATE`: an audit log entry was created.
+    "GUILD_AUDIT_LOG_ENTRY_CREATE" => GuildAuditLogEntryCreate(Box<payload::GuildAuditLogEntryCreate>),
+    /// `GUILD_BAN_ADD`: a user was banned.
+    "GUILD_BAN_ADD" => GuildBanAdd(Box<payload::GuildBanAdd>),
+    /// `GUILD_BAN_REMOVE`: a user was unbanned.
+    "GUILD_BAN_REMOVE" => GuildBanRemove(Box<payload::GuildBanRemove>),
+    /// `GUILD_EMOJIS_UPDATE`: a guild's emojis changed.
+    "GUILD_EMOJIS_UPDATE" => GuildEmojisUpdate(Box<payload::GuildEmojisUpdate>),
+    /// `GUILD_STICKERS_UPDATE`: a guild's stickers changed.
+    "GUILD_STICKERS_UPDATE" => GuildStickersUpdate(Box<payload::GuildStickersUpdate>),
+    /// `GUILD_INTEGRATIONS_UPDATE`: a guild's integrations changed.
+    "GUILD_INTEGRATIONS_UPDATE" => GuildIntegrationsUpdate(payload::GuildIntegrationsUpdate),
+    /// `GUILD_MEMBER_ADD`: a user joined a guild.
+    "GUILD_MEMBER_ADD" => GuildMemberAdd(Box<payload::GuildMemberAdd>),
+    /// `GUILD_MEMBER_REMOVE`: a user left or was removed from a guild.
+    "GUILD_MEMBER_REMOVE" => GuildMemberRemove(Box<payload::GuildMemberRemove>),
+    /// `GUILD_MEMBER_UPDATE`: a member was updated.
+    "GUILD_MEMBER_UPDATE" => GuildMemberUpdate(Box<payload::GuildMemberUpdate>),
+    /// `GUILD_MEMBERS_CHUNK`: members requested with a guild members request.
+    "GUILD_MEMBERS_CHUNK" => GuildMembersChunk(Box<payload::GuildMembersChunk>),
+    /// `GUILD_ROLE_CREATE`: a role was created.
+    "GUILD_ROLE_CREATE" => GuildRoleCreate(Box<payload::GuildRoleCreate>),
+    /// `GUILD_ROLE_UPDATE`: a role was updated.
+    "GUILD_ROLE_UPDATE" => GuildRoleUpdate(Box<payload::GuildRoleUpdate>),
+    /// `GUILD_ROLE_DELETE`: a role was deleted.
+    "GUILD_ROLE_DELETE" => GuildRoleDelete(payload::GuildRoleDelete),
+    /// `GUILD_SCHEDULED_EVENT_CREATE`: a scheduled event was created.
+    "GUILD_SCHEDULED_EVENT_CREATE" => GuildScheduledEventCreate(Box<payload::GuildScheduledEventCreate>),
+    /// `GUILD_SCHEDULED_EVENT_UPDATE`: a scheduled event was updated.
+    "GUILD_SCHEDULED_EVENT_UPDATE" => GuildScheduledEventUpdate(Box<payload::GuildScheduledEventUpdate>),
+    /// `GUILD_SCHEDULED_EVENT_DELETE`: a scheduled event was deleted.
+    "GUILD_SCHEDULED_EVENT_DELETE" => GuildScheduledEventDelete(Box<payload::GuildScheduledEventDelete>),
+    /// `GUILD_SCHEDULED_EVENT_USER_ADD`: a user subscribed to a scheduled event.
+    "GUILD_SCHEDULED_EVENT_USER_ADD" => GuildScheduledEventUserAdd(payload::GuildScheduledEventUserAdd),
+    /// `GUILD_SCHEDULED_EVENT_USER_REMOVE`: a user unsubscribed from a scheduled event.
+    "GUILD_SCHEDULED_EVENT_USER_REMOVE" => GuildScheduledEventUserRemove(payload::GuildScheduledEventUserRemove),
+    /// `GUILD_SOUNDBOARD_SOUND_CREATE`: a soundboard sound was created.
+    "GUILD_SOUNDBOARD_SOUND_CREATE" => GuildSoundboardSoundCreate(Box<payload::GuildSoundboardSoundCreate>),
+    /// `GUILD_SOUNDBOARD_SOUND_UPDATE`: a soundboard sound was updated.
+    "GUILD_SOUNDBOARD_SOUND_UPDATE" => GuildSoundboardSoundUpdate(Box<payload::GuildSoundboardSoundUpdate>),
+    /// `GUILD_SOUNDBOARD_SOUND_DELETE`: a soundboard sound was deleted.
+    "GUILD_SOUNDBOARD_SOUND_DELETE" => GuildSoundboardSoundDelete(payload::GuildSoundboardSoundDelete),
+    /// `GUILD_SOUNDBOARD_SOUNDS_UPDATE`: several soundboard sounds were updated.
+    "GUILD_SOUNDBOARD_SOUNDS_UPDATE" => GuildSoundboardSoundsUpdate(Box<payload::GuildSoundboardSoundsUpdate>),
+    /// `SOUNDBOARD_SOUNDS`: a guild's soundboard sounds (answer to a soundboard sounds request).
+    "SOUNDBOARD_SOUNDS" => SoundboardSounds(Box<payload::SoundboardSounds>),
+    /// `INTEGRATION_CREATE`: an integration was created.
+    "INTEGRATION_CREATE" => IntegrationCreate(Box<payload::IntegrationCreate>),
+    /// `INTEGRATION_UPDATE`: an integration was updated.
+    "INTEGRATION_UPDATE" => IntegrationUpdate(Box<payload::IntegrationUpdate>),
+    /// `INTEGRATION_DELETE`: an integration was deleted.
+    "INTEGRATION_DELETE" => IntegrationDelete(payload::IntegrationDelete),
+    /// `INTERACTION_CREATE`: a user used a command, component or modal.
+    "INTERACTION_CREATE" => InteractionCreate(Box<payload::InteractionCreate>),
+    /// `INVITE_CREATE`: an invite was created.
+    "INVITE_CREATE" => InviteCreate(Box<payload::InviteCreate>),
+    /// `INVITE_DELETE`: an invite was deleted.
+    "INVITE_DELETE" => InviteDelete(Box<payload::InviteDelete>),
+    /// `MESSAGE_CREATE`: a message was sent.
+    "MESSAGE_CREATE" => MessageCreate(Box<payload::MessageCreate>),
+    /// `MESSAGE_UPDATE`: a message was edited.
+    "MESSAGE_UPDATE" => MessageUpdate(Box<payload::MessageUpdate>),
+    /// `MESSAGE_DELETE`: a message was deleted.
+    "MESSAGE_DELETE" => MessageDelete(Box<payload::MessageDelete>),
+    /// `MESSAGE_DELETE_BULK`: several messages were deleted.
+    "MESSAGE_DELETE_BULK" => MessageDeleteBulk(Box<payload::MessageDeleteBulk>),
+    /// `MESSAGE_REACTION_ADD`: a user reacted to a message.
+    "MESSAGE_REACTION_ADD" => MessageReactionAdd(Box<payload::MessageReactionAdd>),
+    /// `MESSAGE_REACTION_REMOVE`: a reaction was removed.
+    "MESSAGE_REACTION_REMOVE" => MessageReactionRemove(Box<payload::MessageReactionRemove>),
+    /// `MESSAGE_REACTION_REMOVE_ALL`: all reactions were removed from a message.
+    "MESSAGE_REACTION_REMOVE_ALL" => MessageReactionRemoveAll(payload::MessageReactionRemoveAll),
+    /// `MESSAGE_REACTION_REMOVE_EMOJI`: all reactions with one emoji were removed.
+    "MESSAGE_REACTION_REMOVE_EMOJI" => MessageReactionRemoveEmoji(Box<payload::MessageReactionRemoveEmoji>),
+    /// `MESSAGE_POLL_VOTE_ADD`: a user voted on a poll.
+    "MESSAGE_POLL_VOTE_ADD" => MessagePollVoteAdd(Box<payload::MessagePollVoteAdd>),
+    /// `MESSAGE_POLL_VOTE_REMOVE`: a user removed a poll vote.
+    "MESSAGE_POLL_VOTE_REMOVE" => MessagePollVoteRemove(Box<payload::MessagePollVoteRemove>),
+    /// `PRESENCE_UPDATE`: a user's presence or user data changed.
+    "PRESENCE_UPDATE" => PresenceUpdate(Box<payload::PresenceUpdate>),
+    /// `STAGE_INSTANCE_CREATE`: a stage went live.
+    "STAGE_INSTANCE_CREATE" => StageInstanceCreate(Box<payload::StageInstanceCreate>),
+    /// `STAGE_INSTANCE_UPDATE`: a stage instance was updated.
+    "STAGE_INSTANCE_UPDATE" => StageInstanceUpdate(Box<payload::StageInstanceUpdate>),
+    /// `STAGE_INSTANCE_DELETE`: a stage ended.
+    "STAGE_INSTANCE_DELETE" => StageInstanceDelete(Box<payload::StageInstanceDelete>),
+    /// `SUBSCRIPTION_CREATE`: an app subscription was created.
+    "SUBSCRIPTION_CREATE" => SubscriptionCreate(Box<payload::SubscriptionCreate>),
+    /// `SUBSCRIPTION_UPDATE`: an app subscription was updated.
+    "SUBSCRIPTION_UPDATE" => SubscriptionUpdate(Box<payload::SubscriptionUpdate>),
+    /// `SUBSCRIPTION_DELETE`: an app subscription was deleted.
+    "SUBSCRIPTION_DELETE" => SubscriptionDelete(Box<payload::SubscriptionDelete>),
+    /// `TYPING_START`: a user started typing.
+    "TYPING_START" => TypingStart(Box<payload::TypingStart>),
+    /// `USER_UPDATE`: the bot's user changed.
+    "USER_UPDATE" => UserUpdate(Box<payload::UserUpdate>),
+    /// `VOICE_CHANNEL_EFFECT_SEND`: someone sent an effect in the bot's voice channel.
+    "VOICE_CHANNEL_EFFECT_SEND" => VoiceChannelEffectSend(Box<payload::VoiceChannelEffectSend>),
+    /// `VOICE_CHANNEL_START_TIME_UPDATE`: a voice channel's start time changed.
+    "VOICE_CHANNEL_START_TIME_UPDATE" => VoiceChannelStartTimeUpdate(Box<payload::VoiceChannelStartTimeUpdate>),
+    /// `VOICE_CHANNEL_STATUS_UPDATE`: a voice channel's status changed.
+    "VOICE_CHANNEL_STATUS_UPDATE" => VoiceChannelStatusUpdate(Box<payload::VoiceChannelStatusUpdate>),
+    /// `VOICE_STATE_UPDATE`: someone joined, left or moved between voice channels.
+    "VOICE_STATE_UPDATE" => VoiceStateUpdate(Box<payload::VoiceStateUpdate>),
+    /// `VOICE_SERVER_UPDATE`: where to connect for voice.
+    "VOICE_SERVER_UPDATE" => VoiceServerUpdate(Box<payload::VoiceServerUpdate>),
+    /// `WEBHOOKS_UPDATE`: a channel's webhooks changed.
+    "WEBHOOKS_UPDATE" => WebhooksUpdate(payload::WebhooksUpdate),
 }
 
 /// A [`DeserializeSeed`] that decodes a gateway payload into a [`GatewayEvent`].
@@ -171,19 +357,7 @@ impl EnvelopeVisitor<'_> {
                 let name = self.0.event_type.ok_or_else(|| {
                     A::Error::custom("dispatch payload without an event name (`t`)")
                 })?;
-                let event = match name {
-                    "MESSAGE_CREATE" => DispatchEvent::MessageCreate(map.next_value()?),
-                    "READY" => DispatchEvent::Ready(map.next_value()?),
-                    "RESUMED" => {
-                        map.next_value::<IgnoredAny>()?;
-                        DispatchEvent::Resumed
-                    }
-                    other => {
-                        map.next_value::<IgnoredAny>()?;
-                        DispatchEvent::Unknown(CompactString::from(other))
-                    }
-                };
-                return Ok(Data::Dispatch(event));
+                return Ok(Data::Dispatch(DispatchEvent::decode(name, map)?));
             }
             OpCode::InvalidSession => GatewayEvent::InvalidSession(map.next_value()?),
             OpCode::Hello => GatewayEvent::Hello(map.next_value()?),
@@ -536,10 +710,10 @@ mod tests {
 
     #[test]
     fn unknown_dispatch_is_skipped() {
-        let event = decode(r#"{"t":"GUILD_CREATE","s":2,"op":0,"d":{"id":"1","big":[1,2,3]}}"#);
+        let event = decode(r#"{"t":"FUTURE_EVENT","s":2,"op":0,"d":{"id":"1","big":[1,2,3]}}"#);
         assert_eq!(
             event,
-            GatewayEvent::Dispatch(2, DispatchEvent::Unknown("GUILD_CREATE".into()))
+            GatewayEvent::Dispatch(2, DispatchEvent::Unknown("FUTURE_EVENT".into()))
         );
     }
 

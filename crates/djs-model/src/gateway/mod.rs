@@ -17,7 +17,11 @@ pub use self::{
     event::{DispatchEvent, GatewayEvent, GatewayEventDeserializer},
     intents::Intents,
     opcode::OpCode,
-    presence::{ActivityFlags, Status},
+    presence::{
+        Activity, ActivityAssets, ActivityEmoji, ActivityFlags, ActivityParty, ActivitySecrets,
+        ActivityTimestamps, ActivityType, ClientStatus, Presence, PresenceUser, Status,
+        StatusDisplayType,
+    },
     shard_id::ShardId,
 };
 

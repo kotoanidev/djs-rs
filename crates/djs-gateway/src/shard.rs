@@ -4,7 +4,7 @@ use core::{fmt::Write as _, pin::Pin, time::Duration};
 
 use djs_model::gateway::{
     API_VERSION, CloseCode, DispatchEvent, GatewayEvent, GatewayEventDeserializer, OpCode, ShardId,
-    payload::{CommandPayload, GatewayCommand, Heartbeat, Identify, Resume},
+    payload::{CommandPayload, GatewayCapabilities, GatewayCommand, Heartbeat, Identify, Resume},
 };
 use futures_util::{SinkExt, StreamExt};
 use serde::de::DeserializeSeed;
@@ -538,6 +538,8 @@ impl Shard {
             large_threshold: self.config.large_threshold,
             shard: Some(self.id),
             intents: self.config.intents,
+            presence: None,
+            capabilities: GatewayCapabilities::empty(),
         };
         self.last_identify = Some(Instant::now());
         self.state = ShardState::Identifying;

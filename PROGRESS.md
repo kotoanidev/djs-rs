@@ -107,12 +107,23 @@ D-041).
 - `soundboard`, `lobby` ✅ (C-035), tests `tests/soundboard_lobby.rs`.
 - `application_identity_profile` ✅ (D-072, C-036; `util::JsonValue` shared with the audit
   log), test in `tests/application.rs`. All resource pages of the docs are now modelled.
-- **Next:** every gateway dispatch event + close codes (`gateway::DispatchEvent` for all
-  events in `docs …/events/gateway-events.mdx`, including the `GUILD_CREATE` extras: members,
-  channels, threads, presences, voice states, stage instances, scheduled events, soundboard
-  sounds) and the gateway commands' payloads → topics pages still unmodelled (check
-  `docs/topics`: permissions/teams/oauth2 done; rate-limit and error bodies are Phase 3) →
-  Phase 2 benches and stress tests (D-041).
+- Dispatch events ✅ (D-073 own payload types, D-074 presence users, D-075 Unix times as
+  `Timestamp`; C-037): `gateway::presence::{Presence, PresenceUser, ClientStatus, Activity +
+  parts}`, payload types for every dispatch event in
+  `gateway/payload/incoming/{mod,guild,channel,message}.rs` (`newtype_event!`,
+  `guild_id_event!`, `serde_util::extras` single-pass "object + extra fields" combinator;
+  GUILD_CREATE recognizes unavailable guilds through `Extras::recover` + a replayed `id`),
+  all 78 events routed in `gateway::DispatchEvent` (+ `Serialize`), gateway commands (request
+  guild members / soundboard sounds / channel info, voice state, presence; `Identify` presence
+  and capabilities). Tests `tests/gateway_dispatch.rs`: a synthetic or docs payload for every
+  event decoded from a full envelope and round-tripped, GUILD_CREATE available/unavailable/
+  errors, extras in any key order and with escaped keys, presences with the docs' activities,
+  Unix seconds, redaction, commands equal to the docs' examples. Gateway close codes were
+  already complete (checked against the docs).
+- **Next:** topics pages check (anything unmodelled that is not REST/voice — rate-limit and
+  error bodies are Phase 3) → Phase 2 benches and stress tests (D-041): extend
+  `djs-model/benches/decode.rs` (every event family, large GUILD_CREATE), extreme-load decode
+  tests, A/B against the Phase 1 commit `65210f8`, record in `docs/PERFORMANCE.md`.
 - Local gate script: `scratchpad/gate.sh` style (`set -euo pipefail`, no pipes hiding errors) —
   a piped gate let one clippy failure through (fixed in `cda06db`).
 - Perf note: after the user change, MESSAGE_CREATE/READY decode looked ~8-13 % slower relative

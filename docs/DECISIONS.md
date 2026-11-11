@@ -898,6 +898,28 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   after reading `type`. Integer stats are `u64`, `playtime_hours` is `f64`.
 - `JsonValue` moved from `audit_log` to `util` (D-072).
 
+### C-037 — Gateway dispatch event and command details
+- Events whose payload is "an object plus extra fields" (D-073) decode in a single pass with
+  `serde_util::extras`: a `MapAccess` adapter that hands the keys the event's extras type
+  recognises to it and every other key to the base type. Extras can `Replay` a key to the base
+  type as well (`GUILD_CREATE` reads `id` for both) and can `recover` when the base type fails
+  (an unavailable `GUILD_CREATE` lacks the guild fields). Escaped keys are supported.
+- Two private macros: `newtype_event!` (transparent newtype with `Deref`/`DerefMut`/`From`) for
+  events whose data is an existing object, and `guild_id_event!` (`{ guild_id, <object> }`
+  with `Deref` to the object) for the "object + `guild_id`" events.
+- `DispatchEvent` variants hold payloads of at most 24 bytes inline and box the rest, keeping
+  the enum at 32 bytes. Unknown events keep their name and skip their data; `RESUMED` ignores
+  its data. `DispatchEvent` also implements `Serialize` (it writes the `d` data, `null` for
+  `Resumed`/`Unknown`) for tests, proxies and recordings.
+- `Identify` gained `presence` and `capabilities` (empty capabilities are not written);
+  per-payload `compress` is not modelled (transport compression is used instead, D-015).
+  Gateway commands are `Serialize`-only: bots never receive them.
+- `GUILD_CREATE`: the fields only it carries default when absent; `joined_at` is an `Option`.
+  `GUILD_MEMBER_UPDATE`: `deaf`, `mute` and `pending` are `Option<bool>` (optional in the event,
+  unlike in `Member`). `THREAD_LIST_SYNC`: `channel_ids` is an `Option` (absent means the whole
+  guild was synced, which differs from an empty list). `GUILD_MEMBERS_CHUNK`: `not_found` is a
+  `Vec<UserId>`.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

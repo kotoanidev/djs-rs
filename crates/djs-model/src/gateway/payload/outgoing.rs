@@ -5,7 +5,12 @@ use core::fmt;
 use compact_str::CompactString;
 use serde::{Serialize, Serializer, ser::SerializeStruct};
 
-use crate::gateway::{Intents, OpCode, ShardId};
+use crate::{
+    gateway::{Activity, Intents, OpCode, ShardId, Status},
+    id::{ChannelId, GuildId, UserId},
+    macros::{int_flags, str_enum},
+    util::Timestamp,
+};
 
 /// A payload that can be sent to the gateway.
 ///
@@ -81,6 +86,21 @@ pub struct Identify {
     pub shard: Option<ShardId>,
     /// The gateway intents to subscribe to.
     pub intents: Intents,
+    /// The presence to start with.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub presence: Option<UpdatePresence>,
+    /// Opt-in gateway behaviours.
+    #[serde(skip_serializing_if = "GatewayCapabilities::is_empty")]
+    pub capabilities: GatewayCapabilities,
+}
+
+int_flags! {
+    /// [Gateway capabilities](https://docs.discord.com/developers/events/gateway-events#identify-gateway-capabilities)
+    /// a client opts into with [`Identify::capabilities`].
+    pub struct GatewayCapabilities: u64 {
+        /// Receive obfuscated metadata for channels the bot cannot view.
+        const CHANNEL_OBFUSCATION = 1 << 15;
+    }
 }
 
 impl GatewayCommand for Identify {
@@ -95,6 +115,8 @@ impl fmt::Debug for Identify {
             .field("large_threshold", &self.large_threshold)
             .field("shard", &self.shard)
             .field("intents", &self.intents)
+            .field("presence", &self.presence)
+            .field("capabilities", &self.capabilities)
             .finish()
     }
 }
@@ -162,6 +184,233 @@ impl fmt::Debug for Resume {
     }
 }
 
+/// [Request Guild Members](https://docs.discord.com/developers/events/gateway-events#request-guild-members)
+/// (opcode 8): asks for members of a guild; they arrive in
+/// [`GuildMembersChunk`](super::GuildMembersChunk) events.
+///
+/// Requesting all members (or presences) requires the `GUILD_MEMBERS` (or `GUILD_PRESENCES`)
+/// intent; it is rate limited ([`RateLimited`](super::RateLimited)).
+///
+/// discord.js counterpart: `GuildMemberManager#fetch` (over the gateway).
+///
+/// # Examples
+///
+/// ```
+/// use djs_model::{gateway::payload::{CommandPayload, RequestGuildMembers}, id::GuildId};
+///
+/// let request = RequestGuildMembers::query(GuildId::new(41771983423143937), "mix", 10);
+/// assert_eq!(
+///     serde_json::to_string(&CommandPayload::new(&request)).unwrap(),
+///     r#"{"op":8,"d":{"guild_id":"41771983423143937","query":"mix","limit":10}}"#
+/// );
+/// ```
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[non_exhaustive]
+pub struct RequestGuildMembers {
+    /// The guild.
+    pub guild_id: GuildId,
+    /// The prefix usernames must start with (`""` for all members).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub query: Option<CompactString>,
+    /// The maximum number of members for a query (`0` with an empty query: all members).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit: Option<u32>,
+    /// Whether to include the members' presences.
+    #[serde(skip_serializing_if = "core::ops::Not::not")]
+    pub presences: bool,
+    /// The users to fetch (instead of a query).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub user_ids: Vec<UserId>,
+    /// A nonce returned in the chunks (max 32 bytes).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nonce: Option<CompactString>,
+}
+
+impl RequestGuildMembers {
+    /// Requests the members whose username starts with `query`, at most `limit`.
+    #[must_use]
+    pub fn query(guild_id: GuildId, query: impl Into<CompactString>, limit: u32) -> Self {
+        Self {
+            guild_id,
+            query: Some(query.into()),
+            limit: Some(limit),
+            presences: false,
+            user_ids: Vec::new(),
+            nonce: None,
+        }
+    }
+
+    /// Requests all members (requires the `GUILD_MEMBERS` intent).
+    #[must_use]
+    pub fn all(guild_id: GuildId) -> Self {
+        Self::query(guild_id, "", 0)
+    }
+
+    /// Requests the given users (up to 100).
+    #[must_use]
+    pub fn users(guild_id: GuildId, user_ids: impl IntoIterator<Item = UserId>) -> Self {
+        Self {
+            guild_id,
+            query: None,
+            limit: None,
+            presences: false,
+            user_ids: user_ids.into_iter().collect(),
+            nonce: None,
+        }
+    }
+}
+
+impl GatewayCommand for RequestGuildMembers {
+    const OPCODE: OpCode = OpCode::RequestGuildMembers;
+}
+
+/// [Request Soundboard Sounds](https://docs.discord.com/developers/events/gateway-events#request-soundboard-sounds)
+/// (opcode 31): asks for the soundboard sounds of guilds; they arrive in
+/// [`SoundboardSounds`](super::SoundboardSounds) events.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[non_exhaustive]
+pub struct RequestSoundboardSounds {
+    /// The guilds.
+    pub guild_ids: Vec<GuildId>,
+}
+
+impl RequestSoundboardSounds {
+    /// Requests the sounds of the given guilds.
+    #[must_use]
+    pub fn new(guild_ids: impl IntoIterator<Item = GuildId>) -> Self {
+        Self {
+            guild_ids: guild_ids.into_iter().collect(),
+        }
+    }
+}
+
+impl GatewayCommand for RequestSoundboardSounds {
+    const OPCODE: OpCode = OpCode::RequestSoundboardSounds;
+}
+
+/// [Request Channel Info](https://docs.discord.com/developers/events/gateway-events#request-channel-info)
+/// (opcode 43): asks for ephemeral data of a guild's channels; it arrives in a
+/// [`ChannelInfo`](super::ChannelInfo) event.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[non_exhaustive]
+pub struct RequestChannelInfo {
+    /// The guild.
+    pub guild_id: GuildId,
+    /// The fields to request.
+    pub fields: Vec<ChannelInfoField>,
+}
+
+impl RequestChannelInfo {
+    /// Requests the given fields of the guild's channels.
+    #[must_use]
+    pub fn new(guild_id: GuildId, fields: impl IntoIterator<Item = ChannelInfoField>) -> Self {
+        Self {
+            guild_id,
+            fields: fields.into_iter().collect(),
+        }
+    }
+}
+
+impl GatewayCommand for RequestChannelInfo {
+    const OPCODE: OpCode = OpCode::RequestChannelInfo;
+}
+
+str_enum! {
+    /// A field that [`RequestChannelInfo`] can request.
+    pub enum ChannelInfoField {
+        /// The voice channel status.
+        Status = "status",
+        /// When the voice session started.
+        VoiceStartTime = "voice_start_time",
+    }
+}
+
+/// [Update Voice State](https://docs.discord.com/developers/events/gateway-events#update-voice-state)
+/// (opcode 4): joins, moves between or leaves voice channels.
+///
+/// discord.js counterpart: what `@discordjs/voice` sends through the guild's shard.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
+#[non_exhaustive]
+pub struct UpdateVoiceState {
+    /// The guild.
+    pub guild_id: GuildId,
+    /// The voice channel to join (`None` to disconnect).
+    pub channel_id: Option<ChannelId>,
+    /// Whether the bot is muted.
+    pub self_mute: bool,
+    /// Whether the bot is deafened.
+    pub self_deaf: bool,
+}
+
+impl UpdateVoiceState {
+    /// Joins `channel_id` (or disconnects with `None`).
+    #[must_use]
+    pub const fn new(
+        guild_id: GuildId,
+        channel_id: Option<ChannelId>,
+        self_mute: bool,
+        self_deaf: bool,
+    ) -> Self {
+        Self {
+            guild_id,
+            channel_id,
+            self_mute,
+            self_deaf,
+        }
+    }
+}
+
+impl GatewayCommand for UpdateVoiceState {
+    const OPCODE: OpCode = OpCode::VoiceStateUpdate;
+}
+
+/// [Update Presence](https://docs.discord.com/developers/events/gateway-events#update-presence)
+/// (opcode 3): sets the bot's status and activities (5 updates per 20 seconds).
+///
+/// discord.js counterpart: `ClientUser#setPresence`.
+///
+/// # Examples
+///
+/// ```
+/// use djs_model::gateway::{Activity, ActivityType, Status, payload::UpdatePresence};
+///
+/// let presence = UpdatePresence::new(Status::Online, [Activity::new(ActivityType::Watching, "you")]);
+/// assert_eq!(
+///     serde_json::to_string(&presence).unwrap(),
+///     r#"{"since":null,"activities":[{"name":"you","type":3}],"status":"online","afk":false}"#
+/// );
+/// ```
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[non_exhaustive]
+pub struct UpdatePresence {
+    /// When the bot went idle (sent as Unix milliseconds, D-075), `None` if not idle.
+    #[serde(with = "crate::serde_util::option_unix_millis")]
+    pub since: Option<Timestamp>,
+    /// The activities (bots can set the name, state, type and URL).
+    pub activities: Vec<Activity>,
+    /// The status.
+    pub status: Status,
+    /// Whether the bot is AFK.
+    pub afk: bool,
+}
+
+impl UpdatePresence {
+    /// Sets the status and activities (not idle, not AFK).
+    #[must_use]
+    pub fn new(status: Status, activities: impl IntoIterator<Item = Activity>) -> Self {
+        Self {
+            since: None,
+            activities: activities.into_iter().collect(),
+            status,
+            afk: false,
+        }
+    }
+}
+
+impl GatewayCommand for UpdatePresence {
+    const OPCODE: OpCode = OpCode::PresenceUpdate;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -178,6 +427,8 @@ mod tests {
             large_threshold: None,
             shard: Some(ShardId::ONE),
             intents: Intents::GUILDS | Intents::GUILD_MESSAGES,
+            presence: None,
+            capabilities: GatewayCapabilities::empty(),
         };
         let json = serde_json::to_string(&CommandPayload::new(&identify)).unwrap();
         assert_eq!(

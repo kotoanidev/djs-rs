@@ -50,7 +50,7 @@ just with narrow scope.
       command permissions, interaction responses and modals (D-068)
 - [x] Applications (+ teams, role connection metadata), entitlements, SKUs, subscriptions,
       voice states/regions, soundboard, lobbies, application identity profiles (D-072)
-- [ ] Every gateway dispatch event and close code
+- [x] Every gateway dispatch event and close code, gateway commands, presences (D-073..D-075)
 - [ ] (De)serialization tests against real JSON fixtures; benchmarks
 
 ## Phase 3 — `djs-rest` full coverage (≈ @discordjs/rest)

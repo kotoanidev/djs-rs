@@ -8,6 +8,16 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-model`: every gateway dispatch event is routed to a typed `DispatchEvent` variant with
+  its own payload type in `gateway::payload` (D-073), e.g. `GuildCreate` (available or
+  unavailable, `AvailableGuild`), `ThreadCreate`, `GuildMemberAdd`, `PresenceUpdate`,
+  `VoiceServerUpdate` (token redacted in `Debug`), `TypingStart`, `ChannelInfo`;
+  `DispatchEvent` implements `Serialize`. Presences: `gateway::{Presence, PresenceUser (D-074),
+  ClientStatus, Activity, ActivityType, ActivityTimestamps, ActivityEmoji, ActivityParty,
+  ActivityAssets, ActivitySecrets (redacted in `Debug`), StatusDisplayType}`; Unix times are
+  `Timestamp`s (D-075). Gateway commands `RequestGuildMembers`, `RequestSoundboardSounds`,
+  `RequestChannelInfo`, `UpdateVoiceState`, `UpdatePresence`; `message::ReactionType`,
+  `guild::UnavailableGuild::new`.
 - `djs-model`: `application_identity_profile::{ApplicationIdentity, ApplicationIdentityProfile,
   ProfileData, PrimaryProfileData, ProfileMedia, DynamicField, DynamicFieldValue,
   DynamicFieldType}` (D-072); `util::{JsonValue, JsonValueError}` for arbitrary JSON.
@@ -124,6 +134,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `login`/`shutdown`, prelude; `examples/ping.rs`; end-to-end tests with mock REST + gateway.
 
 ### Changed
+- `djs-model`: `Identify` gained `presence` and `capabilities` (`GatewayCapabilities`) fields.
 - `djs-model`: `Message`, `MessageCreate`, `GatewayEvent` and `DispatchEvent` are `PartialEq`
   but no longer `Eq`, because messages contain floats (D-064).
 - `djs-model`: received model structs are `#[non_exhaustive]` (D-053).

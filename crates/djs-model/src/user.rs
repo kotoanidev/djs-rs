@@ -341,6 +341,35 @@ int_enum! {
     }
 }
 
+/// Like [`discriminator`] for `Option<u16>` (partial users: absent / `null` = `None`).
+pub(crate) mod option_discriminator {
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    #[derive(Deserialize)]
+    struct Discriminator(#[serde(with = "super::discriminator")] u16);
+
+    #[expect(
+        clippy::ref_option,
+        clippy::trivially_copy_pass_by_ref,
+        reason = "signature required by serde(with)"
+    )]
+    pub(crate) fn serialize<S: Serializer>(
+        value: &Option<u16>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        match value {
+            Some(value) => super::discriminator::serialize(value, serializer),
+            None => serializer.serialize_none(),
+        }
+    }
+
+    pub(crate) fn deserialize<'de, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<Option<u16>, D::Error> {
+        Option::<Discriminator>::deserialize(deserializer).map(|value| value.map(|value| value.0))
+    }
+}
+
 /// (De)serializes a discriminator: a string of digits on the wire, `u16` in memory.
 pub(crate) mod discriminator {
     use core::fmt;

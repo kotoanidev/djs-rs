@@ -1,0 +1,198 @@
+[
+  {
+    "title": "Example Gateway Event Payload",
+    "json": {
+      "op": 0,
+      "d": {},
+      "s": 42,
+      "t": "GATEWAY_EVENT_NAME"
+    }
+  },
+  {
+    "title": "Example Identify",
+    "json": {
+      "op": 2,
+      "d": {
+        "token": "my_token",
+        "properties": {
+          "os": "linux",
+          "browser": "disco",
+          "device": "disco"
+        },
+        "compress": true,
+        "large_threshold": 250,
+        "shard": [
+          0,
+          1
+        ],
+        "presence": {
+          "activities": [
+            {
+              "name": "Cards Against Humanity",
+              "type": 0
+            }
+          ],
+          "status": "dnd",
+          "since": 91879201,
+          "afk": false
+        },
+        "intents": 5
+      }
+    }
+  },
+  {
+    "title": "Example Resume",
+    "json": {
+      "op": 6,
+      "d": {
+        "token": "randomstring",
+        "session_id": "evenmorerandomstring",
+        "seq": 1337
+      }
+    }
+  },
+  {
+    "title": "Example Heartbeat",
+    "json": {
+      "op": 1,
+      "d": 251
+    }
+  },
+  {
+    "title": "Example Request Guild Members",
+    "json": {
+      "op": 8,
+      "d": {
+        "guild_id": "41771983444115456",
+        "query": "",
+        "limit": 0
+      }
+    }
+  },
+  {
+    "title": "Example Request Soundboard Sounds",
+    "json": {
+      "op": 31,
+      "d": {
+        "guild_ids": [
+          "613425648685547541",
+          "81384788765712384"
+        ]
+      }
+    }
+  },
+  {
+    "title": "Example Request Channel Info",
+    "json": {
+      "op": 43,
+      "d": {
+        "guild_id": "613425648685547541",
+        "fields": [
+          "status",
+          "voice_start_time"
+        ]
+      }
+    }
+  },
+  {
+    "title": "Example Gateway Voice State Update",
+    "json": {
+      "op": 4,
+      "d": {
+        "guild_id": "41771983423143937",
+        "channel_id": "127121515262115840",
+        "self_mute": false,
+        "self_deaf": false
+      }
+    }
+  },
+  {
+    "title": "Example Gateway Presence Update",
+    "json": {
+      "op": 3,
+      "d": {
+        "since": 91879201,
+        "activities": [
+          {
+            "name": "Save the Oxford Comma",
+            "type": 0
+          }
+        ],
+        "status": "online",
+        "afk": false
+      }
+    }
+  },
+  {
+    "title": "Example Hello",
+    "json": {
+      "op": 10,
+      "d": {
+        "heartbeat_interval": 45000
+      }
+    }
+  },
+  {
+    "title": "Example Gateway Reconnect",
+    "json": {
+      "op": 7,
+      "d": null
+    }
+  },
+  {
+    "title": "Example Gateway Invalid Session",
+    "json": {
+      "op": 9,
+      "d": false
+    }
+  },
+  {
+    "title": "Example Activity",
+    "json": {
+      "details": "24H RL Stream for Charity",
+      "state": "Rocket League",
+      "name": "Twitch",
+      "type": 1,
+      "url": "https://www.twitch.tv/discord"
+    }
+  },
+  {
+    "title": "Example Activity with Rich Presence",
+    "json": {
+      "name": "Rocket League",
+      "type": 0,
+      "application_id": "379286085710381999",
+      "state": "In a Match",
+      "details": "Ranked Duos: 2-1",
+      "timestamps": {
+        "start": 15112000660000
+      },
+      "party": {
+        "id": "9dd6594e-81b3-49f6-a6b5-a679e6a060d3",
+        "size": [
+          2,
+          2
+        ]
+      },
+      "assets": {
+        "large_image": "351371005538729000",
+        "large_text": "DFH Stadium",
+        "small_image": "351371005538729111",
+        "small_text": "Silver III"
+      },
+      "secrets": {
+        "join": "025ed05c71f639de8bfaa0d679d7c94b2fdce12f",
+        "spectate": "e7eb30d2ee025ed05c71ea495f770b76454ee4e0",
+        "match": "4b2fdce12f639de8bfa7e3591b71a0d679d7c93f"
+      }
+    }
+  },
+  {
+    "title": "Example Voice Server Update Payload",
+    "json": {
+      "token": "my_token",
+      "guild_id": "41771983423143937",
+      "endpoint": "sweetwater-12345.discord.media:2048"
+    }
+  }
+]

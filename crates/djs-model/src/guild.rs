@@ -39,6 +39,14 @@ pub struct UnavailableGuild {
     pub unavailable: bool,
 }
 
+impl UnavailableGuild {
+    /// Creates an unavailable guild entry.
+    #[must_use]
+    pub const fn new(id: GuildId, unavailable: bool) -> Self {
+        Self { id, unavailable }
+    }
+}
+
 /// A [guild member](https://docs.discord.com/developers/resources/guild#guild-member-object): a
 /// user's membership in one guild, with guild-specific data such as nickname and roles.
 ///

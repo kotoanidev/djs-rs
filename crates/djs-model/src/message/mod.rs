@@ -702,6 +702,21 @@ pub struct SnapshotMessage {
     pub components: Vec<Component>,
 }
 
+int_enum! {
+    /// The [kind of a reaction](https://docs.discord.com/developers/resources/message#get-reactions-reaction-types):
+    /// a normal reaction or a super reaction.
+    ///
+    /// discord.js counterpart: `ReactionType`.
+    #[derive(Default)]
+    pub enum ReactionType: u8 {
+        /// A normal reaction.
+        #[default]
+        Normal = 0,
+        /// A super reaction (burst).
+        Burst = 1,
+    }
+}
+
 /// A [reaction](https://docs.discord.com/developers/resources/message#reaction-object) to a
 /// message: one emoji and how often it was used.
 ///
