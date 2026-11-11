@@ -135,11 +135,14 @@ D-041).
   against Phase 1 (`65210f8` worktree) for the decode benches and the gateway/client stress
   tests. The `djs-gateway` stress test's large-event scenario now uses an unknown event name
   (GUILD_CREATE is decoded now), plus a new full-GUILD_CREATE scenario.
-- Findings to discuss with the owner (PERFORMANCE.md "Findings … (Phase 2)"): concurrent
-  handler mode −27…−43 % (extra per-event allocations freed on worker threads); decoded model
-  ≈ 1.2× the JSON (`Activity`, `Presence`/`ClientStatus`, `PresenceUser` sizes).
-- **Next:** ask the owner about those two findings (fix now / later / document), then mark
-  Phase 2 done in ROADMAP and start Phase 3 (`djs-rest` full coverage, see ROADMAP).
+- Findings decided by the owner: D-080 — `mimalloc` dev-dependency of `djs-rs`, new
+  `djs-rs/tests/stress_mimalloc.rs`; mimalloc gives fan-out +80 %, stream +30…50 %, one
+  concurrent handler ≈ +15 %, sequential −4 % → recommended in the `djs-rs` README (very large
+  bots); the remaining concurrent-mode cost goes to Phase 8. D-081 — decoded model size
+  (≈ 1.2× JSON) is handled with the cache in Phase 5.
+- **Next:** mark Phase 2 done in ROADMAP, then start Phase 3 (`djs-rest` full coverage): see
+  ROADMAP Phase 3 and the Phase 1 findings (GCRA global limiter D-043, 1 KiB REST futures,
+  `Timestamp` formatting). Ask the owner before the first significant Phase 3 choice.
 - Local gate script: `scratchpad/gate.sh` style (`set -euo pipefail`, no pipes hiding errors) —
   a piped gate let one clippy failure through (fixed in `cda06db`).
 - Perf note: after the user change, MESSAGE_CREATE/READY decode looked ~8-13 % slower relative

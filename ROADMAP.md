@@ -52,7 +52,7 @@ just with narrow scope.
       voice states/regions, soundboard, lobbies, application identity profiles (D-072)
 - [x] Every gateway dispatch event and close code, gateway commands, presences (D-073..D-075)
 - [x] Webhook events, incl. Social SDK events (D-076, D-078, D-079); RPC is out of scope (D-077)
-- [ ] (De)serialization tests against real JSON fixtures; benchmarks
+- [x] (De)serialization tests against real JSON fixtures; benchmarks and stress tests (D-041, D-080)
 
 ## Phase 3 — `djs-rest` full coverage (≈ @discordjs/rest)
 - [ ] Complete rate limiting: invalid-request limit (10k/10 min), burst handler for interaction

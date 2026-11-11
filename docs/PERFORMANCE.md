@@ -257,18 +257,40 @@ same thread, is not affected. This matches the producer/consumer pattern that gl
 handles poorly (raising `glibc.malloc.tcache_count` did not help; other allocators could not be
 tried without a new dependency).
 
+### Allocator comparison (D-080)
+
+`djs-rs/tests/stress_mimalloc.rs` runs the same `Client` stress tests with
+[mimalloc](https://docs.rs/mimalloc) as the global allocator (a dev-dependency only). Runs
+alternated with the glibc runs; ranges over 2–4 runs each.
+
+| Scenario | glibc malloc | mimalloc | Change |
+|---|---:|---:|---:|
+| `Concurrent`, 1 handler (events/s) | 205 000–285 000 (median 267 000) | 254 000–370 000 (median 310 000) | ≈ +15 % |
+| `Concurrent` + `events()` stream (events/s) | 222 000–263 000 | 333 000–344 000 | +30 … +50 % |
+| `Sequential`, 1 handler (events/s) | 500 000–504 000 | 476 000–484 000 | −4 % |
+| Fan-out, 10 handlers (handler calls/s) | 885 000–893 000 | 1 601 000–1 622 000 | **+80 %** |
+| Peak memory | 7–12 MiB | 16–20 MiB | +8 MiB |
+
+The allocator explains most of the cost of freeing on other threads: with mimalloc, fan-out and
+the stream are well above Phase 1 (with glibc). A single concurrent handler improves less and
+varies a lot between runs (bimodal: probably which core type, P or E, the dispatcher runs on),
+so the rest is the per-event task spawn and the cache misses of dropping the event on another
+core. The `djs-rs` README now recommends mimalloc for very large bots; the library itself does
+not depend on it.
+
 ### Findings and optimization candidates (Phase 2)
 
 1. **Concurrent handler mode is sensitive to allocations freed on other threads**
    (−27 … −43 % for a `MESSAGE_CREATE` with a member). Real bots get far fewer events per shard,
-   but this is the default mode. Options: measure with another allocator (dev-dependency) and
-   document an allocator recommendation; reduce allocations per event in the model; revisit the
-   dispatch design in Phase 8.
+   but this is the default mode. Measured with mimalloc (D-080, above): the allocator accounts
+   for most of it, so the `djs-rs` README recommends mimalloc for very large bots. The
+   remaining per-event cost (task spawn, dropping on another core) is for the dispatch design
+   in Phase 8.
 2. **The decoded model is about 1.2× the size of the JSON** for `GUILD_CREATE`. Big
    contributors: `Activity` (336 B), `Presence` (296 B, of which `ClientStatus` is 96 B because
    every `Option<Status>` is 24 B: string enums carry an `Unknown(CompactString)`),
    `PresenceUser` (144 B for what is usually only an ID) and the slack of growing `Vec`s. This
-   matters for caching (Phase 5).
+   matters for caching, so it is addressed in Phase 5 (D-081).
 3. An unavailable `GUILD_CREATE` costs 320 ns and 3 allocations, because the failed guild
    decode builds a serde error before the extras recover. Unavailable guilds only come with
    outages, so this is acceptable.

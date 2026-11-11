@@ -8,6 +8,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-rs`: README section on the global allocator (mimalloc for very large bots, D-080).
 - `djs-model`: `webhook_event` module (D-076) — `WebhookEventPayload` (`PayloadType::{Ping,
   Event}`), `WebhookEvent` with `WebhookEventData` by type, `ApplicationAuthorized`,
   `ApplicationDeauthorized`, `LobbyMessageDelete`, `GameDirectMessage` (D-079); event times

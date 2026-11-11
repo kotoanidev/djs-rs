@@ -55,6 +55,23 @@ Structures stay plain data; behaviour such as `msg.reply(&ctx, …)` comes from 
 in the prelude that take the handler `Context` explicitly — no client reference is stored in
 every structure.
 
+## Performance: the global allocator
+
+With the default concurrent handlers, events are decoded on the shard's task and dropped on
+tokio worker threads. The default allocator on Linux (glibc) handles this producer/consumer
+pattern poorly. In the stress tests (`tests/stress_mimalloc.rs`, see `docs/PERFORMANCE.md`),
+using [mimalloc](https://docs.rs/mimalloc) as the bot's global allocator raised the
+throughput by about 80 % with 10 handlers per event, by 30–50 % with an `events()` stream and
+by about 15 % with one handler; with `HandlerMode::Sequential` it made no difference. These are
+rates of hundreds of thousands of events per second per shard, so only very large bots need
+to care. To switch, add `mimalloc = "0.1"` to your bot's dependencies and declare:
+
+```rust
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+# fn main() {}
+```
+
 ## Cargo features
 
 | Feature | Default | Description |
