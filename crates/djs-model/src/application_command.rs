@@ -634,7 +634,7 @@ impl<T> Choice<T> {
 /// A JSON number or string as found in choices and option bounds, before the option type tells
 /// what it must be.
 #[derive(Clone, Debug, PartialEq)]
-enum RawValue {
+pub(crate) enum RawValue {
     String(CompactString),
     Integer(i64),
     Float(f64),
@@ -675,7 +675,7 @@ impl<'de> Deserialize<'de> for RawValue {
 }
 
 impl RawValue {
-    fn into_string<E: DeError>(self) -> Result<CompactString, E> {
+    pub(crate) fn into_string<E: DeError>(self) -> Result<CompactString, E> {
         match self {
             Self::String(value) => Ok(value),
             Self::Integer(value) => Err(E::invalid_type(Unexpected::Signed(value), &"a string")),
@@ -683,7 +683,7 @@ impl RawValue {
         }
     }
 
-    fn into_integer<E: DeError>(self) -> Result<i64, E> {
+    pub(crate) fn into_integer<E: DeError>(self) -> Result<i64, E> {
         match self {
             Self::Integer(value) => Ok(value),
             Self::String(value) => Err(E::invalid_type(Unexpected::Str(&value), &"an integer")),
@@ -695,7 +695,7 @@ impl RawValue {
         clippy::cast_precision_loss,
         reason = "Discord limits command numbers to ±2^53, which f64 represents exactly"
     )]
-    fn into_number<E: DeError>(self) -> Result<f64, E> {
+    pub(crate) fn into_number<E: DeError>(self) -> Result<f64, E> {
         match self {
             Self::Integer(value) => Ok(value as f64),
             Self::Float(value) => Ok(value),
@@ -704,7 +704,7 @@ impl RawValue {
     }
 }
 
-fn convert_choices<T, E: DeError>(
+pub(crate) fn convert_choices<T, E: DeError>(
     choices: Vec<Choice<RawValue>>,
     convert: impl Fn(RawValue) -> Result<T, E>,
 ) -> Result<Vec<Choice<T>>, E> {

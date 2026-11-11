@@ -8,6 +8,16 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-model`: the interaction model — `interaction::Interaction` (token redacted in `Debug`)
+  with `InteractionData` by type (D-067): `CommandData` with `CommandDataOption` /
+  `CommandOptionValue` (focused autocomplete values), `ComponentData`, `ModalSubmitData` with
+  `SubmittedComponent`; `Resolved`, `InteractionMember`, `InteractionChannel`,
+  `InteractionGuild`. Responses (D-068): `InteractionResponse`, `InteractionCallbackType`,
+  `MessageCallbackData`, `DeferredCallbackData`, `AutocompleteCallbackData` /
+  `AutocompleteChoices`, `ModalCallbackData`, and the callback response objects
+  (`InteractionCallbackResponse`, `InteractionCallback`, `CallbackResource`,
+  `ActivityInstanceResource`). Request types `poll::CreatePoll` (+ `Media::new`) and
+  `message::{AttachmentRequest, AttachmentRequestId}`; `Message::resolved`.
 - `djs-model`: `entitlement::{Entitlement, EntitlementType}` (with `Entitlement::is_active`).
 - `djs-model`: `application_command` module — `ApplicationCommand`, `CommandType`, the
   `CommandOption` enum (D-069) with typed `Choice<T>`s, entry point handler types, command

@@ -10,7 +10,7 @@ D-041).
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-069 in `docs/DECISIONS.md`; Claude defaults C-001 …
-  C-031 (reviewable) in the same file.
+  C-032 (reviewable) in the same file.
 - Toolchains (rustup): stable 1.99.1, 1.85, 1.89 (MSRV, D-031).
 - Phase 0: foundation docs, public repo https://github.com/kotoanidev/djs-rs, 9-crate workspace,
   lints, CI (fmt, clippy all/no-default features, tests ×3 OS, rustdoc -D warnings, MSRV 1.89,
@@ -93,18 +93,18 @@ D-041).
   `tests/application_command.rs` on the docs' 11 command examples. Fixtures for part 2 are
   already extracted: `application_command_interaction_examples.json` (3 interactions),
   `application_command_autocomplete_response.json`.
-- **Next (interactions part 2):** `entitlement` module (pulled forward: `Interaction::
-  entitlements`), then `interaction::{Interaction, InteractionData (D-067), CommandData +
-  option values (enum by type, autocomplete "focused" raw value), ComponentData,
-  ModalSubmitData + submitted components (enum by component type), Resolved (BTreeMap, D-058),
-  InteractionMember (Mention-like Raw decoding: PartialMember + permissions + user),
-  InteractionChannel, InteractionGuild}`, responses (D-068: callback types/data, modal,
-  autocomplete, `poll::CreatePoll`, `message::AttachmentRequest`, callback response objects),
-  `Message::resolved`. Then (adds `Message::resolved`, the interaction object, command
-  types) → `audit_log` (needs commands, webhooks, threads, integrations, auto moderation,
-  scheduled events) → monetization (SKU, entitlements,
-  subscriptions), soundboard, lobbies, application identity profile (new docs pages
-  `lobby.mdx`, `application-identity-profile.mdx`) → dispatch events + close codes.
+- Interactions step, part 2 ✅: `entitlement` module (pulled forward), `interaction::{Interaction,
+  InteractionData (D-067), CommandData + option values, ComponentData, ModalSubmitData +
+  submitted components, Resolved, InteractionMember, InteractionChannel, InteractionGuild}`,
+  responses + callback response objects (D-068), `poll::CreatePoll`,
+  `message::AttachmentRequest`, `Message::resolved` (C-032). Tests `tests/interaction.rs` (the
+  docs' 3 example interactions + autocomplete example, synthetic component/modal payloads, every
+  response type). Size guards: Interaction 288 B, InteractionData 16 B, Message 656 B.
+- **Next:** `audit_log` (needs commands, webhooks, threads, integrations, auto moderation,
+  scheduled events — all exist now) → monetization rest (check the existing `sku.rs`;
+  subscriptions) → soundboard, lobbies, application identity profile (docs pages `lobby.mdx`,
+  `application-identity-profile.mdx`) → every dispatch event + close codes → Phase 2 benches and
+  stress tests (D-041).
 - Local gate script: `scratchpad/gate.sh` style (`set -euo pipefail`, no pipes hiding errors) —
   a piped gate let one clippy failure through (fixed in `cda06db`).
 - Perf note: after the user change, MESSAGE_CREATE/READY decode looked ~8-13 % slower relative

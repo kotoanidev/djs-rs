@@ -44,11 +44,11 @@ just with narrow scope.
       auto-moderation, integrations, bans ✅; audit log after interactions)
 - [x] Channels & threads, forums/media, stage instances, invites, webhooks
 - [x] Messages, embeds, attachments, reactions, polls, message snapshots/forwarding
-      (components and `resolved` are added with their steps, D-062)
-- [x] Components (classic + Components V2); modals follow with interaction responses
-- [ ] Interactions & application commands (slash, user, message, autocomplete, entry point),
-      command permissions
-- [~] Applications ✅ (+ teams, role connection metadata), entitlements, SKUs, subscriptions,
+      (+ components and `resolved`, D-062)
+- [x] Components (classic + Components V2)
+- [x] Interactions & application commands (slash, user, message, autocomplete, entry point),
+      command permissions, interaction responses and modals (D-068)
+- [~] Applications ✅ (+ teams, role connection metadata), entitlements ✅, SKUs, subscriptions,
       soundboard, lobbies
 - [ ] Every gateway dispatch event and close code
 - [ ] (De)serialization tests against real JSON fixtures; benchmarks

@@ -102,3 +102,110 @@ pub struct AnswerCount {
     /// Whether the current user voted for this answer.
     pub me_voted: bool,
 }
+
+/// A [poll to create](https://docs.discord.com/developers/resources/poll#poll-create-request-object),
+/// sent with a new message or an interaction response.
+///
+/// discord.js counterpart: `PollData` (the `poll` option of message create options).
+///
+/// # Examples
+///
+/// ```
+/// use djs_model::poll::{CreatePoll, Media};
+///
+/// let mut poll = CreatePoll::new("Tabs or spaces?", [Media::new("Tabs"), Media::new("Spaces")]);
+/// poll.duration = Some(24);
+/// assert_eq!(
+///     serde_json::to_string(&poll).unwrap(),
+///     concat!(
+///         r#"{"question":{"text":"Tabs or spaces?"},"answers":[{"poll_media":{"text":"Tabs"}},"#,
+///         r#"{"poll_media":{"text":"Spaces"}}],"duration":24}"#,
+///     )
+/// );
+/// ```
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
+#[doc(alias = "PollCreateRequest")]
+pub struct CreatePoll {
+    /// The question (text only, max 300 characters).
+    pub question: Media,
+    /// The answers (up to 10; text max 55 characters, optionally an emoji), written as answer
+    /// objects without IDs.
+    #[serde(with = "create_answers")]
+    pub answers: Vec<Media>,
+    /// How long the poll is open, in hours (up to 32 days; Discord's default is 24 hours).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub duration: Option<u32>,
+    /// Whether users can select several answers (Discord's default: `false`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub allow_multiselect: Option<bool>,
+    /// The layout (Discord's default: [`LayoutType::Default`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub layout_type: Option<LayoutType>,
+}
+
+impl CreatePoll {
+    /// Creates a poll with Discord's defaults for everything else.
+    #[must_use]
+    pub fn new(
+        question: impl Into<CompactString>,
+        answers: impl IntoIterator<Item = Media>,
+    ) -> Self {
+        Self {
+            question: Media::new(question),
+            answers: answers.into_iter().collect(),
+            duration: None,
+            allow_multiselect: None,
+            layout_type: None,
+        }
+    }
+}
+
+impl Media {
+    /// Creates media with text and no emoji (set [`emoji`](Self::emoji) for an answer emoji).
+    #[must_use]
+    pub fn new(text: impl Into<CompactString>) -> Self {
+        Self {
+            text: Some(text.into()),
+            emoji: None,
+        }
+    }
+}
+
+/// (De)serializes the answers of a [`CreatePoll`] as `[{"poll_media": …}]`.
+mod create_answers {
+    use serde::{Deserialize, Deserializer, Serialize, Serializer, ser::SerializeSeq};
+
+    use super::Media;
+
+    #[derive(Serialize)]
+    struct AnswerRef<'a> {
+        poll_media: &'a Media,
+    }
+
+    #[derive(Deserialize)]
+    struct Answer {
+        poll_media: Media,
+    }
+
+    pub(super) fn serialize<S: Serializer>(
+        answers: &[Media],
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        let mut seq = serializer.serialize_seq(Some(answers.len()))?;
+        for poll_media in answers {
+            seq.serialize_element(&AnswerRef { poll_media })?;
+        }
+        seq.end()
+    }
+
+    pub(super) fn deserialize<'de, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<Vec<Media>, D::Error> {
+        let answers = Vec::<Answer>::deserialize(deserializer)?;
+        Ok(answers
+            .into_iter()
+            .map(|answer| answer.poll_media)
+            .collect())
+    }
+}

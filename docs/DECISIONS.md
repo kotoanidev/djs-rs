@@ -770,6 +770,33 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - The docs show creation bodies; the tests add `id`, `application_id`, `version` to decode them
   as returned commands.
 
+### C-032 — Interaction model details
+- Layout: `interaction/{mod,data,response}.rs`. The data variants are boxed
+  (`InteractionData` is 16 B, `Interaction` ≤ 288 B); `Interaction::guild` stays inline.
+  `version` defaults to `1`, `app_permissions` to empty (pings have none), `entitlements` and
+  `authorizing_integration_owners` to empty. `Debug` redacts the token (C-011).
+- Command option values: a focused autocomplete option keeps the typed text as a string
+  (`CommandOptionValue::Focused { kind, value }`), because it need not be valid yet; other
+  integer/number options also accept numeric strings. Unknown option types, submitted
+  component types and callback types keep only their type (and `id`).
+- Modal submits: user/role/mentionable/channel selects are one generic
+  `SubmittedEntitySelect<T>` with typed IDs; file uploads have `Vec<AttachmentId>`; string
+  selects and checkbox groups share `SubmittedSelect`. A null radio group value is `None`, an
+  absent checkbox value is `false`. Helpers: `ModalSubmitData::{get, text_value}`.
+- Message component data keeps `values` as strings (they are option values or IDs depending
+  on the component); `ComponentData::ids::<T>()` parses them.
+- `InteractionChannel` also has `app_permissions` (listed among the partial channel fields) and
+  `recipients`; `InteractionMember` dereferences to `PartialMember` like `Mention` (D-060).
+- Response arrays (`MessageCallbackData::{embeds, components, attachments}`) are
+  `Option<Vec<_>>`: for `UpdateMessage`, absent keeps the message's value and `Some(vec![])`
+  clears it. The general tri-state PATCH question (D-049) stays for Phase 3.
+- `AutocompleteChoices` is typed (string/integer/number); when decoding, a list with any
+  fractional number is a number list and an empty list is a string list.
+- `AttachmentRequestId`: numbers that fit in `u32` are upload indices (`files[n]`), strings
+  and larger numbers are attachment IDs. `CreatePoll::answers` is `Vec<Media>` written as
+  `[{"poll_media": …}]`; `Media::new(text)` builds text media.
+- `Message::resolved` was added (Message size guard now 656 B).
+
 ---
 
 ## Open questions (to ask the owner when relevant)

@@ -14,7 +14,7 @@ use serde::{
 };
 
 pub use self::{
-    attachment::Attachment,
+    attachment::{Attachment, AttachmentRequest, AttachmentRequestId},
     embed::{
         Embed, EmbedAuthor, EmbedField, EmbedFooter, EmbedImage, EmbedProvider, EmbedType,
         EmbedVideo,
@@ -31,7 +31,7 @@ use crate::{
     emoji::PartialEmoji,
     guild::PartialMember,
     id::{ApplicationId, ChannelId, GuildId, MessageId, RoleId, SkuId, UserId, WebhookId},
-    interaction::MessageInteraction,
+    interaction::{MessageInteraction, Resolved},
     macros::{int_enum, int_flags, str_enum},
     poll::Poll,
     sticker::{Sticker, StickerItem},
@@ -52,8 +52,7 @@ use crate::{
 /// [`poll`](Self::poll) is absent, except in DMs, in messages that mention the bot and in the
 /// bot's own messages.
 ///
-/// Rare sub-objects are boxed so a typical message stays small (D-054). The `resolved` data is
-/// added with the interactions step (D-062).
+/// Rare sub-objects are boxed so a typical message stays small (D-054).
 ///
 /// Contains floats (through [`Attachment`]), so it is `PartialEq` but not `Eq` (D-064).
 ///
@@ -160,6 +159,10 @@ pub struct Message {
     /// The thread started from this message (with the current user's thread member, if any).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub thread: Option<Box<Channel>>,
+    /// The users, members, channels and roles referenced by the message's components
+    /// (Components V2 messages with select menu default values or mentions).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resolved: Option<Box<Resolved>>,
     /// The stickers sent with the message.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub sticker_items: Vec<StickerItem>,
@@ -968,7 +971,7 @@ mod tests {
     fn sizes() {
         // Guards against accidental growth of the hottest gateway type (D-054). A typical
         // message is decoded into one allocation of this size (plus its strings and vectors).
-        assert!(size_of::<Message>() <= 648, "{}", size_of::<Message>());
+        assert!(size_of::<Message>() <= 656, "{}", size_of::<Message>());
         assert!(size_of::<Mention>() <= 152, "{}", size_of::<Mention>());
         assert!(
             size_of::<Attachment>() <= 312,
