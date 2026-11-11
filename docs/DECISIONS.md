@@ -627,6 +627,24 @@ and why.
 
 ---
 
+### D-076 — Webhook events are modelled in Phase 2, Social SDK events included
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** `djs-model` models the [webhook events](https://docs.discord.com/developers/events/webhook-events)
+  Discord sends over HTTP to an app's events URL: the outer payload (PING / event), the event
+  body and the data of every event type, including the Social SDK ones (`LOBBY_MESSAGE_*`,
+  `GAME_DIRECT_MESSAGE_*`), reusing the existing types (entitlements, lobby messages, messages).
+- **Alternatives:** only the events in discord-api-types (no Social SDK events); postpone to
+  Phase 3/8 together with receiving HTTP events.
+
+### D-077 — RPC is out of scope
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** The local client RPC API (IPC/WebSocket to the Discord app, used by game
+  clients; `rpc/` in discord-api-types) is not modelled: discord.js v14 has no RPC and this
+  project targets bots.
+- **Alternatives:** a later phase (e.g. a `djs-rpc` crate); model it in `djs-model` now.
+
+---
+
 ## Defaults chosen by Claude (reviewable)
 
 These are lower-impact choices made during setup. The owner may override any of them.
