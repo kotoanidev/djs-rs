@@ -8,6 +8,10 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- API errors (D-097..D-099): `djs_model::rest::ErrorCode` with every documented JSON error
+  code, and `djs_rest::FieldError` — `ApiError::field_errors` lists the form-body errors
+  (`embeds[0].title[BASE_TYPE_REQUIRED]: …`), which the error's `Display` shows like
+  discord.js.
 - File uploads (D-087, D-093..D-096): `djs_model::rest::FileUpload` (data as `bytes::Bytes`),
   `files` fields on `CreateMessage` and `MessageCallbackData` whose `attachments` entries are
   generated automatically, `InteractionResponse::files`, and `djs_rest::Request::files`, which
@@ -155,6 +159,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `login`/`shutdown`, prelude; `examples/ping.rs`; end-to-end tests with mock REST + gateway.
 
 ### Changed
+- `djs-rest`: `ApiError::code` is an `ErrorCode` instead of a `u32`; `ApiError` is
+  `#[non_exhaustive]` and gained `field_errors`.
 - `djs-model`: `CreateMessage` is no longer `Eq` (its files can carry an `f64` duration) and
   gained `attachments` and `files`; `MessageCallbackData` gained `files`.
 - `djs-rest`: `Request` is `Request<'a>` and `Request::route` returns `Route<'a>` (D-090).

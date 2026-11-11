@@ -10,6 +10,6 @@ mod route;
 
 pub use self::{
     client::{DEFAULT_API, Request, Rest, RestBuilder},
-    error::{ApiError, Error, ErrorKind},
+    error::{ApiError, Error, ErrorKind, FieldError},
     route::Route,
 };

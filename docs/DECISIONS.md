@@ -1184,6 +1184,26 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   content type containing control or non-ASCII characters is ignored in favour of the guess.
 - Guessed text types carry `; charset=utf-8`; `.opus` maps to `audio/ogg` (Ogg container).
 
+### C-041 — API error details (D-097..D-099)
+- `ErrorCode` has the 245 codes of the docs table, generated into
+  `djs-model/src/rest/error_code.rs` (so `rest.rs` became `rest/mod.rs`) by
+  `scripts/gen_error_codes.py` — the repository's first dev script, kept so the enum can be
+  regenerated when the docs add codes (new codes need a description in the script). Code 20017, which discord-api-types still lists but the docs do not, is
+  left out (it decodes as `Unknown(20017)`). Three documented codes have no discord-api-types
+  name yet: 30084 `InviteTargetUsersLimitReached`, 40114
+  `InviteTargetUsersAlreadyBeingProcessed`, 40115 `InviteTargetUsersFileNotProcessed`.
+- Acronyms are written as words (C-021): `UnknownSku`, `InvalidApiVersion`,
+  `IdTokenJwtExpired`, `NsfwChannelMessageReferenceNotAllowed`… (`OAuth2` stays as written);
+  every renamed variant has `#[doc(alias)]` with the original name, and every variant has
+  its number as an alias, so rustdoc search finds `50013`. Each variant's doc starts with
+  its number, followed by the library's own description.
+- `ApiError` is `#[non_exhaustive]` with `code: ErrorCode`, `message`, `field_errors:
+  Vec<FieldError>` (parsed when the error is decoded) and the raw `errors`. `FieldError {
+  path, code, message }` (all `String`, cold path). Paths: root keys as is (`0.code` for
+  top-level indices), nested keys `.name`, digit-only keys `[n]`; keys starting with `_` do
+  not extend the path; plain string values become errors with an empty code.
+  `Display`: `message (code N)` then one `path[CODE]: message` line per field error.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

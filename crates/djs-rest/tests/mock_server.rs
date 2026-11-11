@@ -226,7 +226,7 @@ async fn api_errors_are_parsed() {
         .unwrap_err();
     assert_eq!(error.status(), Some(StatusCode::FORBIDDEN));
     let api = error.api_error().unwrap();
-    assert_eq!(api.code, 50013);
+    assert_eq!(api.code, djs_model::rest::ErrorCode::MissingPermissions);
     assert_eq!(api.message, "Missing Permissions");
 }
 

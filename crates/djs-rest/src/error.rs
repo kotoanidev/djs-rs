@@ -2,8 +2,10 @@
 
 use core::{fmt, time::Duration};
 
+use djs_model::rest::ErrorCode;
 use http::StatusCode;
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
+use serde_json::Value;
 
 /// A boxed error source.
 pub(crate) type BoxError = Box<dyn std::error::Error + Send + Sync>;
@@ -18,11 +20,15 @@ pub(crate) type BoxError = Box<dyn std::error::Error + Send + Sync>;
 ///
 /// ```no_run
 /// # async fn example(rest: djs_rest::Rest, channel_id: djs_model::id::ChannelId) {
-/// use djs_rest::ErrorKind;
+/// use djs_model::rest::ErrorCode;
 ///
 /// match rest.create_message(channel_id, &"hi".into()).await {
 ///     Ok(message) => println!("sent {}", message.id),
-///     Err(error) if error.api_error().is_some_and(|api| api.code == 50013) => {
+///     Err(error)
+///         if error
+///             .api_error()
+///             .is_some_and(|api| api.code == ErrorCode::MissingPermissions) =>
+///     {
 ///         eprintln!("missing permissions");
 ///     }
 ///     Err(error) => eprintln!("request failed: {error}"),
@@ -122,24 +128,160 @@ pub enum ErrorKind {
 
 /// The JSON error body Discord returns with 4xx responses.
 ///
-/// See [JSON error codes](https://docs.discord.com/developers/topics/opcodes-and-status-codes#json).
+/// Its [`Display`](fmt::Display) shows the message and code, then one line per
+/// [field error](Self::field_errors), e.g.:
+///
+/// ```text
+/// Invalid Form Body (code 50035)
+/// embeds[0].title[BASE_TYPE_REQUIRED]: This field is required
+/// ```
+///
+/// See [error messages](https://docs.discord.com/developers/reference#error-messages) and
+/// [JSON error codes](https://docs.discord.com/developers/topics/opcodes-and-status-codes#json).
 ///
 /// discord.js counterpart: `DiscordAPIError`.
-#[derive(Clone, Debug, PartialEq, Deserialize)]
+///
+/// # Examples
+///
+/// ```
+/// use djs_model::rest::ErrorCode;
+/// use djs_rest::ApiError;
+///
+/// let error: ApiError = serde_json::from_str(
+///     r#"{"code": 50035, "message": "Invalid Form Body", "errors": {
+///         "content": {"_errors": [{"code": "BASE_TYPE_MAX_LENGTH",
+///                                  "message": "Must be 2000 or fewer in length."}]}}}"#,
+/// )
+/// .unwrap();
+/// assert_eq!(error.code, ErrorCode::InvalidFormBodyOrContentType);
+/// assert_eq!(error.field_errors[0].path, "content");
+/// assert_eq!(
+///     error.to_string(),
+///     "Invalid Form Body (code 50035)\ncontent[BASE_TYPE_MAX_LENGTH]: Must be 2000 or fewer in length."
+/// );
+/// ```
+#[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct ApiError {
     /// The [JSON error code](https://docs.discord.com/developers/topics/opcodes-and-status-codes#json-json-error-codes),
-    /// e.g. `50013` for "Missing Permissions".
-    pub code: u32,
+    /// e.g. [`MissingPermissions`](ErrorCode::MissingPermissions) (D-097).
+    pub code: ErrorCode,
     /// A human-readable description of the error.
     pub message: String,
-    /// Detailed validation errors for form bodies (error code `50035`), as sent by Discord.
-    #[serde(default)]
-    pub errors: Option<serde_json::Value>,
+    /// The detailed errors of the request's fields (mostly with
+    /// [`InvalidFormBodyOrContentType`](ErrorCode::InvalidFormBodyOrContentType)), flattened
+    /// from [`errors`](Self::errors) (D-099). Empty if Discord sent none.
+    pub field_errors: Vec<FieldError>,
+    /// The nested `errors` object as Discord sent it.
+    pub errors: Option<Value>,
+}
+
+impl<'de> Deserialize<'de> for ApiError {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        struct Raw {
+            code: ErrorCode,
+            message: String,
+            #[serde(default)]
+            errors: Option<Value>,
+        }
+
+        let raw = Raw::deserialize(deserializer)?;
+        let mut field_errors = Vec::new();
+        if let Some(errors) = &raw.errors {
+            flatten_errors(errors, &mut String::new(), &mut field_errors);
+        }
+        Ok(Self {
+            code: raw.code,
+            message: raw.message,
+            field_errors,
+            errors: raw.errors,
+        })
+    }
 }
 
 impl fmt::Display for ApiError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} (code {})", self.message, self.code)
+        write!(f, "{} (code {})", self.message, self.code.value())?;
+        for error in &self.field_errors {
+            write!(f, "\n{error}")?;
+        }
+        Ok(())
+    }
+}
+
+/// An error of one field of a request body, from the `errors` of an [`ApiError`] (D-099).
+///
+/// discord.js counterpart: the lines of a `DiscordAPIError` message after the first.
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct FieldError {
+    /// Where the field is in the request body, e.g. `embeds[0].title`; empty for an error of
+    /// the request as a whole.
+    pub path: String,
+    /// What is wrong, e.g. `BASE_TYPE_REQUIRED` (empty if Discord sent only a message).
+    pub code: String,
+    /// A human-readable description.
+    pub message: String,
+}
+
+impl fmt::Display for FieldError {
+    /// `path[CODE]: message`, leaving out the parts that are empty.
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match (self.path.is_empty(), self.code.is_empty()) {
+            (false, false) => write!(f, "{}[{}]: {}", self.path, self.code, self.message),
+            (false, true) => write!(f, "{}: {}", self.path, self.message),
+            (true, false) => write!(f, "{}: {}", self.code, self.message),
+            (true, true) => f.write_str(&self.message),
+        }
+    }
+}
+
+/// Collects the errors of a nested `errors` value. Object keys extend the path (`.name`, or
+/// `[n]` for array indices), except keys starting with `_` such as `_errors`, the lists of
+/// `{code, message}` errors of a field. Depth is bounded by `serde_json`'s recursion limit.
+fn flatten_errors(value: &Value, path: &mut String, out: &mut Vec<FieldError>) {
+    match value {
+        Value::Object(object) => {
+            if let (Some(Value::String(code)), Some(Value::String(message))) =
+                (object.get("code"), object.get("message"))
+            {
+                out.push(FieldError {
+                    path: path.clone(),
+                    code: code.clone(),
+                    message: message.clone(),
+                });
+                return;
+            }
+            for (key, child) in object {
+                let length = path.len();
+                if !key.starts_with('_') {
+                    if path.is_empty() {
+                        path.push_str(key);
+                    } else if key.bytes().all(|byte| byte.is_ascii_digit()) {
+                        path.push('[');
+                        path.push_str(key);
+                        path.push(']');
+                    } else {
+                        path.push('.');
+                        path.push_str(key);
+                    }
+                }
+                flatten_errors(child, path, out);
+                path.truncate(length);
+            }
+        }
+        Value::Array(items) => {
+            for item in items {
+                flatten_errors(item, path, out);
+            }
+        }
+        Value::String(message) => out.push(FieldError {
+            path: path.clone(),
+            code: String::new(),
+            message: message.clone(),
+        }),
+        _ => {}
     }
 }
 
@@ -178,8 +320,9 @@ mod tests {
         let error = Error::new(ErrorKind::Response {
             status: StatusCode::FORBIDDEN,
             error: Some(Box::new(ApiError {
-                code: 50013,
+                code: ErrorCode::MissingPermissions,
                 message: "Missing Permissions".into(),
+                field_errors: Vec::new(),
                 errors: None,
             })),
         });
@@ -188,7 +331,82 @@ mod tests {
             "Discord responded with 403 Forbidden: Missing Permissions (code 50013)"
         );
         assert_eq!(error.status(), Some(StatusCode::FORBIDDEN));
-        assert_eq!(error.api_error().unwrap().code, 50013);
+        assert_eq!(
+            error.api_error().unwrap().code,
+            ErrorCode::MissingPermissions
+        );
+    }
+
+    fn parse(json: &str) -> ApiError {
+        serde_json::from_str(json).unwrap()
+    }
+
+    fn lines(error: &ApiError) -> Vec<String> {
+        error.field_errors.iter().map(ToString::to_string).collect()
+    }
+
+    #[test]
+    fn field_errors_of_the_docs_examples() {
+        // The docs' "Array Error", "Object Error" and "Request Error" examples.
+        let array = parse(
+            r#"{"code": 50035, "errors": {"activities": {"0": {
+                "platform": {"_errors": [{"code": "BASE_TYPE_CHOICES",
+                    "message": "Value must be one of ('desktop', 'android', 'ios')."}]},
+                "type": {"_errors": [{"code": "BASE_TYPE_CHOICES",
+                    "message": "Value must be one of (0, 1, 2, 3, 4, 5)."}]}}}},
+                "message": "Invalid Form Body"}"#,
+        );
+        assert_eq!(array.code, ErrorCode::InvalidFormBodyOrContentType);
+        assert_eq!(
+            lines(&array),
+            [
+                "activities[0].platform[BASE_TYPE_CHOICES]: Value must be one of ('desktop', 'android', 'ios').",
+                "activities[0].type[BASE_TYPE_CHOICES]: Value must be one of (0, 1, 2, 3, 4, 5).",
+            ]
+        );
+        assert!(array.errors.is_some());
+
+        let object = parse(
+            r#"{"code": 50035, "errors": {"access_token": {"_errors": [
+                {"code": "BASE_TYPE_REQUIRED", "message": "This field is required"}]}},
+                "message": "Invalid Form Body"}"#,
+        );
+        assert_eq!(
+            object.to_string(),
+            "Invalid Form Body (code 50035)\naccess_token[BASE_TYPE_REQUIRED]: This field is required"
+        );
+
+        let request = parse(
+            r#"{"code": 50035, "message": "Invalid Form Body", "errors": {"_errors": [
+                {"code": "APPLICATION_COMMAND_TOO_LARGE",
+                 "message": "Command exceeds maximum size (8000)"}]}}"#,
+        );
+        assert_eq!(request.field_errors[0].path, "");
+        assert_eq!(
+            lines(&request),
+            ["APPLICATION_COMMAND_TOO_LARGE: Command exceeds maximum size (8000)"]
+        );
+    }
+
+    #[test]
+    fn unusual_error_shapes() {
+        // Top-level indices (bulk command overwrites), a field named `code`, a plain string,
+        // and an unknown error code.
+        let error = parse(
+            r#"{"code": 123456, "message": "Something", "errors": {
+                "0": {"code": {"_errors": [{"code": "NUMBER_TYPE_MAX", "message": "Too big"}]}},
+                "name": "Must be set",
+                "other": 5}}"#,
+        );
+        assert_eq!(error.code, ErrorCode::Unknown(123_456));
+        assert_eq!(
+            lines(&error),
+            ["0.code[NUMBER_TYPE_MAX]: Too big", "name: Must be set"]
+        );
+        let plain = parse(r#"{"code": 0, "message": "404: Not Found"}"#);
+        assert_eq!(plain.code, ErrorCode::GeneralError);
+        assert!(plain.field_errors.is_empty() && plain.errors.is_none());
+        assert_eq!(plain.to_string(), "404: Not Found (code 0)");
     }
 
     #[test]

@@ -13,6 +13,10 @@ use serde::{Deserialize, Serialize, Serializer, ser::SerializeSeq};
 
 use crate::message::{AttachmentRequest, AttachmentRequestId, MessageReference};
 
+mod error_code;
+
+pub use self::error_code::ErrorCode;
+
 /// The response of [Get Gateway Bot](https://docs.discord.com/developers/events/gateway#get-gateway-bot)
 /// (`GET /gateway/bot`): where and how to connect to the gateway.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
