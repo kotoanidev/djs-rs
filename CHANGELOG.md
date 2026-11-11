@@ -8,6 +8,11 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Monetization endpoints (9 methods): `list_skus`; `list_entitlements` (with the
+  `ListEntitlements` query), `get_entitlement`, `consume_entitlement`,
+  `create_test_entitlement` (`CreateTestEntitlement::guild` / `::user`, D-130) and
+  `delete_test_entitlement`; `list_sku_subscriptions` (with the `ListSkuSubscriptions`
+  query) and `get_sku_subscription`. New `entitlement::EntitlementOwnerType`.
 - Poll endpoints: `get_answer_voters` (with the `GetAnswerVoters` query; returns the users
   unwrapped from `{"users": [...]}`) and `end_poll`. Routes accept `u32` path parameters
   (the poll's `answer_id`).

@@ -21,6 +21,7 @@ mod audit_log;
 mod auto_moderation;
 mod channel;
 mod emoji;
+mod entitlement;
 mod error_code;
 mod guild;
 mod guild_scheduled_event;
@@ -32,6 +33,7 @@ mod poll;
 mod soundboard;
 mod stage_instance;
 mod sticker;
+mod subscription;
 mod user;
 mod webhook;
 
@@ -50,6 +52,7 @@ pub use self::{
         StartThreadFromMessage, StartThreadInForumOrMediaChannel, StartThreadWithoutMessage,
     },
     emoji::{CreateApplicationEmoji, CreateGuildEmoji, ModifyApplicationEmoji, ModifyGuildEmoji},
+    entitlement::{CreateTestEntitlement, ListEntitlements},
     error_code::ErrorCode,
     guild::{
         ActiveThreads, AddGuildMember, BeginGuildPrune, BulkBanResponse, BulkGuildBan,
@@ -75,6 +78,7 @@ pub use self::{
     soundboard::{CreateGuildSoundboardSound, ModifyGuildSoundboardSound, SendSoundboardSound},
     stage_instance::{CreateStageInstance, ModifyStageInstance},
     sticker::{CreateGuildSticker, ModifyGuildSticker},
+    subscription::ListSkuSubscriptions,
     user::{CreateDm, CreateGroupDm, CurrentUserGuild, GetCurrentUserGuilds, ModifyCurrentUser},
     webhook::{CreateWebhook, EditWebhookMessage, ExecuteWebhook, ModifyWebhook},
 };

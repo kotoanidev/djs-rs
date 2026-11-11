@@ -1720,6 +1720,17 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   C-052/C-053 for other wrapped lists).
 - Both poll routes use the channel ID as major parameter; neither takes an audit log reason.
 
+### C-061 — Monetization endpoint details
+- Endpoints are split by resource page: `endpoints/{sku,entitlement,subscription}.rs`, with
+  one test file, `tests/monetization.rs`.
+- The routes have no major parameter (`/applications/{id}` and `/skus/{id}` are not major
+  parameters in Discord's rate limits).
+- `ListEntitlements::sku_ids` is a `Vec<SkuId>` sent comma-separated (`sku_ids=1,2`), left
+  out when empty. The other list filters are `Option`s.
+- Create Test Entitlement's partial response decodes into `Entitlement` (its `starts_at` and
+  `ends_at` are already `Option`s); `subscription_id` and `promotion_id`, which appear only in
+  Discord's examples, are still not modelled.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

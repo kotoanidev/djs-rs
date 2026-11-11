@@ -76,3 +76,15 @@ int_enum! {
         ApplicationSubscription = 8,
     }
 }
+
+int_enum! {
+    /// Who a [test entitlement](crate::rest::CreateTestEntitlement) is granted to.
+    ///
+    /// discord.js counterpart: `EntitlementOwnerType`.
+    pub enum EntitlementOwnerType: u8 {
+        /// A guild (for guild subscriptions).
+        Guild = 1,
+        /// A user (for user subscriptions).
+        User = 2,
+    }
+}

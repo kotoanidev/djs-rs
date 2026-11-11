@@ -6,9 +6,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use djs_model::{
     emoji::{Emoji, PartialEmoji},
     id::{
-        ApplicationId, AutoModerationRuleId, ChannelId, CommandId, EmojiId, GenericId, GuildId, Id,
-        IntegrationId, InteractionId, MessageId, RoleId, ScheduledEventId, SoundboardSoundId,
-        StickerId, StickerPackId, UserId, WebhookId,
+        ApplicationId, AutoModerationRuleId, ChannelId, CommandId, EmojiId, EntitlementId,
+        GenericId, GuildId, Id, IntegrationId, InteractionId, MessageId, RoleId, ScheduledEventId,
+        SkuId, SoundboardSoundId, StickerId, StickerPackId, SubscriptionId, UserId, WebhookId,
     },
 };
 use http::Method;
@@ -1278,6 +1278,57 @@ routes! {
         /// The message with the poll.
         message_id: MessageId,
     } => POST "/channels/{channel_id}/polls/{message_id}/expire", major: channel_id;
+
+    // Monetization: SKUs, entitlements and subscriptions.
+
+    /// [List SKUs](https://docs.discord.com/developers/resources/sku#list-skus).
+    ListSkus {
+        /// The application.
+        application_id: ApplicationId,
+    } => GET "/applications/{application_id}/skus";
+    /// [List Entitlements](https://docs.discord.com/developers/resources/entitlement#list-entitlements).
+    ListEntitlements {
+        /// The application.
+        application_id: ApplicationId,
+    } => GET "/applications/{application_id}/entitlements";
+    /// [Get Entitlement](https://docs.discord.com/developers/resources/entitlement#get-entitlement).
+    GetEntitlement {
+        /// The application.
+        application_id: ApplicationId,
+        /// The entitlement.
+        entitlement_id: EntitlementId,
+    } => GET "/applications/{application_id}/entitlements/{entitlement_id}";
+    /// [Consume an Entitlement](https://docs.discord.com/developers/resources/entitlement#consume-an-entitlement).
+    ConsumeEntitlement {
+        /// The application.
+        application_id: ApplicationId,
+        /// The entitlement.
+        entitlement_id: EntitlementId,
+    } => POST "/applications/{application_id}/entitlements/{entitlement_id}/consume";
+    /// [Create Test Entitlement](https://docs.discord.com/developers/resources/entitlement#create-test-entitlement).
+    CreateTestEntitlement {
+        /// The application.
+        application_id: ApplicationId,
+    } => POST "/applications/{application_id}/entitlements";
+    /// [Delete Test Entitlement](https://docs.discord.com/developers/resources/entitlement#delete-test-entitlement).
+    DeleteTestEntitlement {
+        /// The application.
+        application_id: ApplicationId,
+        /// The test entitlement.
+        entitlement_id: EntitlementId,
+    } => DELETE "/applications/{application_id}/entitlements/{entitlement_id}";
+    /// [List SKU Subscriptions](https://docs.discord.com/developers/resources/subscription#list-sku-subscriptions).
+    ListSkuSubscriptions {
+        /// The SKU.
+        sku_id: SkuId,
+    } => GET "/skus/{sku_id}/subscriptions";
+    /// [Get SKU Subscription](https://docs.discord.com/developers/resources/subscription#get-sku-subscription).
+    GetSkuSubscription {
+        /// The SKU.
+        sku_id: SkuId,
+        /// The subscription.
+        subscription_id: SubscriptionId,
+    } => GET "/skus/{sku_id}/subscriptions/{subscription_id}";
 
     // Auto Moderation.
 

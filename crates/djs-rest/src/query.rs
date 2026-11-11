@@ -11,10 +11,10 @@ use djs_model::{
         GetAnswerVoters, GetApplicationCommands, GetChannelMessages, GetChannelPermissions,
         GetChannelPins, GetCurrentUserGuilds, GetGuild, GetGuildAuditLog, GetGuildBans,
         GetGuildPruneCount, GetGuildScheduledEvent, GetGuildScheduledEventUsers, GetInvite,
-        GetReactions, GetThreadMember, ListArchivedThreads, ListGuildMembers,
-        ListJoinedPrivateArchivedThreads, ListScheduledEventsForGuild, ListThreadMembers,
-        SearchAuthorType, SearchEmbedType, SearchFilter, SearchGuildMembers, SearchGuildMessages,
-        SearchHasType, SearchSortMode, SearchSortOrder,
+        GetReactions, GetThreadMember, ListArchivedThreads, ListEntitlements, ListGuildMembers,
+        ListJoinedPrivateArchivedThreads, ListScheduledEventsForGuild, ListSkuSubscriptions,
+        ListThreadMembers, SearchAuthorType, SearchEmbedType, SearchFilter, SearchGuildMembers,
+        SearchGuildMessages, SearchHasType, SearchSortMode, SearchSortOrder,
     },
     util::Timestamp,
 };
@@ -194,6 +194,28 @@ impl Query for GetAnswerVoters {
     fn write(&self, query: &mut QueryWriter<'_>) {
         query.optional("after", self.after.as_ref());
         query.optional("limit", self.limit.as_ref());
+    }
+}
+
+impl Query for ListEntitlements {
+    fn write(&self, query: &mut QueryWriter<'_>) {
+        query.optional("user_id", self.user_id.as_ref());
+        query.comma_separated("sku_ids", &self.sku_ids);
+        query.optional("before", self.before.as_ref());
+        query.optional("after", self.after.as_ref());
+        query.optional("limit", self.limit.as_ref());
+        query.optional("guild_id", self.guild_id.as_ref());
+        query.optional("exclude_ended", self.exclude_ended.as_ref());
+        query.optional("exclude_deleted", self.exclude_deleted.as_ref());
+    }
+}
+
+impl Query for ListSkuSubscriptions {
+    fn write(&self, query: &mut QueryWriter<'_>) {
+        query.optional("before", self.before.as_ref());
+        query.optional("after", self.after.as_ref());
+        query.optional("limit", self.limit.as_ref());
+        query.optional("user_id", self.user_id.as_ref());
     }
 }
 
