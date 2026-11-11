@@ -8,6 +8,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-model`: `util::ImageData` (D-113) for images sent in request bodies, serialized as a
+  `data:` URI by a streaming base64 encoder; the media type is detected from the file
+  signature (PNG, JPEG, GIF, WebP, AVIF) or given.
 - Application command endpoints: get/create/edit/delete and bulk overwrite of global and
   guild commands, and their permissions (get all in a guild, get and edit one), with the
   bodies `CreateApplicationCommand` (`chat_input`/`user`/`message` constructors),
