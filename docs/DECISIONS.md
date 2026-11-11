@@ -1022,6 +1022,26 @@ and why.
 - **Alternatives:** a section of `docs/PERFORMANCE.md`; fewer scenarios; tables only;
   unpinned npm dependencies.
 
+### D-124 — Recurrence rules are sent as `RecurrenceRuleData`
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** Scheduled event bodies take `djs_model::rest::RecurrenceRuleData`, which has
+  only the fields a bot may set (`start`, `frequency`, `interval`, `by_weekday`,
+  `by_n_weekday`, `by_month`, `by_month_day`; not Discord's `end`, `count`, `by_year_day`),
+  constructors for the shapes Discord accepts (daily, weekly, every other week, monthly on
+  the n-th weekday, yearly on a date) and `From<RecurrenceRule>`. Same pattern as
+  `ForumTagData` (D-114) and `OnboardingPromptData` (D-118).
+- **Alternatives:** a constructor on `RecurrenceRule` with empty fields skipped (Discord
+  rejects the system fields if set); `RecurrenceRuleData` without shape constructors.
+
+### D-125 — Create Guild Scheduled Event has one constructor per entity type
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `CreateGuildScheduledEvent` is one struct with public fields and the
+  constructors `stage(channel_id, name, start)`, `voice(channel_id, name, start)` and
+  `external(location, name, start, end)`, which set `entity_type`, the fields that type
+  requires and `privacy_level` `GUILD_ONLY` (the only accepted value).
+- **Alternatives:** an enum of entity kinds with custom serialization; one generic
+  `new(name, entity_type, start)`.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
