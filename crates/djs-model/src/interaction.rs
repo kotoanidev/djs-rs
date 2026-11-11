@@ -37,6 +37,21 @@ int_enum! {
     }
 }
 
+int_enum! {
+    /// [Where an interaction can be used](https://docs.discord.com/developers/interactions/receiving-and-responding#interaction-object-interaction-context-types),
+    /// or was triggered from.
+    ///
+    /// discord.js counterpart: `InteractionContextType`.
+    pub enum InteractionContextType: u8 {
+        /// In guilds.
+        Guild = 0,
+        /// In DMs with the app's bot user.
+        BotDm = 1,
+        /// In group DMs and DMs other than with the app's bot user.
+        PrivateChannel = 2,
+    }
+}
+
 /// The [interaction a message responds to](https://docs.discord.com/developers/interactions/receiving-and-responding#message-interaction-object)
 /// (`Message::interaction`).
 ///

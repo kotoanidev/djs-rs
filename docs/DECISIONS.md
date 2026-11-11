@@ -753,6 +753,23 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   them with comments removed. Interaction-data examples (with `...additionalInteractionFields`)
   are left for the interactions step.
 
+### C-031 — Application command model details
+- Names: the object keeps its full name `ApplicationCommand` (module = object, like
+  `GuildTemplate`); the rest drop "Application" (`CommandType`, `CommandOption`,
+  `CommandOptionType`, `CommandPermission`, `CommandPermissionType`, `GuildCommandPermissions`,
+  `EntryPointHandlerType`) and the choice is `Choice<T>`; doc aliases give the Discord names.
+- Shared structs: `SubCommandOption` (subcommand and group), `BasicOption` (boolean, user, role,
+  mentionable). `CommandOption::common()` returns an `OptionInfo` with the fields every option
+  has.
+- Choices and bounds are checked against the option type when decoding (a string choice on an
+  integer option is an error); integers convert to `f64` for number options.
+- `name_localized` / `description_localized` (returned by list endpoints instead of the full
+  dictionaries) are modelled on commands and options.
+- The deprecated `dm_permission` / `default_permission` are `Option<bool>` (their default is
+  `true`, so absent ≠ `false`).
+- The docs show creation bodies; the tests add `id`, `application_id`, `version` to decode them
+  as returned commands.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

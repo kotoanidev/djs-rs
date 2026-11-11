@@ -10,7 +10,7 @@ D-041).
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-069 in `docs/DECISIONS.md`; Claude defaults C-001 …
-  C-030 (reviewable) in the same file.
+  C-031 (reviewable) in the same file.
 - Toolchains (rustup): stable 1.99.1, 1.85, 1.89 (MSRV, D-031).
 - Phase 0: foundation docs, public repo https://github.com/kotoanidev/djs-rs, 9-crate workspace,
   lints, CI (fmt, clippy all/no-default features, tests ×3 OS, rustdoc -D warnings, MSRV 1.89,
@@ -89,7 +89,18 @@ D-041).
   message/modal examples of the docs (JSONC → `fixtures/docs/component_reference_examples.json`).
   Size guards: Component 120 B, Message 648 B, Embed 232 B. The modal itself (an interaction
   response) and the modal-submit / component interaction data come with interactions.
-- **Next:** interactions & commands (adds `Message::resolved`, the interaction object, command
+- Interactions step, part 1 ✅: `application_command` module (D-069, C-031), tests
+  `tests/application_command.rs` on the docs' 11 command examples. Fixtures for part 2 are
+  already extracted: `application_command_interaction_examples.json` (3 interactions),
+  `application_command_autocomplete_response.json`.
+- **Next (interactions part 2):** `entitlement` module (pulled forward: `Interaction::
+  entitlements`), then `interaction::{Interaction, InteractionData (D-067), CommandData +
+  option values (enum by type, autocomplete "focused" raw value), ComponentData,
+  ModalSubmitData + submitted components (enum by component type), Resolved (BTreeMap, D-058),
+  InteractionMember (Mention-like Raw decoding: PartialMember + permissions + user),
+  InteractionChannel, InteractionGuild}`, responses (D-068: callback types/data, modal,
+  autocomplete, `poll::CreatePoll`, `message::AttachmentRequest`, callback response objects),
+  `Message::resolved`. Then (adds `Message::resolved`, the interaction object, command
   types) → `audit_log` (needs commands, webhooks, threads, integrations, auto moderation,
   scheduled events) → monetization (SKU, entitlements,
   subscriptions), soundboard, lobbies, application identity profile (new docs pages

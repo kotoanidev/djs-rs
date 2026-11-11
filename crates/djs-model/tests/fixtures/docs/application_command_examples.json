@@ -1,0 +1,286 @@
+[
+  {
+    "heading": "Example of editing permissions",
+    "command": {
+      "name": "permissions_test",
+      "description": "A test of default permissions",
+      "type": 1,
+      "default_member_permissions": "0"
+    }
+  },
+  {
+    "heading": "Example Slash Command",
+    "command": {
+      "name": "blep",
+      "type": 1,
+      "description": "Send a random adorable animal photo",
+      "options": [
+        {
+          "name": "animal",
+          "description": "The type of animal",
+          "type": 3,
+          "required": true,
+          "choices": [
+            {
+              "name": "Dog",
+              "value": "animal_dog"
+            },
+            {
+              "name": "Cat",
+              "value": "animal_cat"
+            },
+            {
+              "name": "Penguin",
+              "value": "animal_penguin"
+            }
+          ]
+        },
+        {
+          "name": "only_smol",
+          "description": "Whether to show only baby animals",
+          "type": 5,
+          "required": false
+        }
+      ]
+    }
+  },
+  {
+    "heading": "Example Walkthrough",
+    "command": {
+      "name": "permissions",
+      "description": "Get or edit permissions for a user or a role",
+      "options": []
+    }
+  },
+  {
+    "heading": "Example Walkthrough",
+    "command": {
+      "name": "permissions",
+      "description": "Get or edit permissions for a user or a role",
+      "options": [
+        {
+          "name": "user",
+          "description": "Get or edit permissions for a user",
+          "type": 2
+        },
+        {
+          "name": "role",
+          "description": "Get or edit permissions for a role",
+          "type": 2
+        }
+      ]
+    }
+  },
+  {
+    "heading": "Example Walkthrough",
+    "command": {
+      "name": "permissions",
+      "description": "Get or edit permissions for a user or a role",
+      "options": [
+        {
+          "name": "user",
+          "description": "Get or edit permissions for a user",
+          "type": 2,
+          "options": [
+            {
+              "name": "get",
+              "description": "Get permissions for a user",
+              "type": 1
+            },
+            {
+              "name": "edit",
+              "description": "Edit permissions for a user",
+              "type": 1
+            }
+          ]
+        },
+        {
+          "name": "role",
+          "description": "Get or edit permissions for a role",
+          "type": 2,
+          "options": [
+            {
+              "name": "get",
+              "description": "Get permissions for a role",
+              "type": 1
+            },
+            {
+              "name": "edit",
+              "description": "Edit permissions for a role",
+              "type": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "heading": "Example Walkthrough",
+    "command": {
+      "name": "permissions",
+      "description": "Get or edit permissions for a user or a role",
+      "options": [
+        {
+          "name": "user",
+          "description": "Get or edit permissions for a user",
+          "type": 2,
+          "options": [
+            {
+              "name": "get",
+              "description": "Get permissions for a user",
+              "type": 1,
+              "options": [
+                {
+                  "name": "user",
+                  "description": "The user to get",
+                  "type": 6,
+                  "required": true
+                },
+                {
+                  "name": "channel",
+                  "description": "The channel permissions to get. If omitted, the guild permissions will be returned",
+                  "type": 7,
+                  "required": false
+                }
+              ]
+            },
+            {
+              "name": "edit",
+              "description": "Edit permissions for a user",
+              "type": 1,
+              "options": [
+                {
+                  "name": "user",
+                  "description": "The user to edit",
+                  "type": 6,
+                  "required": true
+                },
+                {
+                  "name": "channel",
+                  "description": "The channel permissions to edit. If omitted, the guild permissions will be edited",
+                  "type": 7,
+                  "required": false
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "role",
+          "description": "Get or edit permissions for a role",
+          "type": 2,
+          "options": [
+            {
+              "name": "get",
+              "description": "Get permissions for a role",
+              "type": 1,
+              "options": [
+                {
+                  "name": "role",
+                  "description": "The role to get",
+                  "type": 8,
+                  "required": true
+                },
+                {
+                  "name": "channel",
+                  "description": "The channel permissions to get. If omitted, the guild permissions will be returned",
+                  "type": 7,
+                  "required": false
+                }
+              ]
+            },
+            {
+              "name": "edit",
+              "description": "Edit permissions for a role",
+              "type": 1,
+              "options": [
+                {
+                  "name": "role",
+                  "description": "The role to edit",
+                  "type": 8,
+                  "required": true
+                },
+                {
+                  "name": "channel",
+                  "description": "The channel permissions to edit. If omitted, the guild permissions will be edited",
+                  "type": 7,
+                  "required": false
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "heading": "Example User Command",
+    "command": {
+      "name": "View Stats",
+      "type": 2
+    }
+  },
+  {
+    "heading": "Example Message Command",
+    "command": {
+      "name": "Challenge",
+      "type": 3
+    }
+  },
+  {
+    "heading": "Example Entry Point Command",
+    "command": {
+      "name": "launch",
+      "description": "Launch Racing with Friends",
+      "type": 4,
+      "handler": 2
+    }
+  },
+  {
+    "heading": "Localization",
+    "command": {
+      "name": "birthday",
+      "type": 1,
+      "description": "Wish a friend a happy birthday",
+      "name_localizations": {
+        "zh-CN": "生日",
+        "el": "γενέθλια"
+      },
+      "description_localizations": {
+        "zh-CN": "祝你朋友生日快乐"
+      },
+      "options": [
+        {
+          "name": "age",
+          "type": 4,
+          "description": "Your friend's age",
+          "name_localizations": {
+            "zh-CN": "岁数"
+          },
+          "description_localizations": {
+            "zh-CN": "你朋友的岁数"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "heading": "Retrieving localized commands",
+    "command": {
+      "name": "birthday",
+      "type": 1,
+      "description": "Wish a friend a happy birthday",
+      "name_localized": "生日",
+      "description_localized": "祝你朋友生日快乐",
+      "options": [
+        {
+          "name": "age",
+          "type": 4,
+          "description": "Your friend's age",
+          "name_localized": "岁数",
+          "description_localized": "你朋友的岁数"
+        }
+      ]
+    }
+  }
+]

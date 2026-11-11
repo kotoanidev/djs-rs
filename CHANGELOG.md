@@ -8,6 +8,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-model`: `application_command` module — `ApplicationCommand`, `CommandType`, the
+  `CommandOption` enum (D-069) with typed `Choice<T>`s, entry point handler types, command
+  permissions (with the `@everyone` / all-channels constants); `interaction::InteractionContextType`.
 - `djs-model`: `component` module — the `Component` enum (D-065) with every documented
   component (action rows, buttons as `Button::{Interactive, Link, Premium}` (D-066), the five
   select menus, text inputs, sections, text displays, thumbnails, media galleries, files,
