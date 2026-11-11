@@ -482,6 +482,30 @@ and why.
   `Channel`, clashing with `guild::Role` / `channel::Channel` in imports); an untyped
   `serde_json::Value` snapshot.
 
+### D-060 — Message mentions are `Mention { user, member }`
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** `Message::mentions` is `Vec<Mention>` with `Mention { user: User, member:
+  Option<Box<PartialMember>> }` (the gateway adds a partial member to every mentioned user in
+  guilds), and `Message::member: Option<Box<PartialMember>>` holds the author's member.
+  `Mention` is decoded in a single pass without buffering (a private flat struct converted into
+  `User` + member, like `RawChannel`). `User` keeps only user fields (D-052).
+- **Alternatives:** a `member` field on `User` (serenity); dropping mention members.
+
+### D-061 — `referenced_message` is a three-state enum
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** an exception to D-049 for fields whose docs give absent and `null` different
+  meanings. `Message::referenced_message` is `ReferencedMessage::{NotFetched, Deleted,
+  Message(Box<Message>)}` (absent = Discord did not try to fetch it, `null` = deleted), with
+  `as_message()`; it serializes faithfully (absent / `null` / object).
+- **Alternatives:** `Option<Box<Message>>` (as discord.js and twilight; loses "deleted").
+
+### D-062 — Messages before components; `components`/`resolved` added later
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** Phase 2 order stays: the full message model now, without `components` and
+  `resolved`; those fields are added in the components and interactions steps (non-breaking
+  thanks to `#[non_exhaustive]`, D-053).
+- **Alternatives:** components first, then messages.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
