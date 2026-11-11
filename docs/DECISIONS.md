@@ -896,6 +896,36 @@ and why.
 - **Alternatives:** a `bearer_token: &str` parameter on those methods, overriding the header
   for one request of the bot's client.
 
+### D-109 — Modify Channel has one body and one method per channel kind
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** The three parameter sets of Modify Channel become `ModifyGuildChannel`,
+  `ModifyThread` and `ModifyGroupDm`, sent by `modify_channel`, `modify_thread` and
+  `modify_group_dm` (all `PATCH /channels/{channel_id}`), so a thread field cannot be sent to
+  a guild channel by mistake; like `GuildChannel#edit` / `ThreadChannel#edit` in discord.js.
+- **Alternatives:** one `ModifyChannel` with every field (discord-api-types); three bodies
+  behind one method taking an enum.
+
+### D-110 — Computed channel permissions are returned as `Permissions`
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** Get Channel Member Permissions and Get Channel Role Permissions return
+  `Permissions`, unwrapping the `{"permissions": "…"}` response object.
+- **Alternatives:** a response struct with a `permissions` field.
+
+### D-111 — Invites support both target user lists
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** Create Channel Invite supports `target_user_ids` (JSON) and
+  `target_users_file` (a CSV `FileUpload`, sent as `multipart/form-data`); the multipart
+  writer learns form fields with a custom name, also for the invite target-user endpoints
+  later.
+- **Alternatives:** only `target_user_ids` (max 1000 users) for now.
+
+### D-112 — Forum and media thread messages have their own body
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** Start Thread in Forum or Media Channel takes a `ForumThreadMessage` with
+  exactly the documented fields (content, embeds, allowed mentions, components, sticker IDs,
+  attachments, flags) plus files with generated `attachments`, like D-107.
+- **Alternatives:** reuse `CreateMessage` (allows fields Discord rejects there).
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
