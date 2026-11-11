@@ -1042,6 +1042,19 @@ and why.
 - **Alternatives:** an enum of entity kinds with custom serialization; one generic
   `new(name, entity_type, start)`.
 
+### D-126 — Get Target Users returns parsed user IDs
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `Rest::get_target_users` parses the CSV Discord returns (a `user_id` header,
+  then one ID per line) into `Vec<UserId>`; a line that is not an ID is a decode error.
+- **Alternatives:** the raw CSV bytes, like discord.js' `fetchTargetUsers`; both methods.
+
+### D-127 — Target user files have a helper constructor
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `Rest::update_target_users` takes a `&FileUpload` (consistent with D-111),
+  and `FileUpload::target_users(ids)` builds `users.csv` (one ID per line, `text/csv`) from
+  user IDs, for Update Target Users and Create Channel Invite alike.
+- **Alternatives:** two methods (IDs and file); only `&FileUpload`.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
