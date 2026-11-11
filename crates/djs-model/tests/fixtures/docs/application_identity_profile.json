@@ -1,0 +1,43 @@
+{
+  "username": "johndoe123",
+  "metadata": null,
+  "data": {
+    "primary": {
+      "season": "Season 3",
+      "rank_name": "Silver",
+      "rank_image": {"url": "https://example.com/assets/rank-images/silver.png"},
+      "highest_rank": "Platinum",
+      "highest_rank_image": {"url": "https://example.com/assets/rank-images/platinum.png"},
+      "featured_played_character": "John Doe",
+      "featured_played_character_image": {"url": "https://example.com/assets/character-images/john-doe.png"},
+      "playtime_hours": 69.41,
+      "total_wins": 57,
+      "current_period_wins": 8,
+      "total_games": 100,
+      "current_period_games": 10,
+      "total_kills": 253,
+      "current_period_kills": 35,
+      "total_assists": 478,
+      "current_period_assists": 68,
+      "total_deaths": 561,
+      "current_period_deaths": 21
+    },
+    "dynamic": [
+      {
+        "type": 1,
+        "name": "my_string",
+        "value": "hello"
+      },
+      {
+        "type": 2,
+        "name": "my_number",
+        "value": 123.45
+      },
+      {
+        "type": 3,
+        "name": "my_media",
+        "value": {"url": "https://example.com/some-media.png"}
+      }
+    ]
+  }
+}

@@ -185,3 +185,68 @@ fn subscription() {
     assert!(written["canceled_at"].is_null() && written["renewal_sku_ids"].is_null());
     assert!(written.get("country").is_none());
 }
+
+#[test]
+fn identity_profile() {
+    use djs_model::{
+        application_identity_profile::{
+            ApplicationIdentity, ApplicationIdentityProfile, DynamicField, DynamicFieldType,
+            DynamicFieldValue, ProfileData, ProfileMedia,
+        },
+        util::JsonValue,
+    };
+
+    let profile: ApplicationIdentityProfile = round_trip(
+        include_str!("fixtures/docs/application_identity_profile.json"),
+        &[],
+    );
+    assert_eq!(profile.username.as_deref(), Some("johndoe123"));
+    assert!(profile.metadata.is_none());
+    let data = profile.data.unwrap();
+    let primary = data.primary.unwrap();
+    assert_eq!(primary.playtime_hours, Some(69.41));
+    assert_eq!(primary.total_wins, Some(57));
+    assert_eq!(primary.rank_name.as_deref(), Some("Silver"));
+    let values: Vec<&DynamicFieldValue> = data.dynamic.iter().map(|field| &field.value).collect();
+    assert_eq!(
+        values,
+        [
+            &DynamicFieldValue::String("hello".into()),
+            &DynamicFieldValue::Number(123.45),
+            &DynamicFieldValue::Media(ProfileMedia::new("https://example.com/some-media.png")),
+        ]
+    );
+
+    // Metadata is arbitrary JSON (D-072); unknown field types keep their name and type.
+    let json = r#"{"username":null,"metadata":{"level":12,"tags":["a"]},"data":{"dynamic":[{"type":9,"name":"x","value":true}]}}"#;
+    let profile: ApplicationIdentityProfile = serde_json::from_str(json).unwrap();
+    let metadata = profile.metadata.as_ref().unwrap();
+    assert_eq!(metadata["level"], JsonValue::Unsigned(12));
+    let field = &profile.data.as_ref().unwrap().dynamic[0];
+    assert_eq!(field.value.kind(), DynamicFieldType::Unknown(9));
+    assert_eq!(
+        serde_json::to_string(&profile).unwrap(),
+        r#"{"username":null,"metadata":{"level":12,"tags":["a"]},"data":{"dynamic":[{"type":9,"name":"x"}]}}"#
+    );
+
+    // Building an update.
+    let mut update = ProfileData::default();
+    update
+        .dynamic
+        .push(DynamicField::new("mmr", DynamicFieldValue::Number(1520.0)));
+    assert_eq!(
+        serde_json::to_string(&update).unwrap(),
+        r#"{"dynamic":[{"type":2,"name":"mmr","value":1520.0}]}"#
+    );
+    // A wrongly typed value is an error.
+    let error = serde_json::from_str::<DynamicField>(r#"{"type":2,"name":"n","value":"1"}"#)
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("value"), "{error}");
+
+    let identity: ApplicationIdentity = round_trip(
+        r#"{"user_id":"1","provider_type":"steam","provider_id":"x","provider_issued_user_id":"765"}"#,
+        &[],
+    );
+    assert_eq!(identity.provider_type, "steam");
+}

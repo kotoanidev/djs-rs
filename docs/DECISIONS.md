@@ -826,7 +826,8 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 
 ### C-033 — Audit log model details
 - Names: `AuditLog`, `AuditLogEntry`, `AuditLogEvent` (= discord.js), `AuditLogEntryOptions`
-  (doc alias `OptionalAuditEntryInfo`), `AuditLogChange`, `AuditLogValue` with variants
+  (doc alias `OptionalAuditEntryInfo`), `AuditLogChange`, `AuditLogValue` (renamed to
+  `util::JsonValue` / `JsonValueError` by D-072) with variants
   `Null`, `Bool`, `Unsigned` (non-negative integers), `Signed` (negative), `Float`, `String`,
   `Array`, `Object` (a `BTreeMap`, D-058), and the conversion error `AuditLogValueError`.
 - `&AuditLogValue` implements serde's `Deserializer` (borrowed strings, options, newtypes,
@@ -859,6 +860,18 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - `lobby::{Lobby, LobbyMember, LobbyMemberFlags, LobbyMessage, LobbyMessageMember,
   LobbyInvite}`: the nullable string dictionaries are `BTreeMap`s where `null`/absent are empty
   (D-058, like `name_localizations`), skipped when empty. Request bodies are Phase 3.
+
+### C-036 — Application identity profile details
+- One `ApplicationIdentity` type with an optional `user_id` (the identity lists include it,
+  the identity table does not; discord-api-types has two interfaces).
+- `ApplicationIdentityProfile::metadata` is `Option<BTreeMap<CompactString, JsonValue>>`
+  (`?object`, written as `null` when `None`, D-049/D-072). `ProfileData` doubles as the update
+  body (`Default` + public fields). The media object is `ProfileMedia` (not `Media`, which is
+  the poll media).
+- Dynamic fields follow the option-value pattern (C-032): `DynamicField { name, value }` with a
+  `DynamicFieldValue` enum by type; the raw value is decoded as a `JsonValue` and converted
+  after reading `type`. Integer stats are `u64`, `playtime_hours` is `f64`.
+- `JsonValue` moved from `audit_log` to `util` (D-072).
 
 ---
 

@@ -4,12 +4,13 @@
 
 use djs_model::{
     application_command::{CommandPermission, CommandPermissionType},
-    audit_log::{AuditLog, AuditLogChange, AuditLogEntry, AuditLogEvent, AuditLogValue},
+    audit_log::{AuditLog, AuditLogChange, AuditLogEntry, AuditLogEvent},
     auto_moderation::TriggerType,
     channel::{ChannelType, Overwrite, OverwriteType},
     guild::IntegrationType,
     id::{ApplicationId, ChannelId, GenericId, RoleId},
     permissions::Permissions,
+    util::JsonValue,
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -217,8 +218,8 @@ fn change_values_convert_to_field_types() {
         Ok(Some(ChannelType::GuildAnnouncement))
     );
     let position = change(update, "position");
-    assert_eq!(position.old_value, Some(AuditLogValue::Signed(-1)));
-    assert_eq!(position.new_value, Some(AuditLogValue::Float(2.5)));
+    assert_eq!(position.old_value, Some(JsonValue::Signed(-1)));
+    assert_eq!(position.new_value, Some(JsonValue::Float(2.5)));
     let overwrites = change(update, "permission_overwrites")
         .new_value_as::<Vec<Overwrite>>()
         .unwrap()
@@ -255,7 +256,7 @@ fn change_values_convert_to_field_types() {
         change(webhook, "avatar_hash")
             .new_value
             .as_ref()
-            .and_then(AuditLogValue::as_str),
+            .and_then(JsonValue::as_str),
         Some("a_0123456789abcdef")
     );
 
@@ -271,9 +272,9 @@ fn change_values_convert_to_field_types() {
 #[test]
 fn values_round_trip_every_json_shape() {
     let json = r#"[null,true,0,18446744073709551615,-9223372036854775808,0.5,"text",[1,[2]],{"a":{"b":null}}]"#;
-    let values: Vec<AuditLogValue> = serde_json::from_str(json).unwrap();
-    assert_eq!(values[3], AuditLogValue::Unsigned(u64::MAX));
-    assert_eq!(values[4], AuditLogValue::Signed(i64::MIN));
+    let values: Vec<JsonValue> = serde_json::from_str(json).unwrap();
+    assert_eq!(values[3], JsonValue::Unsigned(u64::MAX));
+    assert_eq!(values[4], JsonValue::Signed(i64::MIN));
     assert_eq!(serde_json::to_string(&values).unwrap(), json);
     // Optional fields see `null` as `None`.
     assert_eq!(values[0].to_type::<Option<u8>>(), Ok(None));

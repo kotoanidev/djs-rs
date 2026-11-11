@@ -4,21 +4,10 @@
 //! An [`AuditLog`] (returned by `GET /guilds/{guild.id}/audit-logs`) holds
 //! [`AuditLogEntry`]s plus the users, webhooks, threads, commands and other objects they
 //! refer to. Each entry's [`changes`](AuditLogEntry::changes) keep their "mixed" values as
-//! [`AuditLogValue`]s, which convert to the field's type on demand (D-070).
-
-use std::collections::BTreeMap;
+//! [`JsonValue`]s, which convert to the field's type on demand (D-070, D-072).
 
 use compact_str::CompactString;
-use serde::{
-    Deserialize, Deserializer, Serialize, Serializer,
-    de::{
-        self, DeserializeSeed, EnumAccess, IntoDeserializer, MapAccess, SeqAccess, Unexpected,
-        VariantAccess, Visitor,
-        value::{MapDeserializer, SeqDeserializer},
-    },
-    forward_to_deserialize_any,
-    ser::{SerializeMap, SerializeSeq},
-};
+use serde::{Deserialize, Serialize};
 
 use crate::{
     application_command::ApplicationCommand,
@@ -29,6 +18,7 @@ use crate::{
     id::{ApplicationId, AuditLogEntryId, ChannelId, GenericId, GuildId, MessageId, UserId},
     macros::int_enum,
     user::User,
+    util::{JsonValue, JsonValueError},
     webhook::Webhook,
 };
 
@@ -74,7 +64,7 @@ pub struct AuditLog {
 /// (message deletes, member moves and disconnects, channel and role reordering); only the
 /// first reason is kept.
 ///
-/// Contains floats (through [`AuditLogValue`]), so it is `PartialEq` but not `Eq` (D-064).
+/// Contains floats (through [`JsonValue`]), so it is `PartialEq` but not `Eq` (D-064).
 ///
 /// discord.js counterpart: `GuildAuditLogsEntry`.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -474,10 +464,10 @@ pub struct AuditLogChange {
     pub key: CompactString,
     /// The value before the change.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub old_value: Option<AuditLogValue>,
+    pub old_value: Option<JsonValue>,
     /// The value after the change.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub new_value: Option<AuditLogValue>,
+    pub new_value: Option<JsonValue>,
 }
 
 impl AuditLogChange {
@@ -486,11 +476,8 @@ impl AuditLogChange {
     /// # Errors
     ///
     /// Returns an error if the value does not have the shape of `T`.
-    pub fn old_value_as<'a, T: Deserialize<'a>>(&'a self) -> Result<Option<T>, AuditLogValueError> {
-        self.old_value
-            .as_ref()
-            .map(AuditLogValue::to_type)
-            .transpose()
+    pub fn old_value_as<'a, T: Deserialize<'a>>(&'a self) -> Result<Option<T>, JsonValueError> {
+        self.old_value.as_ref().map(JsonValue::to_type).transpose()
     }
 
     /// Converts the [`new_value`](Self::new_value) to the field's type (`Ok(None)` if absent).
@@ -498,313 +485,8 @@ impl AuditLogChange {
     /// # Errors
     ///
     /// Returns an error if the value does not have the shape of `T`.
-    pub fn new_value_as<'a, T: Deserialize<'a>>(&'a self) -> Result<Option<T>, AuditLogValueError> {
-        self.new_value
-            .as_ref()
-            .map(AuditLogValue::to_type)
-            .transpose()
-    }
-}
-
-/// A JSON value of an [`AuditLogChange`], whose type depends on the changed field (D-070).
-///
-/// Convert it with [`to_type`](Self::to_type) (or [`AuditLogChange::new_value_as`]) to the type
-/// of the changed object's field, e.g. [`Permissions`](crate::permissions::Permissions) for
-/// `permissions` or `Vec<`[`Overwrite`](crate::channel::Overwrite)`>` for
-/// `permission_overwrites`. `&AuditLogValue` is a serde [`Deserializer`].
-#[derive(Clone, Debug, PartialEq)]
-pub enum AuditLogValue {
-    /// `null`.
-    Null,
-    /// A boolean.
-    Bool(bool),
-    /// A non-negative integer.
-    Unsigned(u64),
-    /// A negative integer.
-    Signed(i64),
-    /// A number with a fraction (or out of the integer ranges).
-    Float(f64),
-    /// A string (snowflakes, permissions, timestamps and hashes are strings too).
-    String(CompactString),
-    /// An array.
-    Array(Vec<AuditLogValue>),
-    /// An object (keys sorted, D-058).
-    Object(BTreeMap<CompactString, AuditLogValue>),
-}
-
-impl AuditLogValue {
-    /// Converts the value to `T` (any type that deserializes from JSON of this shape).
-    ///
-    /// Enums whose JSON is a string (`str_enum`s) convert from strings; other enums are
-    /// decoded through their JSON representation as usual.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the value does not have the shape of `T`.
-    pub fn to_type<'a, T: Deserialize<'a>>(&'a self) -> Result<T, AuditLogValueError> {
-        T::deserialize(self)
-    }
-
-    /// Returns the string, if the value is one.
-    #[must_use]
-    pub fn as_str(&self) -> Option<&str> {
-        match self {
-            Self::String(value) => Some(value),
-            _ => None,
-        }
-    }
-
-    fn unexpected(&self) -> Unexpected<'_> {
-        match self {
-            Self::Null => Unexpected::Unit,
-            Self::Bool(value) => Unexpected::Bool(*value),
-            Self::Unsigned(value) => Unexpected::Unsigned(*value),
-            Self::Signed(value) => Unexpected::Signed(*value),
-            Self::Float(value) => Unexpected::Float(*value),
-            Self::String(value) => Unexpected::Str(value),
-            Self::Array(_) => Unexpected::Seq,
-            Self::Object(_) => Unexpected::Map,
-        }
-    }
-}
-
-impl Serialize for AuditLogValue {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        match self {
-            Self::Null => serializer.serialize_unit(),
-            Self::Bool(value) => serializer.serialize_bool(*value),
-            Self::Unsigned(value) => serializer.serialize_u64(*value),
-            Self::Signed(value) => serializer.serialize_i64(*value),
-            Self::Float(value) => serializer.serialize_f64(*value),
-            Self::String(value) => serializer.serialize_str(value),
-            Self::Array(values) => {
-                let mut seq = serializer.serialize_seq(Some(values.len()))?;
-                for value in values {
-                    seq.serialize_element(value)?;
-                }
-                seq.end()
-            }
-            Self::Object(entries) => {
-                let mut map = serializer.serialize_map(Some(entries.len()))?;
-                for (key, value) in entries {
-                    map.serialize_entry(key, value)?;
-                }
-                map.end()
-            }
-        }
-    }
-}
-
-impl<'de> Deserialize<'de> for AuditLogValue {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        struct ValueVisitor;
-
-        impl<'de> Visitor<'de> for ValueVisitor {
-            type Value = AuditLogValue;
-
-            fn expecting(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-                f.write_str("any JSON value")
-            }
-
-            fn visit_unit<E: de::Error>(self) -> Result<AuditLogValue, E> {
-                Ok(AuditLogValue::Null)
-            }
-
-            fn visit_none<E: de::Error>(self) -> Result<AuditLogValue, E> {
-                Ok(AuditLogValue::Null)
-            }
-
-            fn visit_some<D: Deserializer<'de>>(
-                self,
-                deserializer: D,
-            ) -> Result<AuditLogValue, D::Error> {
-                deserializer.deserialize_any(self)
-            }
-
-            fn visit_bool<E: de::Error>(self, value: bool) -> Result<AuditLogValue, E> {
-                Ok(AuditLogValue::Bool(value))
-            }
-
-            fn visit_u64<E: de::Error>(self, value: u64) -> Result<AuditLogValue, E> {
-                Ok(AuditLogValue::Unsigned(value))
-            }
-
-            fn visit_i64<E: de::Error>(self, value: i64) -> Result<AuditLogValue, E> {
-                Ok(u64::try_from(value)
-                    .map_or(AuditLogValue::Signed(value), AuditLogValue::Unsigned))
-            }
-
-            fn visit_f64<E: de::Error>(self, value: f64) -> Result<AuditLogValue, E> {
-                Ok(AuditLogValue::Float(value))
-            }
-
-            fn visit_str<E: de::Error>(self, value: &str) -> Result<AuditLogValue, E> {
-                Ok(AuditLogValue::String(value.into()))
-            }
-
-            fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<AuditLogValue, A::Error> {
-                let mut values = Vec::with_capacity(seq.size_hint().unwrap_or(0).min(64));
-                while let Some(value) = seq.next_element()? {
-                    values.push(value);
-                }
-                Ok(AuditLogValue::Array(values))
-            }
-
-            fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<AuditLogValue, A::Error> {
-                let mut entries = BTreeMap::new();
-                while let Some((key, value)) = map.next_entry::<CompactString, AuditLogValue>()? {
-                    entries.insert(key, value);
-                }
-                Ok(AuditLogValue::Object(entries))
-            }
-        }
-
-        deserializer.deserialize_any(ValueVisitor)
-    }
-}
-
-/// The error of converting an [`AuditLogValue`] to a type.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct AuditLogValueError(CompactString);
-
-impl core::fmt::Display for AuditLogValueError {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.write_str(&self.0)
-    }
-}
-
-impl core::error::Error for AuditLogValueError {}
-
-impl de::Error for AuditLogValueError {
-    fn custom<T: core::fmt::Display>(message: T) -> Self {
-        Self(compact_str::format_compact!("{message}"))
-    }
-}
-
-impl<'de> IntoDeserializer<'de, AuditLogValueError> for &'de AuditLogValue {
-    type Deserializer = Self;
-
-    fn into_deserializer(self) -> Self {
-        self
-    }
-}
-
-impl<'de> Deserializer<'de> for &'de AuditLogValue {
-    type Error = AuditLogValueError;
-
-    fn deserialize_any<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
-        match self {
-            AuditLogValue::Null => visitor.visit_unit(),
-            AuditLogValue::Bool(value) => visitor.visit_bool(*value),
-            AuditLogValue::Unsigned(value) => visitor.visit_u64(*value),
-            AuditLogValue::Signed(value) => visitor.visit_i64(*value),
-            AuditLogValue::Float(value) => visitor.visit_f64(*value),
-            AuditLogValue::String(value) => visitor.visit_borrowed_str(value),
-            AuditLogValue::Array(values) => {
-                let mut seq = SeqDeserializer::new(values.iter());
-                let value = visitor.visit_seq(&mut seq)?;
-                seq.end()?;
-                Ok(value)
-            }
-            AuditLogValue::Object(entries) => {
-                let mut map =
-                    MapDeserializer::new(entries.iter().map(|(key, value)| (key.as_str(), value)));
-                let value = visitor.visit_map(&mut map)?;
-                map.end()?;
-                Ok(value)
-            }
-        }
-    }
-
-    fn deserialize_option<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
-        match self {
-            AuditLogValue::Null => visitor.visit_none(),
-            _ => visitor.visit_some(self),
-        }
-    }
-
-    fn deserialize_newtype_struct<V: Visitor<'de>>(
-        self,
-        _name: &'static str,
-        visitor: V,
-    ) -> Result<V::Value, Self::Error> {
-        visitor.visit_newtype_struct(self)
-    }
-
-    fn deserialize_enum<V: Visitor<'de>>(
-        self,
-        _name: &'static str,
-        _variants: &'static [&'static str],
-        visitor: V,
-    ) -> Result<V::Value, Self::Error> {
-        match self {
-            AuditLogValue::String(variant) => visitor.visit_enum(UnitVariant(variant)),
-            other => Err(de::Error::invalid_type(
-                other.unexpected(),
-                &"a string enum",
-            )),
-        }
-    }
-
-    forward_to_deserialize_any! {
-        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string bytes byte_buf
-        unit unit_struct seq tuple tuple_struct map struct identifier ignored_any
-    }
-}
-
-/// A string as a unit enum variant (externally tagged enums written as `"Variant"`).
-struct UnitVariant<'de>(&'de str);
-
-impl<'de> EnumAccess<'de> for UnitVariant<'de> {
-    type Error = AuditLogValueError;
-    type Variant = Self;
-
-    fn variant_seed<V: DeserializeSeed<'de>>(
-        self,
-        seed: V,
-    ) -> Result<(V::Value, Self), Self::Error> {
-        let variant = seed.deserialize(de::value::BorrowedStrDeserializer::new(self.0))?;
-        Ok((variant, self))
-    }
-}
-
-impl<'de> VariantAccess<'de> for UnitVariant<'de> {
-    type Error = AuditLogValueError;
-
-    fn unit_variant(self) -> Result<(), Self::Error> {
-        Ok(())
-    }
-
-    fn newtype_variant_seed<T: DeserializeSeed<'de>>(
-        self,
-        _seed: T,
-    ) -> Result<T::Value, Self::Error> {
-        Err(de::Error::invalid_type(
-            Unexpected::UnitVariant,
-            &"a newtype variant",
-        ))
-    }
-
-    fn tuple_variant<V: Visitor<'de>>(
-        self,
-        _len: usize,
-        _visitor: V,
-    ) -> Result<V::Value, Self::Error> {
-        Err(de::Error::invalid_type(
-            Unexpected::UnitVariant,
-            &"a tuple variant",
-        ))
-    }
-
-    fn struct_variant<V: Visitor<'de>>(
-        self,
-        _fields: &'static [&'static str],
-        _visitor: V,
-    ) -> Result<V::Value, Self::Error> {
-        Err(de::Error::invalid_type(
-            Unexpected::UnitVariant,
-            &"a struct variant",
-        ))
+    pub fn new_value_as<'a, T: Deserialize<'a>>(&'a self) -> Result<Option<T>, JsonValueError> {
+        self.new_value.as_ref().map(JsonValue::to_type).transpose()
     }
 }
 
@@ -815,26 +497,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn unit_enums_convert_from_strings() {
-        #[derive(Debug, PartialEq, Deserialize)]
-        enum Kind {
-            Text,
-            Voice,
-        }
-
-        let value = AuditLogValue::String("Voice".into());
-        assert_eq!(value.to_type::<Kind>(), Ok(Kind::Voice));
-        assert!(
-            AuditLogValue::String("Stage".into())
-                .to_type::<Kind>()
-                .is_err()
-        );
-        assert!(AuditLogValue::Unsigned(1).to_type::<Kind>().is_err());
-    }
-
-    #[test]
     fn sizes() {
-        assert_eq!(size_of::<AuditLogValue>(), 32);
         assert!(
             size_of::<AuditLogEntry>() <= 128,
             "{}",
