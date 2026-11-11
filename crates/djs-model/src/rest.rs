@@ -5,10 +5,13 @@
 //! discord.js counterpart: the `RESTPost…JSONBody` / `RESTGet…Result` types of
 //! discord-api-types.
 
-use compact_str::CompactString;
-use serde::{Deserialize, Serialize};
+use core::fmt;
 
-use crate::message::MessageReference;
+use bytes::Bytes;
+use compact_str::CompactString;
+use serde::{Deserialize, Serialize, Serializer, ser::SerializeSeq};
+
+use crate::message::{AttachmentRequest, AttachmentRequestId, MessageReference};
 
 /// The response of [Get Gateway Bot](https://docs.discord.com/developers/events/gateway#get-gateway-bot)
 /// (`GET /gateway/bot`): where and how to connect to the gateway.
@@ -41,30 +44,72 @@ pub struct SessionStartLimit {
 /// The JSON body of [Create Message](https://docs.discord.com/developers/resources/message#create-message)
 /// (`POST /channels/{channel.id}/messages`).
 ///
-/// **Coverage:** Phase 1 supports text content, TTS and replies. Embeds, components, files,
-/// allowed mentions, polls and the rest arrive in Phase 2/3.
+/// **Coverage:** text content, TTS, replies and files so far. Embeds, components, allowed
+/// mentions, polls and the rest arrive with the message endpoints (Phase 3).
 ///
 /// discord.js counterpart: `MessageCreateOptions` / `RESTPostAPIChannelMessageJSONBody`.
 ///
 /// # Examples
 ///
 /// ```
-/// use djs_model::rest::CreateMessage;
+/// use djs_model::rest::{CreateMessage, FileUpload};
 ///
 /// let body = CreateMessage::from("Pong!");
 /// assert_eq!(serde_json::to_string(&body).unwrap(), r#"{"content":"Pong!"}"#);
+///
+/// // Files get their `attachments` entry automatically.
+/// let mut body = CreateMessage::from("A log");
+/// body.files.push(FileUpload::new("log.txt", "line 1\nline 2\n"));
+/// assert_eq!(
+///     serde_json::to_string(&body).unwrap(),
+///     r#"{"content":"A log","attachments":[{"id":0,"filename":"log.txt"}]}"#
+/// );
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct CreateMessage {
     /// The message text (up to 2000 characters).
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub content: Option<CompactString>,
     /// Whether this is a text-to-speech message.
-    #[serde(skip_serializing_if = "core::ops::Not::not")]
     pub tts: bool,
     /// The message to reply to or forward.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub message_reference: Option<MessageReference>,
+    /// Explicit attachment entries. Usually left empty: every file in [`files`](Self::files)
+    /// gets an entry automatically, unless one with its `files[n]` index is listed here.
+    pub attachments: Option<Vec<AttachmentRequest>>,
+    /// Files to upload with the message (sent as `multipart/form-data`, D-087).
+    pub files: Vec<FileUpload>,
+}
+
+impl Serialize for CreateMessage {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        #[derive(Serialize)]
+        struct Wire<'a> {
+            #[serde(skip_serializing_if = "Option::is_none")]
+            content: Option<&'a CompactString>,
+            #[serde(skip_serializing_if = "core::ops::Not::not")]
+            tts: bool,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            message_reference: Option<&'a MessageReference>,
+            #[serde(skip_serializing_if = "Attachments::is_absent")]
+            attachments: Attachments<'a>,
+        }
+
+        // Destructured without `..`, so a new field cannot be forgotten here.
+        let Self {
+            content,
+            tts,
+            message_reference,
+            attachments,
+            files,
+        } = self;
+        Wire {
+            content: content.as_ref(),
+            tts: *tts,
+            message_reference: message_reference.as_ref(),
+            attachments: Attachments::new(attachments.as_deref(), files),
+        }
+        .serialize(serializer)
+    }
 }
 
 impl From<&str> for CreateMessage {
@@ -94,6 +139,173 @@ impl From<CompactString> for CreateMessage {
     }
 }
 
+/// A file uploaded with a request, e.g. a message attachment.
+///
+/// Request bodies that accept files have a `files` field (D-087). `djs-rest` then sends the
+/// request as `multipart/form-data`: the file at index `n` becomes the part `files[n]`, the
+/// JSON body the part `payload_json`, and the body's `attachments` gets an entry for each file
+/// with its name and metadata (D-094). Embeds can show an uploaded image with the URL
+/// `attachment://{name}`.
+///
+/// The data is [`Bytes`] (D-093): cloning a `FileUpload` (to send the same file to many
+/// channels, or for a retry) does not copy the file, and neither do `Bytes::from_static`
+/// (e.g. with `include_bytes!`) and `Bytes::from(Vec<u8>)`.
+///
+/// When [`content_type`](Self::content_type) is not set, it is guessed from the extension of
+/// [`name`](Self::name) (D-095).
+///
+/// See [Uploading Files](https://docs.discord.com/developers/reference#uploading-files).
+///
+/// discord.js counterpart: `AttachmentBuilder` / `RawFile` of `@discordjs/rest`.
+///
+/// # Examples
+///
+/// ```
+/// use djs_model::rest::FileUpload;
+///
+/// let mut image = FileUpload::new("ferris.png", &b"\x89PNG\r\n\x1a\n..."[..]);
+/// image.description = Some("Ferris the crab".into());
+/// image.is_spoiler = true;
+///
+/// // Cloning shares the data.
+/// let copy = image.clone();
+/// assert_eq!(copy.data.as_ptr(), image.data.as_ptr());
+/// ```
+#[derive(Clone, PartialEq)]
+#[non_exhaustive]
+pub struct FileUpload {
+    /// The file name, including its extension (e.g. `ferris.png`).
+    pub name: CompactString,
+    /// The file's contents.
+    pub data: Bytes,
+    /// The [media type](https://en.wikipedia.org/wiki/Media_type) (e.g. `image/png`); guessed
+    /// from the file name when `None`.
+    pub content_type: Option<CompactString>,
+    /// The alt text (max 1024 characters).
+    pub description: Option<CompactString>,
+    /// The file's title.
+    pub title: Option<CompactString>,
+    /// The duration of an audio or video file in seconds (required for voice messages).
+    pub duration_secs: Option<f64>,
+    /// A base64-encoded sampled waveform (required for voice messages).
+    pub waveform: Option<CompactString>,
+    /// Whether the file is blurred until clicked (sets
+    /// [`AttachmentFlags::IS_SPOILER`](crate::message::AttachmentFlags::IS_SPOILER)).
+    pub is_spoiler: bool,
+}
+
+impl FileUpload {
+    /// Creates an upload of `data` named `name`, without metadata.
+    ///
+    /// `data` can be anything that converts into [`Bytes`] without copying: a `Vec<u8>`, a
+    /// `String`, a `&'static [u8]` or a `&'static str`.
+    #[must_use]
+    pub fn new(name: impl Into<CompactString>, data: impl Into<Bytes>) -> Self {
+        Self {
+            name: name.into(),
+            data: data.into(),
+            content_type: None,
+            description: None,
+            title: None,
+            duration_secs: None,
+            waveform: None,
+            is_spoiler: false,
+        }
+    }
+}
+
+impl fmt::Debug for FileUpload {
+    /// Shows the size of the data instead of the data.
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FileUpload")
+            .field("name", &self.name)
+            .field("data", &format_args!("<{} bytes>", self.data.len()))
+            .field("content_type", &self.content_type)
+            .field("description", &self.description)
+            .field("title", &self.title)
+            .field("duration_secs", &self.duration_secs)
+            .field("waveform", &self.waveform)
+            .field("is_spoiler", &self.is_spoiler)
+            .finish()
+    }
+}
+
+/// The serialized `attachments` of a body with files (D-094): the explicit entries, then an
+/// entry for every file whose `files[n]` index has no explicit entry.
+#[derive(Clone, Copy)]
+pub(crate) struct Attachments<'a> {
+    explicit: Option<&'a [AttachmentRequest]>,
+    files: &'a [FileUpload],
+}
+
+impl<'a> Attachments<'a> {
+    pub(crate) const fn new(
+        explicit: Option<&'a [AttachmentRequest]>,
+        files: &'a [FileUpload],
+    ) -> Self {
+        Self { explicit, files }
+    }
+
+    /// Whether the field is left out: nothing explicit and no files. `Some(vec![])` is kept,
+    /// because when editing it removes every attachment.
+    pub(crate) const fn is_absent(&self) -> bool {
+        self.explicit.is_none() && self.files.is_empty()
+    }
+
+    /// The files that get a generated entry, with their `files[n]` index.
+    fn generated(self) -> impl Iterator<Item = (u32, &'a FileUpload)> {
+        let explicit = self.explicit.unwrap_or_default();
+        self.files
+            .iter()
+            .enumerate()
+            .map(|(index, file)| (u32::try_from(index).unwrap_or(u32::MAX), file))
+            .filter(move |(index, _)| {
+                !explicit
+                    .iter()
+                    .any(|entry| entry.id == AttachmentRequestId::Upload(*index))
+            })
+    }
+}
+
+impl Serialize for Attachments<'_> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        /// The entry of a file, borrowing its metadata.
+        #[derive(Serialize)]
+        struct Generated<'a> {
+            id: u32,
+            filename: &'a str,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            title: Option<&'a str>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            description: Option<&'a str>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            duration_secs: Option<f64>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            waveform: Option<&'a str>,
+            #[serde(skip_serializing_if = "core::ops::Not::not")]
+            is_spoiler: bool,
+        }
+
+        let explicit = self.explicit.unwrap_or_default();
+        let mut seq = serializer.serialize_seq(Some(explicit.len() + self.generated().count()))?;
+        for entry in explicit {
+            seq.serialize_element(entry)?;
+        }
+        for (id, file) in self.generated() {
+            seq.serialize_element(&Generated {
+                id,
+                filename: &file.name,
+                title: file.title.as_deref(),
+                description: file.description.as_deref(),
+                duration_secs: file.duration_secs,
+                waveform: file.waveform.as_deref(),
+                is_spoiler: file.is_spoiler,
+            })?;
+        }
+        seq.end()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -114,5 +326,54 @@ mod tests {
         assert_eq!(info.url, "wss://gateway.discord.gg/");
         assert_eq!(info.shards, 9);
         assert_eq!(info.session_start_limit.max_concurrency, 1);
+    }
+
+    fn json(body: &CreateMessage) -> String {
+        serde_json::to_string(body).unwrap()
+    }
+
+    #[test]
+    fn files_get_attachment_entries() {
+        let mut body = CreateMessage::default();
+        assert_eq!(json(&body), "{}");
+
+        let mut voice = FileUpload::new("voice.ogg", Vec::from(*b"OggS"));
+        voice.duration_secs = Some(2.5);
+        voice.waveform = Some("AAAA".into());
+        let mut image = FileUpload::new("ferris.png", &b"png"[..]);
+        image.title = Some("Ferris".into());
+        image.description = Some("Ferris the crab".into());
+        image.is_spoiler = true;
+        body.files = vec![voice, image];
+        assert_eq!(
+            json(&body),
+            r#"{"attachments":[{"id":0,"filename":"voice.ogg","duration_secs":2.5,"waveform":"AAAA"},{"id":1,"filename":"ferris.png","title":"Ferris","description":"Ferris the crab","is_spoiler":true}]}"#
+        );
+
+        // An explicit entry for an index replaces the generated one; others are kept first.
+        let mut renamed = AttachmentRequest::upload(1, "crab.png");
+        renamed.description = Some("A crab".into());
+        let keep =
+            AttachmentRequest::existing(crate::id::AttachmentId::new(1_300_000_000_000_000_000));
+        body.attachments = Some(vec![keep, renamed]);
+        assert_eq!(
+            json(&body),
+            r#"{"attachments":[{"id":"1300000000000000000"},{"id":1,"filename":"crab.png","description":"A crab"},{"id":0,"filename":"voice.ogg","duration_secs":2.5,"waveform":"AAAA"}]}"#
+        );
+
+        // Without files, an explicit empty list is sent (it removes attachments on edits).
+        body.files.clear();
+        body.attachments = Some(Vec::new());
+        assert_eq!(json(&body), r#"{"attachments":[]}"#);
+    }
+
+    #[test]
+    fn file_upload_debug_hides_the_data() {
+        let file = FileUpload::new("secret.txt", "not shown");
+        let debug = format!("{file:?}");
+        assert!(
+            debug.contains("<9 bytes>") && !debug.contains("not shown"),
+            "{debug}"
+        );
     }
 }

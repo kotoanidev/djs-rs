@@ -15,6 +15,7 @@ publish = false
 
 [dependencies]
 bitflags.workspace = true
+bytes.workspace = true
 compact_str = { workspace = true, features = ["std", "serde"] }
 serde = { workspace = true, features = ["std", "derive"] }
 

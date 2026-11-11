@@ -1141,6 +1141,27 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - Logging: request log fields name the route template (`POST /interactions/{interaction_id}/
   {interaction_token}/callback`), never the URI, which can contain tokens.
 
+### C-040 — File upload details (D-087, D-093..D-096)
+- `FileUpload { name, data: Bytes, content_type, description, title, duration_secs, waveform,
+  is_spoiler: bool }` (`#[non_exhaustive]`, `FileUpload::new(name, impl Into<Bytes>)`); its
+  `Debug` shows the data size, not the data. The metadata fields mirror the docs' attachment
+  request structure.
+- Bodies with files so far: `CreateMessage` (gained `attachments` + `files`, lost `Eq` because
+  of `duration_secs: f64`) and `MessageCallbackData` (gained `files`); both serialize through a
+  borrowed wire struct, destructuring `self` without `..` so a new field cannot be forgotten.
+  `InteractionResponse::files()` returns the files of its message data.
+- Generated `attachments` entries come after the explicit ones; a file whose `files[n]` index
+  already has an explicit entry gets no generated one (the explicit entry wins). An explicit
+  `Some(vec![])` without files is still sent (it removes attachments when editing).
+- `Request::files(&'a [FileUpload])` borrows the files; getter `Request::uploads()`. The body
+  is built once per request as `Bytes` chunks (part headers + each file's data as is) and
+  re-sent from those chunks on retries, with an exact `Content-Length`; parts are `files[n]`
+  in order, then `payload_json`.
+- The boundary is `djs-rs-` + 128 random bits from `std::hash::RandomState` (no dependency).
+  File names are escaped like browsers do (`"` → `%22`, CR → `%0D`, LF → `%0A`). A given
+  content type containing control or non-ASCII characters is ignored in favour of the guess.
+- Guessed text types carry `; charset=utf-8`; `.opus` maps to `audio/ogg` (Ogg container).
+
 ---
 
 ## Open questions (to ask the owner when relevant)

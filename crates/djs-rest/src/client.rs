@@ -4,11 +4,12 @@ use core::{fmt, time::Duration};
 use std::sync::Arc;
 
 use bytes::Bytes;
+use djs_model::rest::FileUpload;
 use http::{
     HeaderMap, HeaderName, HeaderValue, StatusCode, Uri,
     header::{AUTHORIZATION, CONTENT_TYPE, USER_AGENT},
 };
-use http_body_util::{BodyExt, Full};
+use http_body_util::BodyExt;
 use hyper_rustls::HttpsConnector;
 use hyper_util::{
     client::legacy::{Client as HyperClient, connect::HttpConnector},
@@ -19,6 +20,7 @@ use tokio::time::Instant;
 
 use crate::{
     error::{ApiError, BoxError, Error, ErrorKind, RateLimitedBody},
+    multipart::{PreparedBody, RequestBody},
     ratelimit::{InvalidRequests, RateLimitHeaders, RateLimiter},
     route::{self, Route},
 };
@@ -64,7 +66,7 @@ pub struct Rest {
 }
 
 struct Inner {
-    http: HyperClient<Connector, Full<Bytes>>,
+    http: HyperClient<Connector, RequestBody>,
     token: Token,
     /// `{api}/v{version}`, without a trailing slash.
     base: String,
@@ -185,6 +187,7 @@ impl Rest {
         let method = route.method();
         let uri = inner.uri(route)?;
         let reason = request.reason.map(reason_header);
+        let body = PreparedBody::new(request.body, request.files);
 
         let mut attempt: u8 = 0;
         loop {
@@ -202,8 +205,7 @@ impl Rest {
                 inner.ratelimiter.acquire_global().await;
             }
 
-            let http_request =
-                inner.build_request(&method, &uri, reason.as_ref(), request.body.as_ref())?;
+            let http_request = inner.build_request(&method, &uri, reason.as_ref(), &body)?;
             let started = Instant::now();
             let response = match tokio::time::timeout(
                 inner.timeout,
@@ -314,8 +316,8 @@ impl Inner {
         method: &http::Method,
         uri: &Uri,
         reason: Option<&HeaderValue>,
-        body: Option<&Bytes>,
-    ) -> Result<http::Request<Full<Bytes>>, Error> {
+        body: &PreparedBody,
+    ) -> Result<http::Request<RequestBody>, Error> {
         let mut builder = http::Request::builder()
             .method(method.clone())
             .uri(uri.clone())
@@ -333,11 +335,11 @@ impl Inner {
         if let Some(reason) = reason {
             builder = builder.header(AUDIT_LOG_REASON, reason.clone());
         }
-        if body.is_some() {
-            builder = builder.header(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+        if let Some(content_type) = body.content_type() {
+            builder = builder.header(CONTENT_TYPE, content_type.clone());
         }
         builder
-            .body(Full::new(body.cloned().unwrap_or_default()))
+            .body(body.body())
             .map_err(|source| Error::with_source(ErrorKind::BuildRequest, source))
     }
 }
@@ -386,8 +388,8 @@ struct RawResponse {
 }
 
 async fn send(
-    http: &HyperClient<Connector, Full<Bytes>>,
-    request: http::Request<Full<Bytes>>,
+    http: &HyperClient<Connector, RequestBody>,
+    request: http::Request<RequestBody>,
 ) -> Result<RawResponse, BoxError> {
     let response = http.request(request).await?;
     let (parts, body) = response.into_parts();
@@ -417,6 +419,7 @@ pub struct Request<'a> {
     route: Route<'a>,
     reason: Option<&'a str>,
     body: Option<Bytes>,
+    files: &'a [FileUpload],
 }
 
 impl<'a> Request<'a> {
@@ -427,6 +430,7 @@ impl<'a> Request<'a> {
             route,
             reason: None,
             body: None,
+            files: &[],
         }
     }
 
@@ -456,13 +460,53 @@ impl<'a> Request<'a> {
         self
     }
 
+    /// Uploads `files` with the request (D-087). The request is then sent as
+    /// `multipart/form-data`: file `n` as the part `files[n]` (with its content type, guessed
+    /// from its name if not given, D-095) and the JSON body as `payload_json`. The file data is
+    /// not copied, not even for retries.
+    ///
+    /// The JSON body must describe the files in its `attachments`; the body structs of
+    /// `djs_model::rest` do that automatically for their own `files` field (D-094), which the
+    /// typed [`Rest`] methods pass here.
+    ///
+    /// discord.js counterpart: the `files` option of `REST#request`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use djs_model::{
+    ///     id::ChannelId,
+    ///     rest::{CreateMessage, FileUpload},
+    /// };
+    /// use djs_rest::{Request, Route};
+    ///
+    /// let mut body = CreateMessage::from("The log:");
+    /// body.files.push(FileUpload::new("log.txt", "everything is fine\n"));
+    /// let request = Request::new(Route::CreateMessage { channel_id: ChannelId::new(1) })
+    ///     .json(&body)
+    ///     .unwrap()
+    ///     .files(&body.files);
+    /// assert_eq!(request.uploads().len(), 1);
+    /// ```
+    #[must_use]
+    pub const fn files(mut self, files: &'a [FileUpload]) -> Self {
+        self.files = files;
+        self
+    }
+
+    /// Returns the files set with [`files`](Self::files).
+    #[must_use]
+    pub const fn uploads(&self) -> &'a [FileUpload] {
+        self.files
+    }
+
     /// Returns the audit log reason set with [`reason`](Self::reason).
     #[must_use]
     pub const fn audit_log_reason(&self) -> Option<&'a str> {
         self.reason
     }
 
-    /// Sets a JSON body.
+    /// Sets a JSON body. With [files](Self::files), it is sent as the `payload_json` part.
     ///
     /// # Errors
     ///

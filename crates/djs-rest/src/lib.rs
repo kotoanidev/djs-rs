@@ -4,6 +4,7 @@
 mod client;
 mod endpoints;
 mod error;
+mod multipart;
 mod ratelimit;
 mod route;
 

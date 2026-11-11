@@ -13,6 +13,7 @@ use crate::{
     macros::int_enum,
     message::{AllowedMentions, AttachmentRequest, Embed, Message, MessageFlags},
     poll::CreatePoll,
+    rest::{Attachments, FileUpload},
 };
 
 int_enum! {
@@ -112,6 +113,16 @@ pub enum InteractionResponse {
 }
 
 impl InteractionResponse {
+    /// Returns the files to upload with the response (those of its message data); empty for
+    /// responses without a message.
+    #[must_use]
+    pub fn files(&self) -> &[FileUpload] {
+        match self {
+            Self::ChannelMessageWithSource(data) | Self::UpdateMessage(data) => &data.files,
+            _ => &[],
+        }
+    }
+
     /// Returns the response type.
     #[must_use]
     pub const fn kind(&self) -> InteractionCallbackType {
@@ -210,6 +221,7 @@ impl RawCallbackData {
             components: self.components,
             attachments: self.attachments,
             poll: self.poll,
+            files: Vec::new(),
         }
     }
 }
@@ -272,37 +284,81 @@ impl<'de> Deserialize<'de> for InteractionResponse {
 /// while `Some(vec![])` removes all embeds, components or attachments.
 ///
 /// discord.js counterpart: `InteractionReplyOptions` / `InteractionUpdateOptions`.
-#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[non_exhaustive]
 pub struct MessageCallbackData {
     /// Whether the message is read aloud.
-    #[serde(skip_serializing_if = "core::ops::Not::not")]
     pub tts: bool,
     /// The text (up to 2000 characters).
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub content: Option<CompactString>,
     /// The embeds (up to 10).
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub embeds: Option<Vec<Embed>>,
     /// Which mentions in the content notify.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub allowed_mentions: Option<AllowedMentions>,
     /// Only [`EPHEMERAL`](MessageFlags::EPHEMERAL), [`SUPPRESS_EMBEDS`](MessageFlags::SUPPRESS_EMBEDS),
     /// [`SUPPRESS_NOTIFICATIONS`](MessageFlags::SUPPRESS_NOTIFICATIONS),
     /// [`IS_COMPONENTS_V2`](MessageFlags::IS_COMPONENTS_V2) and
     /// [`IS_VOICE_MESSAGE`](MessageFlags::IS_VOICE_MESSAGE) can be set.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub flags: Option<MessageFlags>,
     /// The components.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub components: Option<Vec<Component>>,
-    /// The attachments: new files of the multipart request and, for updates, the existing
-    /// ones to keep.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    /// Explicit attachment entries: for updates, the existing attachments to keep. Every file
+    /// in [`files`](Self::files) gets an entry automatically, unless one with its `files[n]`
+    /// index is listed here (D-094).
     pub attachments: Option<Vec<AttachmentRequest>>,
     /// A poll to create with the message.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub poll: Option<CreatePoll>,
+    /// Files to upload with the response (sent as `multipart/form-data`, D-087). Not part of
+    /// the JSON; empty when decoded.
+    pub files: Vec<FileUpload>,
+}
+
+impl Serialize for MessageCallbackData {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        #[derive(Serialize)]
+        struct Wire<'a> {
+            #[serde(skip_serializing_if = "core::ops::Not::not")]
+            tts: bool,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            content: Option<&'a CompactString>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            embeds: Option<&'a [Embed]>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            allowed_mentions: Option<&'a AllowedMentions>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            flags: Option<MessageFlags>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            components: Option<&'a [Component]>,
+            #[serde(skip_serializing_if = "Attachments::is_absent")]
+            attachments: Attachments<'a>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            poll: Option<&'a CreatePoll>,
+        }
+
+        // Destructured without `..`, so a new field cannot be forgotten here.
+        let Self {
+            tts,
+            content,
+            embeds,
+            allowed_mentions,
+            flags,
+            components,
+            attachments,
+            poll,
+            files,
+        } = self;
+        Wire {
+            tts: *tts,
+            content: content.as_ref(),
+            embeds: embeds.as_deref(),
+            allowed_mentions: allowed_mentions.as_ref(),
+            flags: *flags,
+            components: components.as_deref(),
+            attachments: Attachments::new(attachments.as_deref(), files),
+            poll: poll.as_ref(),
+        }
+        .serialize(serializer)
+    }
 }
 
 impl From<&str> for MessageCallbackData {

@@ -13,7 +13,7 @@ use djs_model::{
     id::{ApplicationId, ChannelId, InteractionId, MessageId},
     interaction::InteractionResponse,
     message::MessageReference,
-    rest::CreateMessage,
+    rest::{CreateMessage, FileUpload},
 };
 use djs_rest::{ErrorKind, Rest, Route};
 use http::{Request, Response, StatusCode};
@@ -29,6 +29,7 @@ struct Seen {
     path: String,
     authorization: Option<String>,
     content_type: Option<String>,
+    content_length: Option<String>,
     audit_log_reason: Option<String>,
     user_agent: String,
     body: String,
@@ -121,6 +122,7 @@ async fn handle(state: &Mutex<State>, request: Request<Incoming>) -> Response<Fu
         path: request.uri().path().to_owned(),
         authorization: header("authorization"),
         content_type: header("content-type"),
+        content_length: header("content-length"),
         audit_log_reason: header("x-audit-log-reason"),
         user_agent: header("user-agent").unwrap_or_default(),
         body: String::new(),
@@ -522,4 +524,48 @@ async fn audit_log_reason_is_sent_percent_encoded() {
         Some("Spam%3A%20%C2%ABbad%C2%BB%20links%0D%0AX-Evil%3A%201")
     );
     assert_eq!(seen[1].audit_log_reason, None);
+}
+
+#[tokio::test]
+async fn files_are_sent_as_multipart_and_resent_on_retry() {
+    let (rest, state) = mock(vec![
+        Canned::json(500, r#"{"message":"oops","code":0}"#),
+        Canned::json(200, MESSAGE),
+    ])
+    .await;
+    let mut body = CreateMessage::from("Logs");
+    let mut log = FileUpload::new("today.log", "all good\n");
+    log.description = Some("Today".into());
+    body.files.push(log);
+    body.files.push(FileUpload::new("data.json", r#"{"a":1}"#));
+    rest.create_message(CHANNEL, &body).await.unwrap();
+
+    let seen = state.lock().unwrap().seen.clone();
+    assert_eq!(seen.len(), 2);
+    let content_type = seen[0].content_type.as_deref().unwrap();
+    let boundary = content_type
+        .strip_prefix("multipart/form-data; boundary=")
+        .unwrap();
+    let expected = format!(
+        "--{boundary}\r\n\
+         Content-Disposition: form-data; name=\"files[0]\"; filename=\"today.log\"\r\n\
+         Content-Type: text/plain; charset=utf-8\r\n\r\n\
+         all good\n\r\n\
+         --{boundary}\r\n\
+         Content-Disposition: form-data; name=\"files[1]\"; filename=\"data.json\"\r\n\
+         Content-Type: application/json\r\n\r\n\
+         {{\"a\":1}}\r\n\
+         --{boundary}\r\n\
+         Content-Disposition: form-data; name=\"payload_json\"\r\n\
+         Content-Type: application/json\r\n\r\n\
+         {{\"content\":\"Logs\",\"attachments\":[\
+         {{\"id\":0,\"filename\":\"today.log\",\"description\":\"Today\"}},\
+         {{\"id\":1,\"filename\":\"data.json\"}}]}}\r\n\
+         --{boundary}--\r\n"
+    );
+    assert_eq!(seen[0].body, expected);
+    assert_eq!(seen[0].content_length, Some(expected.len().to_string()));
+    // The retry after the server error sends the same body again.
+    assert_eq!(seen[1].body, expected);
+    assert_eq!(seen[1].content_type.as_deref(), Some(content_type));
 }

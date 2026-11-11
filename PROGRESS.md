@@ -151,9 +151,10 @@ D-041).
   callbacks are burst routes that never queue behind one another (C-039; tests in
   `tests/mock_server.rs`, verified to fail without the burst handling); old-message-delete
   sublimit (`Route::DeleteMessage`, own bucket after 14 days, C-039); `X-Audit-Log-Reason`
-  (`Request::reason`, D-086, C-039).
-- **Next (Phase 3 infrastructure, in this order):** multipart uploads (D-087) → API errors
-  with JSON error codes → `native-roots` (D-088) → then endpoints resource by resource (D-091 names, D-092 query
+  (`Request::reason`, D-086, C-039); multipart file uploads (D-087, D-093..D-096, C-040:
+  `FileUpload`, generated `attachments`, zero-copy chunked body in `djs-rest/src/multipart.rs`;
+  benchmark the multipart path with large files in the Phase 3 bench stage).
+- **Next (Phase 3 infrastructure, in this order):** API errors with JSON error codes → `native-roots` (D-088) → then endpoints resource by resource (D-091 names, D-092 query
   structs, D-083 tri-state enum — confirm its final names with the owner when implementing).
 - Local gate script: `scratchpad/gate.sh` style (`set -euo pipefail`, no pipes hiding errors) —
   a piped gate let one clippy failure through (fixed in `cda06db`).

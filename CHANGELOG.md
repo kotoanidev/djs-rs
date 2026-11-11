@@ -8,6 +8,11 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- File uploads (D-087, D-093..D-096): `djs_model::rest::FileUpload` (data as `bytes::Bytes`),
+  `files` fields on `CreateMessage` and `MessageCallbackData` whose `attachments` entries are
+  generated automatically, `InteractionResponse::files`, and `djs_rest::Request::files`, which
+  sends `multipart/form-data` without copying the file data (content type guessed from the
+  file name when not given).
 - `djs-rest`: `Route<'a>` can borrow tokens (D-090); interaction routes
   `CreateInteractionResponse`, `{Get,Edit,Delete}OriginalInteractionResponse`,
   `{Create,Get,Edit,Delete}FollowupMessage`, and `DeleteMessage` (messages older than two
@@ -150,6 +155,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `login`/`shutdown`, prelude; `examples/ping.rs`; end-to-end tests with mock REST + gateway.
 
 ### Changed
+- `djs-model`: `CreateMessage` is no longer `Eq` (its files can carry an `f64` duration) and
+  gained `attachments` and `files`; `MessageCallbackData` gained `files`.
 - `djs-rest`: `Request` is `Request<'a>` and `Request::route` returns `Route<'a>` (D-090).
 - `djs-rest`: the global rate limiter is strict (a sliding log, D-089): never more than the
   limit in any sliding second.

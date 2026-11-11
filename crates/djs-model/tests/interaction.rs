@@ -16,6 +16,7 @@ use djs_model::{
     message::{AttachmentRequest, AttachmentRequestId, Message, MessageFlags},
     permissions::Permissions,
     poll::{CreatePoll, Media},
+    rest::FileUpload,
     util::Locale,
 };
 use serde_json::{Value, json};
@@ -527,6 +528,25 @@ fn responses() {
         ))),
         r#"{"type":9,"data":{"custom_id":"m","title":"Title","components":[{"type":4,"custom_id":"name","style":1,"required":true}]}}"#,
     );
+}
+
+#[test]
+fn responses_with_files() {
+    let mut reply = MessageCallbackData::from("Here");
+    let mut chart = FileUpload::new("chart.png", &b"png"[..]);
+    chart.description = Some("A chart".into());
+    reply.files.push(chart);
+    let response = InteractionResponse::ChannelMessageWithSource(Box::new(reply));
+    assert_eq!(response.files().len(), 1);
+    let json = serde_json::to_string(&response).unwrap();
+    assert_eq!(
+        json,
+        r#"{"type":4,"data":{"content":"Here","attachments":[{"id":0,"filename":"chart.png","description":"A chart"}]}}"#
+    );
+    // Files are not part of the JSON, so a decoded response has none.
+    let decoded: InteractionResponse = serde_json::from_str(&json).unwrap();
+    assert_eq!(decoded.files().len(), 0);
+    assert_eq!(InteractionResponse::DeferredUpdateMessage.files().len(), 0);
 }
 
 #[test]

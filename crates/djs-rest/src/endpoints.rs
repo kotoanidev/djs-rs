@@ -38,7 +38,11 @@ impl Rest {
         channel_id: ChannelId,
         body: &CreateMessage,
     ) -> Result<Message, Error> {
-        self.request(Request::new(Route::CreateMessage { channel_id }).json(body)?)
-            .await
+        self.request(
+            Request::new(Route::CreateMessage { channel_id })
+                .json(body)?
+                .files(&body.files),
+        )
+        .await
     }
 }
