@@ -10,7 +10,7 @@ D-041).
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-071 in `docs/DECISIONS.md`; Claude defaults C-001 …
-  C-033 (reviewable) in the same file.
+  C-034 (reviewable) in the same file.
 - Toolchains (rustup): stable 1.99.1, 1.85, 1.89 (MSRV, D-031).
 - Phase 0: foundation docs, public repo https://github.com/kotoanidev/djs-rs, 9-crate workspace,
   lints, CI (fmt, clippy all/no-default features, tests ×3 OS, rustdoc -D warnings, MSRV 1.89,
@@ -102,10 +102,11 @@ D-041).
   response type). Size guards: Interaction 288 B, InteractionData 16 B, Message 656 B.
 - `audit_log` ✅ (D-070 own JSON value type for change values, D-071 options struct; C-033),
   tests `tests/audit_log.rs` (synthetic log around the docs' example objects).
-- **Next:** monetization rest (check the existing `sku.rs`; subscriptions) → soundboard,
-  lobbies, application identity profile (docs pages `lobby.mdx`,
-  `application-identity-profile.mdx`) → every dispatch event + close codes → Phase 2 benches
-  and stress tests (D-041).
+- SKUs, subscriptions ✅ and `voice` (voice states, regions; was missing from the plan) ✅
+  (C-034); tests in `tests/application.rs` and `tests/voice.rs`.
+- **Next:** soundboard, lobbies, application identity profile (docs pages `soundboard.mdx`,
+  `lobby.mdx`, `application-identity-profile.mdx`) → every dispatch event + close codes
+  (including the `GUILD_CREATE` extras) → Phase 2 benches and stress tests (D-041).
 - Local gate script: `scratchpad/gate.sh` style (`set -euo pipefail`, no pipes hiding errors) —
   a piped gate let one clippy failure through (fixed in `cda06db`).
 - Perf note: after the user change, MESSAGE_CREATE/READY decode looked ~8-13 % slower relative

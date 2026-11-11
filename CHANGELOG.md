@@ -8,6 +8,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-model`: `sku::{Sku, SkuType}`, `subscription::{Subscription, SubscriptionStatus}`,
+  `voice::{VoiceState, VoiceRegion}`.
 - `djs-model`: `audit_log` module — `AuditLog`, `AuditLogEntry`, `AuditLogEvent`,
   `AuditLogEntryOptions` (D-071), `AuditLogChange` with `AuditLogValue` values that convert to
   any field type (D-070); `guild::PartialIntegration::application_id`.

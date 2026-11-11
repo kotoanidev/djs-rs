@@ -834,6 +834,15 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - The docs have no full audit log example: the test builds one from the docs' tables around
   the docs' example thread, webhook, auto moderation rule, command and partial integration.
 
+### C-034 — SKU, subscription and voice details
+- `sku::Sku` (`kind: SkuType`), `subscription::{Subscription, SubscriptionStatus}`: the
+  nullable `renewal_sku_ids` is `Option<Vec<SkuId>>` (`null` means unchanged, written as
+  `null` per D-049); the example SKU's undocumented fields are not modelled.
+- `voice::{VoiceState, VoiceRegion}` (one module per docs page, D-044): `member` is boxed
+  (D-054, guard ≤ 96 B); absent voice state booleans are `false` (C-023, the docs' example
+  omits `self_video`) and are always written. The `GUILD_CREATE` extras (voice states, members,
+  channels, …) come with the dispatch events.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

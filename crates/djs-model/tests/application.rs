@@ -144,3 +144,44 @@ fn entitlement() {
     assert!(entitlement.is_active(during));
     assert!(!entitlement.is_active(after));
 }
+
+#[test]
+fn sku() {
+    use djs_model::sku::{Sku, SkuFlags, SkuType};
+
+    let sku: Sku = round_trip(
+        include_str!("fixtures/docs/sku_sku.json"),
+        // Shown in the example but not in the SKU table.
+        &[
+            "dependent_sku_id",
+            "manifest_labels",
+            "access_type",
+            "features",
+            "release_date",
+            "premium",
+            "show_age_gate",
+        ],
+    );
+    assert_eq!(sku.kind, SkuType::Subscription);
+    assert_eq!(sku.slug, "test-premium");
+    assert_eq!(sku.flags, SkuFlags::GUILD_SUBSCRIPTION);
+}
+
+#[test]
+fn subscription() {
+    use djs_model::subscription::{Subscription, SubscriptionStatus};
+
+    let subscription: Subscription = round_trip(
+        include_str!("fixtures/docs/subscription_subscription.json"),
+        &[],
+    );
+    assert_eq!(subscription.status, SubscriptionStatus::Active);
+    assert_eq!(subscription.sku_ids.len(), 1);
+    assert_eq!(subscription.entitlement_ids.len(), 0);
+    assert!(subscription.renewal_sku_ids.is_none() && subscription.canceled_at.is_none());
+    assert!(subscription.current_period_start < subscription.current_period_end);
+    // Nullable fields are written as `null` (D-049).
+    let written = serde_json::to_value(&subscription).unwrap();
+    assert!(written["canceled_at"].is_null() && written["renewal_sku_ids"].is_null());
+    assert!(written.get("country").is_none());
+}
