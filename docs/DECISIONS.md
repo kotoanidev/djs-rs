@@ -869,6 +869,23 @@ and why.
   ones are). They stay reachable through `Rest::request` only if a `Route` is added later.
 - **Alternatives:** adding them with `#[deprecated]` pointing to the successor.
 
+### D-106 — A query flag that changes the response type gives two methods
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** When a query parameter changes what the endpoint returns, there are two
+  methods, so the return type always matches: `create_interaction_response(..) -> ()` and
+  `create_interaction_response_with_response(..) -> InteractionCallbackResponse` (the
+  endpoint name plus the parameter name).
+- **Alternatives:** one method with a query struct (D-092) returning an `Option`; one method
+  with a `bool` returning an `Option`, like discord.js' `withResponse`.
+
+### D-107 — Follow-up messages have their own body
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** Create Followup Message takes `CreateFollowupMessage`, the Execute Webhook
+  body without the fields follow-ups do not support (`username`, `avatar_url`,
+  `thread_name`, `applied_tags`), like discord-api-types. Editing the original response or a
+  follow-up uses the shared `EditWebhookMessage` body (the fields are identical).
+- **Alternatives:** one `ExecuteWebhook` body for webhooks and follow-ups.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
