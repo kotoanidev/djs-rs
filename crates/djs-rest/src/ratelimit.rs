@@ -12,12 +12,16 @@
 //! - When a bucket is exhausted (`remaining == 0`), the next request sleeps until it resets,
 //!   plus a small safety offset.
 //! - A **global** limiter caps the total request rate (50/s by default) and is paused when
-//!   Discord reports a global rate limit.
+//!   Discord reports a global rate limit. It is strict (D-089): it remembers the send times of
+//!   the last `limit` requests, so no sliding second ever contains more than `limit` requests,
+//!   while a burst of up to `limit` requests still goes out at once.
 //!
-//! This mirrors the behaviour of `@discordjs/rest`'s `SequentialHandler`.
+//! This mirrors the behaviour of `@discordjs/rest`'s `SequentialHandler`, except for the
+//! global limit, which discord.js enforces with fixed one-second windows (up to twice the limit
+//! in a sliding second).
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, VecDeque},
     sync::{Arc, Mutex, MutexGuard, PoisonError},
     time::Duration,
 };
@@ -250,6 +254,11 @@ impl<'a> RateLimitHeaders<'a> {
 }
 
 /// Limits the overall request rate and handles global pauses.
+///
+/// A sliding log (D-089): the send times of the last `per_second` requests. A request may go
+/// out when fewer than `per_second` requests were sent in the last second (plus the safety
+/// offset); otherwise it waits until the oldest one leaves that window. Memory is bounded by
+/// the limit (the log only grows as far as requests are actually sent within a window).
 #[derive(Debug)]
 struct GlobalLimiter {
     per_second: u32,
@@ -258,8 +267,8 @@ struct GlobalLimiter {
 
 #[derive(Debug)]
 struct GlobalState {
-    window_start: Instant,
-    used: u32,
+    /// Send times within the current window, oldest first.
+    sent: VecDeque<Instant>,
     paused_until: Option<Instant>,
 }
 
@@ -270,14 +279,16 @@ impl GlobalLimiter {
         Self {
             per_second,
             state: Mutex::new(GlobalState {
-                window_start: Instant::now(),
-                used: 0,
+                sent: VecDeque::new(),
                 paused_until: None,
             }),
         }
     }
 
+    /// Waits until a request may be sent and records it. The window is extended by `offset`,
+    /// so that latency jitter cannot make Discord see more than the limit in one second.
     async fn acquire(&self, offset: Duration) {
+        let window = WINDOW + offset;
         loop {
             let wait_until = {
                 let mut state = lock(&self.state);
@@ -289,15 +300,14 @@ impl GlobalLimiter {
                         if self.per_second == 0 {
                             return;
                         }
-                        if now >= state.window_start + WINDOW {
-                            state.window_start = now;
-                            state.used = 0;
+                        while state.sent.front().is_some_and(|&sent| sent + window <= now) {
+                            state.sent.pop_front();
                         }
-                        if state.used < self.per_second {
-                            state.used += 1;
+                        if state.sent.len() < self.per_second as usize {
+                            state.sent.push_back(now);
                             return;
                         }
-                        Some(state.window_start + WINDOW)
+                        state.sent.front().map(|&oldest| oldest + window)
                     }
                 }
             };
@@ -373,14 +383,46 @@ mod tests {
     }
 
     #[tokio::test(start_paused = true)]
-    async fn global_limiter_spreads_requests_over_windows() {
+    async fn global_limiter_allows_a_burst_then_waits_for_the_oldest() {
         let limiter = GlobalLimiter::new(2);
         let start = Instant::now();
+        let mut sent = Vec::new();
         for _ in 0..5 {
-            limiter.acquire(Duration::ZERO).await;
+            limiter.acquire(Duration::from_millis(50)).await;
+            sent.push(start.elapsed());
         }
-        // 2 in the first window, 2 in the second, 1 in the third.
-        assert_eq!(start.elapsed(), Duration::from_secs(2));
+        // A burst of 2, then each request waits for the one sent two requests before it to
+        // leave the window (1 s + 50 ms offset).
+        let ms = Duration::from_millis;
+        assert_eq!(sent, [ms(0), ms(0), ms(1050), ms(1050), ms(2100)]);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn global_limiter_is_strict_in_every_sliding_second() {
+        let limiter = GlobalLimiter::new(50);
+        let start = Instant::now();
+        let mut sent = Vec::new();
+        // Irregular arrivals: bursts and gaps.
+        for round in 0_u64..400 {
+            if round % 7 == 0 {
+                tokio::time::sleep(Duration::from_millis(round % 230)).await;
+            }
+            limiter.acquire(Duration::ZERO).await;
+            sent.push(start.elapsed());
+        }
+        let mut first = 0;
+        for last in 0..sent.len() {
+            while sent[last].saturating_sub(sent[first]) >= WINDOW {
+                first += 1;
+            }
+            assert!(
+                last - first < 50,
+                "{} requests in one second",
+                last - first + 1
+            );
+        }
+        // The log never holds more than the limit.
+        assert!(lock(&limiter.state).sent.len() <= 50);
     }
 
     #[tokio::test(start_paused = true)]

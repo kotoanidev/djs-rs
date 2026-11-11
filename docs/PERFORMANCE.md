@@ -298,3 +298,20 @@ not depend on it.
    model (`member`, `nonce`, …), not a regression in the shared machinery: skipping, scanning
    and routing are unchanged.
 
+---
+
+## Phase 3 — full `djs-rest` (in progress)
+
+### Strict global limiter (D-089)
+
+The fixed one-second windows of Phase 1 were replaced with a sliding log. `global_limit_holds`
+(250 requests to 250 channels queued at once, default limit 50/s), five runs:
+
+| | Phase 1 (fixed windows) | Phase 3 (sliding log) |
+|---|---:|---:|
+| Max requests the server saw in any sliding second | 92–100 in 4 of 5 runs | **50 in 5 of 5 runs** |
+| Time for 250 requests | 4.01 s | 4.21 s |
+
+The extra 0.2 s is the 50 ms offset by which every window is extended (so that latency jitter
+cannot squeeze 51 requests into Discord's second); a burst of 50 still goes out at once.
+

@@ -140,9 +140,16 @@ D-041).
   concurrent handler ≈ +15 %, sequential −4 % → recommended in the `djs-rs` README (very large
   bots); the remaining concurrent-mode cost goes to Phase 8. D-081 — decoded model size
   (≈ 1.2× JSON) is handled with the cache in Phase 5.
-- **Next:** mark Phase 2 done in ROADMAP, then start Phase 3 (`djs-rest` full coverage): see
-  ROADMAP Phase 3 and the Phase 1 findings (GCRA global limiter D-043, 1 KiB REST futures,
-  `Timestamp` formatting). Ask the owner before the first significant Phase 3 choice.
+- **Phase 3 started** (D-082 methods + body structs, D-083 tri-state enum, D-084 order:
+  infrastructure first, D-085 invalid-request counter + opt-in fail-fast, D-086
+  `reason: Option<&str>` parameter, D-087 files in body structs, D-088 `native-roots` feature,
+  D-089 sliding-log global limiter). Done: strict global limiter (sliding log) — stress test
+  now asserts ≤ 50 per sliding second (5/5 runs).
+- **Next (Phase 3 infrastructure, in this order):** invalid-request counter (D-085) →
+  interaction callbacks / token webhooks bypass the global limit and do not queue behind one
+  another (burst handling, like discord.js `BurstHandler`) → old-message-delete sublimit →
+  `X-Audit-Log-Reason` (D-086) → multipart uploads (D-087) → API errors with JSON error codes
+  → `native-roots` (D-088) → then endpoints resource by resource.
 - Local gate script: `scratchpad/gate.sh` style (`set -euo pipefail`, no pipes hiding errors) —
   a piped gate let one clippy failure through (fixed in `cda06db`).
 - Perf note: after the user change, MESSAGE_CREATE/READY decode looked ~8-13 % slower relative

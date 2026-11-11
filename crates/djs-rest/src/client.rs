@@ -435,6 +435,11 @@ impl RestBuilder {
 
     /// Sets the maximum number of requests per second across all routes (default 50).
     ///
+    /// The limit is strict: no sliding second ever contains more requests (the window is
+    /// extended by the [offset](Self::offset)), while a burst of up to `limit` requests is sent
+    /// at once. Unlike discord.js' fixed one-second windows, this never lets twice the limit
+    /// through around a window boundary.
+    ///
     /// `0` disables the proactive global limit; global rate-limit responses from Discord are
     /// still honoured.
     pub const fn global_requests_per_second(mut self, limit: u32) -> Self {

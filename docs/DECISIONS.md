@@ -330,7 +330,7 @@ and why.
   `/proc/self/status` (VmHWM/VmRSS, Linux only) — no extra dependency.
 - **Alternatives:** criterion; measuring in CI with regression tracking; `dhat`.
 
-### D-043 — Strict global REST limiter (GCRA)
+### D-043 — Strict global REST limiter (GCRA) — amended by D-089 (sliding log)
 - **Date:** 2026-11-10 · **Decided by:** Owner
 - **Decision:** Replace the fixed one-second window of the global REST limiter with a strict
   GCRA (Generic Cell Rate Algorithm) limiter: never more than the limit in any sliding second,
@@ -733,6 +733,16 @@ and why.
   default. Replaces the ROADMAP's "`native-tls` feature".
 - **Alternatives:** a `native-tls` feature (`hyper-tls` + `native-tls`, a second TLS stack);
   nothing beyond rustls + webpki-roots.
+
+### D-089 — The strict global limiter is a sliding log (amends D-043)
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** The global REST limiter keeps the send times of the last `limit` requests (a
+  sliding log, ≈ 8 bytes per allowed request, bounded by the limit) instead of GCRA: never
+  more than the limit in any sliding second, while still allowing a burst of `limit` requests
+  at once. D-043's goal (strict, bounded memory, no new dependency) is kept.
+- **Context:** GCRA is strict only without bursts (requests evenly spaced, 20 ms apart at
+  50/s); with a burst of 50 it allows up to ~99 requests in a sliding second.
+- **Alternatives:** GCRA without bursts; GCRA with bursts (not strict).
 
 ---
 
