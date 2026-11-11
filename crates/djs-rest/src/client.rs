@@ -185,7 +185,6 @@ impl Rest {
         let bucket_route = route.bucket();
         let limits = bucket_route.limits;
         let template = bucket_route.template;
-        let method = route.method();
         let uri = inner.uri(route, request.query)?;
         let reason = request.reason.map(reason_header);
         let body = PreparedBody::new(request.body, request.files, request.form_file);
@@ -206,7 +205,7 @@ impl Rest {
                 inner.ratelimiter.acquire_global().await;
             }
 
-            let http_request = inner.build_request(&method, &uri, reason.as_ref(), &body)?;
+            let http_request = inner.build_request(route, &uri, reason.as_ref(), &body)?;
             let started = Instant::now();
             let response = match tokio::time::timeout(
                 inner.timeout,
@@ -315,18 +314,20 @@ impl Inner {
     }
 
     /// Builds one HTTP request attempt. Cloning the body is cheap (`Bytes` is reference counted).
+    /// Routes authenticated by a token in their path do not get the client's token (D-121).
     fn build_request(
         &self,
-        method: &http::Method,
+        route: Route<'_>,
         uri: &Uri,
         reason: Option<&HeaderValue>,
         body: &PreparedBody,
     ) -> Result<http::Request<RequestBody>, Error> {
         let mut builder = http::Request::builder()
-            .method(method.clone())
+            .method(route.method())
             .uri(uri.clone())
             .header(USER_AGENT, self.user_agent.clone());
         match &self.token {
+            _ if !route.authenticated() => {}
             Token::None => {}
             Token::Valid(token) => builder = builder.header(AUTHORIZATION, token.clone()),
             Token::Invalid => {

@@ -8,6 +8,11 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Webhook endpoints (14 methods): create, list (channel, guild), get, modify and delete
+  webhooks (also with the webhook's token), `execute_webhook` and `execute_webhook_and_wait`
+  (D-119; bodies `CreateWebhook`, `ModifyWebhook`, `ExecuteWebhook` with files, threads and
+  forum posts), get/edit/delete webhook messages. Slack/GitHub-compatible execution is not
+  modelled (D-120).
 - User endpoints (12 methods): current user (get, modify), get user, current user guilds
   (`CurrentUserGuild`, with `shard` for large bot sharding), leave guild, create DM / group
   DM, and the `OAuth2` (bearer token) endpoints: current user guild member, connections and
@@ -207,6 +212,11 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `login`/`shutdown`, prelude; `examples/ping.rs`; end-to-end tests with mock REST + gateway.
 
 ### Changed
+- `djs-rest`: routes authenticated by a webhook or interaction token in their path are sent
+  without the client's `Authorization` header (D-121), so webhooks work with a client built
+  without a token.
+- `djs-model`: `EditWebhookMessage` gained `thread_id` and `with_components`, sent in the
+  query string (D-119), also by the interaction edit methods.
 - `djs-model`: `InviteWithMetadata`'s metadata moved into `InviteMetadata`, now optional
   (`metadata: Option<InviteMetadata>`, D-117).
 - `djs-rest`: `RestBuilder`'s `Debug` output redacts the token (it printed it before).

@@ -1504,6 +1504,20 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - `/users/@me/...` routes have no major parameter; Delete Current User Application Role
   Connection discards its (undocumented) response body.
 
+### C-050 — Webhook endpoint details
+- One `ModifyWebhook` body serves Modify Webhook and Modify Webhook with Token; the latter
+  documents that `channel_id` is not accepted (Discord rejects it). Modify Webhook with
+  Token and Delete Webhook with Token take no `reason` (the docs list the header only for
+  the bot-authenticated variants).
+- `WebhookQuery` (crate-private) writes `wait`, `thread_id` and `with_components`; the
+  interaction edit methods send the `EditWebhookMessage` query fields too.
+- `execute_webhook` sends no `wait` (Discord's default, false) and discards the response.
+- Webhook routes with a token use webhook ID + token as the major parameter (like the
+  interaction webhook routes); without a token, the webhook ID.
+- `Route::authenticated()` is derived from the route's parameters: any `*_token` parameter
+  means the path authenticates the request (D-121); an invalid client token is then not an
+  error either.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

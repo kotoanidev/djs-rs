@@ -7,7 +7,7 @@ use djs_model::{
     emoji::{Emoji, PartialEmoji},
     id::{
         ApplicationId, ChannelId, CommandId, EmojiId, GenericId, GuildId, Id, IntegrationId,
-        InteractionId, MessageId, RoleId, UserId,
+        InteractionId, MessageId, RoleId, UserId, WebhookId,
     },
 };
 use http::Method;
@@ -330,6 +330,17 @@ macro_rules! routes {
                         $template,
                         &[$($( (stringify!($field), Param::to_segment($field)) ),*)?],
                     ),)*
+                }
+            }
+
+            /// Whether the request carries the client's token. Routes authenticated by a
+            /// webhook or interaction token in their path (a `*_token` parameter) are sent
+            /// without it (D-121).
+            pub(crate) fn authenticated(self) -> bool {
+                match self {
+                    $(Self::$variant { .. } => ![$($(stringify!($field)),*)?]
+                        .iter()
+                        .any(|name: &&str| name.ends_with("token")),)*
                 }
             }
 
@@ -758,6 +769,119 @@ routes! {
         /// The application.
         application_id: ApplicationId,
     } => DELETE "/users/@me/applications/{application_id}/role-connection";
+
+    // Webhooks. Slack- and GitHub-compatible execution is not modelled (D-120).
+
+    /// [Create Webhook](https://docs.discord.com/developers/resources/webhook#create-webhook).
+    CreateWebhook {
+        /// The channel.
+        channel_id: ChannelId,
+    } => POST "/channels/{channel_id}/webhooks",
+        major: channel_id;
+
+    /// [Get Channel Webhooks](https://docs.discord.com/developers/resources/webhook#get-channel-webhooks).
+    GetChannelWebhooks {
+        /// The channel.
+        channel_id: ChannelId,
+    } => GET "/channels/{channel_id}/webhooks",
+        major: channel_id;
+
+    /// [Get Guild Webhooks](https://docs.discord.com/developers/resources/webhook#get-guild-webhooks).
+    GetGuildWebhooks {
+        /// The guild.
+        guild_id: GuildId,
+    } => GET "/guilds/{guild_id}/webhooks",
+        major: guild_id;
+
+    /// [Get Webhook](https://docs.discord.com/developers/resources/webhook#get-webhook).
+    GetWebhook {
+        /// The webhook.
+        webhook_id: WebhookId,
+    } => GET "/webhooks/{webhook_id}",
+        major: webhook_id;
+
+    /// [Get Webhook with Token](https://docs.discord.com/developers/resources/webhook#get-webhook-with-token).
+    GetWebhookWithToken {
+        /// The webhook.
+        webhook_id: WebhookId,
+        /// The webhook's token.
+        webhook_token: &'a str,
+    } => GET "/webhooks/{webhook_id}/{webhook_token}",
+        major: webhook_id webhook_token;
+
+    /// [Modify Webhook](https://docs.discord.com/developers/resources/webhook#modify-webhook).
+    ModifyWebhook {
+        /// The webhook.
+        webhook_id: WebhookId,
+    } => PATCH "/webhooks/{webhook_id}",
+        major: webhook_id;
+
+    /// [Modify Webhook with Token](https://docs.discord.com/developers/resources/webhook#modify-webhook-with-token).
+    ModifyWebhookWithToken {
+        /// The webhook.
+        webhook_id: WebhookId,
+        /// The webhook's token.
+        webhook_token: &'a str,
+    } => PATCH "/webhooks/{webhook_id}/{webhook_token}",
+        major: webhook_id webhook_token;
+
+    /// [Delete Webhook](https://docs.discord.com/developers/resources/webhook#delete-webhook).
+    DeleteWebhook {
+        /// The webhook.
+        webhook_id: WebhookId,
+    } => DELETE "/webhooks/{webhook_id}",
+        major: webhook_id;
+
+    /// [Delete Webhook with Token](https://docs.discord.com/developers/resources/webhook#delete-webhook-with-token).
+    DeleteWebhookWithToken {
+        /// The webhook.
+        webhook_id: WebhookId,
+        /// The webhook's token.
+        webhook_token: &'a str,
+    } => DELETE "/webhooks/{webhook_id}/{webhook_token}",
+        major: webhook_id webhook_token;
+
+    /// [Execute Webhook](https://docs.discord.com/developers/resources/webhook#execute-webhook).
+    ExecuteWebhook {
+        /// The webhook.
+        webhook_id: WebhookId,
+        /// The webhook's token.
+        webhook_token: &'a str,
+    } => POST "/webhooks/{webhook_id}/{webhook_token}",
+        major: webhook_id webhook_token;
+
+    /// [Get Webhook Message](https://docs.discord.com/developers/resources/webhook#get-webhook-message).
+    GetWebhookMessage {
+        /// The webhook.
+        webhook_id: WebhookId,
+        /// The webhook's token.
+        webhook_token: &'a str,
+        /// The message.
+        message_id: MessageId,
+    } => GET "/webhooks/{webhook_id}/{webhook_token}/messages/{message_id}",
+        major: webhook_id webhook_token;
+
+    /// [Edit Webhook Message](https://docs.discord.com/developers/resources/webhook#edit-webhook-message).
+    EditWebhookMessage {
+        /// The webhook.
+        webhook_id: WebhookId,
+        /// The webhook's token.
+        webhook_token: &'a str,
+        /// The message.
+        message_id: MessageId,
+    } => PATCH "/webhooks/{webhook_id}/{webhook_token}/messages/{message_id}",
+        major: webhook_id webhook_token;
+
+    /// [Delete Webhook Message](https://docs.discord.com/developers/resources/webhook#delete-webhook-message).
+    DeleteWebhookMessage {
+        /// The webhook.
+        webhook_id: WebhookId,
+        /// The webhook's token.
+        webhook_token: &'a str,
+        /// The message.
+        message_id: MessageId,
+    } => DELETE "/webhooks/{webhook_id}/{webhook_token}/messages/{message_id}",
+        major: webhook_id webhook_token;
 
     // Channels and threads.
 
@@ -1351,6 +1475,32 @@ mod tests {
             r#"GetFollowupMessage { application_id: 3, interaction_token: "<redacted>", message_id: 4 }"#
         );
         assert_eq!(format!("{:?}", Route::GetGatewayBot), "GetGatewayBot");
+    }
+
+    #[test]
+    fn token_routes_are_not_authenticated_with_the_client_token() {
+        let webhook = WebhookId::new(1);
+        assert!(
+            Route::GetWebhook {
+                webhook_id: webhook
+            }
+            .authenticated()
+        );
+        assert!(
+            !Route::ExecuteWebhook {
+                webhook_id: webhook,
+                webhook_token: TOKEN
+            }
+            .authenticated()
+        );
+        assert!(
+            !Route::CreateInteractionResponse {
+                interaction_id: InteractionId::new(2),
+                interaction_token: TOKEN
+            }
+            .authenticated()
+        );
+        assert!(Route::GetGatewayBot.authenticated());
     }
 
     #[test]

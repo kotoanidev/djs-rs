@@ -12,6 +12,7 @@ use djs_model::{
     rest::{CreateFollowupMessage, EditWebhookMessage},
 };
 
+use super::webhook::WebhookQuery;
 use crate::{
     Error, Request, Rest, Route,
     query::{Query, QueryWriter},
@@ -122,11 +123,13 @@ impl Rest {
         interaction_token: &str,
         body: &EditWebhookMessage,
     ) -> Result<Message, Error> {
+        let query = WebhookQuery::of_edit(body);
         self.request(
             Request::new(Route::EditOriginalInteractionResponse {
                 application_id,
                 interaction_token,
             })
+            .query(&query)
             .json(body)?
             .files(&body.files),
         )
@@ -218,12 +221,14 @@ impl Rest {
         message_id: MessageId,
         body: &EditWebhookMessage,
     ) -> Result<Message, Error> {
+        let query = WebhookQuery::of_edit(body);
         self.request(
             Request::new(Route::EditFollowupMessage {
                 application_id,
                 interaction_token,
                 message_id,
             })
+            .query(&query)
             .json(body)?
             .files(&body.files),
         )

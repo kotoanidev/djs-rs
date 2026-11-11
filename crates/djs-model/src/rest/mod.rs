@@ -50,7 +50,7 @@ pub use self::{
         SearchFilter, SearchGuildMessages, SearchHasType, SearchSortMode, SearchSortOrder,
     },
     user::{CreateDm, CreateGroupDm, CurrentUserGuild, GetCurrentUserGuilds, ModifyCurrentUser},
-    webhook::EditWebhookMessage,
+    webhook::{CreateWebhook, EditWebhookMessage, ExecuteWebhook, ModifyWebhook},
 };
 
 /// The response of [Get Gateway Bot](https://docs.discord.com/developers/events/gateway#get-gateway-bot)

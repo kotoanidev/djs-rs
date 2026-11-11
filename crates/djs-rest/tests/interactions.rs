@@ -92,6 +92,8 @@ async fn interaction_endpoints() {
     let expected = expectations();
     let seen = seen(&state);
     assert_eq!(seen.len(), expected.len());
+    // The interaction token authenticates these routes; the bot token is not sent (D-121).
+    assert!(seen.iter().all(|request| request.authorization.is_none()));
     for (request, (method, path, query, body)) in seen.iter().zip(&expected) {
         assert_eq!(
             (
