@@ -846,6 +846,29 @@ and why.
   role connections, lobbies, voice.
 - **Alternatives:** the order of the docs' resource pages.
 
+### D-103 — Reaction emojis are a typed enum
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** Reaction endpoints take `ReactionEmoji<'a>`: `Unicode(&'a str)` or
+  `Custom { name: &'a str, id: EmojiId }`, written into the path percent-encoded (`name:id`
+  for custom emojis), with conversions from the model's emoji types.
+- **Alternatives:** a `&str` in Discord's format (`"👍"`, `"name:id"`), like discord.js'
+  emoji identifiers.
+
+### D-104 — A not-yet-indexed message search is an error with `retry_after`
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** When Search Guild Messages answers `202` because the guild is not indexed
+  yet, the method returns an error of the new kind `ErrorKind::NotYetIndexed { retry_after,
+  documents_indexed }`; callers retry after `retry_after` if they want.
+- **Alternatives:** retrying automatically inside `Rest`; a result enum with a `NotIndexed`
+  case.
+
+### D-105 — Deprecated endpoints with a successor are left out
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** Endpoints the docs mark as deprecated and that have a replacement are not
+  implemented (e.g. the old `/channels/{id}/pins` routes; the `/channels/{id}/messages/pins`
+  ones are). They stay reachable through `Rest::request` only if a `Route` is added later.
+- **Alternatives:** adding them with `#[deprecated]` pointing to the successor.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
