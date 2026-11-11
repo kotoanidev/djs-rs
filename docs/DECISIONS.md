@@ -796,6 +796,28 @@ and why.
   and the future `AttachmentBuilder` of `djs-builders`).
 - **Alternatives:** `RawFile` (like `@discordjs/rest`); `UploadFile`.
 
+### D-097 — JSON error codes are an enum
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** `djs_model::rest::ErrorCode`, an `int_enum!` of every documented JSON error
+  code plus `Unknown(u32)` for new ones; `ApiError::code` uses it.
+- **Alternatives:** a `u32` newtype with associated constants; keeping a plain `u32`.
+
+### D-098 — Error code variants use discord-api-types' names
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** Variants are named like discord-api-types' `RESTJSONErrorCodes` (e.g.
+  `UnknownChannel`, `MissingPermissions`); documented codes missing there get names derived
+  from their docs description. The docs only describe codes in sentences.
+- **Alternatives:** own names derived from every docs description.
+
+### D-099 — Form field errors are parsed and flattened
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** The nested `errors` of an error response (code 50035, `_errors` leaves) are
+  parsed into a flat list of field errors (path such as `embeds[0].title`, code, message) on
+  `ApiError`, and the error's `Display` lists them like discord.js
+  (`embeds[0].title[BASE_TYPE_REQUIRED]: This field is required`). The raw JSON stays
+  available.
+- **Alternatives:** only the raw JSON value.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
