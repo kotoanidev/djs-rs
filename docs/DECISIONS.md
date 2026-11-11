@@ -674,6 +674,32 @@ and why.
 - **Alternatives:** shrink the raw types now (box rare `Activity` parts and `PresenceUser`
   fields, smaller `Unknown` in string enums); only change the string enums now.
 
+### D-082 — REST endpoints are methods on `Rest` taking body structs
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** Every REST endpoint is an `async` method on `Rest` taking its path parameters
+  and, where it has one, a reference to a plain body struct from `djs_model::rest` (C-012), as
+  in Phase 1: `rest.create_message(channel_id, &body).await`. Validating builders come with
+  `djs-builders`; `Rest::request` stays as the low-level escape hatch.
+- **Alternatives:** per-endpoint request builders with `IntoFuture` (twilight style); only
+  generic routes and raw requests (discord.js `REST#post` style).
+
+### D-083 — Tri-state request fields use an own enum
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** Request body fields that can be omitted (leave unchanged), `null` (clear) or set
+  use an own three-variant enum in `djs_model::util` (working name `Patch<T>` with `Keep`,
+  `Clear`, `Set(T)`; the final names are confirmed with the owner when it is implemented),
+  skipped when it is `Keep`. Completes D-049 for request bodies.
+- **Alternatives:** `Option<Option<T>>`.
+
+### D-084 — Phase 3 order: infrastructure first
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** Phase 3 is done in this order: (1) infrastructure — complete rate limiting
+  (GCRA global limiter D-043, invalid-request limit, per-route quirks), retries and timeouts,
+  the audit-log reason header, multipart uploads, API errors with JSON error codes; (2) every
+  endpoint, resource by resource; (3) the CDN URL builder; (4) tests, benchmarks and stress
+  tests (D-041).
+- **Alternatives:** endpoints first on the current infrastructure, then the rest.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
