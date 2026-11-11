@@ -206,8 +206,9 @@ D-041).
 - **Invites ✅** (9 methods, `tests/invites.rs`, D-126, D-127, C-057).
 - **Guild templates ✅** (6 methods, `tests/guild_templates.rs`, C-058).
 - **Audit log ✅** (`get_guild_audit_log`, `tests/audit_log.rs`).
-- **Next:** auto moderation (`resources/auto-moderation.mdx`), then polls (D-102), then
-  monetization, application, OAuth2, role connections, lobbies, voice.
+- **Auto moderation ✅** (5 methods, `tests/auto_moderation.rs`, D-128, D-129, C-059).
+- **Next:** polls (D-102, `resources/poll.mdx`), then monetization, application, OAuth2,
+  role connections, lobbies, voice.
 - Local gate script: `scratchpad/gate.sh` style (`set -euo pipefail`, no pipes hiding errors) —
   a piped gate let one clippy failure through (fixed in `cda06db`).
 - Perf note: after the user change, MESSAGE_CREATE/READY decode looked ~8-13 % slower relative

@@ -2,6 +2,7 @@
 
 mod application_command;
 mod audit_log;
+mod auto_moderation;
 mod channel;
 mod emoji;
 mod guild;

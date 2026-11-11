@@ -8,6 +8,10 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Auto Moderation endpoints (5 methods): list, get, create, modify and delete rules. Bodies
+  `CreateAutoModerationRule` (one constructor per trigger type, D-128) and
+  `ModifyAutoModerationRule`; `auto_moderation::Action` gets one constructor per action type
+  (D-129).
 - `get_guild_audit_log` with the `GetGuildAuditLog` query (user, action type, `before` /
   `after`, limit).
 - Guild template endpoints (6 methods): get a template by code, list a guild's templates,

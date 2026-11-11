@@ -1693,6 +1693,17 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - Create Guild from Guild Template is not modelled: it is no longer in Discord's docs (bots
   cannot create guilds).
 
+### C-059 — Auto Moderation endpoint details
+- `CreateAutoModerationRule::trigger_metadata` is a plain `TriggerMetadata` (so
+  `body.trigger_metadata.allow_list = ...` works) and is left out of the request when it
+  equals the default (`Spam` rules have no metadata).
+- Constructors take `impl IntoIterator` for keywords, presets and actions, so arrays and
+  `Vec`s both work.
+- `ModifyAutoModerationRule` uses `Option` for every field (no `Patch`): none of them is
+  nullable; an empty list clears exemptions.
+- All five routes use the guild ID as major parameter; create, modify and delete take an
+  audit log `reason`.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

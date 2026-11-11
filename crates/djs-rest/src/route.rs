@@ -6,9 +6,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use djs_model::{
     emoji::{Emoji, PartialEmoji},
     id::{
-        ApplicationId, ChannelId, CommandId, EmojiId, GenericId, GuildId, Id, IntegrationId,
-        InteractionId, MessageId, RoleId, ScheduledEventId, SoundboardSoundId, StickerId,
-        StickerPackId, UserId, WebhookId,
+        ApplicationId, AutoModerationRuleId, ChannelId, CommandId, EmojiId, GenericId, GuildId, Id,
+        IntegrationId, InteractionId, MessageId, RoleId, ScheduledEventId, SoundboardSoundId,
+        StickerId, StickerPackId, UserId, WebhookId,
     },
 };
 use http::Method;
@@ -1240,6 +1240,40 @@ routes! {
         /// The guild.
         guild_id: GuildId,
     } => GET "/guilds/{guild_id}/audit-logs", major: guild_id;
+
+    // Auto Moderation.
+
+    /// [List Auto Moderation Rules for Guild](https://docs.discord.com/developers/resources/auto-moderation#list-auto-moderation-rules-for-guild).
+    ListAutoModerationRulesForGuild {
+        /// The guild.
+        guild_id: GuildId,
+    } => GET "/guilds/{guild_id}/auto-moderation/rules", major: guild_id;
+    /// [Get Auto Moderation Rule](https://docs.discord.com/developers/resources/auto-moderation#get-auto-moderation-rule).
+    GetAutoModerationRule {
+        /// The guild.
+        guild_id: GuildId,
+        /// The rule.
+        rule_id: AutoModerationRuleId,
+    } => GET "/guilds/{guild_id}/auto-moderation/rules/{rule_id}", major: guild_id;
+    /// [Create Auto Moderation Rule](https://docs.discord.com/developers/resources/auto-moderation#create-auto-moderation-rule).
+    CreateAutoModerationRule {
+        /// The guild.
+        guild_id: GuildId,
+    } => POST "/guilds/{guild_id}/auto-moderation/rules", major: guild_id;
+    /// [Modify Auto Moderation Rule](https://docs.discord.com/developers/resources/auto-moderation#modify-auto-moderation-rule).
+    ModifyAutoModerationRule {
+        /// The guild.
+        guild_id: GuildId,
+        /// The rule.
+        rule_id: AutoModerationRuleId,
+    } => PATCH "/guilds/{guild_id}/auto-moderation/rules/{rule_id}", major: guild_id;
+    /// [Delete Auto Moderation Rule](https://docs.discord.com/developers/resources/auto-moderation#delete-auto-moderation-rule).
+    DeleteAutoModerationRule {
+        /// The guild.
+        guild_id: GuildId,
+        /// The rule.
+        rule_id: AutoModerationRuleId,
+    } => DELETE "/guilds/{guild_id}/auto-moderation/rules/{rule_id}", major: guild_id;
 
     // Channels and threads.
 

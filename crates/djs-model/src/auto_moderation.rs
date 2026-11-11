@@ -130,6 +130,83 @@ pub struct Action {
     pub metadata: Option<ActionMetadata>,
 }
 
+/// Constructors for each [`ActionType`], setting the metadata it requires (D-129).
+///
+/// # Examples
+///
+/// ```
+/// use djs_model::{auto_moderation::Action, id::ChannelId};
+///
+/// let actions = [
+///     Action::block_message_with("Please keep it friendly"),
+///     Action::send_alert_message(ChannelId::new(1)),
+///     Action::timeout(60 * 10),
+/// ];
+/// assert_eq!(
+///     serde_json::to_string(&actions)?,
+///     r#"[{"type":1,"metadata":{"custom_message":"Please keep it friendly"}},{"type":2,"metadata":{"channel_id":"1"}},{"type":3,"metadata":{"duration_seconds":600}}]"#
+/// );
+/// # Ok::<(), serde_json::Error>(())
+/// ```
+impl Action {
+    /// Blocks the message with Discord's default explanation.
+    #[must_use]
+    pub const fn block_message() -> Self {
+        Self {
+            kind: ActionType::BlockMessage,
+            metadata: None,
+        }
+    }
+
+    /// Blocks the message and shows `custom_message` (up to 150 characters) to the member.
+    #[must_use]
+    pub fn block_message_with(custom_message: impl Into<CompactString>) -> Self {
+        Self {
+            kind: ActionType::BlockMessage,
+            metadata: Some(ActionMetadata {
+                custom_message: Some(custom_message.into()),
+                ..ActionMetadata::default()
+            }),
+        }
+    }
+
+    /// Logs the content to `channel_id`.
+    #[must_use]
+    pub const fn send_alert_message(channel_id: ChannelId) -> Self {
+        Self {
+            kind: ActionType::SendAlertMessage,
+            metadata: Some(ActionMetadata {
+                channel_id: Some(channel_id),
+                duration_seconds: None,
+                custom_message: None,
+            }),
+        }
+    }
+
+    /// Times the member out for `duration_seconds` (up to 2 419 200, four weeks). Only for
+    /// `Keyword` and `MentionSpam` rules; needs the `MODERATE_MEMBERS` permission.
+    #[must_use]
+    pub const fn timeout(duration_seconds: u32) -> Self {
+        Self {
+            kind: ActionType::Timeout,
+            metadata: Some(ActionMetadata {
+                channel_id: None,
+                duration_seconds: Some(duration_seconds),
+                custom_message: None,
+            }),
+        }
+    }
+
+    /// Stops the member from using text, voice and other interactions.
+    #[must_use]
+    pub const fn block_member_interaction() -> Self {
+        Self {
+            kind: ActionType::BlockMemberInteraction,
+            metadata: None,
+        }
+    }
+}
+
 int_enum! {
     /// [What an action does](https://docs.discord.com/developers/resources/auto-moderation#auto-moderation-action-object-action-types).
     ///
@@ -139,7 +216,7 @@ int_enum! {
         BlockMessage = 1,
         /// Logs the content to a channel.
         SendAlertMessage = 2,
-        /// Times the member out (`MentionSpam`, `Keyword` and `MemberProfile` rules; needs the
+        /// Times the member out (only `Keyword` and `MentionSpam` rules; needs the
         /// `MODERATE_MEMBERS` permission).
         Timeout = 3,
         /// Stops the member from using text, voice and other interactions.

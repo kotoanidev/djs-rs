@@ -18,6 +18,7 @@ use crate::{
 
 mod application_command;
 mod audit_log;
+mod auto_moderation;
 mod channel;
 mod emoji;
 mod error_code;
@@ -39,6 +40,7 @@ pub use self::{
         GetApplicationCommands,
     },
     audit_log::GetGuildAuditLog,
+    auto_moderation::{CreateAutoModerationRule, ModifyAutoModerationRule},
     channel::{
         ArchivedThreads, CreateChannelInvite, EditChannelPermissions, FollowAnnouncementChannel,
         ForumTagData, ForumThread, ForumThreadMessage, GetChannelPermissions, GetThreadMember,
