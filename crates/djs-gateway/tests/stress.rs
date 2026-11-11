@@ -33,8 +33,9 @@ fn message_create(sequence: u64) -> String {
     )
 }
 
-/// A large dispatch the library does not decode: `GUILD_CREATE` with `members` members.
-fn guild_create(sequence: u64, members: u64) -> String {
+/// A large dispatch the library does not know (shaped like a `GUILD_CREATE` with `members`
+/// members, but with an unknown name), which the shard skips.
+fn large_unknown_event(sequence: u64, members: u64) -> String {
     let members: Vec<String> = (0..members)
         .map(|i| {
             format!(
@@ -44,10 +45,18 @@ fn guild_create(sequence: u64, members: u64) -> String {
         })
         .collect();
     format!(
-        r#"{{"t":"GUILD_CREATE","s":{sequence},"op":0,"d":{{"id":"{sequence}","name":"big","members":[{}]}}}}"#,
+        r#"{{"t":"FUTURE_EVENT","s":{sequence},"op":0,"d":{{"id":"{sequence}","name":"big","members":[{}]}}}}"#,
         members.join(",")
     )
 }
+
+/// Realistic payloads shared with the `djs-model` benchmarks and stress tests.
+#[allow(
+    dead_code,
+    reason = "shared with the djs-model tests, which use other helpers"
+)]
+#[path = "../../djs-model/tests/common/payloads.rs"]
+mod payloads;
 
 const HELLO: &str = r#"{"t":null,"s":null,"op":10,"d":{"heartbeat_interval":600000}}"#;
 const READY: &str = r#"{"t":"READY","s":1,"op":0,"d":{"v":10,"user":{"id":"1","username":"stress-bot","discriminator":"0","global_name":null,"avatar":null,"bot":true},"guilds":[],"session_id":"s","resume_gateway_url":"ws://127.0.0.1:9","shard":[0,1],"application":{"id":"1","flags":0}}}"#;
@@ -291,13 +300,13 @@ async fn flood_1m_message_creates_zstd() {
     );
 }
 
-/// 2 000 `GUILD_CREATE` payloads of ~200 KB each (1 000 members), which the shard skips; memory
-/// must stay bounded.
+/// 2 000 unknown events of ~200 KB each (shaped like 1 000-member `GUILD_CREATE`s), which the
+/// shard skips; memory must stay bounded.
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "stress test; run with --release --ignored"]
-async fn flood_2k_large_guild_creates_plain() {
+async fn flood_2k_large_unknown_events_plain() {
     const EVENTS: u64 = 2_000;
-    let template = guild_create(0, 1_000);
+    let template = large_unknown_event(0, 1_000);
     let (listener, url) = listener().await;
     let payloads = (2..EVENTS + 2)
         .map(move |sequence| template.replacen(r#""s":0"#, &format!(r#""s":{sequence}"#), 1));
@@ -307,7 +316,32 @@ async fn flood_2k_large_guild_creates_plain() {
     let elapsed = drain(&url, Compression::None, EVENTS).await;
     let sent = server.await.unwrap();
     report(
-        "2k GUILD_CREATE (1000 members), plain",
+        "2k large unknown events (1000 members), plain",
+        EVENTS,
+        sent,
+        elapsed,
+        baseline,
+    );
+}
+
+/// 2 000 full `GUILD_CREATE` payloads of ~700 KB each (1 000 members, 250 presences, 100
+/// channels, 50 roles), decoded and dropped; memory must stay bounded.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "stress test; run with --release --ignored"]
+async fn flood_2k_full_guild_creates_plain() {
+    const EVENTS: u64 = 2_000;
+    let (listener, url) = listener().await;
+    // One template, so that the server only patches the sequence instead of generating 700 KB.
+    let template = payloads::guild_create(0, 1_000, 250, 100, 50);
+    let payloads = (2..EVENTS + 2)
+        .map(move |sequence| template.replacen(r#""s":0"#, &format!(r#""s":{sequence}"#), 1));
+    let server = tokio::spawn(serve(listener, Frames::Text(Box::new(payloads))));
+    let baseline = memory_kib();
+    reset_peak_memory();
+    let elapsed = drain(&url, Compression::None, EVENTS).await;
+    let sent = server.await.unwrap();
+    report(
+        "2k full GUILD_CREATE (1000 members), plain, decoded",
         EVENTS,
         sent,
         elapsed,
@@ -319,7 +353,7 @@ async fn flood_2k_large_guild_creates_plain() {
 #[cfg(feature = "zstd-stream")]
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "stress test; run with --release --ignored"]
-async fn flood_2k_large_guild_creates_zstd() {
+async fn flood_2k_large_unknown_events_zstd() {
     const EVENTS: u64 = 2_000;
     let mut compressor = StreamCompressor::new();
     let mut frames = vec![
@@ -329,7 +363,7 @@ async fn flood_2k_large_guild_creates_zstd() {
     // Different member IDs per guild so that zstd cannot just reference the previous payload.
     let mut raw = 0;
     for sequence in 2..EVENTS + 2 {
-        let payload = guild_create(sequence, 1_000).replace(
+        let payload = large_unknown_event(sequence, 1_000).replace(
             "1000000000000000",
             &format!("{:016}", 2_000_000_000_000_000 + sequence * 1_000),
         );
@@ -344,7 +378,7 @@ async fn flood_2k_large_guild_creates_zstd() {
     let elapsed = drain(&url, Compression::ZstdStream, EVENTS).await;
     let sent = server.await.unwrap();
     report(
-        "2k GUILD_CREATE (1000 members), zstd-stream",
+        "2k large unknown events (1000 members), zstd-stream",
         EVENTS,
         sent,
         elapsed,

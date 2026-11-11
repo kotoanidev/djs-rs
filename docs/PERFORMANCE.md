@@ -12,6 +12,7 @@ profiler (D-042). They are measured locally; CI only checks that they compile.
 cargo bench -p djs-model
 
 # Extreme-load tests: ignored by default, run in release mode, print `[stress]` lines
+cargo test -p djs-model   --release --test stress -- --ignored --nocapture --test-threads 1
 cargo test -p djs-gateway --release --test stress -- --ignored --nocapture --test-threads 1
 cargo test -p djs-rest    --release --test stress -- --ignored --nocapture --test-threads 1
 cargo test -p djs-rs      --release --test stress -- --ignored --nocapture --test-threads 1
@@ -147,3 +148,131 @@ from `login()` until every handler call has completed.
    per event, see above). This is expected; documented as the trade-off of `HandlerMode`.
 
 No regressions: this is the first baseline.
+
+---
+
+## Phase 2 — full `djs-model` (2026-11-11)
+
+Same machine and toolchain (rustc 1.99.1, platform profile `performance`). Realistic payloads
+for benchmarks and stress tests come from `djs-model/tests/common/payloads.rs` (shared by the
+`djs-model` benchmarks and stress tests and the `djs-gateway` stress test).
+
+### `djs-model` — A/B against Phase 1 (`benches/decode.rs`)
+
+Phase 1 (commit `65210f8`, checked out in a git worktree) and Phase 2 were run back-to-back,
+alternating, five times; the ranges are the medians of the last three runs (500 samples each).
+The large unknown event is the same payload in both (Phase 1 did not decode `GUILD_CREATE`;
+Phase 2 gives it an unknown name instead).
+
+| Benchmark | Phase 1 | Phase 2 | Change | Allocations P1 → P2 |
+|---|---:|---:|---:|---|
+| `gateway::message_create` | 1.12–1.15 µs | 1.45–1.48 µs | **+29 %** | 3 / 305 B → 3 / 913 B |
+| `gateway::ready` | 0.93–1.09 µs | 0.98–1.15 µs | +5 % | 4 / 307 B → 4 / 467 B |
+| `gateway::skip_large_unknown_event` | 113–131 µs | 120–126 µs | ≈ 0 | 1 / 8 B |
+| `gateway::scan_only` | 33–35 ns | 33–34 ns | 0 | 0 |
+| `gateway::baseline_serde_json_value` | 1.93–1.96 µs | 1.91–1.96 µs | — | 76 / 5.95 KB |
+
+`MESSAGE_CREATE` now decodes what Phase 1 skipped. Measured separately, `member` costs
+≈ 230 ns (a `PartialMember` with roles and timestamps, in its own allocation) and `nonce`
+≈ 45 ns; then come `flags`, `channel_type` and the (empty) arrays. `Message` itself grew to
+656 bytes. Putting `MESSAGE_CREATE` first in the event-name `match` made no measurable
+difference, so routing among the 78 events costs nothing noticeable. The typed decode is still
+**1.3× faster than `serde_json::Value` with 25× fewer allocations**.
+
+### `djs-model` — every hot event and the commands (`benches/decode.rs`)
+
+One run, median of 300 samples (this laptop varies by ±20 %, see above).
+
+| Benchmark | Payload | Median | Throughput | Allocations |
+|---|---|---:|---:|---:|
+| `events::hot::MESSAGE_CREATE` / `MESSAGE_UPDATE` | 1.5 KB fixture | 1.69–1.70 µs | 885 MB/s | 3 / 913 B |
+| `events::hot::INTERACTION_CREATE` | 2.1 KB slash command, 3 options, resolved user + member | 3.10 µs | 681 MB/s | 11 / 6.68 KB |
+| `events::hot::PRESENCE_UPDATE` | 2 activities | 1.59 µs | 390 MB/s | 3 / 1.81 KB |
+| `events::hot::TYPING_START` | with member | 1.58 µs | 425 MB/s | 3 / 376 B |
+| `events::hot::MESSAGE_REACTION_ADD` | with member | 1.14 µs | 707 MB/s | 3 / 456 B |
+| `events::hot::VOICE_STATE_UPDATE` | with member | 1.75 µs (fastest 0.97 µs) | 478 MB/s | 4 / 448 B |
+| `events::hot::GUILD_MEMBER_ADD` (extras path) | member + `guild_id` | 848 ns | 678 MB/s | 2 / 344 B |
+| `events::hot::GUILD_MEMBER_UPDATE` | | 799 ns | 724 MB/s | 2 / 352 B |
+| `events::hot::CHANNEL_UPDATE` | text channel, 2 overwrites | 880 ns | 555 MB/s | 2 / 328 B |
+| `events::hot::MESSAGE_DELETE` | | 209 ns | 652 MB/s | 1 / 24 B |
+| `events::guild_create_1000_members` | 711 KB: 1 000 members, 250 presences, 100 channels, 50 roles, 50 emojis | **853 µs** | 834 MB/s | 1 629 / 429 KB |
+| `events::guild_create_baseline_serde_json_value` | same, into `serde_json::Value` | 2.70 ms | 264 MB/s | 53 225 / 5.05 MB |
+| `events::guild_create_unavailable` | `{"id", "unavailable": true}` | 320 ns | — | 3 / 88 B |
+| `commands::identify_to_json` | with a presence | 245 ns | — | 1 / 128 B |
+| `commands::update_presence_to_json` | | 72 ns | — | 1 / 128 B |
+
+A full `GUILD_CREATE` decodes **3.2× faster than into `serde_json::Value`, with 33× fewer
+allocations**. The "object + extras" events (D-073) decode in a single pass as fast as plain
+ones (`GUILD_MEMBER_ADD` ≈ `GUILD_MEMBER_UPDATE`).
+
+### `djs-model` — extreme load and robustness (`tests/stress.rs`)
+
+| Scenario | Result |
+|---|---|
+| 2.2 M hot events (11 kinds × 1 000 variants × 200 rounds), 1 thread | **697 000 events/s**, 627 MB/s; RSS 21 → 21 MiB |
+| 13.2 M hot events, 12 threads | **3.04 M events/s**, 2.7 GB/s (4.4× one thread on 2 P + 8 E cores); RSS 20 → 21 MiB |
+| `GUILD_CREATE`, 100 000 members, 25 000 presences, 500 channels, 250 roles (64.9 MB) | **102–116 ms = 560–640 MB/s**; peak RSS 154–156 MiB with the 65 MB input held |
+| 2 500 `GUILD_CREATE` (200 members, 50 presences, 30 channels, 20 roles), all kept alive | 3 551 guilds/s, 566 MB/s; decoded model **462 MiB for 380 MiB of JSON (1.21×)** |
+
+Robustness (these run with the normal test suite):
+
+- Every prefix of 12 real payloads (≈ 23 000 prefixes) and three single-byte corruptions at
+  every position of three payloads either decode or return an error, without panicking. No
+  strict prefix decodes.
+- 100 000 levels of nesting never overflow the stack. serde_json skips ignored data (unknown
+  events, unknown fields, including through the extras adapter) iteratively, so it decodes;
+  arbitrary-JSON values (`JsonValue`) stop at serde_json's recursion limit with an error.
+
+Sizes of the main decoded types (bytes): `User` 144, `Member` 304, `Presence` 296
+(`PresenceUser` 144, `ClientStatus` 96), `Activity` 336, `Channel` 200, `Role` 128, `Emoji` 72,
+`VoiceState` 80, `Guild` 488, `Message` 656, `DispatchEvent` ≤ 32.
+
+### `djs-gateway`, `djs-rs` and `djs-rest` stress tests — A/B against Phase 1
+
+Phase 1 and Phase 2 stress tests were run alternately, twice each (ranges = both runs).
+Payloads are identical, except that the large-event scenario now uses an unknown event name
+(it was an undecoded `GUILD_CREATE` in Phase 1).
+
+| Scenario | Phase 1 | Phase 2 | Change |
+|---|---:|---:|---:|
+| `djs-gateway`: 1 M `MESSAGE_CREATE`, plain | 627 000–730 000 /s | 542 000 /s | −15 … −26 % |
+| `djs-gateway`: same, `zstd-stream` | 708 000–719 000 /s | 550 000–554 000 /s | −23 % |
+| `djs-gateway`: 2 000 large unknown events (219 KB), plain / zstd | 5 493–5 608 / 5 516–5 540 /s | 5 347–5 483 / 5 444–5 468 /s | ≈ −2 % (noise) |
+| `djs-gateway`: 2 000 **full** `GUILD_CREATE` (711 KB), decoded (new) | — | 863–876 /s, 614–623 MB/s; RSS 38 → 41 MiB | — |
+| `djs-rs`: `Concurrent`, 1 handler | 347 000–362 000 /s | 200 000–265 000 /s | **−27 … −43 %** |
+| `djs-rs`: `Concurrent` + `events()` stream | 348 000–360 000 /s | 198 000–267 000 /s | −25 … −45 % |
+| `djs-rs`: `Sequential`, 1 handler | 490 000–512 000 /s | 462 000–496 000 /s | −4 % |
+| `djs-rs`: fan-out, 10 handlers (handler calls/s) | 1 019 000–1 023 000 | 873 000–1 021 000 | 0 … −15 % |
+
+`djs-rest` does not decode gateway events; its stress results are unchanged within noise
+(throughput 227 000 req/s, sequential 44.4 µs/request, bucket limits 0 rejected, 429 storm
+exactly 1 000 rejections, global limit ≤ 50 per sliding second).
+
+The gateway numbers drop by the decode cost above (`member` etc.). The concurrent-mode drop in
+`djs-rs` is larger than that and was traced with an experiment: **without `member` in the
+stress payload, `Concurrent` is back at 347 000–353 000 events/s (Phase 1 level)**. The two
+extra allocations per event (`Box<PartialMember>` and its roles `Vec`) are made on the
+dispatcher thread and freed on tokio worker threads; `Sequential` mode, which frees them on the
+same thread, is not affected. This matches the producer/consumer pattern that glibc malloc
+handles poorly (raising `glibc.malloc.tcache_count` did not help; other allocators could not be
+tried without a new dependency).
+
+### Findings and optimization candidates (Phase 2)
+
+1. **Concurrent handler mode is sensitive to allocations freed on other threads**
+   (−27 … −43 % for a `MESSAGE_CREATE` with a member). Real bots get far fewer events per shard,
+   but this is the default mode. Options: measure with another allocator (dev-dependency) and
+   document an allocator recommendation; reduce allocations per event in the model; revisit the
+   dispatch design in Phase 8.
+2. **The decoded model is about 1.2× the size of the JSON** for `GUILD_CREATE`. Big
+   contributors: `Activity` (336 B), `Presence` (296 B, of which `ClientStatus` is 96 B because
+   every `Option<Status>` is 24 B: string enums carry an `Unknown(CompactString)`),
+   `PresenceUser` (144 B for what is usually only an ID) and the slack of growing `Vec`s. This
+   matters for caching (Phase 5).
+3. An unavailable `GUILD_CREATE` costs 320 ns and 3 allocations, because the failed guild
+   decode builds a serde error before the extras recover. Unavailable guilds only come with
+   outages, so this is acceptable.
+4. `MESSAGE_CREATE` decoding is 29 % slower than in Phase 1. That is the price of the complete
+   model (`member`, `nonce`, …), not a regression in the shared machinery: skipping, scanning
+   and routing are unchanged.
+

@@ -126,10 +126,20 @@ D-041).
   ✅ (D-076, D-078, D-079, C-038): `webhook_event` module, `LobbyMessage` extended, tests
   `tests/webhook_event.rs` on the docs' 11 examples (`webhook_events_examples.json`, extracted
   with a script that replaces `// user data` by a synthetic user).
-- **Next:** Phase 2 benches and stress tests (D-041): extend `djs-model/benches/decode.rs`
-  (every event family, large GUILD_CREATE decoded for real, interactions), extreme-load decode
-  tests, A/B against the Phase 1 commit `65210f8` (git worktree), record in
-  `docs/PERFORMANCE.md`; then mark Phase 2 done.
+- Phase 2 benchmarks and stress tests (D-041) ✅ — results in `docs/PERFORMANCE.md` ("Phase 2"):
+  shared realistic payloads `djs-model/tests/common/payloads.rs` (also used by the benches via
+  `#[path]` and by the `djs-gateway` stress test), `benches/decode.rs` extended (every hot
+  event, full 1 000-member GUILD_CREATE vs `serde_json::Value`, commands), new
+  `djs-model/tests/stress.rs` (1-thread / all-threads floods, 65 MB GUILD_CREATE, 2 500 guilds
+  kept alive, plus non-ignored robustness tests: truncation/corruption, deep nesting), A/B
+  against Phase 1 (`65210f8` worktree) for the decode benches and the gateway/client stress
+  tests. The `djs-gateway` stress test's large-event scenario now uses an unknown event name
+  (GUILD_CREATE is decoded now), plus a new full-GUILD_CREATE scenario.
+- Findings to discuss with the owner (PERFORMANCE.md "Findings … (Phase 2)"): concurrent
+  handler mode −27…−43 % (extra per-event allocations freed on worker threads); decoded model
+  ≈ 1.2× the JSON (`Activity`, `Presence`/`ClientStatus`, `PresenceUser` sizes).
+- **Next:** ask the owner about those two findings (fix now / later / document), then mark
+  Phase 2 done in ROADMAP and start Phase 3 (`djs-rest` full coverage, see ROADMAP).
 - Local gate script: `scratchpad/gate.sh` style (`set -euo pipefail`, no pipes hiding errors) —
   a piped gate let one clippy failure through (fixed in `cda06db`).
 - Perf note: after the user change, MESSAGE_CREATE/READY decode looked ~8-13 % slower relative

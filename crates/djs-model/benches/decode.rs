@@ -10,6 +10,10 @@ use djs_model::{
 };
 use serde::de::DeserializeSeed;
 
+#[allow(dead_code, reason = "shared with the tests, which use other helpers")]
+#[path = "../tests/common/payloads.rs"]
+mod payloads;
+
 #[global_allocator]
 static ALLOC: divan::AllocProfiler = divan::AllocProfiler::system();
 
@@ -20,8 +24,8 @@ fn main() {
 const MESSAGE_CREATE: &str = include_str!("../tests/fixtures/message_create.json");
 const READY: &str = include_str!("../tests/fixtures/ready.json");
 
-/// A large dispatch the library does not decode (e.g. `GUILD_CREATE` with 1000 members),
-/// which must be skipped cheaply.
+/// A large dispatch the library does not know (shaped like a 1000-member `GUILD_CREATE`, but
+/// with an unknown name), which must be skipped cheaply.
 fn large_unknown_event() -> String {
     let members: Vec<String> = (0..1000)
         .map(|i| {
@@ -31,8 +35,9 @@ fn large_unknown_event() -> String {
             )
         })
         .collect();
+    // Same length as the Phase 1 payload (`GUILD_CREATE` was not decoded then), for A/B runs.
     format!(
-        r#"{{"t":"GUILD_CREATE","s":5,"op":0,"d":{{"id":"1","name":"big","members":[{}]}}}}"#,
+        r#"{{"t":"FUTURE_EVENT","s":5,"op":0,"d":{{"id":"1","name":"big","members":[{}]}}}}"#,
         members.join(",")
     )
 }
@@ -85,6 +90,112 @@ mod gateway {
             .bench(|| {
                 serde_json::from_str::<serde_json::Value>(black_box(MESSAGE_CREATE)).unwrap()
             });
+    }
+}
+
+/// The frequent events a bot receives (`tests/common/payloads.rs`).
+const HOT_EVENTS: &[&str] = &[
+    "MESSAGE_CREATE",
+    "MESSAGE_UPDATE",
+    "INTERACTION_CREATE",
+    "PRESENCE_UPDATE",
+    "TYPING_START",
+    "MESSAGE_REACTION_ADD",
+    "MESSAGE_DELETE",
+    "GUILD_MEMBER_ADD",
+    "GUILD_MEMBER_UPDATE",
+    "VOICE_STATE_UPDATE",
+    "CHANNEL_UPDATE",
+];
+
+mod events {
+    use super::{Bencher, BytesCount, HOT_EVENTS, black_box, decode, payloads};
+
+    fn payload(name: &str) -> String {
+        payloads::hot_events(1)
+            .into_iter()
+            .find(|(event, _)| *event == name)
+            .unwrap()
+            .1
+    }
+
+    /// Every hot event, decoded into its typed payload.
+    #[divan::bench(args = HOT_EVENTS)]
+    fn hot(bencher: Bencher<'_, '_>, name: &str) {
+        let json = payload(name);
+        bencher
+            .counter(BytesCount::of_str(&json))
+            .bench(|| decode(black_box(&json)));
+    }
+
+    /// A full `GUILD_CREATE` (1 000 members, 250 presences, 100 channels, 50 roles).
+    #[divan::bench]
+    fn guild_create_1000_members(bencher: Bencher<'_, '_>) {
+        let json = payloads::guild_create(1, 1000, 250, 100, 50);
+        bencher
+            .counter(BytesCount::of_str(&json))
+            .bench(|| decode(black_box(&json)));
+    }
+
+    /// The same `GUILD_CREATE` into a `serde_json::Value`, for comparison.
+    #[divan::bench]
+    fn guild_create_baseline_serde_json_value(bencher: Bencher<'_, '_>) {
+        let json = payloads::guild_create(1, 1000, 250, 100, 50);
+        bencher
+            .counter(BytesCount::of_str(&json))
+            .bench(|| serde_json::from_str::<serde_json::Value>(black_box(&json)).unwrap());
+    }
+
+    /// An unavailable guild (outage), recognized after the guild decode fails.
+    #[divan::bench]
+    fn guild_create_unavailable(bencher: Bencher<'_, '_>) {
+        let json = r#"{"t":"GUILD_CREATE","s":2,"op":0,"d":{"id":"1400000000000000002","unavailable":true}}"#;
+        bencher.bench(|| decode(black_box(json)));
+    }
+}
+
+mod commands {
+    use djs_model::{
+        gateway::{
+            Activity, ActivityType, Intents, ShardId, Status,
+            payload::{
+                CommandPayload, GatewayCapabilities, Identify, IdentifyProperties, UpdatePresence,
+            },
+        },
+        util::Timestamp,
+    };
+
+    use super::black_box;
+
+    fn presence() -> UpdatePresence {
+        let mut presence = UpdatePresence::new(
+            Status::Online,
+            [Activity::new(ActivityType::Custom, "Custom Status")],
+        );
+        presence.since = Timestamp::from_unix_millis(1_794_398_400_000);
+        presence
+    }
+
+    #[divan::bench]
+    fn identify_to_json(bencher: divan::Bencher<'_, '_>) {
+        let identify = Identify {
+            token: "not-a-real-token-only-for-benchmarking-0123456789".into(),
+            properties: IdentifyProperties::new("djs-rs"),
+            large_threshold: Some(250),
+            shard: Some(ShardId::new(0, 1)),
+            intents: Intents::GUILDS | Intents::GUILD_MESSAGES | Intents::MESSAGE_CONTENT,
+            presence: Some(presence()),
+            capabilities: GatewayCapabilities::empty(),
+        };
+        bencher
+            .bench(|| serde_json::to_string(&CommandPayload::new(black_box(&identify))).unwrap());
+    }
+
+    #[divan::bench]
+    fn update_presence_to_json(bencher: divan::Bencher<'_, '_>) {
+        let presence = presence();
+        bencher
+            .bench(|| serde_json::to_string(&CommandPayload::new(black_box(&presence))).unwrap());
     }
 }
 

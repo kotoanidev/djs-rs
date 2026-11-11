@@ -3,6 +3,8 @@
 // Every test crate includes this module but uses only some of the helpers.
 #![allow(dead_code, reason = "each test crate uses a subset of the helpers")]
 
+pub(crate) mod payloads;
+
 use djs_model::util::Timestamp;
 use serde::{Serialize, de::DeserializeOwned};
 use serde_json::Value;
