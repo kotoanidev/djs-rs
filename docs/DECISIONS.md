@@ -625,8 +625,6 @@ and why.
   integers in the same unit.
 - **Alternatives:** raw `u64`s with the unit in the docs.
 
----
-
 ### D-076 — Webhook events are modelled in Phase 2, Social SDK events included
 - **Date:** 2026-11-11 · **Decided by:** Owner
 - **Decision:** `djs-model` models the [webhook events](https://docs.discord.com/developers/events/webhook-events)
@@ -642,6 +640,22 @@ and why.
   clients; `rpc/` in discord-api-types) is not modelled: discord.js v14 has no RPC and this
   project targets bots.
 - **Alternatives:** a later phase (e.g. a `djs-rpc` crate); model it in `djs-model` now.
+
+### D-078 — Webhook lobby messages reuse `LobbyMessage`
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** `LOBBY_MESSAGE_CREATE`/`UPDATE` webhook events carry `lobby::LobbyMessage`,
+  extended for them: `application_id` becomes `Option<ApplicationId>` (optional in webhook
+  events) and optional `timestamp` / `edited_timestamp` fields are added (sent by updates).
+- **Alternatives:** a separate webhook-only lobby message type.
+
+### D-079 — Game direct messages are one lenient type
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** `GAME_DIRECT_MESSAGE_*` webhook events carry one `GameDirectMessage` type that
+  covers both the "message object" and the "SDK DM message object" of the docs: only `id`,
+  `content` and `author` are required, every other field is optional or defaults, so all the
+  docs' (inconsistent) examples decode.
+- **Alternatives:** an enum of `Message` and an SDK DM type (heuristic distinction, the docs'
+  examples would not decode); reuse `Message` with relaxed fields (weakens a hot-path type).
 
 ---
 
