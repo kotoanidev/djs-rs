@@ -8,6 +8,10 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-model`: `webhook_event` module (D-076) — `WebhookEventPayload` (`PayloadType::{Ping,
+  Event}`), `WebhookEvent` with `WebhookEventData` by type, `ApplicationAuthorized`,
+  `ApplicationDeauthorized`, `LobbyMessageDelete`, `GameDirectMessage` (D-079); event times
+  without an offset are read as UTC.
 - `djs-model`: every gateway dispatch event is routed to a typed `DispatchEvent` variant with
   its own payload type in `gateway::payload` (D-073), e.g. `GuildCreate` (available or
   unavailable, `AvailableGuild`), `ThreadCreate`, `GuildMemberAdd`, `PresenceUpdate`,
@@ -134,6 +138,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `login`/`shutdown`, prelude; `examples/ping.rs`; end-to-end tests with mock REST + gateway.
 
 ### Changed
+- `djs-model`: `WebhookEventType` moved from `application` to `webhook_event`;
+  `lobby::LobbyMessage::application_id` is an `Option`, and `LobbyMessage` gained `timestamp`
+  and `edited_timestamp` (D-078).
 - `djs-model`: `Identify` gained `presence` and `capabilities` (`GatewayCapabilities`) fields.
 - `djs-model`: `Message`, `MessageCreate`, `GatewayEvent` and `DispatchEvent` are `PartialEq`
   but no longer `Eq`, because messages contain floats (D-064).

@@ -952,6 +952,23 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   guild was synced, which differs from an empty list). `GUILD_MEMBERS_CHUNK`: `not_found` is a
   `Vec<UserId>`.
 
+### C-038 — Webhook event details
+- Module `webhook_event` (singular like the other modules, for the "Webhook Events" page,
+  D-044). `WebhookEventType` moved there from `application`, because that page defines it.
+  The `type` of the outer payload is `PayloadType` (`Ping`/`Event`), so it does not clash with
+  `webhook::WebhookType`.
+- `WebhookEvent { timestamp, data: WebhookEventData }` follows the "enum by type" pattern
+  (D-067): the raw `data` is buffered as a `JsonValue` and converted once `type` is known (it
+  may come first; webhook events are rare, so the second pass is cheap). Unknown event types
+  keep only their type; `QUEST_USER_ENROLLMENT` ignores any data.
+- Event body times have no offset and are read as UTC through the crate-private
+  `Timestamp::parse_assume_utc`; the public `Timestamp::parse` stays strict. They are written
+  back with `+00:00`.
+- `ApplicationAuthorized::guild` is boxed, `scopes` defaults to empty (C-023).
+  `GameDirectMessage` (D-079): `kind` is an `Option` (`MessageType` has no default),
+  `recipient_id` is a `GenericId` (undocumented; in the docs' example it equals the channel's
+  ID), `flags` default to empty, and message fields it does not list are ignored.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

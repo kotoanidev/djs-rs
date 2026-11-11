@@ -41,3 +41,4 @@ pub mod user;
 pub mod util;
 pub mod voice;
 pub mod webhook;
+pub mod webhook_event;

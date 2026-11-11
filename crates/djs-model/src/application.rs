@@ -13,6 +13,7 @@ use crate::{
     team::Team,
     user::User,
     util::ImageHash,
+    webhook_event::WebhookEventType,
 };
 
 /// An [application](https://docs.discord.com/developers/resources/application#application-object).
@@ -199,39 +200,6 @@ int_enum! {
         Enabled = 2,
         /// Disabled by Discord, usually because of inactivity.
         DisabledByDiscord = 3,
-    }
-}
-
-str_enum! {
-    /// A [webhook event type](https://docs.discord.com/developers/events/webhook-events#event-types)
-    /// an app can subscribe to.
-    ///
-    /// discord.js counterpart: `ApplicationWebhookEventType`.
-    pub enum WebhookEventType {
-        /// The app was authorized by a user or in a guild.
-        ApplicationAuthorized = "APPLICATION_AUTHORIZED",
-        /// The app was deauthorized by a user.
-        ApplicationDeauthorized = "APPLICATION_DEAUTHORIZED",
-        /// An entitlement was created.
-        EntitlementCreate = "ENTITLEMENT_CREATE",
-        /// An entitlement was updated.
-        EntitlementUpdate = "ENTITLEMENT_UPDATE",
-        /// An entitlement was deleted.
-        EntitlementDelete = "ENTITLEMENT_DELETE",
-        /// A user was added to a Quest.
-        QuestUserEnrollment = "QUEST_USER_ENROLLMENT",
-        /// A message was created in a lobby.
-        LobbyMessageCreate = "LOBBY_MESSAGE_CREATE",
-        /// A message was updated in a lobby.
-        LobbyMessageUpdate = "LOBBY_MESSAGE_UPDATE",
-        /// A message was deleted from a lobby.
-        LobbyMessageDelete = "LOBBY_MESSAGE_DELETE",
-        /// A direct message was created during a game session.
-        GameDirectMessageCreate = "GAME_DIRECT_MESSAGE_CREATE",
-        /// A direct message was updated during a game session.
-        GameDirectMessageUpdate = "GAME_DIRECT_MESSAGE_UPDATE",
-        /// A direct message was deleted during a game session.
-        GameDirectMessageDelete = "GAME_DIRECT_MESSAGE_DELETE",
     }
 }
 

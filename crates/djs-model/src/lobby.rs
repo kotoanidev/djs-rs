@@ -13,6 +13,7 @@ use crate::{
     macros::int_flags,
     message::{MessageFlags, MessageType},
     user::User,
+    util::Timestamp,
 };
 
 /// A [lobby](https://docs.discord.com/developers/resources/lobby#lobby-object).
@@ -68,7 +69,12 @@ int_flags! {
     }
 }
 
-/// A [message sent in a lobby](https://docs.discord.com/developers/resources/lobby#lobby-message-object).
+/// A [message sent in a lobby](https://docs.discord.com/developers/resources/lobby#lobby-message-object)
+/// (or in a linked channel).
+///
+/// Also the data of the `LOBBY_MESSAGE_CREATE` and `LOBBY_MESSAGE_UPDATE`
+/// [webhook events](crate::webhook_event), where `application_id` is optional and updates add
+/// `timestamp` and `edited_timestamp` (D-078).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct LobbyMessage {
@@ -106,8 +112,16 @@ pub struct LobbyMessage {
     /// The message's flags.
     #[serde(default)]
     pub flags: MessageFlags,
-    /// The application that sent the message.
-    pub application_id: ApplicationId,
+    /// The application that sent the message (always set by the lobby endpoints; in webhook
+    /// events only during active Social SDK sessions).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub application_id: Option<ApplicationId>,
+    /// When the message was sent (sent by `LOBBY_MESSAGE_UPDATE` webhook events).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub timestamp: Option<Timestamp>,
+    /// When the message was last edited (sent by `LOBBY_MESSAGE_UPDATE` webhook events).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub edited_timestamp: Option<Timestamp>,
 }
 
 /// The author's lobby member data in a [`LobbyMessage`].

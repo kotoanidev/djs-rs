@@ -51,6 +51,7 @@ just with narrow scope.
 - [x] Applications (+ teams, role connection metadata), entitlements, SKUs, subscriptions,
       voice states/regions, soundboard, lobbies, application identity profiles (D-072)
 - [x] Every gateway dispatch event and close code, gateway commands, presences (D-073..D-075)
+- [x] Webhook events, incl. Social SDK events (D-076, D-078, D-079); RPC is out of scope (D-077)
 - [ ] (De)serialization tests against real JSON fixtures; benchmarks
 
 ## Phase 3 — `djs-rest` full coverage (≈ @discordjs/rest)

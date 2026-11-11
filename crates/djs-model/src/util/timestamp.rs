@@ -115,7 +115,13 @@ impl Timestamp {
     /// Returns [`ParseTimestampError`] if the input is not in that format or contains an
     /// out-of-range component (for example month `13` or `February 30`).
     pub fn parse(input: &str) -> Result<Self, ParseTimestampError> {
-        parse(input.as_bytes()).ok_or(ParseTimestampError(()))
+        parse(input.as_bytes(), false).ok_or(ParseTimestampError(()))
+    }
+
+    /// Like [`parse`](Self::parse), but a missing offset means UTC (webhook event bodies send
+    /// times without one).
+    pub(crate) fn parse_assume_utc(input: &str) -> Result<Self, ParseTimestampError> {
+        parse(input.as_bytes(), true).ok_or(ParseTimestampError(()))
     }
 }
 
@@ -204,7 +210,7 @@ fn expect(input: &[u8], at: usize, byte: u8) -> Option<()> {
     (input.get(at) == Some(&byte)).then_some(())
 }
 
-fn parse(input: &[u8]) -> Option<Timestamp> {
+fn parse(input: &[u8], assume_utc: bool) -> Option<Timestamp> {
     // YYYY-MM-DDTHH:MM:SS
     let year = digits(input, 0, 4)?;
     expect(input, 4, b'-')?;
@@ -251,13 +257,14 @@ fn parse(input: &[u8]) -> Option<Timestamp> {
         }
     }
 
-    // Offset: `Z` or `±HH:MM`.
-    let offset_seconds = match input.get(at)? {
-        b'Z' | b'z' => {
+    // Offset: `Z` or `±HH:MM` (or nothing, read as UTC, when `assume_utc`).
+    let offset_seconds = match input.get(at) {
+        None if assume_utc => 0,
+        Some(b'Z' | b'z') => {
             at += 1;
             0
         }
-        sign @ (b'+' | b'-') => {
+        Some(sign @ (b'+' | b'-')) => {
             let offset_hour = digits(input, at + 1, 2)?;
             expect(input, at + 3, b':')?;
             let offset_minute = digits(input, at + 4, 2)?;
@@ -365,6 +372,21 @@ mod tests {
     fn negative_offset() {
         let ts: Timestamp = "2021-01-01T00:00:00-05:30".parse().unwrap();
         assert_eq!(ts.to_string(), "2021-01-01T05:30:00.000000+00:00");
+    }
+
+    #[test]
+    fn missing_offset_only_with_assume_utc() {
+        let input = "2024-10-18T14:42:53.064834";
+        assert!(input.parse::<Timestamp>().is_err());
+        let ts = Timestamp::parse_assume_utc(input).unwrap();
+        assert_eq!(ts, "2024-10-18T14:42:53.064834Z".parse().unwrap());
+        // An explicit offset still applies, and junk is still rejected.
+        assert_eq!(
+            Timestamp::parse_assume_utc("2024-10-18T16:42:53.064834+02:00").unwrap(),
+            ts
+        );
+        assert!(Timestamp::parse_assume_utc("2024-10-18T14:42:53.").is_err());
+        assert!(Timestamp::parse_assume_utc("2024-10-18T14:42:53x").is_err());
     }
 
     #[test]

@@ -120,10 +120,16 @@ D-041).
   errors, extras in any key order and with escaped keys, presences with the docs' activities,
   Unix seconds, redaction, commands equal to the docs' examples. Gateway close codes were
   already complete (checked against the docs).
-- **Next:** topics pages check (anything unmodelled that is not REST/voice — rate-limit and
-  error bodies are Phase 3) → Phase 2 benches and stress tests (D-041): extend
-  `djs-model/benches/decode.rs` (every event family, large GUILD_CREATE), extreme-load decode
-  tests, A/B against the Phase 1 commit `65210f8`, record in `docs/PERFORMANCE.md`.
+- Topics/events pages check ✅: dispatch events equal discord-api-types' list; gateway opcodes
+  and close codes complete; OAuth2 token bodies, rate-limit and error bodies belong to Phase 3
+  (REST), voice opcodes/close codes to Phase 10; RPC is out of scope (D-077). Webhook events
+  ✅ (D-076, D-078, D-079, C-038): `webhook_event` module, `LobbyMessage` extended, tests
+  `tests/webhook_event.rs` on the docs' 11 examples (`webhook_events_examples.json`, extracted
+  with a script that replaces `// user data` by a synthetic user).
+- **Next:** Phase 2 benches and stress tests (D-041): extend `djs-model/benches/decode.rs`
+  (every event family, large GUILD_CREATE decoded for real, interactions), extreme-load decode
+  tests, A/B against the Phase 1 commit `65210f8` (git worktree), record in
+  `docs/PERFORMANCE.md`; then mark Phase 2 done.
 - Local gate script: `scratchpad/gate.sh` style (`set -euo pipefail`, no pipes hiding errors) —
   a piped gate let one clippy failure through (fixed in `cda06db`).
 - Perf note: after the user change, MESSAGE_CREATE/READY decode looked ~8-13 % slower relative
