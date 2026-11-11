@@ -55,12 +55,15 @@ just with narrow scope.
 - [x] (De)serialization tests against real JSON fixtures; benchmarks and stress tests (D-041, D-080)
 
 ## Phase 3 — `djs-rest` full coverage (≈ @discordjs/rest)
-- [ ] Complete rate limiting: invalid-request limit (10k/10 min), burst handler for interaction
-      callbacks, per-route quirks (old message deletes, reactions), hash lifetime sweeps
-- [ ] Retries, timeouts, audit-log reason header (D-086), `native-roots` feature (D-088)
-- [ ] Strict GCRA global limiter (D-043) instead of fixed one-second windows
-- [ ] Multipart uploads (attachments)
-- [ ] Every v10 REST endpoint as a typed method
+- [x] Complete rate limiting: invalid-request limit (10k/10 min), burst handler for interaction
+      callbacks, per-route quirks (old message deletes; reaction routes share one template),
+      hash lifetime sweeps
+- [x] Retries, timeouts, audit-log reason header (D-086), `native-roots` feature (D-088, D-100)
+- [x] Strict global limiter (D-043 → sliding log, D-089) instead of fixed one-second windows
+- [x] Multipart uploads (attachments, D-087, D-093..D-096)
+- [x] API errors with JSON error codes and field errors (D-097..D-099)
+- [ ] Every v10 REST endpoint as a typed method (order: D-102; tri-state `Patch<T>`, D-101;
+      query structs, D-092)
 - [ ] CDN URL builder
 - [ ] Mock-server tests; benchmarks
 

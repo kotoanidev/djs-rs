@@ -828,6 +828,24 @@ and why.
 - **Alternatives:** REST only; trusting only the system's certificates (like reqwest's
   `rustls-tls-native-roots`), failing when the store is empty or unreadable.
 
+### D-101 — The tri-state enum is `Patch<T>` with `Keep`, `Clear`, `Set(T)`
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** Confirms the working names of D-083: `djs_model::util::Patch<T>` with
+  `Keep` (the default; the field is left out), `Clear` (sent as `null`) and `Set(T)`, plus
+  `From<T>` (→ `Set`) and `From<Option<T>>` (`None` → `Clear`).
+- **Alternatives:** `Nullable<T>` with `Absent`/`Null`/`Value`; `Update<T>` with
+  `Unchanged`/`Remove`/`Set`.
+
+### D-102 — Endpoint order: by how much bots use them
+- **Date:** 2026-11-11 · **Decided by:** Owner
+- **Decision:** Endpoints are implemented resource by resource, one commit per resource, in
+  this order: messages and reactions → interactions and application commands → channels and
+  threads → guild (guild, members, roles, bans) → users → webhooks → emojis, stickers,
+  soundboard → scheduled events, stage instances, invites, templates, audit log, auto
+  moderation, polls → monetization (SKUs, entitlements, subscriptions) → application, OAuth2,
+  role connections, lobbies, voice.
+- **Alternatives:** the order of the docs' resource pages.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
