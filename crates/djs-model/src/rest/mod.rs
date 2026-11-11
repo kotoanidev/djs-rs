@@ -14,15 +14,19 @@ use serde::{Deserialize, Serialize, Serializer, ser::SerializeSeq};
 use crate::message::{AttachmentRequest, AttachmentRequestId};
 
 mod error_code;
+mod interaction;
 mod message;
+mod webhook;
 
 pub use self::{
     error_code::ErrorCode,
+    interaction::CreateFollowupMessage,
     message::{
         BulkDeleteMessages, ChannelPins, CreateMessage, EditMessage, GetChannelMessages,
         GetChannelPins, GetReactions, MessageSearchResults, SearchAuthorType, SearchEmbedType,
         SearchFilter, SearchGuildMessages, SearchHasType, SearchSortMode, SearchSortOrder,
     },
+    webhook::EditWebhookMessage,
 };
 
 /// The response of [Get Gateway Bot](https://docs.discord.com/developers/events/gateway#get-gateway-bot)
@@ -164,6 +168,23 @@ impl<'a> Attachments<'a> {
     /// because when editing it removes every attachment.
     pub(crate) const fn is_absent(&self) -> bool {
         self.explicit.is_none() && self.files.is_empty()
+    }
+
+    /// The attachments of a modify body: [`Patch::Keep`](crate::util::Patch::Keep) sends
+    /// nothing (unless there are files), [`Clear`](crate::util::Patch::Clear) an empty list
+    /// (plus the files), [`Set`](crate::util::Patch::Set) the given ones (plus the files).
+    pub(crate) fn from_patch(
+        attachments: &'a crate::util::Patch<Vec<AttachmentRequest>>,
+        files: &'a [FileUpload],
+    ) -> Self {
+        use crate::util::Patch;
+
+        let explicit = match attachments {
+            Patch::Keep => None,
+            Patch::Clear => Some(&[][..]),
+            Patch::Set(attachments) => Some(attachments.as_slice()),
+        };
+        Self::new(explicit, files)
     }
 
     /// The files that get a generated entry, with their `files[n]` index.

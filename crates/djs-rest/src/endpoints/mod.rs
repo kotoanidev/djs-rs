@@ -1,5 +1,6 @@
 //! Typed methods for REST endpoints, one module per resource (D-082, D-091).
 
+mod interaction;
 mod message;
 
 use djs_model::rest::GatewayBot;

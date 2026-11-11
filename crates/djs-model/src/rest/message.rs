@@ -246,18 +246,13 @@ impl Serialize for EditMessage {
             attachments,
             files,
         } = self;
-        let explicit = match attachments {
-            Patch::Keep => None,
-            Patch::Clear => Some(&[][..]),
-            Patch::Set(attachments) => Some(attachments.as_slice()),
-        };
         Wire {
             content: content.as_ref(),
             embeds: embeds.as_ref(),
             flags: *flags,
             allowed_mentions: allowed_mentions.as_ref(),
             components: components.as_ref(),
-            attachments: Attachments::new(explicit, files),
+            attachments: Attachments::from_patch(attachments, files),
         }
         .serialize(serializer)
     }

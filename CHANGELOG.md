@@ -8,6 +8,10 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Interaction endpoints: `create_interaction_response` and
+  `create_interaction_response_with_response` (D-106), get/edit/delete of the original
+  response, and create/get/edit/delete of follow-up messages, with the bodies
+  `CreateFollowupMessage` (D-107) and `EditWebhookMessage`.
 - Message endpoints (D-102): get/create/edit/delete/crosspost messages, bulk delete, pins
   (get, pin, unpin) and reactions (create, delete own/user/all/all for emoji, get) as `Rest`
   methods, with `djs_rest::ReactionEmoji` (D-103) and the bodies/queries `EditMessage`,

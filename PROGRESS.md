@@ -164,9 +164,11 @@ D-041).
   endpoint with query parameters uses it — then remove the attribute).
 - Endpoints (D-102 order, C-044 conventions): **messages and reactions ✅** (17 methods incl.
   Search Guild Messages, D-104/C-045; `tests/messages.rs`).
-- **Next:** interactions and application commands (the 8 interaction routes exist already;
-  add `Rest` methods for them, then the application command endpoints of
-  `interactions/application-commands.mdx`), then channels and threads.
+- **Interactions ✅** (9 methods, `tests/interactions.rs`; D-106 two methods for
+  `with_response`, D-107 `CreateFollowupMessage`; `EditWebhookMessage` lives in
+  `rest/webhook.rs` and will be shared with the webhook endpoints).
+- **Next:** application command endpoints (`interactions/application-commands.mdx`: global
+  and guild commands, bulk overwrite, permissions), then channels and threads.
 - Local gate script: `scratchpad/gate.sh` style (`set -euo pipefail`, no pipes hiding errors) —
   a piped gate let one clippy failure through (fixed in `cda06db`).
 - Perf note: after the user change, MESSAGE_CREATE/READY decode looked ~8-13 % slower relative
