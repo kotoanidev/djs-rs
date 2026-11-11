@@ -1084,6 +1084,37 @@ and why.
 - **Alternatives:** an `EntitlementOwner::{Guild, User}` enum with custom serialization; a
   generic `new(sku_id, owner_id, owner_type)`.
 
+### D-131 — OAuth2: full scope in djs-rest
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** djs-rest covers all of `topics/oauth2.mdx`: Get Current Bot Application
+  Information, Get Current Authorization Information, the token endpoint (authorization code
+  exchange, refresh, client credentials) and token revocation, plus an authorization URL
+  builder. discord.js itself only generates invite URLs.
+- **Alternatives:** like discord.js (the two GET endpoints and a URL builder, tokens left to
+  other crates); only the GET endpoints now.
+
+### D-132 — OAuth2 token endpoints are `Rest` methods taking credentials
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `Rest::exchange_code(&credentials, code, redirect_uri)`,
+  `refresh_access_token(&credentials, refresh_token)`,
+  `client_credentials_grant(&credentials, scopes)` and
+  `revoke_token(&credentials, token, hint)`. `djs_rest::oauth2::OAuth2Credentials
+  { client_id, client_secret }` redacts the secret in `Debug`. Requests are
+  `application/x-www-form-urlencoded` with `client_id` and `client_secret` in the form (which
+  Discord accepts instead of HTTP Basic, so no base64 code or dependency), and never carry the
+  client's own token. The response, `djs_model::oauth2::AccessTokenResponse`, redacts its
+  tokens in `Debug`.
+- **Alternatives:** credentials stored in `RestBuilder`; a separate `OAuth2Client` type.
+
+### D-133 — Authorization URLs are built with `djs_rest::oauth2::AuthorizeUrl`
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** A builder in djs-rest: `AuthorizeUrl::bot(client_id)` (bot invite with
+  permissions, guild, guild select lock) and `AuthorizeUrl::code(client_id, redirect_uri)`
+  (authorization code grant with scopes, state, prompt), producing the
+  `https://discord.com/oauth2/authorize?…` URL. djs-rs' future `Client::generate_invite`
+  builds on it.
+- **Alternatives:** a builder in djs-util; only `Client::generate_invite` in djs-rs.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
