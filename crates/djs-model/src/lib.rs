@@ -11,6 +11,7 @@ mod serde_util;
 pub mod application;
 pub mod application_command;
 pub mod application_role_connection_metadata;
+pub mod audit_log;
 pub mod auto_moderation;
 pub mod channel;
 pub mod component;

@@ -815,6 +815,25 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   `[{"poll_media": …}]`; `Media::new(text)` builds text media.
 - `Message::resolved` was added (Message size guard now 656 B).
 
+### C-033 — Audit log model details
+- Names: `AuditLog`, `AuditLogEntry`, `AuditLogEvent` (= discord.js), `AuditLogEntryOptions`
+  (doc alias `OptionalAuditEntryInfo`), `AuditLogChange`, `AuditLogValue` with variants
+  `Null`, `Bool`, `Unsigned` (non-negative integers), `Signed` (negative), `Float`, `String`,
+  `Array`, `Object` (a `BTreeMap`, D-058), and the conversion error `AuditLogValueError`.
+- `&AuditLogValue` implements serde's `Deserializer` (borrowed strings, options, newtypes,
+  unit enum variants from strings); `AuditLogChange::{old_value_as, new_value_as}` return
+  `Result<Option<T>, _>` (absent = `Ok(None)`).
+- `AuditLogEntry::target_id` is `Option<GenericId>` (the docs say `?string`; every documented
+  target is a snowflake, as in twilight). `guild_id` is added for the
+  `GUILD_AUDIT_LOG_ENTRY_CREATE` gateway event (like `Message::member`). `options` is boxed.
+- Option counts (`count`, `delete_member_days`, `members_removed`) are `u32`; the trigger type
+  and overwrite type are their enums; all are written back as strings, and numbers are
+  accepted when decoding. `integration_type` is `guild::IntegrationType`.
+- `guild::PartialIntegration::application_id` was added (shown in the docs' audit log example,
+  absent from the integration table).
+- The docs have no full audit log example: the test builds one from the docs' tables around
+  the docs' example thread, webhook, auto moderation rule, command and partial integration.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

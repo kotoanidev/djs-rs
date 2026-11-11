@@ -8,6 +8,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-model`: `audit_log` module — `AuditLog`, `AuditLogEntry`, `AuditLogEvent`,
+  `AuditLogEntryOptions` (D-071), `AuditLogChange` with `AuditLogValue` values that convert to
+  any field type (D-070); `guild::PartialIntegration::application_id`.
 - `djs-model`: the interaction model — `interaction::Interaction` (token redacted in `Debug`)
   with `InteractionData` by type (D-067): `CommandData` with `CommandDataOption` /
   `CommandOptionValue` (focused autocomplete values), `ComponentData`, `ModalSubmitData` with

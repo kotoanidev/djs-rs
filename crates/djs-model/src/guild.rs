@@ -897,7 +897,8 @@ pub struct Integration {
 }
 
 /// A partial [`Integration`], as listed on a user's
-/// [`Connection`](crate::user::Connection) (D-051).
+/// [`Connection`](crate::user::Connection) and in an [`AuditLog`](crate::audit_log::AuditLog)
+/// (D-051).
 ///
 /// Discord does not document which fields are present; only the ID is required here.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -947,6 +948,10 @@ pub struct PartialIntegration {
     /// The bot or `OAuth2` application of a Discord integration.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub application: Option<Box<IntegrationApplication>>,
+    /// The ID of the integration's application (audit log integrations; shown in the docs'
+    /// audit log example but not in the integration table).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub application_id: Option<ApplicationId>,
     /// The scopes the application was authorized for.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub scopes: Vec<Scope>,
