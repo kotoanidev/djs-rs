@@ -8,8 +8,9 @@ use djs_model::{
     message::ReactionType,
     rest::{
         GetApplicationCommands, GetChannelMessages, GetChannelPermissions, GetChannelPins,
-        GetCurrentUserGuilds, GetGuild, GetGuildBans, GetGuildPruneCount, GetReactions,
-        GetThreadMember, ListArchivedThreads, ListGuildMembers, ListJoinedPrivateArchivedThreads,
+        GetCurrentUserGuilds, GetGuild, GetGuildBans, GetGuildPruneCount, GetGuildScheduledEvent,
+        GetGuildScheduledEventUsers, GetReactions, GetThreadMember, ListArchivedThreads,
+        ListGuildMembers, ListJoinedPrivateArchivedThreads, ListScheduledEventsForGuild,
         ListThreadMembers, SearchAuthorType, SearchEmbedType, SearchFilter, SearchGuildMembers,
         SearchGuildMessages, SearchHasType, SearchSortMode, SearchSortOrder,
     },
@@ -261,6 +262,27 @@ impl Query for SearchGuildMembers {
 impl Query for GetGuildBans {
     fn write(&self, query: &mut QueryWriter<'_>) {
         query.optional("limit", self.limit.as_ref());
+        query.optional("before", self.before.as_ref());
+        query.optional("after", self.after.as_ref());
+    }
+}
+
+impl Query for ListScheduledEventsForGuild {
+    fn write(&self, query: &mut QueryWriter<'_>) {
+        query.optional("with_user_count", self.with_user_count.as_ref());
+    }
+}
+
+impl Query for GetGuildScheduledEvent {
+    fn write(&self, query: &mut QueryWriter<'_>) {
+        query.optional("with_user_count", self.with_user_count.as_ref());
+    }
+}
+
+impl Query for GetGuildScheduledEventUsers {
+    fn write(&self, query: &mut QueryWriter<'_>) {
+        query.optional("limit", self.limit.as_ref());
+        query.optional("with_member", self.with_member.as_ref());
         query.optional("before", self.before.as_ref());
         query.optional("after", self.after.as_ref());
     }

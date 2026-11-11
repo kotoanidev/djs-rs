@@ -200,8 +200,10 @@ D-041).
 - **Stickers ✅** (8 methods, `tests/stickers.rs`, C-053); `Request::form_text` is now used
   (its `#[expect(dead_code)]` is gone).
 - **Soundboard ✅** (7 methods, `tests/soundboard.rs`, C-054).
-- **Next:** guild scheduled events (`resources/guild-scheduled-event.mdx`), then
-  stage instances, invites, templates, audit log, auto moderation, polls (D-102).
+- **Guild scheduled events ✅** (6 methods, `tests/scheduled_events.rs`, D-124, D-125,
+  C-055). Fixed `GuildScheduledEventUser::member` (now `PartialMember`).
+- **Next:** stage instances (`resources/stage-instance.mdx`), then invites (incl. target
+  users with `form_file`, D-111), templates, audit log, auto moderation, polls (D-102).
 - Local gate script: `scratchpad/gate.sh` style (`set -euo pipefail`, no pipes hiding errors) —
   a piped gate let one clippy failure through (fixed in `cda06db`).
 - Perf note: after the user change, MESSAGE_CREATE/READY decode looked ~8-13 % slower relative

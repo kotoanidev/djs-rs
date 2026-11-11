@@ -18,6 +18,7 @@ mod channel;
 mod emoji;
 mod error_code;
 mod guild;
+mod guild_scheduled_event;
 mod interaction;
 mod message;
 mod soundboard;
@@ -46,6 +47,10 @@ pub use self::{
         ModifyGuildChannelPosition, ModifyGuildIncidentActions, ModifyGuildMember,
         ModifyGuildOnboarding, ModifyGuildRole, ModifyGuildRolePosition, ModifyGuildWelcomeScreen,
         ModifyGuildWidget, OnboardingPromptData, PromptOptionData, SearchGuildMembers, VanityUrl,
+    },
+    guild_scheduled_event::{
+        CreateGuildScheduledEvent, GetGuildScheduledEvent, GetGuildScheduledEventUsers,
+        ListScheduledEventsForGuild, ModifyGuildScheduledEvent, RecurrenceRuleData,
     },
     interaction::CreateFollowupMessage,
     message::{

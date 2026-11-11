@@ -8,6 +8,13 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Guild scheduled event endpoints (6 methods): list (with user counts), create, get, modify
+  (including starting, ending and canceling through `status`), delete, and the paginated
+  subscribers. `CreateGuildScheduledEvent` has a constructor per place — `stage`, `voice`,
+  `external` (D-125); recurrence rules are sent as `RecurrenceRuleData` with constructors for
+  the shapes Discord accepts (D-124). Queries `ListScheduledEventsForGuild`,
+  `GetGuildScheduledEvent`, `GetGuildScheduledEventUsers`; constructors
+  `EntityMetadata::new` and `RecurrenceNWeekday::new`.
 - Soundboard endpoints (7 methods): `send_soundboard_sound` in a voice channel, the default
   sounds, and list (unwrapped from `{"items": [...]}`), get, create, modify and delete guild
   sounds. Bodies `SendSoundboardSound`, `CreateGuildSoundboardSound` (a `SoundData` sound,
@@ -232,6 +239,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `login`/`shutdown`, prelude; `examples/ping.rs`; end-to-end tests with mock REST + gateway.
 
 ### Changed
+- `djs-model`: `GuildScheduledEventUser::member` is a `PartialMember`: Discord sends the
+  subscriber's member data without its user, which is the `user` field (combine them with
+  `PartialMember::into_member`). As a `Member` it could not be decoded.
 - `djs-rest`: routes authenticated by a webhook or interaction token in their path are sent
   without the client's `Authorization` header (D-121), so webhooks work with a client built
   without a token.

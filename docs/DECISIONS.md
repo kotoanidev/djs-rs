@@ -1622,6 +1622,17 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   (C-052).
 - Bodies with a `volume: f64` derive `PartialEq` only (no `Eq`/`Hash`).
 
+### C-055 — Guild scheduled event endpoint details
+- Method names follow the Discord docs (`list_scheduled_events_for_guild`, D-091); the route
+  parameter is `event_id`; the `with_user_count` flags are query structs, like `GetGuild`.
+- Delete Guild Scheduled Event takes no `reason`: the docs do not list the audit log header
+  for it and discord.js sends none.
+- `RecurrenceRuleData`'s lists are `Vec`s skipped when empty (discord.js omits them too).
+- Model fix: `GuildScheduledEventUser::member` is a `PartialMember`, because Discord sends the
+  subscriber's member without its user (discord.js merges `user` into it). `EntityMetadata`
+  and `RecurrenceNWeekday` got constructors, as `#[non_exhaustive]` types used in bodies
+  need them (C-048).
+
 ---
 
 ## Open questions (to ask the owner when relevant)

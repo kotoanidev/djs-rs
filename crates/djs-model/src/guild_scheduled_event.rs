@@ -5,7 +5,7 @@ use compact_str::CompactString;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    guild::Member,
+    guild::PartialMember,
     id::{ChannelId, GenericId, GuildId, ScheduledEventId, UserId},
     macros::int_enum,
     user::User,
@@ -124,6 +124,16 @@ pub struct EntityMetadata {
     pub location: Option<CompactString>,
 }
 
+impl EntityMetadata {
+    /// The metadata of an external event taking place at `location` (1-100 characters).
+    #[must_use]
+    pub fn new(location: impl Into<CompactString>) -> Self {
+        Self {
+            location: Some(location.into()),
+        }
+    }
+}
+
 /// A [user interested in a scheduled event](https://docs.discord.com/developers/resources/guild-scheduled-event#guild-scheduled-event-user-object).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
@@ -132,9 +142,10 @@ pub struct GuildScheduledEventUser {
     pub guild_scheduled_event_id: ScheduledEventId,
     /// The user.
     pub user: User,
-    /// The user's member data in the event's guild (with `with_member=true`).
+    /// The user's member data in the event's guild (with `with_member=true`), without the
+    /// user, which is [`user`](Self::user); combine them with [`PartialMember::into_member`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub member: Option<Box<Member>>,
+    pub member: Option<Box<PartialMember>>,
 }
 
 /// [How a scheduled event repeats](https://docs.discord.com/developers/resources/guild-scheduled-event#guild-scheduled-event-recurrence-rule-object),
@@ -220,6 +231,15 @@ pub struct RecurrenceNWeekday {
     pub n: u8,
     /// The day of that week.
     pub day: RecurrenceWeekday,
+}
+
+impl RecurrenceNWeekday {
+    /// The `n`-th (1-5) `day` of a month, e.g. `new(2, RecurrenceWeekday::Tuesday)` for the
+    /// second Tuesday.
+    #[must_use]
+    pub const fn new(n: u8, day: RecurrenceWeekday) -> Self {
+        Self { n, day }
+    }
 }
 
 int_enum! {

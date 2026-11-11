@@ -7,8 +7,8 @@ use djs_model::{
     emoji::{Emoji, PartialEmoji},
     id::{
         ApplicationId, ChannelId, CommandId, EmojiId, GenericId, GuildId, Id, IntegrationId,
-        InteractionId, MessageId, RoleId, SoundboardSoundId, StickerId, StickerPackId, UserId,
-        WebhookId,
+        InteractionId, MessageId, RoleId, ScheduledEventId, SoundboardSoundId, StickerId,
+        StickerPackId, UserId, WebhookId,
     },
 };
 use http::Method;
@@ -1058,6 +1058,52 @@ routes! {
         /// The sound.
         sound_id: SoundboardSoundId,
     } => DELETE "/guilds/{guild_id}/soundboard-sounds/{sound_id}", major: guild_id;
+
+    // Guild scheduled events.
+
+    /// [List Scheduled Events for Guild](https://docs.discord.com/developers/resources/guild-scheduled-event#list-scheduled-events-for-guild).
+    ListScheduledEventsForGuild {
+        /// The guild.
+        guild_id: GuildId,
+    } => GET "/guilds/{guild_id}/scheduled-events", major: guild_id;
+
+    /// [Create Guild Scheduled Event](https://docs.discord.com/developers/resources/guild-scheduled-event#create-guild-scheduled-event).
+    CreateGuildScheduledEvent {
+        /// The guild.
+        guild_id: GuildId,
+    } => POST "/guilds/{guild_id}/scheduled-events", major: guild_id;
+
+    /// [Get Guild Scheduled Event](https://docs.discord.com/developers/resources/guild-scheduled-event#get-guild-scheduled-event).
+    GetGuildScheduledEvent {
+        /// The guild.
+        guild_id: GuildId,
+        /// The event.
+        event_id: ScheduledEventId,
+    } => GET "/guilds/{guild_id}/scheduled-events/{event_id}", major: guild_id;
+
+    /// [Modify Guild Scheduled Event](https://docs.discord.com/developers/resources/guild-scheduled-event#modify-guild-scheduled-event).
+    ModifyGuildScheduledEvent {
+        /// The guild.
+        guild_id: GuildId,
+        /// The event.
+        event_id: ScheduledEventId,
+    } => PATCH "/guilds/{guild_id}/scheduled-events/{event_id}", major: guild_id;
+
+    /// [Delete Guild Scheduled Event](https://docs.discord.com/developers/resources/guild-scheduled-event#delete-guild-scheduled-event).
+    DeleteGuildScheduledEvent {
+        /// The guild.
+        guild_id: GuildId,
+        /// The event.
+        event_id: ScheduledEventId,
+    } => DELETE "/guilds/{guild_id}/scheduled-events/{event_id}", major: guild_id;
+
+    /// [Get Guild Scheduled Event Users](https://docs.discord.com/developers/resources/guild-scheduled-event#get-guild-scheduled-event-users).
+    GetGuildScheduledEventUsers {
+        /// The guild.
+        guild_id: GuildId,
+        /// The event.
+        event_id: ScheduledEventId,
+    } => GET "/guilds/{guild_id}/scheduled-events/{event_id}/users", major: guild_id;
 
     // Channels and threads.
 

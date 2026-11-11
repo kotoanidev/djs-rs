@@ -4,6 +4,7 @@ mod application_command;
 mod channel;
 mod emoji;
 mod guild;
+mod guild_scheduled_event;
 mod interaction;
 mod message;
 mod soundboard;
