@@ -8,6 +8,11 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-builders` benchmarks (`benches/builders.rs`) and extreme-load tests
+  (`tests/stress.rs`), results in `docs/PERFORMANCE.md` (Phase 6 step 4, C-086). Checking a
+  message's components no longer allocates and finds repeated `custom_id`s and option values
+  35–43 % faster; `validate_components` rejects a huge Components V2 list in milliseconds
+  instead of minutes.
 - `djs-builders` modal builders (Phase 6 step 3c, D-206, D-207, C-085):
   `ModalBuilder::new(custom_id, title)` with `.label(text, field)`, `.text(…)` and
   `.component(LabelBuilder…)`, `TextInputBuilder::{short, paragraph}`, `FileUploadBuilder`,

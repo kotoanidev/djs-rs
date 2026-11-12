@@ -3,7 +3,7 @@
 Validated builders for Discord embeds, application commands, components and modals.
 
 > **Status:** pre-alpha. The embed, command, component (classic and Components V2) and modal
-> builders are done; their benchmarks follow. Track progress in the [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
+> builders are done and benchmarked ([results](https://github.com/kotoanidev/djs-rs/blob/main/docs/PERFORMANCE.md)). Track progress in the [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
 
 **discord.js counterpart:** `@discordjs/builders`
 

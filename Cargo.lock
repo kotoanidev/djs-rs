@@ -180,6 +180,7 @@ name = "djs-builders"
 version = "0.0.0"
 dependencies = [
  "compact_str",
+ "divan",
  "djs-model",
  "serde_json",
 ]

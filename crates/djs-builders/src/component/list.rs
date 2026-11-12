@@ -72,7 +72,7 @@ pub fn validate_components(
     if version == ComponentsVersion::Legacy {
         check::count(|| "components".into(), components.len(), LEGACY_ROWS)?;
     }
-    let mut totals = Totals::default();
+    let mut totals = Totals::new();
     for (index, component) in components.iter().enumerate() {
         let here = root.item("components", index);
         let allowed = match version {
@@ -103,6 +103,11 @@ pub fn validate_components(
         }
         validate::component(&here, component)?;
         totals.walk(&here, component)?;
+        if version == ComponentsVersion::V2 && totals.components > V2_COMPONENTS {
+            // The list is rejected for its size below; the remaining components are still
+            // checked and counted, but their `custom_id`s no longer compared.
+            totals.stop_comparing_ids();
+        }
     }
     if version == ComponentsVersion::V2 {
         check::count(|| "components".into(), totals.components, V2_COMPONENTS)?;

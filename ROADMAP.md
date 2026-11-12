@@ -97,7 +97,7 @@ just with narrow scope.
       D-192–D-196, rules checked on the live API)
 - [x] Component builders (buttons, select menus, action rows, Components V2), modal builders
       (D-197–D-207; message and V2 rules checked on the live API, modal rules from the docs)
-- [ ] Benchmarks + extreme-load tests of the builders (D-041)
+- [x] Benchmarks + extreme-load tests of the builders (D-041, `docs/PERFORMANCE.md`)
 
 ## Phase 7 — Small standalone crates
 - [ ] `djs-collection` — `Collection<K, V>` with the discord.js `Collection` API surface

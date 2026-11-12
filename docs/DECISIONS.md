@@ -2925,6 +2925,24 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   buttons or one select menu".
 - `CheckboxBuilder` has no `required` (the model has none: a checkbox is never required).
 
+### C-086 — Builder benchmarks and the optimizations they led to (Phase 6 step 4)
+- **Layout:** `crates/djs-builders/benches/builders.rs` (divan with the allocation profiler,
+  like the other crates; `divan` added as a dev-dependency of `djs-builders`, already a
+  workspace dependency) measures each builder's `build()`, `build_unchecked()` and assembly;
+  `tests/stress.rs` holds the ignored load tests (all cores, huge inputs) and three quick
+  tests (maximum values are valid, nested trees, builder sizes).
+- **Repeated `custom_id`s and option values** are found with a private set
+  (`component::validate::Values<N>`): the first `N` (40 `custom_id`s, 25 menu or 10 group
+  values) in stack arrays with a fingerprint each — the length and the first and last 8
+  bytes — and a `Vec` beyond. Bytes are compared only when fingerprints match, so the result
+  is exact.
+- **`validate_components` (V2) stops comparing `custom_id`s past 40 components**: the list is
+  rejected for its size, and comparing every `custom_id` of a huge list took quadratic time.
+  The other components are still checked and counted, so `TooMany` reports the real count;
+  a repeated `custom_id` after the 40th component is no longer reported (the size error is).
+- **Command names:** an ASCII shortcut in the name check, with a unit test that it agrees
+  with the full check on all 128 ASCII characters.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

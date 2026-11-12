@@ -99,17 +99,92 @@ pub(super) fn component(path: &Path<'_>, component: &Component) -> Result<(), Va
     }
 }
 
+/// How many `custom_id`s a walk keeps on the stack: as many as a message has components, so
+/// checking a valid message does not allocate.
+const INLINE_IDS: usize = 40;
+
+/// A cheap summary of `text` — its length and its first and last 8 bytes — that differs for
+/// most different `custom_id`s, so comparing two of them rarely needs their bytes.
+fn fingerprint(text: &str) -> u64 {
+    let bytes = text.as_bytes();
+    let take = bytes.len().min(8);
+    let (mut first, mut last) = ([0; 8], [0; 8]);
+    first[..take].copy_from_slice(&bytes[..take]);
+    last[..take].copy_from_slice(&bytes[bytes.len() - take..]);
+    u64::from_le_bytes(first)
+        ^ u64::from_le_bytes(last).rotate_left(29)
+        ^ (bytes.len() as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15)
+}
+
+/// A set of `custom_id`s or option values that tells whether one is repeated: the first `N`
+/// in arrays, with their [`fingerprint`]s, the others in a `Vec` — so a list within Discord's
+/// limits is checked without allocating.
+struct Values<'a, const N: usize> {
+    fingerprints: [u64; N],
+    inline: [&'a str; N],
+    inline_len: usize,
+    spilled: Vec<&'a str>,
+}
+
+impl<'a, const N: usize> Values<'a, N> {
+    const fn new() -> Self {
+        Self {
+            fingerprints: [0; N],
+            inline: [""; N],
+            inline_len: 0,
+            spilled: Vec::new(),
+        }
+    }
+
+    /// Adds `value`, returning `false` if it was already there.
+    fn insert(&mut self, value: &'a str) -> bool {
+        let fingerprint = fingerprint(value);
+        let len = self.inline_len;
+        let seen = self.fingerprints[..len]
+            .iter()
+            .zip(&self.inline[..len])
+            .any(|(&other, &seen)| other == fingerprint && seen == value)
+            || self.spilled.contains(&value);
+        if seen {
+            return false;
+        }
+        if len < N {
+            self.fingerprints[len] = fingerprint;
+            self.inline[len] = value;
+            self.inline_len += 1;
+        } else {
+            self.spilled.push(value);
+        }
+        true
+    }
+}
+
 /// What a walk over a component tree has seen: the components (nested ones and section
 /// accessories included), the characters of the text displays, and the `custom_id`s, which
 /// must be unique (D-200).
-#[derive(Default)]
 pub(super) struct Totals<'a> {
     pub(super) components: usize,
     pub(super) text: usize,
-    custom_ids: Vec<&'a str>,
+    custom_ids: Values<'a, INLINE_IDS>,
+    compare_ids: bool,
 }
 
 impl<'a> Totals<'a> {
+    pub(super) const fn new() -> Self {
+        Self {
+            components: 0,
+            text: 0,
+            custom_ids: Values::new(),
+            compare_ids: true,
+        }
+    }
+
+    /// Stops collecting and comparing `custom_id`s, for a list already known to be rejected
+    /// for its size: comparing every `custom_id` of a huge list would take quadratic time.
+    pub(super) const fn stop_comparing_ids(&mut self) {
+        self.compare_ids = false;
+    }
+
     /// Adds `component` and everything in it, failing on a repeated `custom_id`.
     pub(super) fn walk(
         &mut self,
@@ -117,14 +192,14 @@ impl<'a> Totals<'a> {
         component: &'a Component,
     ) -> Result<(), ValidationError> {
         self.components += 1;
-        if let Some(custom_id) = component.custom_id() {
-            if self.custom_ids.contains(&custom_id) {
-                return Err(ValidationError::Invalid {
-                    field: path.field("custom_id"),
-                    reason: "another component of the message has the same custom_id",
-                });
-            }
-            self.custom_ids.push(custom_id);
+        if self.compare_ids
+            && let Some(custom_id) = component.custom_id()
+            && !self.custom_ids.insert(custom_id)
+        {
+            return Err(ValidationError::Invalid {
+                field: path.field("custom_id"),
+                reason: "another component of the message has the same custom_id",
+            });
         }
         if let Component::TextDisplay(text) = component {
             self.text += check::length(&text.content);
@@ -270,7 +345,7 @@ fn container(path: &Path<'_>, container: &Container) -> Result<(), ValidationErr
         }
         component(&here, child)?;
     }
-    let mut totals = Totals::default();
+    let mut totals = Totals::new();
     for (index, child) in children.iter().enumerate() {
         totals.walk(&path.item("components", index), child)?;
     }
@@ -436,6 +511,7 @@ fn string_select(path: &Path<'_>, select: &StringSelect) -> Result<(), Validatio
         limits::SELECT_OPTIONS,
     )?;
     check::at_least(|| path.field("options"), options.len(), usize::from(max))?;
+    let mut values = Values::<{ limits::SELECT_OPTIONS }>::new();
     for (index, option) in options.iter().enumerate() {
         let here = path.item("options", index);
         check::required_text(|| here.field("label"), &option.label, limits::OPTION_TEXT)?;
@@ -447,10 +523,7 @@ fn string_select(path: &Path<'_>, select: &StringSelect) -> Result<(), Validatio
                 limits::OPTION_TEXT,
             )?;
         }
-        if options[..index]
-            .iter()
-            .any(|other| other.value == option.value)
-        {
+        if !values.insert(&option.value) {
             return Err(ValidationError::Invalid {
                 field: here.field("value"),
                 reason: "another option of the menu has the same value",
@@ -539,7 +612,7 @@ pub(super) fn modal(modal: &ModalCallbackData) -> Result<(), ValidationError> {
         }
         component(&here, child)?;
     }
-    let mut totals = Totals::default();
+    let mut totals = Totals::new();
     for (index, child) in children.iter().enumerate() {
         totals.walk(&root.item("components", index), child)?;
     }
@@ -669,6 +742,7 @@ fn file_upload(path: &Path<'_>, upload: &FileUpload) -> Result<(), ValidationErr
 /// Checks the options of a radio or checkbox group: labels of 1-100 characters, unique values
 /// of 1-100, descriptions of at most 100.
 fn group_options(path: &Path<'_>, options: &[GroupOption]) -> Result<(), ValidationError> {
+    let mut values = Values::<{ limits::MODAL_CHOICES as usize }>::new();
     for (index, option) in options.iter().enumerate() {
         let here = path.item("options", index);
         check::required_text(|| here.field("label"), &option.label, limits::OPTION_TEXT)?;
@@ -680,10 +754,7 @@ fn group_options(path: &Path<'_>, options: &[GroupOption]) -> Result<(), Validat
                 limits::OPTION_TEXT,
             )?;
         }
-        if options[..index]
-            .iter()
-            .any(|other| other.value == option.value)
-        {
+        if !values.insert(&option.value) {
             return Err(ValidationError::Invalid {
                 field: here.field("value"),
                 reason: "another option of the group has the same value",

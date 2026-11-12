@@ -17,8 +17,12 @@ measured need after D-150) and resharding while running (open question).
 limits, sweeps, opt-in `Client` cache; benchmarks + extreme-load tests in
 `docs/PERFORMANCE.md`, `docs/VS_NODE.md` re-measured with equal caches). Left open on purpose:
 a lock-free backend (D-176), resolved roles/messages of interactions (open question).
-**Phase 6 — `djs-builders`: in progress** (decisions D-178–D-207 taken, steps 1-3 done, step 4 —
-benchmarks + extreme-load tests — next, see "Next step").
+**Phase 6 — `djs-builders`: ✅ done 2026-11-12** (validated builders for embeds, commands,
+components incl. Components V2, and modals, with rules measured on the live API where Discord
+allows it; benchmarks + extreme-load tests in `docs/PERFORMANCE.md`). Left open: removing
+parts with the builders (open question), a container walked twice by `validate_components`.
+**Phase 7 — small standalone crates: not started** — the owner's decisions come first (see
+"Next step").
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-075 in `docs/DECISIONS.md`; Claude defaults C-001 …
@@ -371,11 +375,27 @@ labels only; rows of text inputs rejected). Steps:
       RadioGroupBuilder, CheckboxGroupBuilder + their option builders, CheckboxBuilder),
       modal rules in `component/validate.rs` (`modal`, `label`, `in_modal`, …); tests
       `tests/modal.rs`.
-4. **Next:** benchmarks + extreme-load tests (D-041): `crates/djs-builders/benches/` (divan,
-   like the other crates) for `build()` of a full embed, a nested slash command, a V2 message
-   and a modal, and `build()` vs `build_unchecked()`; a `tests/stress.rs` with maximum-size
-   inputs (6000-character embeds, 25 options × 25 choices, 40-component V2 trees) built in
-   parallel threads; results in `docs/PERFORMANCE.md`. Then tick Phase 6 in ROADMAP.
+4. ✅ Benchmarks + extreme-load tests (D-041, C-086): `crates/djs-builders/benches/builders.rs`
+   (`build()` vs `build_unchecked()` vs assembly for every builder kind, whole-message
+   checks), `tests/stress.rs` (all cores on maximum values, huge inputs, 200 000-deep trees,
+   builder sizes); results in `docs/PERFORMANCE.md` ("Phase 6"). Fixed on the way: quadratic
+   `validate_components` on huge V2 lists; repeated `custom_id`s / option values found with a
+   fingerprinted stack set (−35–43 %, no allocation).
+
+## Next step — Phase 7 (small standalone crates, ROADMAP)
+Nothing decided yet. **Ask the owner first** (AskUserQuestion, in Polish, with a recommended
+option), at least:
+- the order of the three crates (`djs-collection`, `djs-formatters`, `djs-util`);
+- `Collection<K, V>`: discord.js' `Collection` extends the insertion-ordered JS `Map` — keep
+  insertion order (needs `indexmap`, a new dependency, or an own ordered map) or not; which
+  of its ~40 methods to offer and under which names (Rust iterator conventions vs discord.js
+  names); whether `djs-cache` should return it;
+- `djs-formatters`: free functions returning `String` vs `Display` types that format without
+  allocating; which formatters (mentions, timestamps, markdown, escaping, links);
+- `djs-util`: what goes there (only helpers other crates need, per the ROADMAP).
+Record the answers as D-208+, then implement crate by crate, each with tests, docs,
+benchmarks + extreme-load tests (D-041).
+
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON
   body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").
 

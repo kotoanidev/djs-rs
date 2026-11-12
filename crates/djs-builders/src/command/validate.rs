@@ -101,6 +101,17 @@ fn is_name_character(character: char) -> bool {
         )
 }
 
+/// Whether `character` may appear in a slash command or option name: a name character
+/// without a lower-case form. ASCII, the common case, takes a shortcut with the same result.
+fn is_valid_in_name(character: char) -> bool {
+    if character.is_ascii() {
+        return character.is_ascii_lowercase()
+            || character.is_ascii_digit()
+            || matches!(character, '-' | '_');
+    }
+    is_name_character(character) && !has_lower_case_form(character)
+}
+
 /// Whether `character` changes when lower-cased — Discord then requires the lower-case form.
 fn has_lower_case_form(character: char) -> bool {
     let mut lower = character.to_lowercase();
@@ -120,10 +131,7 @@ fn slash_name(field: impl Fn() -> Cow<'static, str>, name: &str) -> Result<usize
             actual: length,
         });
     }
-    if let Some(character) = name
-        .chars()
-        .find(|&character| !is_name_character(character) || has_lower_case_form(character))
-    {
+    if let Some(character) = name.chars().find(|&character| !is_valid_in_name(character)) {
         return Err(ValidationError::InvalidName {
             field: field(),
             character,
@@ -430,6 +438,17 @@ fn number(path: &Path<'_>, option: &NumberOption) -> Result<usize, ValidationErr
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_ascii_shortcut_agrees_with_the_full_check() {
+        for character in (0..128_u8).map(char::from) {
+            assert_eq!(
+                is_valid_in_name(character),
+                is_name_character(character) && !has_lower_case_form(character),
+                "{character:?}"
+            );
+        }
+    }
 
     #[test]
     fn names_follow_discords_pattern() {

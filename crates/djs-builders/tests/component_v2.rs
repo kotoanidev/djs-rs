@@ -321,3 +321,35 @@ fn a_whole_v2_message_is_checked() {
     let error = validate_components(&[raw], ComponentsVersion::V2).unwrap_err();
     assert_eq!(error.field(), "components[0].content");
 }
+
+#[test]
+fn an_oversized_v2_message_is_rejected_for_its_size() {
+    // 30 rows of one button (60 components); from row `repeat_from` on, the button reuses the
+    // first row's custom_id.
+    let rows = |repeat_from: usize| -> Vec<Component> {
+        (0..30)
+            .map(|index| {
+                let id = if index < repeat_from {
+                    format!("b{index}")
+                } else {
+                    "b0".to_owned()
+                };
+                ActionRowBuilder::new()
+                    .component(button(&id))
+                    .build_unchecked()
+            })
+            .collect()
+    };
+    let error = validate_components(&rows(5), ComponentsVersion::V2).unwrap_err();
+    assert_eq!(invalid(&error).0, "components[5].components[0].custom_id");
+    // Past 40 components, custom_ids are no longer compared — a huge list would take
+    // quadratic time — and the list is rejected for its size.
+    assert_eq!(
+        validate_components(&rows(21), ComponentsVersion::V2),
+        Err(ValidationError::TooMany {
+            field: "components".into(),
+            max: 40,
+            actual: 60
+        })
+    );
+}

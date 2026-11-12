@@ -768,3 +768,81 @@ Peak RSS stays at 7–8 MiB with the cache: 200 messages, one user and one membe
   done). Both carry a member, an interaction also its user and resolved users and members;
   discord.js caches them. They are applied now, with `THREAD_MEMBERS_UPDATE` (D-173).
 
+
+---
+
+## Phase 6 — `djs-builders` (2026-11-12)
+
+Step 4 of Phase 6 (D-041). Unpinned; the micro-benchmarks ran two to four times, and ranges
+are the medians of the runs. A builder is measured three ways (`benches/builders.rs`):
+`validate` is `build()` of a builder cloned before the timed part — the checks alone;
+`unchecked` is `build_unchecked()` of the same clone — a move; `assemble` is every setter
+from scratch plus `build()`, including the `format!` calls of the benchmark itself.
+
+### Building and checking (`benches/builders.rs`)
+
+| Builder | `build()` | `build_unchecked()` | Assemble + `build()` | Allocations (assemble) |
+|---|---:|---:|---:|---:|
+| Embed, every part, 25 fields (≈ 3400 characters) | 396–470 ns | 7.6 ns | 2.3–2.7 µs | 58 |
+| Embed, title + description + color | 24–27 ns | 6.2 ns | 23–26 ns | 0 |
+| Command, 5 groups × 5 subcommands × 4 options (205 names, ≈ 7000 characters) | 7.3–7.8 µs | 7–13 ns | 28–35 µs | 669 |
+| `/ping` | 24–29 ns | 4.1 ns | 22–25 ns | 0 |
+| String select menu, 25 options | 365–375 ns | 6.6 ns | 1.6 µs | 51 |
+| Checkbox group, 10 options | 138–215 ns | 7 ns | 0.59–0.67 µs | 21 |
+| Button with label and emoji | 15–19 ns | 7–11 ns | 36–64 ns | 0 |
+| Section, thumbnail + 2 texts | 28–31 ns | 5 ns | 64–73 ns | 3 |
+| Modal, a text + 4 labels | 230–340 ns | 2 ns | 0.63–0.66 µs | 16 |
+
+| Whole message | Time |
+|---|---:|
+| `validate_components`, legacy, 5 rows × 5 buttons | 0.83–0.93 µs (was 1.49–1.54 µs) |
+| `validate_components`, V2, 30 components (container, sections, gallery, menu) | 1.00–1.06 µs (was 1.57–1.60 µs) |
+| Assemble the V2 message + `validate_components` | 3.6–4.5 µs |
+| `validate_embeds`, 10 full embeds (rejected: over 6000 characters) | 3.2–3.7 µs |
+| `validate_embeds`, 10 small embeds | 110–144 ns |
+| `embed_length`, the full embed | 357–368 ns |
+
+- **The checks allocate nothing**, on any builder or whole message (`validate_components`
+  allocated 1–2 times before this step).
+- **A builder costs nothing over its value:** `build_unchecked()` is a move (2–13 ns), and
+  every builder has exactly the size of the `djs-model` value it builds (`EmbedBuilder`
+  232 B, `SlashCommandBuilder` 192 B, `ButtonBuilder` 112 B, `ModalBuilder` 72 B; asserted in
+  `tests/stress.rs`). What assembling allocates are the caller's strings.
+- **Checking text is about 0.1 ns per character** (`embed_length` of 3400 characters:
+  360 ns); a command's 27 ns per name also checks each character against the name pattern.
+
+### Extreme load (`tests/stress.rs`)
+
+| Test | Result |
+|---|---|
+| Embed at the limits (25 fields, 5900–6000 multi-byte characters), clone + `build()` | 0.57 M/s on 1 thread, 2.71 M/s on 12 (4.7×) |
+| Command at the limits (25 subcommands × 10 options, ≈ 7800 characters), clone + `build()` | 37 k/s on 1 thread, 187 k/s on 12 (5.1×) |
+| V2 message at the limits (40 components, 3900 characters), `validate_components` | 0.64 M/s on 1 thread, 3.26 M/s on 12 (5.1×) |
+| Modal at the limits (4000-character input, 25-option menu, 10-option groups, 10 files), clone + `build()` | 0.23 M/s on 1 thread, 1.15 M/s on 12 (5.0×) |
+| A 10 MB embed title | rejected in 0.9–1.0 ms (counted once) |
+| 1 000 000 embed fields, select options, command options, container or modal components | rejected in 4–16 ms (dropping the value; the count is checked first) |
+| 1 000 000 embeds | rejected in 16–28 ns |
+| A V2 message of 1 000 000 buttons | rejected in 30–32 ms (was > 2 min, see below) |
+| A legacy message of 1 000 000 buttons | rejected in 55–127 ns |
+| Action rows, containers or sections nested 200 000 deep | rejected at the first level on a 2 MB test-thread stack (debug build) |
+
+All threads share nothing, so the 4.7–5.1× on 12 threads is the CPU: 2 hyper-threaded P-cores
+and 8 slower E-cores.
+
+### Findings and optimization candidates (Phase 6)
+
+- **Fixed: `validate_components` took quadratic time on huge V2 lists.** The 40-component
+  limit was checked after the walk, which compared every `custom_id` with every earlier one:
+  a list of a million buttons ran for minutes. Past 40 components the walk keeps counting
+  but no longer compares `custom_id`s, since the list is rejected for its size anyway:
+  30 ms (C-086).
+- **Fixed: repeated `custom_id`s and option values were found by comparing strings.** A set
+  that keeps the first 40 on the stack with a fingerprint each (length, first and last 8
+  bytes) compares the bytes only when fingerprints match: legacy rows 1.5 → 0.9 µs (−38 %),
+  the V2 message 1.6 → 1.0 µs (−35 %), a 25-option menu 656 → 375 ns (−43 %), and no
+  allocation (C-086).
+- **Command names:** ASCII characters take a shortcut past the Unicode case check, 7.8 →
+  7.3–7.4 µs for the large command (≈ −6 %, near the noise). Commands are registered once,
+  at startup, so the rest was left as is.
+- **Open, small:** `validate_components` walks a container twice — once for the
+  container's own `custom_id`s, once for the message's — about a tenth of a V2 check.
