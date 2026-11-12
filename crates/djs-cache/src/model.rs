@@ -121,7 +121,12 @@ impl CachedGuild {
         )
     }
 
-    fn new(guild: &Guild, joined_at: Option<Timestamp>, large: bool, member_count: u32) -> Self {
+    pub(crate) fn new(
+        guild: &Guild,
+        joined_at: Option<Timestamp>,
+        large: bool,
+        member_count: u32,
+    ) -> Self {
         Self {
             id: guild.id,
             name: guild.name.clone(),

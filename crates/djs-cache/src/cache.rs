@@ -572,7 +572,7 @@ impl<B: Backend> Cache<B> {
             &guild.soundboard_sounds,
             |sound| sound.sound_id,
         );
-        self.put_guild(CachedGuild::from_available(guild))
+        self.put_guild(Arc::new(CachedGuild::from_available(guild)))
     }
 
     /// `GUILD_UPDATE`. The guild's roles, emojis and stickers are replaced by the update's,
@@ -612,9 +612,9 @@ impl<B: Backend> Cache<B> {
         self.guilds.as_ref()?.remove(&id)
     }
 
-    fn put_guild(&self, guild: CachedGuild) -> Option<Arc<CachedGuild>> {
+    fn put_guild(&self, guild: Arc<CachedGuild>) -> Option<Arc<CachedGuild>> {
         let guilds = self.guilds.as_ref()?;
-        let inserted = guilds.insert(guild.id, Arc::new(guild));
+        let inserted = guilds.insert(guild.id, guild);
         if let Some((evicted, _)) = inserted.evicted {
             self.remove_guild_children(evicted);
         }
@@ -668,16 +668,23 @@ impl<B: Backend> Cache<B> {
         channel: &Channel,
         guild_id: Option<GuildId>,
     ) -> Option<Arc<Channel>> {
-        if channel.as_thread().is_some() {
+        if channel.as_thread().is_some() || self.channels.is_none() {
             return None;
         }
-        let channels = self.channels.as_ref()?;
         let mut channel = channel.clone();
-        if let Some(guild_id) = guild_id.or_else(|| channel.guild_id()) {
+        if let Some(guild_id) = guild_id {
             set_guild_id(&mut channel, guild_id);
+        }
+        self.put_channel(Arc::new(channel))
+    }
+
+    /// Stores a guild or DM channel (not a thread), indexing it under its guild.
+    fn put_channel(&self, channel: Arc<Channel>) -> Option<Arc<Channel>> {
+        let channels = self.channels.as_ref()?;
+        if let Some(guild_id) = channel.guild_id() {
             self.guild_channels.insert(guild_id, channel.id());
         }
-        let inserted = channels.insert(channel.id(), Arc::new(channel));
+        let inserted = channels.insert(channel.id(), channel);
         if let Some((id, evicted)) = &inserted.evicted
             && let Some(guild_id) = evicted.guild_id()
         {
@@ -1108,6 +1115,138 @@ impl<B: Backend> Cache<B> {
         let shared = Arc::new(CachedUser::new(user));
         users.insert(user.id, Arc::clone(&shared));
         shared
+    }
+}
+
+/// Storing objects received from the REST API (D-230): each method converts the object to
+/// the form the cache keeps, stores it when its resource is enabled, and returns it — so the
+/// djs-rs managers hand out the same type whether a value came from the cache or from Discord
+/// (D-233).
+impl<B: Backend> Cache<B> {
+    /// Stores a user, for example from Get User, and returns it as cached.
+    ///
+    /// With [`Resource::User`] enabled, an equal cached user is reused, so a user stays stored
+    /// once.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use djs_cache::{Cache, CacheConfig, Limit};
+    /// # let user: djs_model::user::User = serde_json::from_str(
+    /// #     r#"{"id":"1","username":"nelly","discriminator":"0","global_name":null,"avatar":null}"#,
+    /// # ).unwrap();
+    /// let cache = Cache::with_config(CacheConfig::builder().users(Limit::Unlimited).build());
+    /// let cached = cache.store_user(&user);
+    /// assert_eq!(cached.username, "nelly");
+    /// assert!(cache.users().get(user.id).is_some());
+    /// ```
+    pub fn store_user(&self, user: &User) -> Arc<CachedUser> {
+        self.share_user(user)
+    }
+
+    /// Stores a member of `guild_id`, for example from Get Guild Member, and returns it as
+    /// cached ([`Resource::Member`]; its user is stored as by [`store_user`](Self::store_user)).
+    ///
+    /// Unlike `GUILD_MEMBER_ADD`, this does not count a join in the guild's member count.
+    pub fn store_member(&self, guild_id: GuildId, member: &Member) -> Arc<CachedMember> {
+        let user = self.share_user(&member.user);
+        let id = user.id;
+        let cached = Arc::new(CachedMember::new(guild_id, member, user));
+        if let Some(members) = &self.members {
+            members.insert(guild_id, id, Arc::clone(&cached));
+        }
+        cached
+    }
+
+    /// Stores a message, for example from Get Channel Message or Create Message, and returns
+    /// it as cached ([`Resource::Message`]; its author and member as for `MESSAGE_CREATE`).
+    pub fn store_message(&self, message: &Message) -> Arc<CachedMessage> {
+        let author = if message.webhook_id.is_some() {
+            Arc::new(CachedUser::new(&message.author))
+        } else {
+            self.share_user(&message.author)
+        };
+        if let (Some(guild_id), Some(member), Some(members)) =
+            (message.guild_id, &message.member, &self.members)
+        {
+            put_partial_member(members, guild_id, member, Arc::clone(&author));
+        }
+        let cached = Arc::new(CachedMessage::new(message, author));
+        if let Some(messages) = &self.messages {
+            if let Some(guild_id) = message.guild_id {
+                self.message_channels.insert(guild_id, message.channel_id);
+            }
+            messages.insert(message.channel_id, message.id, Arc::clone(&cached));
+        }
+        cached
+    }
+
+    /// Stores a channel or thread, for example from Get Channel, and returns it as cached
+    /// ([`Resource::Channel`], or [`Resource::Thread`] for a thread in a guild).
+    pub fn store_channel(&self, channel: &Channel) -> Arc<Channel> {
+        let cached = Arc::new(channel.clone());
+        if cached.as_thread().is_some() {
+            if let (Some(threads), Some(guild_id)) = (&self.threads, cached.guild_id()) {
+                threads.insert(guild_id, cached.id(), Arc::clone(&cached));
+            }
+        } else {
+            self.put_channel(Arc::clone(&cached));
+        }
+        cached
+    }
+
+    /// Stores a role of `guild_id`, for example from Get Guild Role, and returns it as cached
+    /// ([`Resource::Role`]).
+    pub fn store_role(&self, guild_id: GuildId, role: &Role) -> Arc<Role> {
+        let cached = Arc::new(role.clone());
+        if let Some(roles) = &self.roles {
+            roles.insert(guild_id, role.id, Arc::clone(&cached));
+        }
+        cached
+    }
+
+    /// Stores a guild, for example from Get Guild, and returns it as cached
+    /// ([`Resource::Guild`]); its roles, emojis and stickers replace the cached ones when
+    /// sent, as for `GUILD_UPDATE`.
+    ///
+    /// A guild the cache already holds keeps what only `GUILD_CREATE` sends (`joined_at`,
+    /// `large`, `member_count`); a new one takes its member count from
+    /// `approximate_member_count` (sent with `with_counts`), or 0.
+    pub fn store_guild(&self, guild: &Guild) -> Arc<CachedGuild> {
+        let previous = self
+            .guilds
+            .as_ref()
+            .and_then(|guilds| guilds.get(&guild.id));
+        let cached = match previous {
+            Some(previous) => CachedGuild::updated(guild, &previous),
+            None => CachedGuild::new(
+                guild,
+                None,
+                false,
+                guild.approximate_member_count.unwrap_or(0),
+            ),
+        };
+        let cached = Arc::new(cached);
+        if self.guilds.is_some() {
+            if !guild.roles.is_empty() {
+                replace(self.roles.as_ref(), guild.id, &guild.roles, |role| role.id);
+            }
+            if !guild.emojis.is_empty() {
+                replace(self.emojis.as_ref(), guild.id, &guild.emojis, |emoji| {
+                    emoji.id
+                });
+            }
+            if !guild.stickers.is_empty() {
+                replace(
+                    self.stickers.as_ref(),
+                    guild.id,
+                    &guild.stickers,
+                    |sticker| sticker.id,
+                );
+            }
+            self.put_guild(Arc::clone(&cached));
+        }
+        cached
     }
 }
 

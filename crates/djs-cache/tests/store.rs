@@ -1,0 +1,210 @@
+//! Storing objects received from the REST API (D-230, D-233): converted, stored when the
+//! resource is enabled, and returned as stored.
+
+#[expect(
+    dead_code,
+    reason = "shared with the djs-model tests, which use other helpers"
+)]
+#[path = "../../djs-model/tests/common/payloads.rs"]
+mod payloads;
+
+use std::sync::Arc;
+
+use djs_cache::{Cache, CacheConfig, Limit};
+use djs_model::{
+    channel::Channel,
+    gateway::payload::GuildCreate,
+    guild::{Guild, Member, Role},
+    id::{ChannelId, GuildId, MessageId, RoleId, UserId},
+    message::Message,
+    user::User,
+};
+use serde::de::DeserializeOwned;
+use serde_json::{Value, json};
+
+const GUILD: GuildId = GuildId::new(payloads::GUILD);
+
+fn decode<T: DeserializeOwned>(value: Value) -> T {
+    serde_json::from_value(value).unwrap()
+}
+
+fn user(id: u64, name: &str) -> User {
+    decode(
+        json!({"id": id.to_string(), "username": name, "discriminator": "0",
+                  "global_name": null, "avatar": null}),
+    )
+}
+
+fn member(id: u64, nick: &str) -> Member {
+    decode(
+        json!({"user": {"id": id.to_string(), "username": "nelly", "discriminator": "0",
+                           "global_name": null, "avatar": null},
+                  "nick": nick, "roles": ["11"], "joined_at": "2026-01-01T00:00:00.000000+00:00",
+                  "deaf": false, "mute": false, "flags": 0, "pending": false}),
+    )
+}
+
+fn message() -> Message {
+    let value: Value = serde_json::from_str(payloads::MESSAGE_CREATE).unwrap();
+    decode(value["d"].clone())
+}
+
+fn role(id: u64, name: &str) -> Role {
+    decode(
+        json!({ "id": id.to_string(), "name": name, "color": 0, "hoist": false, "position": 1,
+                   "permissions": "0", "managed": false, "mentionable": false, "flags": 0,
+                   "colors": { "primary_color": 0, "secondary_color": null,
+                               "tertiary_color": null } }),
+    )
+}
+
+fn everything() -> Cache {
+    Cache::with_config(CacheConfig::discord_js())
+}
+
+/// A cache keeping nothing at all.
+fn nothing() -> Cache {
+    Cache::with_config(
+        CacheConfig::builder()
+            .guilds(Limit::Disabled)
+            .channels(Limit::Disabled)
+            .roles(Limit::Disabled)
+            .build(),
+    )
+}
+
+#[test]
+fn users_are_stored_once() {
+    let cache = Cache::with_config(CacheConfig::builder().users(Limit::Unlimited).build());
+    let first = cache.store_user(&user(7, "nelly"));
+    let again = cache.store_user(&user(7, "nelly"));
+    assert!(Arc::ptr_eq(&first, &again), "an equal user is reused");
+    assert!(Arc::ptr_eq(
+        &cache.users().get(UserId::new(7)).unwrap(),
+        &first
+    ));
+    // A changed user replaces the stored one.
+    let renamed = cache.store_user(&user(7, "nelly2"));
+    assert_eq!(
+        cache.users().get(UserId::new(7)).unwrap().username,
+        "nelly2"
+    );
+    assert!(!Arc::ptr_eq(&renamed, &first));
+}
+
+#[test]
+fn members_are_stored_without_counting_a_join() {
+    let cache = everything();
+    cache.update(&decode::<GuildCreate>(
+        serde_json::from_str::<Value>(&payloads::guild_create(1, 3, 0, 1, 1)).unwrap()["d"].clone(),
+    ));
+    let before = cache.guilds().get(GUILD).unwrap().member_count;
+
+    let stored = cache.store_member(GUILD, &member(9, "nick"));
+    assert_eq!(stored.nick.as_deref(), Some("nick"));
+    assert_eq!(stored.guild_id, GUILD);
+    let cached = cache.members(GUILD).get(UserId::new(9)).unwrap();
+    assert!(Arc::ptr_eq(&cached, &stored));
+    // The member's user is the one the user resource holds.
+    assert!(Arc::ptr_eq(
+        &cache.users().get(UserId::new(9)).unwrap(),
+        &stored.user
+    ));
+    assert_eq!(cache.guilds().get(GUILD).unwrap().member_count, before);
+}
+
+#[test]
+fn a_disabled_resource_converts_without_storing() {
+    let cache = nothing();
+    let member = cache.store_member(GUILD, &member(9, "nick"));
+    assert_eq!(member.user.id, UserId::new(9));
+    assert!(!cache.members(GUILD).is_enabled());
+    let message = cache.store_message(&message());
+    assert!(!message.content.is_empty());
+    let role = cache.store_role(GUILD, &role(5, "mods"));
+    assert_eq!(role.name, "mods");
+    assert_eq!(cache.roles(GUILD).len(), 0);
+    assert_eq!(cache.users().len(), 0);
+    assert_eq!(cache.guilds().len(), 0);
+}
+
+#[test]
+fn messages_are_stored_with_their_author_and_member() {
+    let cache = everything();
+    let message = message();
+    let stored = cache.store_message(&message);
+    let cached = cache.messages(message.channel_id).get(message.id).unwrap();
+    assert!(Arc::ptr_eq(&cached, &stored));
+    assert!(Arc::ptr_eq(
+        &cache.users().get(message.author.id).unwrap(),
+        &stored.author
+    ));
+    if let Some(guild_id) = message.guild_id {
+        assert!(cache.members(guild_id).get(message.author.id).is_some());
+    }
+    assert!(
+        cache
+            .messages(ChannelId::new(1))
+            .get(MessageId::new(1))
+            .is_none()
+    );
+}
+
+#[test]
+fn channels_and_threads_go_to_their_resources() {
+    let cache = everything();
+    let channel: Channel = decode(json!({
+        "id": "30", "type": 0, "guild_id": GUILD.to_string(), "name": "general",
+        "position": 0, "permission_overwrites": [], "nsfw": false
+    }));
+    let stored = cache.store_channel(&channel);
+    assert!(Arc::ptr_eq(
+        &cache.channels().get(ChannelId::new(30)).unwrap(),
+        &stored
+    ));
+    assert_eq!(cache.channels().in_guild(GUILD).len(), 1);
+
+    let thread: Channel = decode(json!({
+        "id": "31", "type": 11, "guild_id": GUILD.to_string(), "parent_id": "30",
+        "name": "a thread", "owner_id": "7", "message_count": 0, "member_count": 1,
+        "thread_metadata": { "archived": false, "auto_archive_duration": 1440,
+                             "archive_timestamp": "2026-11-12T10:00:00.000000+00:00",
+                             "locked": false }
+    }));
+    let stored = cache.store_channel(&thread);
+    assert!(Arc::ptr_eq(
+        &cache.threads(GUILD).get(ChannelId::new(31)).unwrap(),
+        &stored
+    ));
+    assert!(cache.channels().get(ChannelId::new(31)).is_none());
+}
+
+#[test]
+fn guilds_keep_what_only_guild_create_sends() {
+    let cache = everything();
+    let create: Value = serde_json::from_str(&payloads::guild_create(1, 3, 0, 1, 2)).unwrap();
+    cache.update(&decode::<GuildCreate>(create["d"].clone()));
+    let before = cache.guilds().get(GUILD).unwrap();
+
+    // Get Guild: the same guild renamed, with one role.
+    let mut guild = create["d"].clone();
+    guild["name"] = json!("Renamed");
+    guild["roles"] = json!([serde_json::to_value(role(5, "only")).unwrap()]);
+    let guild: Guild = decode(guild);
+    let stored = cache.store_guild(&guild);
+    assert_eq!(stored.name, "Renamed");
+    assert_eq!(stored.member_count, before.member_count);
+    assert_eq!(stored.joined_at, before.joined_at);
+    assert_eq!(stored.large, before.large);
+    assert!(Arc::ptr_eq(&cache.guilds().get(GUILD).unwrap(), &stored));
+    assert_eq!(cache.roles(GUILD).len(), 1);
+    assert!(cache.roles(GUILD).get(RoleId::new(5)).is_some());
+
+    // A guild the cache did not hold takes its approximate member count.
+    let mut other = create["d"].clone();
+    other["id"] = json!("77");
+    other["approximate_member_count"] = json!(1234);
+    let stored = cache.store_guild(&decode(other));
+    assert_eq!(stored.member_count, 1234);
+    assert_eq!(stored.joined_at, None);
+}

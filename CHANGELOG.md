@@ -8,6 +8,10 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-cache` REST write API (Phase 8 step 2a, D-230, D-233): `Cache::store_user`,
+  `store_member`, `store_message`, `store_channel`, `store_role` and `store_guild` convert an
+  object received from the REST API to its cached form, store it when the resource is
+  enabled, and return the stored `Arc`.
 - `djs-rs` event benchmarks (Phase 8 step 1b, C-092): `MESSAGE_UPDATE` floods with the
   previous state, a `Raw` handler and unwatched events in `tests/stress.rs`; an A/B against
   the start of Phase 8 in `docs/PERFORMANCE.md` (−2.4 % on the sequential flood).

@@ -443,11 +443,15 @@ fields with `Deref` to `new`). Steps:
    (new public write API in `djs-cache`), lists as `Collection`, `fetch` returning the cached
    type behind an `Arc` (REST results converted), methods for model and cached types; the
    most used first (D-232). Steps:
-   a. **Next:** `djs-cache` write API for REST objects (convert + store when enabled, return
-      the stored `Arc`) and public conversions to the cached types; then the first managers
-      (guilds, channels, members, messages, roles, bans, users) and the message / channel /
-      member methods; tests with the mock REST API.
-   b. The other resources, one batch per commit. c. Benchmarks + extreme-load tests (D-041).
+   a. ✅ `djs-cache` write API: `Cache::store_{user,member,message,channel,role,guild}`
+      (convert, store when enabled, return the stored `Arc`; tests `tests/store.rs`).
+      Without a cache, the managers convert through a private cache with every resource
+      disabled.
+   b. **Next:** the first managers (guilds, channels, members, messages, roles, bans, users:
+      `crates/djs-rs/src/manager/`, `Fetch` builder with `force()` implementing
+      `IntoFuture`, lists as `Collection`) and the message / channel / member / user methods
+      (extension traits for model and cached types); tests with the mock REST API.
+   c. The other resources, one batch per commit. d. Benchmarks + extreme-load tests (D-041).
 3. Interactions. 4. Collectors and `await_*`. 5. Partials and intents guidance. 6. Examples.
 
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON
