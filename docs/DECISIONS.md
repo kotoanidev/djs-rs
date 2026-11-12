@@ -1752,6 +1752,28 @@ and why.
   `min_values` above `max_values`, link URL schemes, how the 40 components and 4000 characters
   of Components V2 are counted. Modals cannot be sent without a user's interaction, so their
   rules come from the docs only. The token stays in `.env`.
+- **Live result, 2026-11-12** (20 messages; the 5 accepted ones deleted at once):
+  - **counting:** a `custom_id` of 100 × 🔥 accepted, 101 letters rejected
+    (`BASE_TYPE_BAD_LENGTH`, 1-100); a whitespace-only `custom_id` accepted (not trimmed, not
+    blank-checked); a button label of 80 × 🔥 accepted (code points);
+  - **buttons:** a whitespace-only label and a button without label or emoji both rejected as
+    `label: BASE_TYPE_REQUIRED`; a link URL must be `http`, `https` or `discord`
+    (`ftp://` rejected with "Scheme must be one of ('http', 'https', 'discord')",
+    `discord://-/channels/@me` accepted);
+  - **uniqueness:** a repeated `custom_id` rejected within a row and across rows
+    (`COMPONENT_CUSTOM_ID_DUPLICATED`); repeated select option values rejected
+    (`COMPONENT_OPTION_VALUE_DUPLICATED`);
+  - **select menus:** `min_values` 3 with `max_values` 2 rejected (`min_values` ≤ `max_values`);
+    `max_values` 5 with 3 options rejected (at least `max_values` options); a whitespace-only
+    option label rejected (`BASE_TYPE_BAD_LENGTH`, 1-100);
+  - **rows:** an empty action row rejected (1-5 components);
+  - **Components V2:** a container with 39 text displays (40 components counting the
+    container) accepted, with 40 rejected (`COMPONENT_MAX_TOTAL_COMPONENTS_EXCEEDED`: nested
+    components count); text displays of 2000 + 2001 letters rejected
+    (`COMPONENT_DISPLAYABLE_TEXT_SIZE_EXCEEDED`, 4000 across all components); a
+    whitespace-only text display rejected (1-4000 after trimming); one text display of
+    4000 × 🔥 answered `413 Payload Too Large` (`40005`), so the unit of the 4000 limit is
+    still open.
 - **Alternatives:** the docs only, unclear cases documented as such.
 
 ---
