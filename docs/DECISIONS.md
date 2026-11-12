@@ -1115,6 +1115,16 @@ and why.
   builds on it.
 - **Alternatives:** a builder in djs-util; only `Client::generate_invite` in djs-rs.
 
+### D-134 — Lobby member bodies: `LobbyMemberData`, `AddLobbyMember`, `BulkLobbyMember`
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** Create and Modify Lobby take `LobbyMemberData::new(user_id)` (`metadata`,
+  `flags`, `additional_name: Patch` — `Clear` removes it); Add a Member to a Lobby takes
+  `AddLobbyMember` (`Default`, no ID, the user is in the path); Bulk Update Lobby Members takes
+  `&[BulkLobbyMember]`, built with `BulkLobbyMember::upsert(LobbyMemberData)` or
+  `BulkLobbyMember::remove(user_id)`.
+- **Alternatives:** bulk as two lists (`upsert: &[LobbyMemberData]`, `remove: &[UserId]`);
+  one `LobbyMemberData` with a `remove_member` flag for every endpoint.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
