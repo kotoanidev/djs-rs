@@ -9,9 +9,9 @@ D-041).
 **Phase 2 — full `djs-model` coverage: ✅ done** (D-039; benchmarks + stress tests done).
 **Phase 3 — full `djs-rest` coverage: ✅ done 2026-11-12** (every documented REST route, OAuth2,
 CDN URLs; benchmarks + extreme-load tests in `docs/PERFORMANCE.md`).
-**Phase 4 — full `djs-gateway` coverage: in progress** — steps 1 (send limit), 2 (IDENTIFY
-queue + sharding), 3 (gateway commands / presence) and 4 (zlib-stream) done; next is step 5,
-simd-json (see "Next step" below).
+**Phase 4 — full `djs-gateway` coverage: in progress** — steps 1–5 done (send limit,
+IDENTIFY queue + sharding, presence, zlib-stream, JSON parsers measured); next is step 6, the
+Phase 4 benchmarks and extreme-load tests (see "Next step" below).
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-075 in `docs/DECISIONS.md`; Claude defaults C-001 …
@@ -261,12 +261,10 @@ reserved), D-143 (order below). One commit per step:
 4. ✅ **zlib-stream** (D-140, C-070): `Compression::ZlibStream` (`compression.rs`,
    `flate2` 1.1.11 + `zlib-rs`), split payloads buffered; unit + mock-gateway tests; stress
    A/B against zstd in `docs/PERFORMANCE.md` ("Phase 4").
-5. **simd-json** (D-013), kept only with a measured gain — **in progress, owner chose "keep
-   investigating"**: `djs-model/benches/simd.rs` (dev-dependency `simd-json` 0.19.0, bench
-   only) measured serde_json vs simd-json; results in `docs/PERFORMANCE.md` ("simd-json
-   experiment"): ≤ 15 % gain on message events only, losses on tiny payloads and skipping,
-   4.6× memory on `GUILD_CREATE`. Next: ask the owner whether to also try `sonic-rs`
-   (another dependency) or to drop the feature; if dropped, remove the bench + dev-dependency.
+5. ✅ **simd-json** (D-013, D-150): measured simd-json 0.19 and sonic-rs 0.5 against
+   serde_json (alternating groups, pinned cores, P/E cores, `target-cpu=native`); no clear
+   gain, so no feature — serde_json stays; experiment removed (kept in commit `af58a18`),
+   results in `docs/PERFORMANCE.md`.
 6. Mock-gateway tests, benches and extreme-load tests (D-041) in `docs/PERFORMANCE.md`.
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON
   body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").

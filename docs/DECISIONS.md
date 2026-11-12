@@ -125,6 +125,7 @@ and why.
 - **Date:** 2026-11-10 · **Decided by:** Owner
 - **Decision:** `serde_json` by default; a `simd-json` cargo feature switches hot-path parsing to
   `simd-json`.
+- **Outcome:** measured in Phase 4 and not added — no clear gain (D-150).
 - **Alternatives:** simd-json by default; serde_json only.
 
 ### D-014 — Async runtime: tokio only
@@ -1257,6 +1258,10 @@ and why.
   closed as measured, not added.
 - **Alternatives:** dropping simd-json without further tries; adding simd-json as an opt-in
   feature anyway.
+- **Outcome (2026-11-12):** sonic-rs was slower than serde_json on almost every payload, also
+  with `-C target-cpu=native`; simd-json won only ~10 % on message events. Neither clearly
+  won, so both experiments were removed (the code is in commit `af58a18`), no feature was
+  added and serde_json stays the only parser (`docs/PERFORMANCE.md`, Phase 4).
 
 ---
 

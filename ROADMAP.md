@@ -70,7 +70,8 @@ just with narrow scope.
 
 ## Phase 4 — `djs-gateway` full coverage (≈ @discordjs/ws)
 - [x] zlib-stream feature (D-140)
-- [ ] simd-json feature, zero-copy parsing where measurable
+- [x] Faster JSON parsers measured (simd-json, sonic-rs): no gain, serde_json stays (D-150)
+- [ ] Zero-copy parsing where measurable
 - [x] Gateway send rate limiting (120 / 60 s; D-142, C-067)
 - [x] Identify concurrency (`max_concurrency`; D-144)
 - [x] In-process sharding: `create_shards`, auto shard count in `Client` (D-145, D-146)

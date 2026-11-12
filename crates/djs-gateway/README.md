@@ -3,9 +3,9 @@
 A Discord gateway (WebSocket) client with transport compression — part of
 [djs-rs](https://github.com/kotoanidev/djs-rs).
 
-> **Status:** pre-alpha. Self-healing shards, sharding with a shared IDENTIFY queue and the
-> gateway send limit are in place; zlib-stream and simd-json arrive later in Phase 4. Track
-> progress in the [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
+> **Status:** pre-alpha. Self-healing shards, sharding with a shared IDENTIFY queue, the
+> gateway send limit and zstd/zlib transport compression are in place. Track progress in the
+> [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
 
 **discord.js counterpart:** `@discordjs/ws`
 

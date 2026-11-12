@@ -437,7 +437,7 @@ cargo test --release -p djs-gateway --all-features --test stress -- --ignored --
   --test-threads 1 zlib zstd
 ```
 
-### simd-json experiment (step 5, D-013, D-143) — in progress
+### JSON parsers: simd-json and sonic-rs (step 5, D-013, D-143, D-150)
 
 `djs-model/benches/simd.rs` decodes the same payloads with the same `GatewayEventDeserializer`
 seed through `serde_json` and through `simd-json` 0.19.0 (serde deserializer, reused
@@ -468,8 +468,30 @@ case's best median over 3–4 alternations. simd-json ratio (`< 1` = simd-json f
 - An earlier single run had suggested 10–22 % on `MESSAGE_CREATE`; it was largely noise from
   running the groups at different times.
 
+**sonic-rs 0.5.10** (D-150), same method, three groups alternated in rotating order (ratio to
+serde_json, `< 1` = faster):
+
+| Payload | P-core | E-core | P-core, `target-cpu=native` |
+|---|---:|---:|---:|
+| `MESSAGE_CREATE` / `MESSAGE_UPDATE` | 1.32–1.34 | 1.58–1.59 | 1.03 |
+| `MESSAGE_CREATE`, 2 000 chars + 3 embeds | 1.01 | 1.03 | 1.04 |
+| `READY` | 1.33 | 1.55 | 1.07 |
+| other hot events | 0.97–1.12 | 1.13–1.38 | 0.97–1.10 |
+| `MESSAGE_DELETE` | 1.28 | 1.02 | 1.31 |
+| `GUILD_CREATE` (1 000 members) | 0.99 | 1.18 | 1.01 |
+| unknown 200 KB event (skipped) | 1.08 | 0.99 | 1.12 |
+
+In the same runs simd-json stayed at 0.89–0.92 on message events and 1.00–1.12 elsewhere
+(1.40–1.69 when skipping).
+
+**Conclusion:** neither parser clearly beats serde_json for gateway payloads — the decode time
+goes mostly into building the typed values (IDs, timestamps, strings), not into tokenizing,
+and serde_json skips unhandled data by scanning. serde_json stays the only parser; the
+experiment (`benches/simd.rs`, dev-dependencies `simd-json` and `sonic-rs`) was removed and
+lives in commit `af58a18` for re-runs with future versions:
+
 ```bash
-cargo bench -p djs-model --bench simd --no-run
-taskset -c 2 target/release/deps/simd-<hash> --bench serde_json   # alternate with simd_json
+git show af58a18:crates/djs-model/benches/simd.rs   # plus the two dev-dependencies
+taskset -c 2 target/release/deps/simd-<hash> --bench serde_json   # alternate the groups
 ```
 

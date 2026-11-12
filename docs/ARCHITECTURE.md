@@ -63,7 +63,8 @@ REST for you (`msg.reply(&ctx, …)`), and read cached state through managers.
 
 1. `djs-gateway` receives a compressed WebSocket frame and decompresses it
    (`zstd-stream` by default, D-015).
-2. The payload is parsed — `serde_json` or `simd-json` (D-013) — into a `djs-model` event.
+2. The payload is parsed with `serde_json` into a `djs-model` event, in a single pass (simd-json
+   and sonic-rs were measured and not adopted, D-150).
 3. `djs-cache` applies the event to the cache (if the resource is cached, D-016).
 4. `djs-rs` dispatches the event to the registered handlers.
 

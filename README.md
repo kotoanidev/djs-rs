@@ -67,7 +67,8 @@ full experience, or pick individual layers.
 - **Layered like discord.js:** idiomatic, zero-overhead low-level crates; a discord.js-style
   high-level API on top.
 - **Built for speed:** `hyper` 1.x HTTP, `tokio-websockets` gateway, `zstd-stream` transport
-  compression, optional `simd-json` parsing, configurable cache with `DashMap`.
+  compression, single-pass `serde_json` decoding (simd-json and sonic-rs were measured and
+  brought no gain), configurable cache with `DashMap`.
 - **Fully documented:** every public item has rustdoc; docs are built with `-D warnings` in CI.
 - **tokio-native**, `rustls` by default (optional `native-tls`).
 - **MSRV 1.89**, edition 2024.
