@@ -1956,9 +1956,34 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   wake-up during its zero-timeout park does not stop the clock from jumping ahead (tokio
   1.54), which fired heartbeats and timeouts too early.
 
+### C-068 — Sharding details (D-144–D-147)
+- `LocalIdentifyQueue` keeps 5 100 ms between identifies of a bucket (Discord's 5 s plus
+  100 ms for jitter, the previous per-shard interval); a tokio `Mutex` per bucket serves
+  waiting shards in order, and a wait dropped before its turn takes no turn. A
+  `max_concurrency` of `0` is treated as `1`. `LocalIdentifyQueue` is also `Clone` (shared
+  inside) and `Default` (concurrency 1).
+- `Shard` stays `Send + Sync`: its queue turn (a `Send`-only future) is kept in a
+  `std::sync::Mutex` that is never locked (polled through `get_mut`); a compile-time
+  assertion guards `Shard`, `MessageSender` and `Config`.
+- `create_shards` panics on a zero total or a range past it (`#[track_caller]`) and returns
+  `impl ExactSizeIterator + DoubleEndedIterator`.
+- djs-rs: Get Gateway Bot is skipped only when both `gateway_url` and a fixed shard count are
+  set (shards then identify one at a time); `Shards::Auto` always asks Discord. Tests that
+  only configure a gateway URL use `Shards::Count(1)`. `ClientBuilder::shards` panics on a
+  zero count or an empty or out-of-range range.
+- The D-147 error is `Error::SessionStartLimit { required, remaining, reset_after }`.
+- One tokio task per shard (in a `JoinSet`); the first fatal error shuts the other shards down
+  and is returned; a panicking shard task is re-raised by `login`.
+
 ---
 
 ## Open questions (to ask the owner when relevant)
+
+- **Identify coordination across processes in `Client`**: with `Shards::Range`, every process
+  has its own `LocalIdentifyQueue`. A `ClientBuilder::identify_queue(Arc<dyn IdentifyQueue>)`
+  (or a shared-store queue) would let processes take turns; not added without a decision.
+- **Resharding** (ROADMAP Phase 4, "In-process sharding manager"): restarting with a new
+  recommended shard count while running, as discord.js can; not started.
 
 - **`OAuth2` error bodies**: the token endpoints answer errors with
   `{"error": "invalid_grant", "error_description": "…"}`, which is not Discord's usual error

@@ -1,8 +1,10 @@
 //! Tests `Shard` against a scripted mock of the Discord gateway.
 
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
-use djs_gateway::{Compression, Config, ReceiveErrorKind, Shard, ShardState};
+use djs_gateway::{
+    Compression, Config, LocalIdentifyQueue, ReceiveErrorKind, Shard, ShardState, create_shards,
+};
 use djs_model::{
     gateway::{
         CloseCode, DispatchEvent, GatewayEvent, Intents, ShardId,
@@ -452,6 +454,74 @@ async fn a_new_connection_starts_with_a_fresh_send_limit() {
     assert_eq!(before.len(), COMMANDS_PER_WINDOW);
     // The held commands go out right after resuming instead of a window later.
     assert_eq!(after, [116, 117, 118, 119, 120]);
+}
+
+#[tokio::test]
+async fn shards_share_the_identify_queue() {
+    let (listener, url) = listener().await;
+    let (identified_tx, mut identified) = tokio::sync::mpsc::unbounded_channel();
+    let server = tokio::spawn(async move {
+        let mut connections = Vec::new();
+        for _ in 0..3 {
+            let (mut connection, _) = accept(&listener).await;
+            let identified_tx = identified_tx.clone();
+            connections.push(tokio::spawn(async move {
+                send(&mut connection, hello(45_000)).await;
+                // Longer than `recv`'s timeout: shard 2 waits 5 s for its turn.
+                let shard = loop {
+                    let message = timeout(Duration::from_secs(10), connection.next())
+                        .await
+                        .expect("the shard did not identify")
+                        .expect("connection ended")
+                        .unwrap();
+                    let Some(text) = message.as_text() else {
+                        continue;
+                    };
+                    let payload: Value = serde_json::from_str(text).unwrap();
+                    if payload["op"] == 2 {
+                        break payload["d"]["shard"].clone();
+                    }
+                };
+                identified_tx.send((shard, Instant::now())).unwrap();
+                // Keep the connection open until the test ends.
+                let _ = timeout(Duration::from_secs(10), connection.next()).await;
+            }));
+        }
+        connections
+    });
+
+    // `max_concurrency` 2: shards 0 and 2 share bucket 0, shard 1 has bucket 1.
+    let config = Config::builder(TOKEN, INTENTS)
+        .gateway_url(&url)
+        .compression(Compression::None)
+        .identify_queue(Arc::new(LocalIdentifyQueue::new(2)))
+        .build();
+    let shards: Vec<Shard> = create_shards(0..3, 3, config).collect();
+    let ids: Vec<String> = shards.iter().map(|shard| shard.id().to_string()).collect();
+    assert_eq!(ids, ["[0, 3]", "[1, 3]", "[2, 3]"]);
+    for mut shard in shards {
+        tokio::spawn(async move { while shard.next_event().await.is_some() {} });
+    }
+
+    let mut at = std::collections::HashMap::new();
+    for _ in 0..3 {
+        let (shard, when) = timeout(Duration::from_secs(15), identified.recv())
+            .await
+            .expect("not every shard identified")
+            .unwrap();
+        at.insert(shard[0].as_u64().unwrap(), when);
+        assert_eq!(shard[1], 3);
+    }
+    let gap = |a: u64, b: u64| at[&b].saturating_duration_since(at[&a]);
+    assert!(gap(0, 1) < Duration::from_secs(1) && gap(1, 0) < Duration::from_secs(1));
+    assert!(
+        gap(0, 2) >= Duration::from_secs(5),
+        "shard 2 identified {:?} after shard 0, in the same bucket",
+        gap(0, 2)
+    );
+    for connection in server.await.unwrap() {
+        connection.abort();
+    }
 }
 
 #[tokio::test]

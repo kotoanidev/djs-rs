@@ -6,7 +6,7 @@ use std::sync::Arc;
 use djs_model::gateway::{Intents, payload::IdentifyProperties};
 use tokio_websockets::Connector;
 
-use crate::Compression;
+use crate::{Compression, IdentifyQueue, LocalIdentifyQueue};
 
 /// The default gateway URL, used until a URL from
 /// [Get Gateway Bot](https://docs.discord.com/developers/events/gateway#get-gateway-bot) is
@@ -15,7 +15,9 @@ pub const DEFAULT_GATEWAY_URL: &str = "wss://gateway.discord.gg";
 
 /// The configuration of a [`Shard`](crate::Shard).
 ///
-/// Cheap to clone (the TLS configuration is shared). Build one with [`Config::builder`].
+/// Cheap to clone. Clones share the TLS configuration and the [IDENTIFY
+/// queue](ConfigBuilder::identify_queue), so shards created from clones of one configuration
+/// take turns identifying. Build one with [`Config::builder`].
 ///
 /// The [`Debug`] implementation redacts the token.
 #[derive(Clone)]
@@ -29,6 +31,7 @@ pub struct Config {
     pub(crate) connect_timeout: Duration,
     pub(crate) hello_timeout: Duration,
     pub(crate) tls: Arc<Connector>,
+    pub(crate) identify_queue: Arc<dyn IdentifyQueue>,
 }
 
 impl Config {
@@ -67,6 +70,7 @@ impl Config {
                 connect_timeout: Duration::from_secs(30),
                 hello_timeout: Duration::from_secs(60),
                 tls: Arc::new(crate::tls::connector()),
+                identify_queue: Arc::new(LocalIdentifyQueue::default()),
             },
         }
     }
@@ -88,6 +92,12 @@ impl Config {
     pub const fn compression(&self) -> Compression {
         self.compression
     }
+
+    /// Returns the queue shards using this configuration wait in before identifying.
+    #[must_use]
+    pub fn identify_queue(&self) -> &Arc<dyn IdentifyQueue> {
+        &self.identify_queue
+    }
 }
 
 impl fmt::Debug for Config {
@@ -101,6 +111,7 @@ impl fmt::Debug for Config {
             .field("large_threshold", &self.large_threshold)
             .field("connect_timeout", &self.connect_timeout)
             .field("hello_timeout", &self.hello_timeout)
+            .field("identify_queue", &self.identify_queue)
             .finish_non_exhaustive()
     }
 }
@@ -153,6 +164,30 @@ impl ConfigBuilder {
     /// (default 60 s).
     pub const fn hello_timeout(mut self, timeout: Duration) -> Self {
         self.config.hello_timeout = timeout;
+        self
+    }
+
+    /// Sets the queue shards wait in before identifying (default: a new
+    /// [`LocalIdentifyQueue`] with `max_concurrency` 1, shared by clones of the configuration).
+    ///
+    /// Pass a [`LocalIdentifyQueue`] created with the bot's `max_concurrency` to start several
+    /// shards at once, or an own [`IdentifyQueue`] to coordinate several processes.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    ///
+    /// use djs_gateway::{Config, LocalIdentifyQueue};
+    /// use djs_model::gateway::Intents;
+    ///
+    /// let config = Config::builder("my-token", Intents::GUILDS)
+    ///     .identify_queue(Arc::new(LocalIdentifyQueue::new(16)))
+    ///     .build();
+    /// assert!(format!("{config:?}").contains("max_concurrency: 16"));
+    /// ```
+    pub fn identify_queue(mut self, queue: Arc<dyn IdentifyQueue>) -> Self {
+        self.config.identify_queue = queue;
         self
     }
 

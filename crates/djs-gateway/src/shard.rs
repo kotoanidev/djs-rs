@@ -1,6 +1,7 @@
 //! The [`Shard`]: one gateway connection.
 
-use core::{fmt::Write as _, pin::Pin, time::Duration};
+use core::{fmt::Write as _, future::Future, pin::Pin, time::Duration};
+use std::sync::{Mutex, PoisonError};
 
 use djs_model::gateway::{
     API_VERSION, CloseCode, DispatchEvent, GatewayEvent, GatewayEventDeserializer, OpCode, ShardId,
@@ -24,9 +25,12 @@ use crate::{
 
 type Connection = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
-/// Minimum time between two identifies of the same shard (Discord allows one identify per
-/// 5 seconds per rate-limit key).
-const IDENTIFY_INTERVAL: Duration = Duration::from_millis(5_100);
+/// A shard's turn in the IDENTIFY queue.
+///
+/// Kept in a [`Mutex`] only so that [`Shard`] stays `Sync` (the future is only `Send`); it is
+/// never locked — polling goes through [`Mutex::get_mut`], which is free.
+type IdentifyTurn = Mutex<Pin<Box<dyn Future<Output = ()> + Send>>>;
+
 /// Upper bound of the reconnect backoff.
 const MAX_BACKOFF: Duration = Duration::from_secs(60);
 /// How long to wait for our close frame to be written before dropping the connection.
@@ -61,9 +65,16 @@ pub enum ShardState {
 /// connections and reconnects, all while waiting for the next event. Nothing happens while no
 /// one is polling, and there are no background tasks or internal event channels.
 ///
+/// Before identifying, a shard waits for its turn in the [`IdentifyQueue`] of its
+/// [`Config`]; shards created from clones of one configuration (as [`create_shards`] does)
+/// share it. Resuming does not identify and does not wait.
+///
 /// Commands (presence updates, member requests, …) can be sent from other tasks through a
 /// [`MessageSender`]; they are delivered once the session is active, paced to stay under
 /// Discord's send limit.
+///
+/// [`IdentifyQueue`]: crate::IdentifyQueue
+/// [`create_shards`]: crate::create_shards
 ///
 /// discord.js counterpart: `WebSocketShard` from `@discordjs/ws`.
 ///
@@ -100,13 +111,13 @@ pub struct Shard {
     decompressor: Option<Decompressor>,
     heartbeat: Option<Heartbeater>,
     hello_deadline: Option<Pin<Box<Sleep>>>,
-    identify_at: Option<Pin<Box<Sleep>>>,
+    /// The shard's turn in the IDENTIFY queue, while it waits for it.
+    identify_turn: Option<IdentifyTurn>,
     session: Option<Session>,
     sequence: Option<u64>,
     latency: Option<Duration>,
     reconnect_attempts: u32,
     connect_after: Option<Instant>,
-    last_identify: Option<Instant>,
     commands_tx: mpsc::UnboundedSender<String>,
     commands_rx: mpsc::UnboundedReceiver<String>,
     send_limit: SendLimit,
@@ -183,13 +194,12 @@ impl Shard {
             decompressor: None,
             heartbeat: None,
             hello_deadline: None,
-            identify_at: None,
+            identify_turn: None,
             session: None,
             sequence: None,
             latency: None,
             reconnect_attempts: 0,
             connect_after: None,
-            last_identify: None,
             commands_tx,
             commands_rx,
             send_limit: SendLimit::default(),
@@ -307,7 +317,11 @@ impl Shard {
             .as_mut()
             .map(|heartbeat| heartbeat.sleep.as_mut());
         let hello = self.hello_deadline.as_mut().map(Pin::as_mut);
-        let identify = self.identify_at.as_mut().map(Pin::as_mut);
+        let identify = self.identify_turn.as_mut().map(|turn| {
+            turn.get_mut()
+                .unwrap_or_else(PoisonError::into_inner)
+                .as_mut()
+        });
         let held = self
             .held
             .as_mut()
@@ -316,10 +330,10 @@ impl Shard {
 
         let wake = tokio::select! {
             biased;
-            () = optional_sleep(heartbeat) => Wake::Heartbeat,
-            () = optional_sleep(hello) => Wake::HelloTimeout,
-            () = optional_sleep(identify) => Wake::Identify,
-            () = optional_sleep(held) => Wake::HeldCommandAllowed,
+            () = optional(heartbeat) => Wake::Heartbeat,
+            () = optional(hello) => Wake::HelloTimeout,
+            () = optional(identify) => Wake::Identify,
+            () = optional(held) => Wake::HeldCommandAllowed,
             Some(command) = self.commands_rx.recv(), if receive_commands => Wake::Command(command),
             message = connection.next() => Wake::Message(message),
         };
@@ -332,7 +346,7 @@ impl Shard {
                 None
             }
             Wake::Identify => {
-                self.identify_at = None;
+                self.identify_turn = None;
                 self.identify().await.err().map(Err)
             }
             Wake::Command(json) => self.send_limited(json).await.err().map(Err),
@@ -549,12 +563,9 @@ impl Shard {
         self.connect_after = Some(Instant::now() + delay);
     }
 
-    /// Identifies now, or schedules the identify if the per-shard identify limit requires it.
+    /// Queues for an IDENTIFY turn; the shard identifies when the queue lets it.
     fn schedule_identify(&mut self) {
-        let at = self
-            .last_identify
-            .map_or_else(Instant::now, |last| last + IDENTIFY_INTERVAL);
-        self.identify_at = Some(Box::pin(sleep_until(at)));
+        self.identify_turn = Some(Mutex::new(self.config.identify_queue.wait_turn(self.id)));
         self.state = ShardState::Identifying;
     }
 
@@ -568,7 +579,6 @@ impl Shard {
             presence: None,
             capabilities: GatewayCapabilities::empty(),
         };
-        self.last_identify = Some(Instant::now());
         self.state = ShardState::Identifying;
         tracing::debug!(shard = %self.id, "identifying");
         self.send_command(&identify).await
@@ -670,7 +680,8 @@ impl Shard {
         self.decompressor = None;
         self.heartbeat = None;
         self.hello_deadline = None;
-        self.identify_at = None;
+        // Leaves the IDENTIFY queue; the next connection queues again.
+        self.identify_turn = None;
         self.state = ShardState::Disconnected;
         // The send limit is per connection: a held command may go out as soon as the next
         // session is active.
@@ -681,10 +692,10 @@ impl Shard {
     }
 }
 
-/// Waits on an optional timer; never completes if there is none.
-async fn optional_sleep(sleep: Option<Pin<&mut Sleep>>) {
-    match sleep {
-        Some(sleep) => sleep.await,
+/// Waits on an optional timer or turn; never completes if there is none.
+async fn optional<F: Future<Output = ()> + ?Sized>(future: Option<Pin<&mut F>>) {
+    match future {
+        Some(future) => future.await,
         None => core::future::pending().await,
     }
 }
@@ -752,3 +763,11 @@ impl MessageSender {
         self.tx.is_closed()
     }
 }
+
+// Shards and senders move between tasks and threads; keep them `Send + Sync`.
+const _: () = {
+    const fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<Shard>();
+    assert_send_sync::<MessageSender>();
+    assert_send_sync::<crate::Config>();
+};

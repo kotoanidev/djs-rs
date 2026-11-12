@@ -20,7 +20,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use djs_rs::{HandlerMode, gateway::Compression, prelude::*};
+use djs_rs::{HandlerMode, Shards, gateway::Compression, prelude::*};
 use futures_util::{SinkExt, StreamExt};
 use tokio::{net::TcpListener, sync::Notify, time::timeout};
 use tokio_websockets::{Message, ServerBuilder};
@@ -100,6 +100,7 @@ async fn run(events: u64, handlers: u64, mode: HandlerMode, stream: bool) -> Dur
     let client = Client::builder("stress-token")
         .intents(Intents::GUILD_MESSAGES)
         .gateway_url(url)
+        .shards(Shards::Count(1))
         .compression(Compression::None)
         .handler_mode(mode)
         .build();

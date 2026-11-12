@@ -8,13 +8,19 @@ use std::{
 };
 
 use bytes::Bytes;
-use djs_rs::{Error, HandlerMode, event::Dispatch, gateway::Compression, prelude::*, rest::Rest};
+use djs_rs::{
+    Error, HandlerMode, Shards, event::Dispatch, gateway::Compression, prelude::*, rest::Rest,
+};
 use futures_util::{SinkExt, StreamExt};
 use http_body_util::{BodyExt, Full};
 use hyper::{Request, Response, body::Incoming, server::conn::http1, service::service_fn};
 use hyper_util::rt::TokioIo;
 use serde_json::{Value, json};
-use tokio::{net::TcpListener, sync::mpsc, time::timeout};
+use tokio::{
+    net::{TcpListener, TcpStream},
+    sync::mpsc,
+    time::timeout,
+};
 use tokio_websockets::{Message, ServerBuilder};
 
 const STEP: Duration = Duration::from_secs(5);
@@ -22,8 +28,17 @@ const STEP: Duration = Duration::from_secs(5);
 /// Requests received by the mock REST API: (method, path, JSON body).
 type Seen = Arc<Mutex<Vec<(String, String, Value)>>>;
 
-/// Starts a mock REST API that serves `GET /gateway/bot` and echoes created messages.
-async fn mock_rest(gateway_url: String) -> (String, Seen, mpsc::UnboundedReceiver<Value>) {
+/// A Get Gateway Bot response.
+fn gateway_bot(url: &str, shards: u32, remaining: u32, max_concurrency: u32) -> Value {
+    json!({"url": url, "shards": shards, "session_start_limit": {
+        "total": 1000, "remaining": remaining, "reset_after": 3_600_000,
+        "max_concurrency": max_concurrency
+    }})
+}
+
+/// Starts a mock REST API that answers `GET /gateway/bot` with `gateway_bot` and echoes
+/// created messages.
+async fn mock_rest(gateway_bot: Value) -> (String, Seen, mpsc::UnboundedReceiver<Value>) {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let base = format!("http://{}/api", listener.local_addr().unwrap());
     let seen: Seen = Arc::default();
@@ -33,12 +48,12 @@ async fn mock_rest(gateway_url: String) -> (String, Seen, mpsc::UnboundedReceive
     tokio::spawn(async move {
         loop {
             let (stream, _) = listener.accept().await.unwrap();
-            let (state, gateway_url, created_tx) =
-                (Arc::clone(&state), gateway_url.clone(), created_tx.clone());
+            let (state, gateway_bot, created_tx) =
+                (Arc::clone(&state), gateway_bot.clone(), created_tx.clone());
             tokio::spawn(async move {
                 let service = service_fn(move |request: Request<Incoming>| {
-                    let (state, gateway_url, created_tx) =
-                        (Arc::clone(&state), gateway_url.clone(), created_tx.clone());
+                    let (state, gateway_bot, created_tx) =
+                        (Arc::clone(&state), gateway_bot.clone(), created_tx.clone());
                     async move {
                         let method = request.method().to_string();
                         let path = request.uri().path().to_owned();
@@ -49,8 +64,7 @@ async fn mock_rest(gateway_url: String) -> (String, Seen, mpsc::UnboundedReceive
                             .unwrap()
                             .push((method.clone(), path.clone(), body.clone()));
                         let response = if path.ends_with("/gateway/bot") {
-                            json!({"url": gateway_url, "shards": 1, "session_start_limit":
-                                {"total": 1000, "remaining": 999, "reset_after": 0, "max_concurrency": 1}})
+                            gateway_bot
                         } else {
                             created_tx.send(body.clone()).unwrap();
                             json!({
@@ -87,10 +101,15 @@ fn message_create(sequence: u64, id: &str, content: &str) -> Value {
     }})
 }
 
-/// Runs a mock gateway session: Hello → (identify) → READY → the given dispatches, then waits for
-/// the client to close the connection. Returns the identify payload and the close code.
+/// Accepts one connection and runs [`mock_session`] on it.
 async fn mock_gateway(listener: TcpListener, dispatches: Vec<Value>) -> (Value, Option<u16>) {
     let (stream, _) = timeout(STEP, listener.accept()).await.unwrap().unwrap();
+    mock_session(stream, dispatches).await
+}
+
+/// Runs a mock gateway session: Hello → (identify) → READY → the given dispatches, then waits for
+/// the client to close the connection. Returns the identify payload and the close code.
+async fn mock_session(stream: TcpStream, dispatches: Vec<Value>) -> (Value, Option<u16>) {
     let (_, mut ws) = ServerBuilder::new().accept(stream).await.unwrap();
     let send = |payload: Value| Message::text(payload.to_string());
 
@@ -135,7 +154,7 @@ async fn mock_gateway(listener: TcpListener, dispatches: Vec<Value>) -> (Value, 
 async fn ping_pong() {
     let gateway = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let gateway_url = format!("ws://{}", gateway.local_addr().unwrap());
-    let (rest_base, seen, mut created) = mock_rest(gateway_url).await;
+    let (rest_base, seen, mut created) = mock_rest(gateway_bot(&gateway_url, 1, 999, 1)).await;
     let gateway = tokio::spawn(mock_gateway(
         gateway,
         vec![
@@ -233,6 +252,7 @@ async fn sequential_mode_preserves_order() {
     let client = Client::builder("test-token")
         .intents(Intents::GUILD_MESSAGES)
         .gateway_url(gateway_url)
+        .shards(Shards::Count(1))
         .compression(Compression::None)
         .handler_mode(HandlerMode::Sequential)
         .build();
@@ -279,6 +299,7 @@ async fn handler_errors_do_not_stop_the_client() {
     let client = Client::builder("test-token")
         .intents(Intents::GUILD_MESSAGES)
         .gateway_url(gateway_url)
+        .shards(Shards::Count(1))
         .compression(Compression::None)
         .build();
     let (ok_tx, mut ok_rx) = mpsc::unbounded_channel();
@@ -303,4 +324,132 @@ async fn handler_errors_do_not_stop_the_client() {
     timeout(STEP, running).await.unwrap().unwrap().unwrap();
     gateway.await.unwrap();
     let _ = Dispatch::Resumed; // the stream event type is public API
+}
+
+#[tokio::test]
+async fn auto_sharding_runs_every_recommended_shard() {
+    let gateway = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let gateway_url = format!("ws://{}", gateway.local_addr().unwrap());
+    // Discord recommends two shards and lets both identify at once.
+    let (rest_base, _seen, _created) = mock_rest(gateway_bot(&gateway_url, 2, 999, 2)).await;
+    let sessions = tokio::spawn(async move {
+        let mut sessions = Vec::new();
+        for _ in 0..2 {
+            let (stream, _) = timeout(STEP, gateway.accept()).await.unwrap().unwrap();
+            let dispatches = vec![message_create(2, "10", "hello")];
+            sessions.push(tokio::spawn(mock_session(stream, dispatches)));
+        }
+        let mut results = Vec::new();
+        for session in sessions {
+            results.push(session.await.unwrap());
+        }
+        results
+    });
+
+    let client = Client::builder("test-token")
+        .intents(Intents::GUILD_MESSAGES)
+        .rest(Rest::builder().token("test-token").api(rest_base).build())
+        .compression(Compression::None)
+        .build();
+    let mut events = client.events();
+    let running = {
+        let client = client.clone();
+        tokio::spawn(async move { client.login().await })
+    };
+
+    // Each shard delivers its READY and its message, tagged with its shard ID.
+    let mut received = Vec::new();
+    for _ in 0..4 {
+        let event = timeout(STEP, events.next()).await.unwrap().unwrap();
+        received.push((event.shard.to_string(), event.event.name().to_owned()));
+    }
+    received.sort();
+    let expected = [
+        ("[0, 2]", "MESSAGE_CREATE"),
+        ("[0, 2]", "READY"),
+        ("[1, 2]", "MESSAGE_CREATE"),
+        ("[1, 2]", "READY"),
+    ]
+    .map(|(shard, name)| (shard.to_owned(), name.to_owned()));
+    assert_eq!(received, expected);
+
+    client.shutdown();
+    timeout(STEP, running).await.unwrap().unwrap().unwrap();
+    let sessions = sessions.await.unwrap();
+    let mut identified: Vec<String> = sessions
+        .iter()
+        .map(|(identify, _)| identify["d"]["shard"].to_string())
+        .collect();
+    identified.sort();
+    assert_eq!(identified, ["[0,2]", "[1,2]"]);
+    assert!(sessions.iter().all(|&(_, code)| code == Some(1000)));
+}
+
+#[tokio::test]
+async fn too_few_session_starts_is_an_error() {
+    // Four shards recommended, three session starts left: nothing may connect.
+    let (rest_base, seen, _created) = mock_rest(gateway_bot("ws://127.0.0.1:9", 4, 3, 1)).await;
+    let client = Client::builder("test-token")
+        .rest(Rest::builder().token("test-token").api(rest_base).build())
+        .build();
+
+    let error = timeout(STEP, client.login()).await.unwrap().unwrap_err();
+    assert!(
+        matches!(
+            error,
+            Error::SessionStartLimit { required: 4, remaining: 3, reset_after }
+                if reset_after == Duration::from_secs(3_600)
+        ),
+        "{error:?}"
+    );
+    assert_eq!(
+        seen.lock().unwrap().len(),
+        1,
+        "only Get Gateway Bot was called"
+    );
+}
+
+#[tokio::test]
+async fn a_shard_range_runs_only_those_shards() {
+    let gateway = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let gateway_url = format!("ws://{}", gateway.local_addr().unwrap());
+    // Three session starts left are enough for the one shard of this process.
+    let (rest_base, _seen, _created) = mock_rest(gateway_bot(&gateway_url, 4, 3, 1)).await;
+    let gateway = tokio::spawn(mock_gateway(gateway, Vec::new()));
+
+    let client = Client::builder("test-token")
+        .rest(Rest::builder().token("test-token").api(rest_base).build())
+        .shards(Shards::Range {
+            range: 3..4,
+            total: 4,
+        })
+        .compression(Compression::None)
+        .build();
+    let mut events = client.events();
+    let running = {
+        let client = client.clone();
+        tokio::spawn(async move { client.login().await })
+    };
+    let ready = timeout(STEP, events.next()).await.unwrap().unwrap();
+    assert_eq!(ready.shard.to_string(), "[3, 4]");
+
+    client.shutdown();
+    timeout(STEP, running).await.unwrap().unwrap().unwrap();
+    let (identify, _) = gateway.await.unwrap();
+    assert_eq!(identify["d"]["shard"], json!([3, 4]));
+}
+
+#[test]
+#[should_panic(expected = "must not be zero")]
+fn zero_shards_are_rejected() {
+    let _ = Client::builder("test-token").shards(Shards::Count(0));
+}
+
+#[test]
+#[should_panic(expected = "within the total")]
+fn a_range_past_the_total_is_rejected() {
+    let _ = Client::builder("test-token").shards(Shards::Range {
+        range: 2..5,
+        total: 4,
+    });
 }

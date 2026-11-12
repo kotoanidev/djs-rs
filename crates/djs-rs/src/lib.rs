@@ -9,7 +9,7 @@ pub mod ext;
 mod handler;
 
 pub use self::{
-    client::{Client, ClientBuilder, EventStream, HandlerMode},
+    client::{Client, ClientBuilder, EventStream, HandlerMode, Shards},
     context::Context,
     error::Error,
     event::Events,

@@ -8,6 +8,12 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Sharding (D-141, D-144–D-147): `djs_gateway::IdentifyQueue` (trait) and
+  `LocalIdentifyQueue` (one IDENTIFY per `max_concurrency` bucket every 5 s), shared through
+  `ConfigBuilder::identify_queue`; `djs_gateway::create_shards(range, total, config)`. The
+  djs-rs `Client` now runs one task per shard, with Discord's recommended count by default
+  (`ClientBuilder::shards(Shards::Auto | Count | Range)`), and `login` fails with
+  `Error::SessionStartLimit` when too few session starts are left.
 - The gateway send limit (D-142): a shard sends at most 115 queued commands in any 61 s
   (Discord allows 120 per 60 s and disconnects clients that send more); the rest wait in the
   queue, in order, and heartbeats, identify and resume keep the remaining room. A new
@@ -307,6 +313,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `login`/`shutdown`, prelude; `examples/ping.rs`; end-to-end tests with mock REST + gateway.
 
 ### Changed
+- A shard's own 5-second identify spacing is now done by its configuration's IDENTIFY queue.
+- `ClientBuilder::gateway_url` no longer skips Get Gateway Bot on its own: it is skipped only
+  together with a fixed shard count (`Shards::Count`/`Shards::Range`).
 - `djs-rest`: `Request`'s `Debug` output shows only the size of the body and the names of
   form parts, as bodies can hold secrets (access tokens, client secrets; C-011). It used to
   print the serialized JSON body.

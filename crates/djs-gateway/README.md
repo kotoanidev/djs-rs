@@ -3,10 +3,9 @@
 A Discord gateway (WebSocket) client with transport compression — part of
 [djs-rs](https://github.com/kotoanidev/djs-rs).
 
-> **Status:** pre-alpha. Phase 1 (vertical slice) covers a single, fully self-healing shard;
-> the sharding manager, gateway send rate limiting, identify queues and zlib arrive in
-> Phase 4. Track progress in the
-> [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
+> **Status:** pre-alpha. Self-healing shards, sharding with a shared IDENTIFY queue and the
+> gateway send limit are in place; zlib-stream and simd-json arrive later in Phase 4. Track
+> progress in the [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
 
 **discord.js counterpart:** `@discordjs/ws`
 
@@ -18,6 +17,12 @@ A Discord gateway (WebSocket) client with transport compression — part of
   internal channels.
 - **zstd-stream compression** by default (feature `zstd-stream`), with a decompression buffer
   that is reused across messages and released after oversized payloads.
+- **Sharding.** `create_shards(range, total, config)` creates the shards of a bot; they take
+  turns identifying through a shared `IdentifyQueue` (`LocalIdentifyQueue` honours
+  `max_concurrency`; implement the trait to coordinate several processes). Run each shard in
+  its own task.
+- **Send limit.** Commands sent through a `MessageSender` are paced under Discord's
+  120-per-minute limit and wait in order instead of getting the connection closed.
 - **Single-pass decoding** via `djs_model`'s `GatewayEventDeserializer`.
 - **tokio-websockets + rustls** with an explicit ring provider and Mozilla roots, so it never
   panics because another crate enabled a different rustls provider.

@@ -9,8 +9,9 @@ D-041).
 **Phase 2 — full `djs-model` coverage: ✅ done** (D-039; benchmarks + stress tests done).
 **Phase 3 — full `djs-rest` coverage: ✅ done 2026-11-12** (every documented REST route, OAuth2,
 CDN URLs; benchmarks + extreme-load tests in `docs/PERFORMANCE.md`).
-**Phase 4 — full `djs-gateway` coverage: in progress** — step 1 (send limit) done; next is
-step 2, the IDENTIFY queue and sharding (see "Next step" below).
+**Phase 4 — full `djs-gateway` coverage: in progress** — steps 1 (send limit) and 2
+(IDENTIFY queue + sharding) done; next is step 3, the gateway commands (see "Next step"
+below).
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-075 in `docs/DECISIONS.md`; Claude defaults C-001 …
@@ -248,7 +249,11 @@ reserved), D-143 (order below). One commit per step:
    window, 115 commands per 61 s per connection, held command in `Shard::held`; unit tests +
    two mock-gateway tests. A real-time test over several windows (≈ 2–3 min, `#[ignore]`)
    belongs to step 6.
-2. **IDENTIFY queue + sharding** (D-141).
+2. ✅ **IDENTIFY queue + sharding** (D-141, D-144–D-147, C-068): `djs-gateway/src/queue.rs`
+   (`IdentifyQueue`, `LocalIdentifyQueue`), `src/sharding.rs` (`create_shards`), djs-rs
+   `Shards` + one task per shard + `Error::SessionStartLimit`. Tests: queue unit tests (paused
+   clock, no sockets), mock-gateway `shards_share_the_identify_queue`, djs-rs end-to-end auto
+   sharding / session limit / range.
 3. **Gateway commands**: presence update, request guild members, voice state update, request
    soundboard sounds (models exist in `djs_model::gateway`).
 4. **zlib-stream** (D-140) — ask before adding `flate2` to `[workspace.dependencies]` only if
