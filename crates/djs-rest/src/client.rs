@@ -419,12 +419,14 @@ async fn send(
 ///     .unwrap();
 /// assert_eq!(request.route(), Route::CreateMessage { channel_id: ChannelId::new(1) });
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Request<'a> {
     route: Route<'a>,
     reason: Option<&'a str>,
     query: Option<&'a dyn Query>,
     body: Option<Bytes>,
+    /// Whether [`body`](Self::body) is `application/x-www-form-urlencoded` instead of JSON.
+    urlencoded: bool,
     files: &'a [FileUpload],
     /// A file sent under its own form field name instead of `files[n]` (D-111).
     form_file: Option<(&'static str, &'a FileUpload)>,
@@ -441,6 +443,7 @@ impl<'a> Request<'a> {
             reason: None,
             query: None,
             body: None,
+            urlencoded: false,
             files: &[],
             form_file: None,
             form_text: &[],
@@ -520,8 +523,18 @@ impl<'a> Request<'a> {
         self
     }
 
+    /// Sets an `application/x-www-form-urlencoded` body (the `OAuth2` token endpoints, D-132).
+    pub(crate) fn form_urlencoded(mut self, body: String) -> Self {
+        self.body = Some(Bytes::from(body));
+        self.urlencoded = true;
+        self
+    }
+
     /// Builds the body once, for every attempt.
     fn prepare_body(self) -> PreparedBody {
+        if self.urlencoded {
+            return PreparedBody::urlencoded(self.body.unwrap_or_default());
+        }
         let form = Form {
             files: self.files,
             file: self.form_file,
@@ -565,6 +578,31 @@ impl<'a> Request<'a> {
     #[must_use]
     pub const fn route(&self) -> Route<'a> {
         self.route
+    }
+}
+
+/// Shows the route, the reason and the query, but only the size of the body and the names of
+/// the form parts: bodies can hold secrets (access tokens, client secrets; C-011).
+impl fmt::Debug for Request<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        struct Size(usize);
+        impl fmt::Debug for Size {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                write!(f, "<{} bytes>", self.0)
+            }
+        }
+        let files: Vec<&str> = self.files.iter().map(|file| file.name.as_str()).collect();
+        let text: Vec<&str> = self.form_text.iter().map(|(name, _)| *name).collect();
+        f.debug_struct("Request")
+            .field("route", &self.route)
+            .field("reason", &self.reason)
+            .field("query", &self.query)
+            .field("body", &self.body.as_ref().map(|body| Size(body.len())))
+            .field("urlencoded", &self.urlencoded)
+            .field("files", &files)
+            .field("form_file", &self.form_file.map(|(name, _)| name))
+            .field("form_text", &text)
+            .finish()
     }
 }
 

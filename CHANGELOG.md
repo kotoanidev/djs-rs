@@ -8,6 +8,14 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `OAuth2` (D-131–D-133): `get_current_bot_application_information`,
+  `get_current_authorization_information`, and the token endpoints `exchange_code`,
+  `refresh_access_token`, `client_credentials_grant` and `revoke_token`, which take
+  `djs_rest::oauth2::OAuth2Credentials` (secret redacted in `Debug`), send
+  `application/x-www-form-urlencoded` bodies and never the client's token. The
+  `djs_rest::oauth2::AuthorizeUrl` builder makes bot invite and authorization code URLs.
+  `djs_model::oauth2::{AccessTokenResponse, CurrentAuthorizationInformation}` (tokens
+  redacted in `Debug`).
 - Application role connection metadata endpoints:
   `get_application_role_connection_metadata_records` and
   `update_application_role_connection_metadata_records`;
@@ -270,6 +278,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `login`/`shutdown`, prelude; `examples/ping.rs`; end-to-end tests with mock REST + gateway.
 
 ### Changed
+- `djs-rest`: `Request`'s `Debug` output shows only the size of the body and the names of
+  form parts, as bodies can hold secrets (access tokens, client secrets; C-011). It used to
+  print the serialized JSON body.
 - `djs-model`: `GuildScheduledEventUser::member` is a `PartialMember`: Discord sends the
   subscriber's member data without its user, which is the `user` field (combine them with
   `PartialMember::into_member`). As a `Member` it could not be decoded.

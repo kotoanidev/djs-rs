@@ -352,12 +352,11 @@ macro_rules! routes {
                 }
             }
 
-            /// Whether the request carries the client's token. Routes authenticated by a
-            /// webhook or interaction token in their path (a `*_token` parameter) are sent
-            /// without it (D-121).
-            pub(crate) fn authenticated(self) -> bool {
+            /// Whether the route has a `*_token` path parameter (a webhook or interaction
+            /// token), which authenticates it instead of the client's token (D-121).
+            fn has_token_parameter(self) -> bool {
                 match self {
-                    $(Self::$variant { .. } => ![$($(stringify!($field)),*)?]
+                    $(Self::$variant { .. } => [$($(stringify!($field)),*)?]
                         .iter()
                         .any(|name: &&str| name.ends_with("token")),)*
                 }
@@ -398,6 +397,18 @@ macro_rules! routes {
 }
 
 impl Route<'_> {
+    /// Whether the request carries the client's token. Routes authenticated by a webhook or
+    /// interaction token in their path are sent without it (D-121), and so are the `OAuth2`
+    /// token endpoints, which take the application's client credentials in their body
+    /// (D-132).
+    pub(crate) fn authenticated(self) -> bool {
+        !self.has_token_parameter()
+            && !matches!(
+                self,
+                Self::OAuth2TokenExchange | Self::OAuth2TokenRevocation
+            )
+    }
+
     /// Returns the rate-limit grouping of the route.
     pub(crate) fn bucket(self) -> BucketRoute {
         let now_ms = SystemTime::now()
@@ -1279,6 +1290,20 @@ routes! {
         message_id: MessageId,
     } => POST "/channels/{channel_id}/polls/{message_id}/expire", major: channel_id;
 
+    // OAuth2.
+
+    /// [Get Current Bot Application Information](https://docs.discord.com/developers/topics/oauth2#get-current-bot-application-information).
+    GetCurrentBotApplicationInformation => GET "/oauth2/applications/@me";
+    /// [Get Current Authorization Information](https://docs.discord.com/developers/topics/oauth2#get-current-authorization-information).
+    GetCurrentAuthorizationInformation => GET "/oauth2/@me";
+    /// The [token URL](https://docs.discord.com/developers/topics/oauth2#shared-resources-oauth2-urls):
+    /// exchanges an authorization code, a refresh token or the client credentials for an
+    /// access token. Sent without the client's token (D-132).
+    OAuth2TokenExchange => POST "/oauth2/token";
+    /// The [token revocation URL](https://docs.discord.com/developers/topics/oauth2#authorization-code-grant-token-revocation-example).
+    /// Sent without the client's token (D-132).
+    OAuth2TokenRevocation => POST "/oauth2/token/revoke";
+
     // Applications.
 
     /// [Get Current Application](https://docs.discord.com/developers/resources/application#get-current-application).
@@ -2009,6 +2034,9 @@ mod tests {
             .authenticated()
         );
         assert!(Route::GetGatewayBot.authenticated());
+        assert!(!Route::OAuth2TokenExchange.authenticated());
+        assert!(!Route::OAuth2TokenRevocation.authenticated());
+        assert!(Route::GetCurrentAuthorizationInformation.authenticated());
     }
 
     #[test]

@@ -61,6 +61,16 @@ impl PreparedBody {
         multipart(json, form, &boundary())
     }
 
+    /// An `application/x-www-form-urlencoded` body (the `OAuth2` token endpoints, D-132).
+    pub(crate) fn urlencoded(body: Bytes) -> Self {
+        Self {
+            chunks: vec![body],
+            content_type: Some(HeaderValue::from_static(
+                "application/x-www-form-urlencoded",
+            )),
+        }
+    }
+
     /// The `Content-Type` of the body, if it has one.
     pub(crate) const fn content_type(&self) -> Option<&HeaderValue> {
         self.content_type.as_ref()

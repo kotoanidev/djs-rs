@@ -1,0 +1,18 @@
+{
+  "token_type": "Bearer",
+  "access_token": "access-token-from-the-docs",
+  "scope": "webhook.incoming",
+  "expires_in": 604800,
+  "refresh_token": "refresh-token-from-the-docs",
+  "webhook": {
+    "application_id": "310954232226357250",
+    "name": "testwebhook",
+    "url": "https://discord.com/api/webhooks/347114750880120863/webhook-token-from-the-docs",
+    "channel_id": "345626669224982402",
+    "token": "webhook-token-from-the-docs",
+    "type": 1,
+    "avatar": null,
+    "guild_id": "290926792226357250",
+    "id": "347114750880120863"
+  }
+}

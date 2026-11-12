@@ -14,6 +14,7 @@ mod guild_template;
 mod interaction;
 mod invite;
 mod message;
+mod oauth2;
 mod poll;
 mod sku;
 mod soundboard;

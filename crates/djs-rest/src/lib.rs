@@ -5,6 +5,7 @@ mod client;
 mod endpoints;
 mod error;
 mod multipart;
+pub mod oauth2;
 mod query;
 mod ratelimit;
 mod route;

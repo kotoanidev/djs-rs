@@ -1770,10 +1770,37 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - `InstallParams` got a `new(scopes, permissions)` constructor so it can be used in the body
   (C-048).
 
+### C-063 — OAuth2 details
+- The token routes (`OAuth2TokenExchange`, `OAuth2TokenRevocation`) use the versioned base
+  (`/api/v10/oauth2/token`, as in Discord's examples) and the normal rate limits, counted
+  globally like every other route; `Route::authenticated` lists them explicitly next to the
+  `*_token` parameter rule.
+- `AccessTokenResponse` keeps `scope` as Discord's space-separated string, with a `scopes()`
+  iterator parsing it; `access_token` and `refresh_token` are `String`s (the `.expose()` in
+  the D-132 question's preview was only illustrative — like other tokens, they are plain
+  fields with a redacting `Debug`, C-011). `guild` and `webhook` are boxed.
+- `AuthorizeUrl` writes its parameters in a fixed order (`response_type`, `client_id`,
+  `scope`, `state`, `redirect_uri`, `prompt`, `permissions`, `guild_id`,
+  `disable_guild_select`, `integration_type`), scopes joined with `%20`; it has no implicit
+  grant constructor (Discord's docs discourage it). `Prompt::{Consent, None}` mirrors
+  Discord's values.
+- `revoke_token` ignores the response body (Discord documents none).
+- Found while adding secrets to request bodies: `Request` derived `Debug`, which printed the
+  JSON body — including access tokens of `AddGuildMember` / `GroupDmAddRecipient`. It now
+  prints only the body size and form part names.
+- The fixture of the bot authorization token response gets role `colors` and string
+  `permissions` (the docs' example predates both).
+
 ---
 
 ## Open questions (to ask the owner when relevant)
 
+- **`OAuth2` error bodies**: the token endpoints answer errors with
+  `{"error": "invalid_grant", "error_description": "…"}`, which is not Discord's usual error
+  shape, so `ErrorKind::Response` has `error: None` for them. Options: parse them into a new
+  `OAuth2Error` (a variant of the error kind or a field of `ApiError`); keep the raw body on
+  the error. Also open: PKCE (`code_verifier` / `code_challenge`), which Discord's docs
+  recommend but do not document; it would need SHA-256 and random bytes (new dependencies).
 - **Cost of `HandlerMode::Concurrent` under event floods** (found by the showcase, D-123):
   spawning a tokio task per handler call wakes idle worker threads, so the default client
   uses ≈ 6.7 µs CPU per `MESSAGE_CREATE` vs 1.8 µs with `HandlerMode::Sequential`

@@ -212,7 +212,10 @@ D-041).
   `tests/monetization.rs`, D-130, C-061).
 - **Application ✅** (3 methods, `tests/applications.rs`, C-062).
 - **Role connection metadata ✅** (2 methods, `tests/role_connections.rs`).
-- **Next:** OAuth2 (`topics/oauth2.mdx`), then lobbies, voice (D-102).
+- **OAuth2 ✅** (6 methods, `oauth2::{OAuth2Credentials, AuthorizeUrl}`, `tests/oauth2.rs`
+  in djs-rest and djs-model, D-131–D-133, C-063). `Request`'s `Debug` no longer prints the
+  body.
+- **Next:** lobbies (`resources/lobby.mdx`), then voice (`resources/voice.mdx`) (D-102).
 - Local gate script: `scratchpad/gate.sh` style (`set -euo pipefail`, no pipes hiding errors) —
   a piped gate let one clippy failure through (fixed in `cda06db`).
 - Perf note: after the user change, MESSAGE_CREATE/READY decode looked ~8-13 % slower relative
