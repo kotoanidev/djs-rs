@@ -265,7 +265,12 @@ reserved), D-143 (order below). One commit per step:
    serde_json (alternating groups, pinned cores, P/E cores, `target-cpu=native`); no clear
    gain, so no feature — serde_json stays; experiment removed (kept in commit `af58a18`),
    results in `docs/PERFORMANCE.md`.
-6. Mock-gateway tests, benches and extreme-load tests (D-041) in `docs/PERFORMANCE.md`.
+6. **Benchmarks + extreme-load tests** (D-041) — in progress. Done: `djs-gateway/benches/
+   gateway.rs` (command, update_presence, create_shards, identify turn), stress tests
+   `thousand_shards_*`, `hundred_shards_long_streams_*`, `send_limit_in_real_time`,
+   `type_sizes`, Discord-like compression parameters (C-071); results in
+   `docs/PERFORMANCE.md` ("Phase 4"). Next: a djs-rs `Client` stress test with many shards
+   (mock REST returning `max_concurrency`), then mark Phase 4 done (ROADMAP, PROGRESS).
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON
   body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").
 

@@ -175,6 +175,8 @@ version = "0.0.0"
 name = "djs-gateway"
 version = "0.0.0"
 dependencies = [
+ "bytes",
+ "divan",
  "djs-model",
  "fastrand",
  "flate2",

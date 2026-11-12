@@ -409,32 +409,37 @@ step by step; the full Phase 4 benchmarks and extreme-load tests follow in step 
 
 ### `zlib-stream` vs `zstd-stream` (`djs-gateway/tests/stress.rs`, D-140)
 
-`zlib-stream` uses `flate2` with the pure-Rust `zlib-rs` backend; the mock gateway compresses
-with zlib level 6 and zstd level 3, one stream per connection, flushed after every payload.
-Three runs each (`--release --ignored --test-threads 1`):
+`zlib-stream` uses `flate2` with the pure-Rust `zlib-rs` backend. The mock gateway compresses
+like the real one — one stream per connection, flushed after every payload, with the
+parameters read from the first frame Discord's gateway sends (C-071): **zstd with a 64 KiB
+window** (`windowLog` 16, level 3 here) and **zlib at the best level** with its 32 KiB window.
+`--release --ignored`, each test in its own process:
 
 | Flood | Compression | Events/s | Ratio | Decompressed | Wire bytes |
 |---|---|---:|---:|---:|---:|
 | 1M `MESSAGE_CREATE` | plain | 508 000 | 1× | — | 884 MB |
-| | `zlib-stream` | 513 000–560 000 | 26.4× | 453–495 MB/s | 33.5 MB |
-| | `zstd-stream` | 579 000–625 000 | 38.9× | 512–553 MB/s | 22.7 MB |
+| | `zlib-stream` | 526 000 | 29.3× | 465 MB/s | 30.1 MB |
+| | `zstd-stream` | 582 000 | 38.7× | 515 MB/s | 22.8 MB |
 | 2k ~200 KB unknown events | plain | 6 130 | 1× | — | 438 MB |
-| | `zlib-stream` | 4 400–4 920 | 39.0× | 964–1 077 MB/s | 11.2 MB |
-| | `zstd-stream` | 6 000–6 270 | 163.1× | 1 313–1 373 MB/s | 2.7 MB |
+| | `zlib-stream` | 4 200 | 36.5× | 919 MB/s | 12.0 MB |
+| | `zstd-stream` | 5 900 | 71.1× | 1 293 MB/s | 6.2 MB |
 
-- zlib decodes 10 % fewer small events and 25 % fewer large ones per second than zstd, and
-  sends 1.5× (small) to 4× (large) more bytes; zstd stays the default (D-015). zlib is still
-  as fast as plain text on loopback for small events, because 26× fewer bytes are read.
-- Memory stays bounded: 21 MiB peak for the 2k large events (zlib, run on its own), as the
-  output and split-payload buffers are released above 1 MiB.
+- zlib decodes 10 % fewer small events and 30 % fewer large ones per second than zstd, and
+  sends 1.3× (small) to 2× (large) more bytes; zstd stays the default (D-015). zlib still keeps
+  up with plain text on loopback for small events.
+- zlib holds less memory per shard (see "Many shards" below): ~45–60 KiB against zstd's
+  ~140–170 KiB once the window has filled.
 - A payload split over several WebSocket messages is buffered until Discord's sync-flush
   suffix; the common single-message case inflates straight from the message (no copy).
+- An earlier run used zstd level 3 with its default 2 MiB window and zlib level 6, which
+  overstated zstd's ratio on large events (163×) and its memory per shard (2.2 MiB); the
+  numbers above replace it.
 
 Reproduce:
 
 ```bash
 cargo test --release -p djs-gateway --all-features --test stress -- --ignored --nocapture \
-  --test-threads 1 zlib zstd
+  --exact flood_1m_message_creates_zstd   # one test per run, see the names in tests/stress.rs
 ```
 
 ### JSON parsers: simd-json and sonic-rs (step 5, D-013, D-143, D-150)
@@ -494,4 +499,52 @@ lives in commit `af58a18` for re-runs with future versions:
 git show af58a18:crates/djs-model/benches/simd.rs   # plus the two dev-dependencies
 taskset -c 2 target/release/deps/simd-<hash> --bench serde_json   # alternate the groups
 ```
+
+### `djs-gateway` API (`benches/gateway.rs`)
+
+| Operation | Time | Allocations |
+|---|---:|---:|
+| `MessageSender::command(&UpdatePresence)` (serialize + queue) | 144 ns | 1 |
+| `MessageSender::update_presence` (also kept for new sessions) | 203 ns | 2 |
+| `MessageSender::command(&RequestGuildMembers)` | 119 ns | 1 |
+| `LocalIdentifyQueue::wait_turn`, free bucket | 100 ns | 1 |
+| `create_shards`: 1 / 100 / 1 000 shards | 173 ns / 8.9 µs / 117 µs | 5 per shard |
+
+Sizes (`type_sizes`): `Shard` 2 032 B (mostly the inline TLS WebSocket connection),
+`MessageSender` 16 B, `Config` 248 B, the `next_event` future 3 952 B.
+
+### Many shards in one process (`tests/stress.rs`, D-141)
+
+`create_shards` with a `LocalIdentifyQueue` of one bucket per shard (so all identify at once),
+one task per shard, a mock gateway serving every connection in the same process, Discord-like
+compression parameters; each test in its own process. Memory is the whole process (client
+shards and mock server connections):
+
+| Shards × events each | Compression | Ready in | Idle per shard | Events/s (all shards) | Process RSS after |
+|---|---|---:|---:|---:|---:|
+| 1 000 × 1 000 | plain | 1.5–2.3 s | 21 KiB | 2.37–2.45 M | 30 MiB |
+| 1 000 × 1 000 | `zlib-stream` | 1.5–2.3 s | 44 KiB | 2.44–2.45 M | 73 MiB |
+| 1 000 × 1 000 | `zstd-stream` | 1.5–2.3 s | 54 KiB | 2.62 M | 169 MiB (peak 191) |
+| 100 × 10 000 | plain | 16 ms | 40 KiB | 2.47 M | 25 MiB |
+| 100 × 10 000 | `zlib-stream` | 10 ms | 64 KiB | 2.53 M | 31 MiB |
+| 100 × 10 000 | `zstd-stream` | 10 ms | 75 KiB | 2.66 M | 42 MiB |
+
+- Sharding scales across cores: 1 000 shards decode ~2.5 M events/s together (one shard:
+  ~0.5–0.6 M/s), with every shard's sequence order checked.
+- Starting 1 000 shards (TCP, WebSocket upgrade, Hello, IDENTIFY, READY) takes 1.5–2.3 s.
+- Once its window has filled, a zstd shard holds ~140–170 KiB (64 KiB window plus block
+  buffers), a zlib shard ~45–60 KiB, a plain shard ~20 KiB.
+
+### Send limit in real time (`send_limit_in_real_time`, D-142, ~62 s)
+
+230 member requests queued at once while the server sends a `MESSAGE_CREATE` every 100 ms:
+
+| Measure | Result |
+|---|---|
+| Commands in any 60 s (as the server received them) | **115** (Discord allows 120) |
+| First 115 commands | within 1.1 ms of READY |
+| Command 116 | 61.00 s after the first |
+| Events received while commands waited | 611, lag p50 190 µs, p99 326 µs, max 410 µs |
+
+Held commands never delay incoming events.
 

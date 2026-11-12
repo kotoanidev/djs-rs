@@ -2033,6 +2033,15 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - `flate2 = { version = "1.1.11", default-features = false }` in the workspace, with the
   `zlib-rs` feature in djs-gateway; djs-rs forwards a `zlib-stream` feature.
 
+### C-071 — Stress-test compression matches Discord's parameters
+- The mock gateways compress like the real gateway, whose first frames (read once from
+  `wss://gateway.discord.gg` with a throwaway program, no token sent, 2026-11-12) show a zstd
+  frame with a 64 KiB window (`windowLog` 16) and a zlib header with a 32 KiB window at the
+  best level (`78 da`). The stress tests use zstd level 3 with `windowLog` 16 and zlib
+  `Compression::best()`; Discord's zstd level is not visible in the header.
+- Memory per shard is measured with each test in its own process: running them one after
+  another in one process carries the allocator's retained memory into the next baseline.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

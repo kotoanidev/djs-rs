@@ -15,12 +15,23 @@
     reason = "throughput numbers are only printed"
 )]
 
-use std::time::{Duration, Instant};
+use std::{
+    sync::{Arc, Mutex},
+    time::{Duration, Instant},
+};
 
-use djs_gateway::{Compression, Config, Shard};
-use djs_model::gateway::{DispatchEvent, GatewayEvent, Intents, ShardId};
+use bytes::Bytes;
+use djs_gateway::{Compression, Config, LocalIdentifyQueue, MessageSender, Shard, create_shards};
+use djs_model::{
+    gateway::{DispatchEvent, GatewayEvent, Intents, ShardId, payload::RequestGuildMembers},
+    id::GuildId,
+};
 use futures_util::{SinkExt, StreamExt};
-use tokio::{net::TcpListener, time::timeout};
+use tokio::{
+    net::TcpListener,
+    sync::{mpsc, watch},
+    time::timeout,
+};
 use tokio_websockets::{Message, ServerBuilder};
 
 const STEP: Duration = Duration::from_secs(30);
@@ -61,14 +72,19 @@ mod payloads;
 const HELLO: &str = r#"{"t":null,"s":null,"op":10,"d":{"heartbeat_interval":600000}}"#;
 const READY: &str = r#"{"t":"READY","s":1,"op":0,"d":{"v":10,"user":{"id":"1","username":"stress-bot","discriminator":"0","global_name":null,"avatar":null,"bot":true},"guilds":[],"session_id":"s","resume_gateway_url":"ws://127.0.0.1:9","shard":[0,1],"application":{"id":"1","flags":0}}}"#;
 
-/// Compresses payloads like Discord's `zstd-stream`: one stream, flushed after every payload.
+/// Compresses payloads like Discord's `zstd-stream`: one stream, flushed after every payload,
+/// with the 64 KiB window (`windowLog` 16) read from the real gateway's first frame header.
 #[cfg(feature = "zstd-stream")]
 struct StreamCompressor(zstd::stream::raw::Encoder<'static>);
 
 #[cfg(feature = "zstd-stream")]
 impl StreamCompressor {
     fn new() -> Self {
-        Self(zstd::stream::raw::Encoder::new(3).unwrap())
+        let mut encoder = zstd::stream::raw::Encoder::new(3).unwrap();
+        encoder
+            .set_parameter(zstd::stream::raw::CParameter::WindowLog(16))
+            .unwrap();
+        Self(encoder)
     }
 
     fn compress(&mut self, data: &[u8]) -> Vec<u8> {
@@ -99,14 +115,14 @@ impl StreamCompressor {
 }
 
 /// Compresses payloads like Discord's `zlib-stream`: one zlib stream, sync-flushed after every
-/// payload (default level 6).
+/// payload, at the best level (the real gateway's zlib header says so) with a 32 KiB window.
 #[cfg(feature = "zlib-stream")]
 struct ZlibStreamCompressor(flate2::Compress);
 
 #[cfg(feature = "zlib-stream")]
 impl ZlibStreamCompressor {
     fn new() -> Self {
-        Self(flate2::Compress::new(flate2::Compression::default(), true))
+        Self(flate2::Compress::new(flate2::Compression::best(), true))
     }
 
     fn compress(&mut self, data: &[u8]) -> Vec<u8> {
@@ -497,5 +513,379 @@ async fn flood_2k_large_unknown_events_zlib() {
         "[stress]   zlib ratio: {raw} → {sent} bytes ({:.1}x); decompressed {:.1} MB/s",
         raw as f64 / sent as f64,
         raw as f64 / elapsed.as_secs_f64() / 1e6
+    );
+}
+
+/// Serves `count` sessions at once, replaying the same precomputed `frames` (Hello, READY,
+/// then the flood) to every connection; the flood starts once `go` turns true.
+fn serve_many(
+    listener: TcpListener,
+    count: usize,
+    frames: Arc<[Bytes]>,
+    binary: bool,
+    go: watch::Receiver<bool>,
+) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        let mut sessions = Vec::with_capacity(count);
+        for _ in 0..count {
+            let (stream, _) = timeout(STEP, listener.accept()).await.unwrap().unwrap();
+            let (frames, mut go) = (Arc::clone(&frames), go.clone());
+            sessions.push(tokio::spawn(async move {
+                stream.set_nodelay(true).unwrap();
+                let (_, mut ws) = ServerBuilder::new().accept(stream).await.unwrap();
+                let message = |frame: &Bytes| {
+                    if binary {
+                        Message::binary(frame.clone())
+                    } else {
+                        Message::text(frame.clone())
+                    }
+                };
+                ws.send(message(&frames[0])).await.unwrap();
+                wait_for_identify(&mut ws).await;
+                ws.send(message(&frames[1])).await.unwrap();
+                go.wait_for(|go| *go).await.unwrap();
+                for (index, frame) in frames[2..].iter().enumerate() {
+                    ws.feed(message(frame)).await.unwrap();
+                    if index % 64 == 63 {
+                        ws.flush().await.unwrap();
+                    }
+                }
+                ws.flush().await.unwrap();
+                while let Ok(Some(Ok(_))) = timeout(STEP, ws.next()).await {}
+            }));
+        }
+        for session in sessions {
+            session.await.unwrap();
+        }
+    })
+}
+
+/// Runs `count` shards of one bot in this process (one task each, all identifying at once),
+/// measures the time until all are ready and the memory they hold, then floods every shard
+/// with `per_shard` dispatches.
+async fn many_shards(name: &str, count: u32, per_shard: u64, compression: Compression) {
+    let raw: Vec<String> = [HELLO.to_owned(), READY.to_owned()]
+        .into_iter()
+        .chain((2..per_shard + 2).map(message_create))
+        .collect();
+    let binary = compression != Compression::None;
+    let frames: Arc<[Bytes]> = match compression {
+        Compression::None => raw.into_iter().map(Bytes::from).collect(),
+        #[cfg(feature = "zstd-stream")]
+        Compression::ZstdStream => {
+            let mut compressor = StreamCompressor::new();
+            raw.iter()
+                .map(|payload| Bytes::from(compressor.compress(payload.as_bytes())))
+                .collect()
+        }
+        #[cfg(feature = "zlib-stream")]
+        Compression::ZlibStream => {
+            let mut compressor = ZlibStreamCompressor::new();
+            raw.iter()
+                .map(|payload| Bytes::from(compressor.compress(payload.as_bytes())))
+                .collect()
+        }
+        _ => unreachable!("no other compression"),
+    };
+    let wire: u64 = frames[2..].iter().map(|frame| frame.len() as u64).sum();
+
+    let baseline = memory_kib();
+    reset_peak_memory();
+    let (listener, url) = listener().await;
+    let (go_tx, go_rx) = watch::channel(false);
+    let server = serve_many(listener, count as usize, frames, binary, go_rx);
+
+    // Every shard has its own bucket, so all of them identify at once.
+    let config = Config::builder("stress-token", Intents::GUILD_MESSAGES)
+        .gateway_url(url)
+        .compression(compression)
+        .identify_queue(Arc::new(LocalIdentifyQueue::new(count)))
+        .build();
+    let (ready_tx, mut ready_rx) = mpsc::unbounded_channel();
+    let started = Instant::now();
+    let mut tasks = Vec::new();
+    for mut shard in create_shards(0..count, count, config) {
+        let ready_tx = ready_tx.clone();
+        tasks.push(tokio::spawn(async move {
+            let mut received = 0;
+            let mut finished = None;
+            while received < per_shard {
+                let event = timeout(STEP, shard.next_event())
+                    .await
+                    .expect("no event in time")
+                    .expect("shard ended")
+                    .expect("shard error");
+                match event {
+                    GatewayEvent::Dispatch(_, DispatchEvent::Ready(_)) => {
+                        ready_tx.send(()).unwrap();
+                    }
+                    GatewayEvent::Dispatch(sequence, _) => {
+                        received += 1;
+                        assert_eq!(sequence, received + 1, "dispatch out of order");
+                        if received == per_shard {
+                            finished = Some(Instant::now());
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            shard.close().await;
+            finished.unwrap()
+        }));
+    }
+    for _ in 0..count {
+        timeout(STEP, ready_rx.recv()).await.unwrap().unwrap();
+    }
+    let connected = started.elapsed();
+    let idle = memory_kib();
+
+    let flood = Instant::now();
+    go_tx.send_replace(true);
+    let mut last = flood;
+    for task in tasks {
+        last = last.max(task.await.unwrap());
+    }
+    let elapsed = last - flood;
+    server.await.unwrap();
+
+    let events = u64::from(count) * per_shard;
+    let per_shard_kib = match (baseline, idle) {
+        (Some((before, _)), Some((after, _))) => {
+            format!(
+                "{:.0}",
+                (after.saturating_sub(before)) as f64 / f64::from(count)
+            )
+        }
+        _ => "n/a".to_owned(),
+    };
+    println!(
+        "[stress] {name}: {count} shards ready in {connected:.2?}, {per_shard_kib} KiB per \
+         connected shard (client + mock server side)"
+    );
+    report(name, events, wire * u64::from(count), elapsed, baseline);
+}
+
+/// 1 000 shards in one process, then 1 000 `MESSAGE_CREATE`s to each (1M events).
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "stress test; run with --release --ignored"]
+async fn thousand_shards_plain() {
+    many_shards(
+        "1000 shards × 1000 MESSAGE_CREATE, plain",
+        1_000,
+        1_000,
+        Compression::None,
+    )
+    .await;
+}
+
+/// The same with `zstd-stream`: every shard keeps its own decompression context.
+#[cfg(feature = "zstd-stream")]
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "stress test; run with --release --ignored"]
+async fn thousand_shards_zstd() {
+    many_shards(
+        "1000 shards × 1000 MESSAGE_CREATE, zstd-stream",
+        1_000,
+        1_000,
+        Compression::ZstdStream,
+    )
+    .await;
+}
+
+/// The send-limit server: Hello, READY, then a `MESSAGE_CREATE` every 100 ms (recording each
+/// send time in `sent_at`) while it records when each of `commands` member requests arrives.
+fn send_limit_server(
+    listener: TcpListener,
+    sent_at: Arc<Mutex<Vec<Instant>>>,
+    commands: usize,
+) -> tokio::task::JoinHandle<(Instant, Vec<Instant>)> {
+    tokio::spawn(async move {
+        let (stream, _) = timeout(STEP, listener.accept()).await.unwrap().unwrap();
+        let (_, mut ws) = ServerBuilder::new().accept(stream).await.unwrap();
+        ws.send(Message::text(HELLO.to_owned())).await.unwrap();
+        wait_for_identify(&mut ws).await;
+        ws.send(Message::text(READY.to_owned())).await.unwrap();
+        let ready_at = Instant::now();
+        let (mut sink, mut stream) = ws.split();
+        let ticker = tokio::spawn(async move {
+            let mut interval = tokio::time::interval(Duration::from_millis(100));
+            for sequence in 2.. {
+                interval.tick().await;
+                sent_at.lock().unwrap().push(Instant::now());
+                if sink
+                    .send(Message::text(message_create(sequence)))
+                    .await
+                    .is_err()
+                {
+                    break;
+                }
+            }
+        });
+        let mut arrived = Vec::new();
+        while arrived.len() < commands {
+            let message = timeout(Duration::from_secs(90), stream.next())
+                .await
+                .expect("commands stopped coming")
+                .unwrap()
+                .unwrap();
+            if message
+                .as_text()
+                .is_some_and(|text| text.contains(r#""op":8"#))
+            {
+                arrived.push(Instant::now());
+            }
+        }
+        ticker.abort();
+        (ready_at, arrived)
+    })
+}
+
+/// The same with `zlib-stream` (32 KiB window per shard).
+#[cfg(feature = "zlib-stream")]
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "stress test; run with --release --ignored"]
+async fn thousand_shards_zlib() {
+    many_shards(
+        "1000 shards × 1000 MESSAGE_CREATE, zlib-stream",
+        1_000,
+        1_000,
+        Compression::ZlibStream,
+    )
+    .await;
+}
+
+/// Longer streams (10 000 events, 8.8 MB per shard): how far each shard's decompression memory
+/// grows once its window has filled.
+#[cfg(feature = "zstd-stream")]
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "stress test; run with --release --ignored"]
+async fn hundred_shards_long_streams_zstd() {
+    many_shards(
+        "100 shards × 10000 MESSAGE_CREATE, zstd-stream",
+        100,
+        10_000,
+        Compression::ZstdStream,
+    )
+    .await;
+}
+
+/// Longer streams with `zlib-stream`.
+#[cfg(feature = "zlib-stream")]
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "stress test; run with --release --ignored"]
+async fn hundred_shards_long_streams_zlib() {
+    many_shards(
+        "100 shards × 10000 MESSAGE_CREATE, zlib-stream",
+        100,
+        10_000,
+        Compression::ZlibStream,
+    )
+    .await;
+}
+
+/// Longer streams without compression.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "stress test; run with --release --ignored"]
+async fn hundred_shards_long_streams_plain() {
+    many_shards(
+        "100 shards × 10000 MESSAGE_CREATE, plain",
+        100,
+        10_000,
+        Compression::None,
+    )
+    .await;
+}
+
+/// The send limit in real time (D-142, takes about a minute): 230 queued commands — two
+/// windows' worth — while the server keeps sending events every 100 ms. Commands must never
+/// exceed 115 in any 61 s, and events must keep flowing while commands wait.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "stress test; run with --release --ignored (about 62 s)"]
+async fn send_limit_in_real_time() {
+    const COMMANDS: u32 = 230;
+    const LIMIT: usize = 115;
+    /// The shard's window; arrivals are checked against Discord's 60 s (as the server sees
+    /// them, so jitter of a millisecond cannot fail the check).
+    const WINDOW: Duration = Duration::from_secs(61);
+    const DISCORD_WINDOW: Duration = Duration::from_secs(60);
+
+    let (listener, url) = listener().await;
+    let sent_at: Arc<Mutex<Vec<Instant>>> = Arc::default();
+    let server = send_limit_server(listener, Arc::clone(&sent_at), COMMANDS as usize);
+
+    let mut shard = Shard::with_config(
+        ShardId::ONE,
+        Config::builder("stress-token", Intents::GUILD_MESSAGES)
+            .gateway_url(url)
+            .compression(Compression::None)
+            .build(),
+    );
+    let sender: MessageSender = shard.sender();
+    for n in 1..=COMMANDS {
+        sender
+            .command(&RequestGuildMembers::query(GuildId::new(2), "", n))
+            .unwrap();
+    }
+    let mut received_at = Vec::new();
+    tokio::pin!(server);
+    let (ready_at, commands) = loop {
+        tokio::select! {
+            result = &mut server => break result.unwrap(),
+            event = shard.next_event() => {
+                if let Some(Ok(GatewayEvent::Dispatch(sequence, DispatchEvent::MessageCreate(_)))) = event {
+                    received_at.push((sequence, Instant::now()));
+                }
+            }
+        }
+    };
+
+    let max_in_window = (0..commands.len())
+        .map(|i| {
+            commands[i..]
+                .iter()
+                .take_while(|&&at| at < commands[i] + DISCORD_WINDOW)
+                .count()
+        })
+        .max()
+        .unwrap();
+    let first_batch = commands[LIMIT - 1] - ready_at;
+    let second_start = commands[LIMIT] - ready_at;
+    let sent_at = sent_at.lock().unwrap();
+    let mut lags: Vec<Duration> = received_at
+        .iter()
+        .map(|&(sequence, at)| at - sent_at[usize::try_from(sequence - 2).unwrap()])
+        .collect();
+    lags.sort_unstable();
+    println!(
+        "[stress] send limit: {COMMANDS} commands, max {max_in_window} in any 60 s; first {LIMIT} \
+         within {first_batch:.2?} of READY, command {} at {second_start:.2?}; {} events received \
+         meanwhile, lag p50 {:.2?}, p99 {:.2?}, max {:.2?}",
+        LIMIT + 1,
+        lags.len(),
+        lags[lags.len() / 2],
+        lags[lags.len() * 99 / 100],
+        lags[lags.len() - 1],
+    );
+    assert!(max_in_window <= LIMIT);
+    assert!(first_batch < Duration::from_secs(1));
+    assert!(second_start + Duration::from_millis(5) >= WINDOW);
+    assert!(
+        lags[lags.len() - 1] < Duration::from_millis(100),
+        "events were held back"
+    );
+}
+
+/// Sizes of the types and futures a bot holds per shard.
+#[test]
+#[ignore = "prints numbers; run with --ignored --nocapture"]
+fn type_sizes() {
+    let mut shard = Shard::new(ShardId::ONE, "stress-token", Intents::GUILDS);
+    let next_event = core::mem::size_of_val(&shard.next_event());
+    println!(
+        "[stress] sizes: Shard {} B, MessageSender {} B, Config {} B, next_event future {} B",
+        core::mem::size_of::<Shard>(),
+        core::mem::size_of::<MessageSender>(),
+        core::mem::size_of::<Config>(),
+        next_event,
     );
 }

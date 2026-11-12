@@ -22,8 +22,9 @@ pub enum Compression {
     /// `zlib-stream`: one zlib inflate context for the whole connection, decoded with the
     /// pure-Rust `zlib-rs` (the default with the `zlib-stream` feature alone).
     ///
-    /// Compresses less than zstd and decodes more slowly — in the stress tests 26× instead of
-    /// 39× on small events, with 10–25 % fewer events per second — but needs no C compiler.
+    /// Compresses less than zstd and decodes more slowly — in the stress tests, with Discord's
+    /// parameters, 29× instead of 39× on small events and 10–30 % fewer events per second —
+    /// but needs no C compiler and holds less memory per shard (~50 KiB instead of ~150 KiB).
     ///
     /// discord.js counterpart: `CompressionMethod.ZlibNative` / `ZlibSync`.
     #[cfg(feature = "zlib-stream")]

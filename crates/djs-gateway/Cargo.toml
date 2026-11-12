@@ -41,8 +41,14 @@ webpki-roots.workspace = true
 zstd = { workspace = true, optional = true }
 
 [dev-dependencies]
+bytes.workspace = true
+divan.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "test-util"] }
 tokio-websockets = { workspace = true, features = ["server"] }
+
+[[bench]]
+name = "gateway"
+harness = false
 
 [lints]
 workspace = true

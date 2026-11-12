@@ -60,7 +60,7 @@ while let Some(event) = shard.next_event().await {
 | Feature | Default | Description |
 |---|---|---|
 | `zstd-stream` | ✅ | `zstd-stream` transport compression (needs a C compiler) |
-| `zlib-stream` | | `zlib-stream` transport compression with the pure-Rust `zlib-rs` (no C compiler; compresses less and decodes more slowly than zstd) |
+| `zlib-stream` | | `zlib-stream` transport compression with the pure-Rust `zlib-rs` (no C compiler; compresses less and decodes more slowly than zstd, but uses less memory per shard) |
 | `native-roots` | | Also trust the operating system's root certificates (e.g. a corporate proxy's CA), in addition to the bundled Mozilla roots |
 
 ## Part of djs-rs
