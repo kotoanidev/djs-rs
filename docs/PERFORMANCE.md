@@ -15,7 +15,8 @@ The side-by-side comparison with discord.js on Node.js (D-123) is a separate pag
 cargo bench -p djs-model   # gateway decoding (decode) and REST bodies (encode)
 cargo bench -p djs-rest    # routes, requests, CDN and OAuth2 URLs
 
-# Extreme-load tests: ignored by default, run in release mode, print `[stress]` lines
+# Extreme-load tests: ignored by default, run in release mode, print `[stress]` lines.
+# For A/B comparisons on a hybrid CPU, pin both builds to the same cores (taskset -c 0,2; C-072)
 cargo test -p djs-model   --release --test stress -- --ignored --nocapture --test-threads 1
 cargo test -p djs-gateway --release --test stress -- --ignored --nocapture --test-threads 1
 cargo test -p djs-rest    --release --test stress -- --ignored --nocapture --test-threads 1
@@ -565,7 +566,7 @@ Each test in its own process:
 
 Shards run in their own tasks and scale across the 12 hardware threads.
 
-### A/B against the start of Phase 4 (`d9cffea`) — a regression to look into
+### A/B against the start of Phase 4 (`d9cffea`) — explained with `perf`
 
 The same floods built from `d9cffea` (git worktree) and from this commit, run alternately:
 
@@ -585,6 +586,38 @@ The same floods built from `d9cffea` (git worktree) and from this commit, run al
   "before" runs switch between a fast and a slow mode, the current ones stay in the slow one.
 - Running a lone shard directly on the `login` task instead of a spawned one did not change
   the `djs-rs` numbers (tried, reverted).
-- Not resolved yet: the extra CPU in the `djs-rs` sequential flood (+0.3–0.5 µs per event)
-  is larger than the shard's own +30–80 ns. A profiler (`perf`) is needed to find it.
+- The table above is unpinned; the profiling below shows it mostly measures where the OS
+  puts the threads, not the code.
+
+**Profiling (`perf` 7.3, both builds with `debug = true` and frame pointers, `cycles:u` /
+`instructions:u`):**
+
+- **Fast and slow mode = P-cores and E-cores.** In unpinned `djs-rs` sequential floods, the
+  fast "before" runs (565 000–585 000 events/s) spend 7.3–7.4 G cycles on P-cores and
+  0.8 G on E-cores; the slow ones (and the current build, 353 000 events/s) spend 7.0 G on
+  E-cores and 3.2 G on P-cores. `perf stat` shows the same split in instructions: a fast run
+  executes 41 G instructions, a slow one 63 G (in either build) — the extra work is idle
+  runtime workers spinning on the slower cores, not djs-rs code.
+- **Pinned to the same cores, the builds execute the same work:**
+
+  | Pinned to | Flood | Before Phase 4 | Now | Instructions (whole process) |
+  |---|---|---:|---:|---:|
+  | CPU 0–3 (2 P-cores + HT) | `djs-rs` sequential | 531 000–558 000 | 510 000–530 000 | 28.1 G vs 28.1–28.2 G |
+  | CPU 4–11 (8 E-cores) | `djs-rs` sequential | 319 000–325 000 | 305 000–310 000 | 28.1 G vs 28.1–28.2 G |
+  | CPU 0 + 2 (2 P-cores, no HT) | `djs-rs` sequential | 532 000–571 000 | 537 000–577 000 | — |
+  | CPU 0 + 2 | `djs-gateway` plain | 554 000–611 000 | 518 000–565 000 | 27.30 G vs 27.35–27.37 G |
+
+  With the shard and the mock server on separate P-cores, the `Client` flood shows **no
+  regression**. The gateway flood keeps a 3–8 % gap: +50–70 instructions per event (+0.2 %)
+  and +1.5–3 % shard thread CPU (25–50 ns of ~1 600 ns).
+- **No hot spot.** A per-symbol diff of the shard thread (pinned, 4 kHz sampling) spreads the
+  difference over serde_json and model deserializers that Phase 4 did not touch (±75 M
+  cycles each way, i.e. code layout after fat LTO); `Shard::step` itself costs the same
+  (218 vs 195 M cycles).
+- The likely source of the extra instructions is the sixth `select!` branch in `Shard::step`
+  (the held command). Disabling the empty branches with `select!` preconditions instead of
+  polling `optional(None)` was tried: no change in instructions or throughput (reverted).
+- **Conclusion:** Phase 4 costs at most 1.5–3 % shard CPU on the hottest path; the larger
+  unpinned swings are P-core/E-core placement on this hybrid CPU. A/B runs on this laptop
+  must pin both builds to the same cores (C-072).
 

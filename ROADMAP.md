@@ -78,7 +78,7 @@ just with narrow scope.
 - [ ] Resharding while running (open question)
 - [x] Gateway commands: any command through `MessageSender::command`; presence kept across
       sessions (D-148). Member/soundboard collectors and voice state helpers in Phase 6 (D-149)
-- [ ] Mock gateway tests, benchmarks
+- [x] Mock gateway tests, benchmarks and extreme-load tests (`docs/PERFORMANCE.md`, Phase 4)
 
 ## Phase 5 — `djs-cache`
 - [ ] Cache trait (pluggable backend) + DashMap default backend

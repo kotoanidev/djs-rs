@@ -9,9 +9,11 @@ D-041).
 **Phase 2 — full `djs-model` coverage: ✅ done** (D-039; benchmarks + stress tests done).
 **Phase 3 — full `djs-rest` coverage: ✅ done 2026-11-12** (every documented REST route, OAuth2,
 CDN URLs; benchmarks + extreme-load tests in `docs/PERFORMANCE.md`).
-**Phase 4 — full `djs-gateway` coverage: in progress** — steps 1–5 done (send limit,
-IDENTIFY queue + sharding, presence, zlib-stream, JSON parsers measured); next is step 6, the
-Phase 4 benchmarks and extreme-load tests (see "Next step" below).
+**Phase 4 — full `djs-gateway` coverage: ✅ done 2026-11-12** (send limit, IDENTIFY queue +
+sharding, presence, zlib-stream, JSON parsers measured; benchmarks + extreme-load tests and a
+`perf`-profiled A/B in `docs/PERFORMANCE.md`). Left open on purpose: zero-copy parsing (no
+measured need after D-150) and resharding while running (open question).
+**Next: Phase 5 — `djs-cache`** (needs the owner's decisions first, see "Next step").
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-075 in `docs/DECISIONS.md`; Claude defaults C-001 …
@@ -241,7 +243,7 @@ Phase 4 benchmarks and extreme-load tests (see "Next step" below).
   end of Phase 2, run the decode benches back-to-back against the Phase 1 commit `65210f8`
   (git worktree) and record the comparison in `docs/PERFORMANCE.md`.
 
-## Next step — Phase 4 (`djs-gateway` full coverage, ROADMAP)
+## Phase 4 steps (`djs-gateway` full coverage) — all done
 Decisions taken 2026-11-12: D-140 (zlib-stream = `flate2` + `zlib-rs`), D-141 (shard factory
 + shared IDENTIFY queue, no djs-rest dependency), D-142 (commands over 120/60 s wait; heartbeats
 reserved), D-143 (order below). One commit per step:
@@ -265,17 +267,21 @@ reserved), D-143 (order below). One commit per step:
    serde_json (alternating groups, pinned cores, P/E cores, `target-cpu=native`); no clear
    gain, so no feature — serde_json stays; experiment removed (kept in commit `af58a18`),
    results in `docs/PERFORMANCE.md`.
-6. **Benchmarks + extreme-load tests** (D-041) — in progress. Done: `djs-gateway/benches/
-   gateway.rs` (command, update_presence, create_shards, identify turn), stress tests
-   `thousand_shards_*`, `hundred_shards_long_streams_*`, `send_limit_in_real_time`,
-   `type_sizes`, Discord-like compression parameters (C-071); results in
-   `docs/PERFORMANCE.md` ("Phase 4"); djs-rs `Client` stress with 16 shards (5.1–5.5× one
-   shard). **Open:** an A/B against `d9cffea` shows a throughput regression on loopback
-   (gateway −8…−20 %, djs-rs sequential up to −30 %, `docs/PERFORMANCE.md` "A/B against the
-   start of Phase 4"); the shard's own CPU grew only 1–5 %. Asked the owner how to proceed
-   (profiling needs `perf`, not installed). Phase 4 is done once this is settled.
+6. ✅ **Benchmarks + extreme-load tests** (D-041): `djs-gateway/benches/gateway.rs`, stress
+   tests `thousand_shards_*`, `hundred_shards_long_streams_*`, `send_limit_in_real_time`,
+   `type_sizes`, Discord-like compression (C-071), djs-rs `Client` with 16 shards (5.1–5.5×
+   one shard). The A/B against `d9cffea` was profiled with `perf`: the large unpinned drop is
+   P-core/E-core placement; pinned, the `Client` flood shows no regression and the gateway
+   flood +1.5–3 % shard CPU (C-072, `docs/PERFORMANCE.md` "A/B against the start of Phase 4").
+
+## Next step — Phase 5 (`djs-cache`, ROADMAP)
+Ask the owner first (significant decisions): cache backend and the DashMap dependency, the
+cache trait shape, which resources are cached by default, size limits / sweepers, how the
+djs-rs `Client` exposes the cache, and the step order. Then implement step by step, with
+benchmarks + extreme-load tests at the end (D-041). Re-run the `docs/VS_NODE.md` showcase
+once the cache lands.
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON
   body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").
 
 ## Blocked on the owner
-- Nothing.
+- Phase 5 decisions (see "Next step — Phase 5").

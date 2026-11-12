@@ -2042,6 +2042,15 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - Memory per shard is measured with each test in its own process: running them one after
   another in one process carries the allocator's retained memory into the next baseline.
 
+### C-072 — A/B performance runs pin both builds to the same cores
+- On the development laptop (i7-1355U: CPU 0–3 = 2 P-cores with HT at 5 GHz, CPU 4–11 =
+  8 E-cores at 3.7 GHz), unpinned stress runs land on P-cores or E-cores by chance, which
+  moved single-shard throughput by up to 40 % between identical runs (`perf`, Phase 4).
+- Comparisons between commits therefore run both builds alternately, pinned with `taskset`
+  to the same cores (`0,2`: two P-cores without HT siblings, or `0-3`, or `4-11`), and also
+  compare `perf stat` instruction counts, which do not depend on placement. Absolute
+  numbers in `docs/PERFORMANCE.md` stay unpinned unless a section says otherwise.
+
 ---
 
 ## Open questions (to ask the owner when relevant)
