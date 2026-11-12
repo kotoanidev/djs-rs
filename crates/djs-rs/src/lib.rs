@@ -8,6 +8,7 @@ mod error;
 pub mod event;
 pub mod ext;
 mod handler;
+pub mod manager;
 
 pub use self::{
     client::{Client, ClientBuilder, EventStream, HandlerMode, Shards},
@@ -48,6 +49,8 @@ pub use djs_collection as collection;
 /// ```
 pub mod prelude {
     pub use crate::{
-        Client, Context, Events, HandlerError, ext::MessageExt, model::gateway::Intents,
+        Client, Context, Events, HandlerError,
+        ext::{ChannelExt, GuildExt, MemberExt, MessageExt, UserExt},
+        model::gateway::Intents,
     };
 }

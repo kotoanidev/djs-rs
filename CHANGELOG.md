@@ -8,6 +8,15 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-rs` managers and structure methods (Phase 8 step 2b, D-229–D-233, C-093):
+  `ctx.guilds()`, `channels()`, `users()`, `members(guild)`, `messages(channel)`,
+  `roles(guild)` and `bans(guild)` in `djs_rs::manager`. `fetch(id)` reads the cache first
+  and caches what Discord returns (`.force()` skips the cache, `.is_cached()` tells
+  beforehand); lists are `Collection`s in Discord's order; members can be edited, timed out,
+  renamed, given and stripped of roles, kicked and banned; messages sent, edited, deleted,
+  bulk-deleted, reacted to, pinned, crossposted and turned into threads. The extension traits
+  `MessageExt`, `ChannelExt`, `UserExt`, `MemberExt` and `GuildExt` (in the prelude) offer
+  the same on the model types, the cached types and the event payloads.
 - `djs-cache` REST write API (Phase 8 step 2a, D-230, D-233): `Cache::store_user`,
   `store_member`, `store_message`, `store_channel`, `store_role` and `store_guild` convert an
   object received from the REST API to its cached form, store it when the resource is
@@ -25,6 +34,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   fires once per login. Payloads are only built for events someone listens to.
 
 ### Changed
+- `djs-rs` (breaking): `MessageExt::reply` returns the sent message as cached,
+  `Arc<CachedMessage>`, instead of `Message` (C-093).
 - `djs-rs`: `Dispatch` has one variant per event (replacing `Ready` / `MessageCreate` /
   `Resumed`), `Dispatch::name` returns discord.js' event name (`"messageCreate"`), and
   `ClientReady` fires once instead of at every shard's `READY` (`ShardReady` does that).

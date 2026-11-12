@@ -3310,6 +3310,38 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   `taskset -c 0,2` (C-072); `perf record -e cycles:u` works without root
   (`perf_event_paranoid` = 2) and compares the profiles.
 
+### C-093 — Phase 8 managers and structure methods: details of D-229–D-233
+- **Managers** (`djs_rs::manager`) are `Copy` values holding `&Context` (and the guild or
+  channel ID); their methods consume `self`, so `ctx.members(guild).kick(user, None).await`
+  needs no binding. Each has `cache()` (the cache view, `None` without a cache), and the
+  scoped ones `guild_id()` / `channel_id()`.
+- **`fetch(id)` returns a `Fetch` builder** that reads the cache when `fetch` is called
+  (not when awaited), has `force()` and `is_cached()`, and implements `IntoFuture`: a cache
+  hit allocates nothing, the REST future is boxed only when it runs. `GuildManager::fetch`
+  asks Discord `with_counts`, so a guild the cache does not hold gets its approximate member
+  count.
+- **Naming**: lists are uniformly `list` (discord.js overloads `fetch()` without an ID);
+  actions take discord.js' names in snake case (`kick`, `ban`, `unban`, `timeout`,
+  `set_nickname`, `add_role`, `remove_role`, `send`, `edit`, `delete`, `bulk_delete`,
+  `react`, `pin`, `unpin`, `start_thread`, `crosspost`, `send_typing`, `create_dm`).
+  Audit-log reasons are a trailing `Option<&str>` where Discord accepts one.
+- **Created and edited objects go through `Cache::store_*` too**: `send`, `edit`,
+  `crosspost`, member edits, `create_dm` and `start_thread` return the cached type in an
+  `Arc`, like `fetch`. **Breaking**: `MessageExt::reply` returns `Arc<CachedMessage>`
+  instead of `Message`.
+- **Bans** are never cached: `BanManager` returns the `djs-model` `Ban`, and its `fetch`
+  always asks Discord (`is_cached()` is `false`). `MemberManager::ban` / `unban` delegate to
+  it (discord.js' `GuildMemberManager#ban`).
+- **Extension traits** (`MessageExt`, `ChannelExt`, `UserExt`, `MemberExt`, `GuildExt`) have
+  default methods over a sealed trait giving the IDs, delegate to the managers, and are
+  implemented for the model and the cached types. `MemberExt` is implemented for
+  `CachedMember` and the `GuildMemberAdd` / `GuildMemberUpdate` payloads, because the model
+  `Member` does not carry its guild. `GuildExt::leave` calls Leave Guild directly.
+- **`UserManager::send` opens the DM channel every time** (Create DM; Discord returns the
+  existing channel): the cache has no user → DM channel index to skip the request.
+- Tests: `tests/managers.rs` — a routing mock REST API and a gateway that only sends `READY`;
+  the `ClientReady` handler hands its `Context` to the test.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

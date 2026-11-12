@@ -3,9 +3,9 @@
 A high-performance, discord.js-style framework for building Discord bots in Rust.
 
 > **Status:** pre-alpha. A working end-to-end bot: client with automatic sharding, every
-> discord.js event (with the previous state from the cache), replies, presence and an
-> optional cache. The full discord.js surface arrives in
-> later phases — see the [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
+> discord.js event (with the previous state from the cache), managers for guilds, channels,
+> users, members, messages, roles and bans with methods on the structures, presence and an
+> optional cache. The full discord.js surface arrives in later phases — see the [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
 
 **discord.js counterpart:** `discord.js`
 
@@ -85,9 +85,42 @@ Handlers run concurrently in their own tokio tasks by default (like discord.js);
 `HandlerMode::Sequential` for strictly ordered processing. If you prefer an explicit loop,
 `client.events()` returns a stream of every event (all but `Raw`).
 
+## Managers and structure methods
+
+The operations of a resource live on a manager reached from the handler `Context`:
+`ctx.guilds()`, `ctx.channels()`, `ctx.users()`, `ctx.members(guild)`, `ctx.messages(channel)`,
+`ctx.roles(guild)` and `ctx.bans(guild)` (discord.js' `client.guilds`, `guild.members`, …).
+
+- `fetch(id)` returns the cached value without a request, and asks Discord otherwise; the
+  answer is cached. `.force()` always asks Discord; `.is_cached()` tells beforehand.
+- Lists (`ctx.roles(guild).list()`, `ctx.messages(channel).list(&query)`, …) are
+  `Collection`s in Discord's order.
+- Managers return the type the cache keeps, behind an `Arc` (`Arc<CachedMember>`,
+  `Arc<CachedMessage>`, `Arc<Channel>`, …), whether the value came from the cache or from
+  Discord, and with or without a cache. Bans, which are never cached, are `djs-model` types.
+
 Structures stay plain data; behaviour such as `msg.reply(&ctx, …)` comes from extension traits
-in the prelude that take the handler `Context` explicitly — no client reference is stored in
-every structure.
+in the prelude (`MessageExt`, `ChannelExt`, `UserExt`, `MemberExt`, `GuildExt`) that take the
+`Context` explicitly — no client reference is stored in every structure. They work on the
+model types, the cached types and the event payloads that dereference to them.
+
+```rust,no_run
+use djs_rs::{model::util::Timestamp, prelude::*};
+
+fn moderate(client: &Client) {
+    client.on(Events::MessageCreate, |ctx, msg| async move {
+        let Some(guild_id) = msg.guild_id else { return Ok(()) };
+        if msg.content.contains("discord.gg/") {
+            msg.delete(&ctx).await?;
+            let member = ctx.members(guild_id).fetch(msg.author.id).await?;
+            let in_ten_minutes = Timestamp::from_unix_secs(Timestamp::now().as_unix_secs() + 600);
+            member.timeout(&ctx, in_ten_minutes, Some("invite link")).await?;
+            msg.author.send(&ctx, "Invite links are not allowed here.").await?;
+        }
+        Ok(())
+    });
+}
+```
 
 ## The cache
 

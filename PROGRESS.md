@@ -447,11 +447,22 @@ fields with `Deref` to `new`). Steps:
       (convert, store when enabled, return the stored `Arc`; tests `tests/store.rs`).
       Without a cache, the managers convert through a private cache with every resource
       disabled.
-   b. **Next:** the first managers (guilds, channels, members, messages, roles, bans, users:
-      `crates/djs-rs/src/manager/`, `Fetch` builder with `force()` implementing
-      `IntoFuture`, lists as `Collection`) and the message / channel / member / user methods
-      (extension traits for model and cached types); tests with the mock REST API.
-   c. The other resources, one batch per commit. d. Benchmarks + extreme-load tests (D-041).
+   b. ✅ The first managers (C-093): `crates/djs-rs/src/manager/{mod.rs (Fetch builder with
+      `force` / `is_cached`, `IntoFuture`; the context's `store_*` helpers; the accessors
+      `ctx.guilds()` … `ctx.bans(guild)`), guild.rs, channel.rs, user.rs, member.rs,
+      message.rs, role.rs, ban.rs}`; `src/ext.rs` (`MessageExt`, `ChannelExt`, `UserExt`,
+      `MemberExt`, `GuildExt` over sealed ID traits, for model + cached types); tests
+      `tests/managers.rs` (routing mock REST API, `Context` from the `ClientReady` handler).
+      `reply` now returns `Arc<CachedMessage>` (breaking, CHANGELOG).
+   c. **Next:** the other resources, one batch per commit, the most used first (D-232):
+      (1) writes on the existing resources — channels create / edit / delete and permission
+      overwrites, roles create / edit / delete / positions, guild edit, member search /
+      prune, reactions (list users, remove); (2) emojis, stickers, invites, webhooks;
+      (3) threads and thread members, scheduled events, stage instances, soundboard;
+      (4) audit log, auto moderation, integrations, application commands. Each with methods
+      on the structures where discord.js has them, and tests in `tests/managers.rs`.
+   d. Benchmarks + extreme-load tests (D-041): `fetch` hit vs miss, the REST write-back, a
+      flood of handler `reply`s through the mock API.
 3. Interactions. 4. Collectors and `await_*`. 5. Partials and intents guidance. 6. Examples.
 
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON
