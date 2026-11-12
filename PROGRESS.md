@@ -434,12 +434,15 @@ fields with `Deref` to `new`). Steps:
       cache update, Raw, previous state, guild availability tracking, list diffs; payloads only
       for wanted events), `client.rs` (shard loop: lifecycle events, replay count,
       `ClientReady` once; `emit`); tests `tests/events.rs` (scripted mock gateway).
-   b. **Next:** benchmarks + extreme-load tests of the dispatch path (D-041): the cost per
-      `MESSAGE_CREATE` / `MESSAGE_UPDATE` with and without handlers and a cache, `Raw`, the
-      emoji diff of a large list, against the Phase 5 numbers in `docs/PERFORMANCE.md`
-      (`Client` flood); results in `docs/PERFORMANCE.md`.
-2. Structures with methods (extension traits) and managers (fetch / cache semantics; ask the
-   open question "`Collection` in the cache and the client" first).
+   b. ✅ Benchmarks + extreme-load tests (D-041, C-092): `tests/stress.rs` gained update /
+      `Raw` / unwatched floods; A/B against `e65961a` pinned to two P-cores: −2.4 % (+45 ns
+      per event, spread bookkeeping, same `perf` profile); results in `docs/PERFORMANCE.md`
+      ("Phase 8 — djs-rs events").
+2. **Next:** structures with methods (extension traits, D-220) and managers (fetch / cache
+   semantics). Ask the owner first: the managers' API (`ctx.guilds().fetch(id)`-style
+   managers vs methods on the `Context`), fetch semantics (cache first, `force`), the open
+   question "`Collection` in the cache and the client", and which structures / methods come
+   first; record D-229+ before implementing.
 3. Interactions. 4. Collectors and `await_*`. 5. Partials and intents guidance. 6. Examples.
 
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON

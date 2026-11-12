@@ -42,20 +42,27 @@ const STEP: Duration = Duration::from_secs(60);
 const HELLO: &str = r#"{"t":null,"s":null,"op":10,"d":{"heartbeat_interval":600000}}"#;
 const READY: &str = r#"{"t":"READY","s":1,"op":0,"d":{"v":10,"user":{"id":"1","username":"stress-bot","discriminator":"0","global_name":null,"avatar":null,"bot":true},"guilds":[],"session_id":"s","resume_gateway_url":"ws://127.0.0.1:9","shard":[0,1],"application":{"id":"1","flags":0}}}"#;
 
-/// A realistic `MESSAGE_CREATE` dispatch (≈ 700 bytes).
-fn message_create(sequence: u64) -> String {
+/// A realistic message dispatch (≈ 700 bytes) named `name` (`MESSAGE_UPDATE` edits one of
+/// 100 messages, so the cache holds a previous version once they were all seen).
+fn message_dispatch(name: &str, sequence: u64) -> String {
+    let id = if name == "MESSAGE_UPDATE" {
+        sequence % 100
+    } else {
+        sequence
+    };
     format!(
-        r#"{{"t":"MESSAGE_CREATE","s":{sequence},"op":0,"d":{{"type":0,"tts":false,"timestamp":"2026-11-10T19:42:07.123000+00:00","pinned":false,"nonce":"{sequence}","mentions":[],"mention_roles":[],"mention_everyone":false,"member":{{"roles":["1100000000000000001","1100000000000000002"],"premium_since":null,"pending":false,"nick":null,"mute":false,"joined_at":"2024-05-01T12:00:00.000000+00:00","flags":0,"deaf":false,"communication_disabled_until":null,"banner":null,"avatar":null}},"id":"{}","flags":0,"embeds":[],"edited_timestamp":null,"content":"stress message number {sequence}","components":[],"channel_id":"1200000000000000020","author":{{"username":"nelly","public_flags":0,"id":"1300000000000000003","global_name":"Nelly","discriminator":"0","clan":null,"avatar_decoration_data":null,"avatar":"a_1269e74af4df7417b13759eae50c83dc"}},"attachments":[],"guild_id":"1400000000000000002"}}}}"#,
-        1_500_000_000_000_000_000_u64 + sequence
+        r#"{{"t":"{name}","s":{sequence},"op":0,"d":{{"type":0,"tts":false,"timestamp":"2026-11-10T19:42:07.123000+00:00","pinned":false,"nonce":"{sequence}","mentions":[],"mention_roles":[],"mention_everyone":false,"member":{{"roles":["1100000000000000001","1100000000000000002"],"premium_since":null,"pending":false,"nick":null,"mute":false,"joined_at":"2024-05-01T12:00:00.000000+00:00","flags":0,"deaf":false,"communication_disabled_until":null,"banner":null,"avatar":null}},"id":"{}","flags":0,"embeds":[],"edited_timestamp":null,"content":"stress message number {sequence}","components":[],"channel_id":"1200000000000000020","author":{{"username":"nelly","public_flags":0,"id":"1300000000000000003","global_name":"Nelly","discriminator":"0","clan":null,"avatar_decoration_data":null,"avatar":"a_1269e74af4df7417b13759eae50c83dc"}},"attachments":[],"guild_id":"1400000000000000002"}}}}"#,
+        1_500_000_000_000_000_000_u64 + id
     )
 }
 
-/// Serves `sessions` sessions that each send `events` `MESSAGE_CREATE` dispatches after READY.
-async fn serve(listener: TcpListener, sessions: u32, events: u64) {
+/// Serves `sessions` sessions that each send `events` `flood` message dispatches after READY,
+/// then one `MESSAGE_UPDATE` if `tail`.
+async fn serve(listener: TcpListener, sessions: u32, events: u64, flood: &'static str, tail: bool) {
     let mut tasks = Vec::new();
     for _ in 0..sessions {
         let (stream, _) = timeout(STEP, listener.accept()).await.unwrap().unwrap();
-        tasks.push(tokio::spawn(serve_session(stream, events)));
+        tasks.push(tokio::spawn(serve_session(stream, events, flood, tail)));
     }
     for task in tasks {
         task.await.unwrap();
@@ -88,7 +95,7 @@ async fn mock_rest(gateway_url: String, shards: u32) -> String {
     base
 }
 
-async fn serve_session(stream: TcpStream, events: u64) {
+async fn serve_session(stream: TcpStream, events: u64, flood: &'static str, tail: bool) {
     stream.set_nodelay(true).unwrap();
     let (_, mut ws) = ServerBuilder::new().accept(stream).await.unwrap();
     ws.send(Message::text(HELLO.to_owned())).await.unwrap();
@@ -102,13 +109,29 @@ async fn serve_session(stream: TcpStream, events: u64) {
         }
     }
     ws.send(Message::text(READY.to_owned())).await.unwrap();
+    if flood == "MESSAGE_UPDATE" {
+        // The messages the updates edit, so that the cache holds a previous version.
+        for id in 0..100 {
+            ws.feed(Message::text(message_dispatch("MESSAGE_CREATE", id)))
+                .await
+                .unwrap();
+        }
+    }
     for sequence in 2..events + 2 {
-        ws.feed(Message::text(message_create(sequence)))
+        ws.feed(Message::text(message_dispatch(flood, sequence)))
             .await
             .unwrap();
         if sequence % 64 == 0 {
             ws.flush().await.unwrap();
         }
+    }
+    if tail {
+        ws.feed(Message::text(message_dispatch(
+            "MESSAGE_UPDATE",
+            events + 2,
+        )))
+        .await
+        .unwrap();
     }
     ws.flush().await.unwrap();
     while let Ok(Some(Ok(_))) = timeout(STEP, ws.next()).await {}
@@ -138,13 +161,35 @@ impl Counter {
     }
 }
 
+/// How many `MessageUpdate`s had a previous message.
+static WITH_OLD: AtomicU64 = AtomicU64::new(0);
+
+/// What the counting handlers of a flood listen to.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Listen {
+    /// `MESSAGE_CREATE`s, as `MessageCreate`.
+    Create,
+    /// `MESSAGE_UPDATE`s, as `MessageUpdate` with the previous message (D-221).
+    Update,
+    /// `MESSAGE_CREATE`s, as `Raw` (a clone of every dispatch).
+    Raw,
+    /// Nothing of the flood: one handler waits for a final `MESSAGE_UPDATE`, so the
+    /// `MESSAGE_CREATE`s are only decoded (and cached), without building a payload.
+    Nothing,
+}
+
 /// Floods a client running `shards` shards with `events` messages in total, registering
 /// `handlers` counting handlers, and optionally consuming the event stream as well. Returns the
 /// elapsed time from `login` to the last handler call.
 ///
 /// One shard connects straight to the mock gateway; more shards go through Get Gateway Bot
 /// (`Shards::Auto`, as a bot does by default), which recommends that many.
+#[expect(
+    clippy::too_many_lines,
+    reason = "a test harness with one branch per listener"
+)]
 async fn run(
+    listen: Listen,
     shards: u32,
     events: u64,
     handlers: u64,
@@ -155,7 +200,18 @@ async fn run(
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let url = format!("ws://{}", listener.local_addr().unwrap());
     let per_shard = events / u64::from(shards);
-    let server = tokio::spawn(serve(listener, shards, per_shard));
+    let flood = if listen == Listen::Update {
+        "MESSAGE_UPDATE"
+    } else {
+        "MESSAGE_CREATE"
+    };
+    let server = tokio::spawn(serve(
+        listener,
+        shards,
+        per_shard,
+        flood,
+        listen == Listen::Nothing,
+    ));
 
     let mut builder = Client::builder("stress-token")
         .intents(Intents::GUILD_MESSAGES)
@@ -174,17 +230,51 @@ async fn run(
             .rest(Rest::builder().token("stress-token").api(rest).build())
             .build()
     };
-    let counter = Counter::new(events * handlers);
+    let target = if listen == Listen::Nothing {
+        u64::from(shards) * handlers
+    } else {
+        events * handlers
+    };
+    let counter = Counter::new(target);
     for _ in 0..handlers {
         let counter = counter.clone();
-        client.on(Events::MessageCreate, move |_ctx, msg| {
-            let counter = counter.clone();
-            async move {
-                std::hint::black_box(&msg.content);
-                counter.hit();
-                Ok(())
+        match listen {
+            Listen::Create => {
+                client.on(Events::MessageCreate, move |_ctx, msg| {
+                    let counter = counter.clone();
+                    async move {
+                        std::hint::black_box(&msg.content);
+                        counter.hit();
+                        Ok(())
+                    }
+                });
             }
-        });
+            Listen::Update | Listen::Nothing => {
+                client.on(Events::MessageUpdate, move |_ctx, update| {
+                    let counter = counter.clone();
+                    async move {
+                        if update.old.is_some() {
+                            WITH_OLD.fetch_add(1, Ordering::Relaxed);
+                        }
+                        std::hint::black_box((&update.content, &update.old));
+                        counter.hit();
+                        Ok(())
+                    }
+                });
+            }
+            Listen::Raw => {
+                client.on(Events::Raw, move |_ctx, raw| {
+                    let counter = counter.clone();
+                    async move {
+                        if let djs_rs::model::gateway::DispatchEvent::MessageCreate(msg) = &*raw {
+                            std::hint::black_box(&msg.content);
+                            counter.hit();
+                        }
+                        Ok(())
+                    }
+                });
+            }
+        }
     }
     let streamed = Counter::new(events);
     if stream {
@@ -248,9 +338,31 @@ async fn measure(
     stream: bool,
     cache: bool,
 ) {
+    measure_listening(
+        name,
+        Listen::Create,
+        events,
+        mode,
+        cache,
+        (shards, handlers, stream),
+    )
+    .await;
+}
+
+/// [`measure`] for a flood whose handlers listen to `listen`; `rest` is (shards, handlers,
+/// stream).
+async fn measure_listening(
+    name: &str,
+    listen: Listen,
+    events: u64,
+    mode: HandlerMode,
+    cache: bool,
+    (shards, handlers, stream): (u32, u64, bool),
+) {
     let before = memory_kib();
     reset_peak_memory();
-    let elapsed = run(shards, events, handlers, mode, stream, cache).await;
+    WITH_OLD.store(0, Ordering::Relaxed);
+    let elapsed = run(listen, shards, events, handlers, mode, stream, cache).await;
     let memory = match (before, memory_kib()) {
         (Some((before, _)), Some((after, peak))) => format!(
             "rss {} → {} MiB, peak {} MiB",
@@ -267,6 +379,12 @@ async fn measure(
         events as f64 / seconds,
         (events * handlers) as f64 / seconds,
     );
+    if listen == Listen::Update {
+        println!(
+            "[stress] {name}: {} of the updates had the previous message",
+            WITH_OLD.load(Ordering::Relaxed)
+        );
+    }
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -391,4 +509,56 @@ async fn flood_1m_concurrent_with_cache() {
         true,
     )
     .await;
+}
+
+/// Phase 8 (D-221): every `MESSAGE_UPDATE` hands the previous message from the cache.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "stress test; run with --release --ignored"]
+async fn flood_1m_message_updates_with_the_previous_state() {
+    for (name, cache) in [
+        ("updates, no cache", false),
+        ("updates + cache (old)", true),
+    ] {
+        measure_listening(
+            name,
+            Listen::Update,
+            1_000_000,
+            HandlerMode::Sequential,
+            cache,
+            (1, 1, false),
+        )
+        .await;
+    }
+}
+
+/// Phase 8 (C-091): a `Raw` handler costs a clone of every dispatch.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "stress test; run with --release --ignored"]
+async fn flood_1m_raw_handler() {
+    measure_listening(
+        "raw",
+        Listen::Raw,
+        1_000_000,
+        HandlerMode::Sequential,
+        false,
+        (1, 1, false),
+    )
+    .await;
+}
+
+/// Phase 8 (C-091): events nobody listens to are decoded (and cached) but no payload is built.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "stress test; run with --release --ignored"]
+async fn flood_1m_unwatched_events() {
+    for (name, cache) in [("unwatched", false), ("unwatched + cache", true)] {
+        measure_listening(
+            name,
+            Listen::Nothing,
+            1_000_000,
+            HandlerMode::Sequential,
+            cache,
+            (1, 1, false),
+        )
+        .await;
+    }
 }

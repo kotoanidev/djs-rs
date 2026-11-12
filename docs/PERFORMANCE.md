@@ -1008,3 +1008,56 @@ the order) and `HashMap` with std's SipHash (the usual default).
   order does not matter; the rustdoc of `remove` says so.
 - **Open, small:** building without a capacity is ~2× `HashMap`'s; `with_capacity` (or
   `collect`, which reserves from the size hint) removes most of it.
+
+## Phase 8 — `djs-rs` events (2026-11-12)
+
+Step 1b of Phase 8 (D-041): the dispatch path after every event was added (D-221–D-228,
+C-091). 1 000 000 dispatches through one shard and one handler (`djs-rs/tests/stress.rs`),
+pinned to two separate P-cores (`taskset -c 0,2`, C-072). The A/B builds the same flood
+tests at `e65961a` (before the events) and at the events commit, alternating runs.
+
+### A/B against the start of Phase 8
+
+| Flood | Before (`e65961a`) | After | Change |
+|---|---:|---:|---:|
+| `Sequential`, no cache (6 runs each, median) | 574 000 events/s (556–581 k) | 560 000 events/s (535–566 k) | −2.4 % (+45 ns per event) |
+| `Sequential`, discord.js' cache (3 runs) | 464 000 (457–497 k) | 459 000 (448–483 k) | −1 % |
+| `Concurrent`, no cache (3 runs) | 341 000 (332–352 k) | 324 000 (315–335 k) | −5 % (noisy) |
+
+- **The cost is spread, not a hot spot.** `perf record -e cycles:u` of both sequential floods
+  shows the same profile (JSON decoding ≈ 60 %, the mock server's formatting, tokio); the
+  client's own code is 3.6 % of the cycles after (shard loop, `emit`, `convert`) against 3.8 %
+  before. The extra work per event is a few nanoseconds each: the lifecycle bookkeeping
+  (shard state, replay count, `READY` tracking), the "does anyone listen" checks and the
+  event buffer. Removing any one of them is below what these runs can resolve (±25 ns), so
+  none was traded for clarity.
+
+### The new paths
+
+| Flood (sequential, 2 runs) | Result |
+|---|---:|
+| `MESSAGE_UPDATE` → `MessageUpdate`, no cache (`old` is `None`) | 529 000–562 000 events/s |
+| `MESSAGE_UPDATE` → `MessageUpdate` with discord.js' cache, `old` present in **every** update (100 cached messages edited in turn) | 458 000–469 000 events/s |
+| `MESSAGE_CREATE` → a `Raw` handler (a clone of every dispatch) | 509 000–526 000 events/s |
+| `MESSAGE_CREATE` nobody listens to (decoded, no payload built) | 578 000–590 000 events/s |
+| The same, applied to discord.js' cache | 487 000–504 000 events/s |
+
+- **The previous state is free once the cache exists:** handing `old` costs what applying the
+  update to the cache costs (an update with the cache runs at the speed of a create with the
+  cache, 448–483 k/s); there is no extra lookup, as the cache returns what it replaced
+  (D-153).
+- **`Raw` costs ≈ 0.1–0.15 µs per event** (a deep clone of the decoded dispatch), paid only
+  when a `Raw` handler is registered (C-091).
+- **Events nobody listens to are ≈ 5 % cheaper than watched ones:** no `Arc` payload and no
+  handler call — only decoding (and the cache, if configured).
+- Peak RSS stays at 6–7 MiB in every flood.
+
+### Findings and optimization candidates (Phase 8, events)
+
+- **Open, small:** the +45 ns of bookkeeping per event could shrink by handing the single
+  event of a dispatch to `emit` without the buffer, and by loading the subscriber flag once
+  per dispatch; to be measured with a micro-benchmark of the dispatch path if the client's
+  share of the profile grows.
+- The emoji / sticker diffs (D-223) run only on `GUILD_EMOJIS_UPDATE` /
+  `GUILD_STICKERS_UPDATE`: one hash map of the cached list, linear in its length (at most a few
+  hundred items), so they were not benchmarked separately.

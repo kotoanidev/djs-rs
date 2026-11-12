@@ -8,6 +8,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-rs` event benchmarks (Phase 8 step 1b, C-092): `MESSAGE_UPDATE` floods with the
+  previous state, a `Raw` handler and unwatched events in `tests/stress.rs`; an A/B against
+  the start of Phase 8 in `docs/PERFORMANCE.md` (−2.4 % on the sequential flood).
 - `djs-rs` events (Phase 8 step 1, D-219–D-228, C-091): `Events` covers every discord.js
   event and every other gateway dispatch, the shard lifecycle (`ShardReady`,
   `ShardReconnecting`, `ShardResume` with the replayed count, `Invalidated`, `ShardError`,

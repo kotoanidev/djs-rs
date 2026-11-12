@@ -3255,6 +3255,15 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   never sent to `events()` streams; unknown dispatches reach streams as `Dispatch::Unknown`.
   No payload is built for an event nobody listens to.
 
+### C-092 — Phase 8 event benchmarks (D-041)
+- The dispatch path is measured end to end with the existing `Client` floods
+  (`djs-rs/tests/stress.rs`), extended with `MESSAGE_UPDATE` floods (100 messages created
+  first, so every update has a previous state; the test prints how many had one), a `Raw`
+  handler, and a flood nobody listens to (one handler waits for a final `MESSAGE_UPDATE`).
+- The A/B builds the previous commit in a scratch `git worktree` and alternates runs pinned to
+  `taskset -c 0,2` (C-072); `perf record -e cycles:u` works without root
+  (`perf_event_paranoid` = 2) and compares the profiles.
+
 ---
 
 ## Open questions (to ask the owner when relevant)
