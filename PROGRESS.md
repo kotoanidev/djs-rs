@@ -454,10 +454,13 @@ fields with `Deref` to `new`). Steps:
       `MemberExt`, `GuildExt` over sealed ID traits, for model + cached types); tests
       `tests/managers.rs` (routing mock REST API, `Context` from the `ClientReady` handler).
       `reply` now returns `Arc<CachedMessage>` (breaking, CHANGELOG).
-   c. **Next:** the other resources, one batch per commit, the most used first (D-232):
-      (1) writes on the existing resources — channels create / edit / delete and permission
-      overwrites, roles create / edit / delete / positions, guild edit, member search /
-      prune, reactions (list users, remove); (2) emojis, stickers, invites, webhooks;
+   c. The other resources, one batch per commit, the most used first (D-232):
+      (1) ✅ writes on the existing resources (D-234 guild channel manager, D-235 typed
+      overwrites, D-236 deletions leave the cache to the gateway; C-094) — channels
+      edit / delete / overwrites, `ctx.guild_channels(guild)` list / create / positions,
+      roles create / edit / delete / positions, guild edit / leave, member search / prune /
+      `edit_me`, reactions (users, remove); tests in `tests/managers.rs`.
+      (2) **Next:** emojis, stickers, invites, webhooks;
       (3) threads and thread members, scheduled events, stage instances, soundboard;
       (4) audit log, auto moderation, integrations, application commands. Each with methods
       on the structures where discord.js has them, and tests in `tests/managers.rs`.

@@ -8,6 +8,13 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-rs` manager writes (Phase 8 step 2c batch 1, D-234–D-236, C-094): channels edited,
+  deleted and given permission overwrites for a role or a member (`OverwriteTarget`); a
+  guild's channels listed, created and reordered through `ctx.guild_channels(guild)` /
+  `guild.channels(&ctx)`; roles created, edited, deleted and reordered; guilds edited and
+  left; members searched and pruned, the bot's own membership edited; reaction users listed
+  and reactions removed. Deletions leave the cache to the gateway event, so the delete event
+  still carries the previous state.
 - `djs-rs` managers and structure methods (Phase 8 step 2b, D-229–D-233, C-093):
   `ctx.guilds()`, `channels()`, `users()`, `members(guild)`, `messages(channel)`,
   `roles(guild)` and `bans(guild)` in `djs_rs::manager`. `fetch(id)` reads the cache first

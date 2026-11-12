@@ -3370,6 +3370,28 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - Tests: `tests/managers.rs` — a routing mock REST API and a gateway that only sends `READY`;
   the `ClientReady` handler hands its `Context` to the test.
 
+### C-094 — Phase 8 step 2c batch 1: writes on the first resources (D-234–D-236)
+- **`ChannelManager`** (by ID): `edit` (Modify Channel), `edit_thread` (Modify Thread),
+  `delete` — returns the model `Channel` Discord sends back, not stored (D-236) —
+  `set_permissions` / `delete_permissions` (D-235). The target is `OverwriteTarget`
+  (`Role(RoleId)` / `Member(UserId)`, `From` both ID types; `@everyone` is
+  `guild_id.cast()`); the overwrite methods convert the target before the request starts, so
+  their futures are `Send` whatever the argument type.
+- **`GuildChannelManager`** (`ctx.guild_channels(guild)`, `GuildExt::channels`): `list`
+  (Get Guild Channels, cached), `create`, `set_positions`. It has no `cache()`: the cache has
+  no per-guild channel view (`ctx.channels().cache()` and `in_guild` list them).
+- **`RoleManager`**: `create`, `edit`, `delete`, `set_positions` (Discord returns every role:
+  a `Collection`, cached). No `RoleExt`: the model `Role` does not know its guild.
+- **`GuildManager`**: `edit`, `leave`; `GuildExt::edit` and `GuildExt::leave` delegate.
+- **`MemberManager`**: `search`, `edit_me` (discord.js `editMe`), `prune_count`
+  (discord.js `prune({ dry: true })`) and `prune`.
+- **`MessageManager`** reactions: `reaction_users` (takes a `ReactionEmoji`; the users are
+  cached), `remove_reaction(message, emoji, Option<UserId>)` (`None`: the bot's own),
+  `remove_emoji_reactions`, `remove_all_reactions`; `MessageExt` gained `remove_reaction`
+  and `remove_all_reactions`, `ChannelExt` gained `edit`, `delete`, `set_permissions` and
+  `delete_permissions`.
+- Left for later batches: Add Guild Member (OAuth2), Modify Group DM, voice states.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

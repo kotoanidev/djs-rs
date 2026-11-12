@@ -28,7 +28,11 @@ use djs_model::{
     guild::Guild,
     id::{ChannelId, GuildId, MessageId, RoleId, UserId},
     message::{Message, MessageReference},
-    rest::{CreateGuildBan, CreateMessage, EditMessage, ModifyGuildMember, StartThreadFromMessage},
+    permissions::Permissions,
+    rest::{
+        CreateGuildBan, CreateMessage, EditMessage, ModifyGuild, ModifyGuildChannel,
+        ModifyGuildMember, StartThreadFromMessage,
+    },
     user::User,
     util::Timestamp,
 };
@@ -36,7 +40,10 @@ use djs_rest::{Error, ReactionEmoji};
 
 use crate::{
     Context,
-    manager::{BanManager, MemberManager, MessageManager, RoleManager},
+    manager::{
+        BanManager, GuildChannelManager, MemberManager, MessageManager, OverwriteTarget,
+        RoleManager,
+    },
 };
 
 /// Actions on a message: [`Message`] or [`CachedMessage`].
@@ -191,6 +198,40 @@ pub trait MessageExt: sealed::Message {
         let (channel_id, message_id) = self.ids();
         ctx.messages(channel_id).crosspost(message_id)
     }
+
+    /// Removes a reaction from this message: the bot's own with `user: None`, or another
+    /// user's ([`MessageManager::remove_reaction`]).
+    ///
+    /// discord.js counterpart: `ReactionUserManager#remove`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    fn remove_reaction<'e, B: Backend>(
+        &self,
+        ctx: &Context<B>,
+        emoji: impl Into<ReactionEmoji<'e>>,
+        user: Option<UserId>,
+    ) -> impl Future<Output = Result<(), Error>> + Send {
+        let (channel_id, message_id) = self.ids();
+        ctx.messages(channel_id)
+            .remove_reaction(message_id, emoji, user)
+    }
+
+    /// Removes every reaction from this message ([`MessageManager::remove_all_reactions`]).
+    ///
+    /// discord.js counterpart: `ReactionManager#removeAll`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    fn remove_all_reactions<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+    ) -> impl Future<Output = Result<(), Error>> + Send {
+        let (channel_id, message_id) = self.ids();
+        ctx.messages(channel_id).remove_all_reactions(message_id)
+    }
 }
 
 impl MessageExt for Message {}
@@ -262,6 +303,75 @@ pub trait ChannelExt: sealed::Channel {
     ) -> impl Future<Output = Result<(), Error>> + Send {
         ctx.messages(self.channel_id())
             .bulk_delete(message_ids, reason)
+    }
+
+    /// Edits this guild channel ([`ChannelManager::edit`](crate::manager::ChannelManager::edit)).
+    ///
+    /// discord.js counterpart: `GuildChannel#edit`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    fn edit<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+        body: &ModifyGuildChannel,
+        reason: Option<&str>,
+    ) -> impl Future<Output = Result<Arc<Channel>, Error>> + Send {
+        ctx.channels().edit(self.channel_id(), body, reason)
+    }
+
+    /// Deletes this channel ([`ChannelManager::delete`](crate::manager::ChannelManager::delete)).
+    ///
+    /// discord.js counterpart: `GuildChannel#delete`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    fn delete<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+        reason: Option<&str>,
+    ) -> impl Future<Output = Result<Channel, Error>> + Send {
+        ctx.channels().delete(self.channel_id(), reason)
+    }
+
+    /// Sets this channel's permission overwrite for a role or a member, replacing it (D-235,
+    /// [`ChannelManager::set_permissions`](crate::manager::ChannelManager::set_permissions)).
+    ///
+    /// discord.js counterpart: `PermissionOverwriteManager#create`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    fn set_permissions<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+        target: impl Into<OverwriteTarget>,
+        allow: Permissions,
+        deny: Permissions,
+        reason: Option<&str>,
+    ) -> impl Future<Output = Result<(), Error>> + Send {
+        ctx.channels()
+            .set_permissions(self.channel_id(), target, allow, deny, reason)
+    }
+
+    /// Removes this channel's permission overwrite for a role or a member
+    /// ([`ChannelManager::delete_permissions`](crate::manager::ChannelManager::delete_permissions)).
+    ///
+    /// discord.js counterpart: `PermissionOverwriteManager#delete`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    fn delete_permissions<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+        target: impl Into<OverwriteTarget>,
+        reason: Option<&str>,
+    ) -> impl Future<Output = Result<(), Error>> + Send {
+        ctx.channels()
+            .delete_permissions(self.channel_id(), target, reason)
     }
 }
 
@@ -497,7 +607,30 @@ pub trait GuildExt: sealed::Guild {
         ctx.bans(self.guild_id())
     }
 
-    /// Makes the bot leave this guild ([Leave Guild](djs_rest::Rest::leave_guild)).
+    /// The manager of this guild's channels as a whole: create, list, positions (D-234).
+    ///
+    /// discord.js counterpart: `Guild#channels`.
+    fn channels<'a, B: Backend>(&self, ctx: &'a Context<B>) -> GuildChannelManager<'a, B> {
+        ctx.guild_channels(self.guild_id())
+    }
+
+    /// Edits this guild's settings ([`GuildManager::edit`](crate::manager::GuildManager::edit)).
+    ///
+    /// discord.js counterpart: `Guild#edit`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    fn edit<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+        body: &ModifyGuild,
+        reason: Option<&str>,
+    ) -> impl Future<Output = Result<Arc<CachedGuild>, Error>> + Send {
+        ctx.guilds().edit(self.guild_id(), body, reason)
+    }
+
+    /// Makes the bot leave this guild ([`GuildManager::leave`](crate::manager::GuildManager::leave)).
     ///
     /// discord.js counterpart: `Guild#leave`.
     ///
@@ -508,7 +641,7 @@ pub trait GuildExt: sealed::Guild {
         &self,
         ctx: &Context<B>,
     ) -> impl Future<Output = Result<(), Error>> + Send {
-        ctx.rest().leave_guild(self.guild_id())
+        ctx.guilds().leave(self.guild_id())
     }
 }
 

@@ -4,8 +4,9 @@ A high-performance, discord.js-style framework for building Discord bots in Rust
 
 > **Status:** pre-alpha. A working end-to-end bot: client with automatic sharding, every
 > discord.js event (with the previous state from the cache), managers for guilds, channels,
-> users, members, messages, roles and bans with methods on the structures, presence and an
-> optional cache. The full discord.js surface arrives in later phases — see the [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
+> users, members, messages, reactions, roles and bans with methods on the structures,
+> presence and an optional cache. The full discord.js surface arrives in later phases — see
+> the [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
 
 **discord.js counterpart:** `discord.js`
 
@@ -88,8 +89,9 @@ Handlers run concurrently in their own tokio tasks by default (like discord.js);
 ## Managers and structure methods
 
 The operations of a resource live on a manager reached from the handler `Context`:
-`ctx.guilds()`, `ctx.channels()`, `ctx.users()`, `ctx.members(guild)`, `ctx.messages(channel)`,
-`ctx.roles(guild)` and `ctx.bans(guild)` (discord.js' `client.guilds`, `guild.members`, …).
+`ctx.guilds()`, `ctx.channels()`, `ctx.guild_channels(guild)`, `ctx.users()`,
+`ctx.members(guild)`, `ctx.messages(channel)`, `ctx.roles(guild)` and `ctx.bans(guild)`
+(discord.js' `client.guilds`, `guild.channels`, `guild.members`, …).
 
 - `fetch(id)` returns the cached value without a request, and asks Discord otherwise; the
   answer is cached. `.force()` always asks Discord; `.is_cached()` tells beforehand.
@@ -98,6 +100,8 @@ The operations of a resource live on a manager reached from the handler `Context
 - Managers return the type the cache keeps, behind an `Arc` (`Arc<CachedMember>`,
   `Arc<CachedMessage>`, `Arc<Channel>`, …), whether the value came from the cache or from
   Discord, and with or without a cache. Bans, which are never cached, are `djs-model` types.
+- Deleting through a manager only sends the request: the cache changes when the gateway
+  event arrives, so the delete event still carries the previous state.
 
 Structures stay plain data; behaviour such as `msg.reply(&ctx, …)` comes from extension traits
 in the prelude (`MessageExt`, `ChannelExt`, `UserExt`, `MemberExt`, `GuildExt`) that take the

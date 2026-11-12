@@ -3,7 +3,10 @@
 use std::{future::Future, sync::Arc};
 
 use djs_cache::{Backend, CacheView, CachedGuild};
-use djs_model::{id::GuildId, rest::GetGuild};
+use djs_model::{
+    id::GuildId,
+    rest::{GetGuild, ModifyGuild},
+};
 use djs_rest::Error;
 
 use super::Fetch;
@@ -60,5 +63,34 @@ impl<'a, B: Backend> GuildManager<'a, B> {
             let guild = ctx.rest().get_guild(guild_id, &query).await?;
             Ok(ctx.store_guild(&guild))
         })
+    }
+    /// Edits a guild's settings ([Modify Guild](djs_rest::Rest::modify_guild)); the result is
+    /// cached.
+    ///
+    /// discord.js counterpart: `GuildManager#edit` / `Guild#edit`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed (it needs `MANAGE_GUILD`).
+    pub async fn edit(
+        self,
+        guild_id: GuildId,
+        body: &ModifyGuild,
+        reason: Option<&str>,
+    ) -> Result<Arc<CachedGuild>, Error> {
+        let guild = self.ctx.rest().modify_guild(guild_id, body, reason).await?;
+        Ok(self.ctx.store_guild(&guild))
+    }
+
+    /// Makes the bot leave a guild ([Leave Guild](djs_rest::Rest::leave_guild)). The cache is
+    /// updated by the `GUILD_DELETE` event that follows (D-236).
+    ///
+    /// discord.js counterpart: `Guild#leave`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed (an owner cannot leave its guild).
+    pub async fn leave(self, guild_id: GuildId) -> Result<(), Error> {
+        self.ctx.rest().leave_guild(guild_id).await
     }
 }

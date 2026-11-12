@@ -37,6 +37,7 @@
 mod ban;
 mod channel;
 mod guild;
+mod guild_channel;
 mod member;
 mod message;
 mod role;
@@ -63,8 +64,14 @@ use djs_model::{
 use djs_rest::Error;
 
 pub use self::{
-    ban::BanManager, channel::ChannelManager, guild::GuildManager, member::MemberManager,
-    message::MessageManager, role::RoleManager, user::UserManager,
+    ban::BanManager,
+    channel::{ChannelManager, OverwriteTarget},
+    guild::GuildManager,
+    guild_channel::GuildChannelManager,
+    member::MemberManager,
+    message::MessageManager,
+    role::RoleManager,
+    user::UserManager,
 };
 use crate::Context;
 
@@ -227,6 +234,14 @@ impl<B: Backend> Context<B> {
     #[must_use]
     pub const fn channels(&self) -> ChannelManager<'_, B> {
         ChannelManager::new(self)
+    }
+
+    /// Returns the manager of a guild's channels as a whole: create, list, positions (D-234).
+    ///
+    /// discord.js counterpart: `Guild#channels`.
+    #[must_use]
+    pub const fn guild_channels(&self, guild_id: GuildId) -> GuildChannelManager<'_, B> {
+        GuildChannelManager::new(self, guild_id)
     }
 
     /// Returns the user manager.

@@ -97,8 +97,33 @@ fn respond(method: &str, path: &str, body: &Value) -> (u16, Value) {
     let segments: Vec<&str> = path.trim_start_matches('/').split('/').collect();
     let unknown = UNKNOWN.to_string();
     let not_found = (404, json!({"message": "Unknown", "code": 10_000}));
+    // The name a create or edit request asked for.
+    let named = |mut value: Value| {
+        if let Some(name) = body.get("name") {
+            value["name"] = name.clone();
+        }
+        value
+    };
     match (method, segments.as_slice()) {
         ("GET", ["guilds", _, "members", id] | ["users", id]) if *id == unknown => not_found,
+        // Routes whose last segment would otherwise be read as an ID.
+        ("GET", ["guilds", _, "members", "search"]) => (200, json!([member("7", &Value::Null)])),
+        ("PATCH", ["guilds", _, "members", "@me"]) => (200, member("1", &body["nick"])),
+        ("GET", ["guilds", _, "prune"]) => (200, json!({"pruned": 3})),
+        ("POST", ["guilds", _, "prune"]) => (200, json!({"pruned": 2})),
+        ("GET", ["guilds", _, "channels"]) => (200, json!([channel("30"), channel("32")])),
+        ("POST", ["guilds", _, "channels"]) => (200, named(channel("33"))),
+        ("POST", ["guilds", _, "roles"]) => (200, named(role("77"))),
+        ("PATCH", ["guilds", _, "roles"]) => (200, json!([role("3"), role("5")])),
+        ("PATCH", ["guilds", _, "roles", id]) => (200, named(role(id))),
+        ("PATCH", ["guilds", _]) => (200, named(guild())),
+        ("PATCH" | "DELETE", ["channels", id]) => (200, named(channel(id))),
+        ("GET", ["channels", _, "messages", _, "reactions", _]) => {
+            (200, json!([user("7"), user("8")]))
+        }
+        ("PATCH", ["guilds", _, "channels"])
+        | ("DELETE", ["guilds", _, "roles", _] | ["channels", _, "messages", _, "reactions", ..])
+        | ("PUT" | "DELETE", ["channels", _, "permissions", _]) => (204, Value::Null),
         ("GET", ["guilds", _, "members", id]) => (200, member(id, &json!("nick"))),
         ("GET", ["guilds", _, "members"]) => (
             200,
@@ -757,6 +782,324 @@ async fn users_and_guilds() {
     assert_eq!(
         (seen.method.as_str(), seen.path.as_str()),
         ("DELETE", "/users/@me/guilds/1400000000000000002")
+    );
+    session.finish().await;
+}
+
+#[tokio::test]
+async fn guild_channels_are_listed_created_and_moved() {
+    use djs_rs::model::rest::{CreateGuildChannel, ModifyGuildChannelPosition};
+
+    let session = Session::start(Some(full_cache())).await;
+    let ctx = &session.ctx;
+    let channels = ctx.guild_channels(GUILD);
+
+    let listed = channels.list().await.unwrap();
+    let ids: Vec<u64> = listed.keys().map(|id| id.get()).collect();
+    assert_eq!(ids, [30, 32]);
+    assert_eq!(
+        ctx.channels().cache().unwrap().in_guild(GUILD).len(),
+        2,
+        "the listed channels are cached"
+    );
+    let created = channels
+        .create(&CreateGuildChannel::new("new-channel"), Some("setup"))
+        .await
+        .unwrap();
+    assert_eq!(created.name(), Some("new-channel"));
+    assert!(ctx.channels().fetch(ChannelId::new(33)).is_cached());
+    channels
+        .set_positions(
+            &[ModifyGuildChannelPosition::new(ChannelId::new(33), 0)],
+            None,
+        )
+        .await
+        .unwrap();
+    let seen: Vec<(String, String, Option<String>)> = session
+        .take()
+        .into_iter()
+        .map(|seen| (seen.method, seen.path, seen.reason))
+        .collect();
+    let base = format!("/guilds/{GUILD}/channels");
+    assert_eq!(
+        seen,
+        [
+            ("GET".into(), base.clone(), None),
+            ("POST".into(), base.clone(), Some("setup".into())),
+            ("PATCH".into(), base, None),
+        ]
+    );
+
+    session.finish().await;
+}
+
+#[tokio::test]
+async fn channel_writes_and_permission_overwrites() {
+    use djs_rs::model::{permissions::Permissions, rest::ModifyGuildChannel};
+
+    let session = Session::start(Some(full_cache())).await;
+    let ctx = &session.ctx;
+    let created = ctx.channels().fetch(ChannelId::new(33)).await.unwrap();
+    session.take();
+
+    // By ID, and on the structure.
+    let mut rename = ModifyGuildChannel::default();
+    rename.name = Some("renamed".into());
+    let renamed = created.edit(ctx, &rename, None).await.unwrap();
+    assert_eq!(renamed.name(), Some("renamed"));
+    let seen = session.one();
+    assert_eq!(
+        (seen.method.as_str(), seen.path.as_str()),
+        ("PATCH", "/channels/33")
+    );
+    assert_eq!(seen.body, json!({"name": "renamed"}));
+    assert_eq!(
+        ctx.channels()
+            .cache()
+            .unwrap()
+            .get(ChannelId::new(33))
+            .unwrap()
+            .name(),
+        Some("renamed")
+    );
+
+    // A role overwrite and a member overwrite, told apart by the ID type (D-235).
+    created
+        .set_permissions(
+            ctx,
+            RoleId::new(5),
+            Permissions::VIEW_CHANNEL,
+            Permissions::SEND_MESSAGES,
+            Some("read only"),
+        )
+        .await
+        .unwrap();
+    let seen = session.one();
+    assert_eq!(
+        (seen.method.as_str(), seen.path.as_str()),
+        ("PUT", "/channels/33/permissions/5")
+    );
+    assert_eq!(
+        seen.body,
+        json!({"allow": "1024", "deny": "2048", "type": 0})
+    );
+    // Discord takes the reason percent-encoded.
+    assert_eq!(seen.reason.as_deref(), Some("read%20only"));
+    ctx.channels()
+        .set_permissions(
+            CHANNEL,
+            UserId::new(7),
+            Permissions::empty(),
+            Permissions::VIEW_CHANNEL,
+            None,
+        )
+        .await
+        .unwrap();
+    let seen = session.one();
+    assert_eq!(seen.path, "/channels/20/permissions/7");
+    assert_eq!(seen.body, json!({"allow": "0", "deny": "1024", "type": 1}));
+    created
+        .delete_permissions(ctx, RoleId::new(5), None)
+        .await
+        .unwrap();
+    let seen = session.one();
+    assert_eq!(
+        (seen.method.as_str(), seen.path.as_str()),
+        ("DELETE", "/channels/33/permissions/5")
+    );
+
+    // Deleting leaves the cache to the CHANNEL_DELETE event (D-236).
+    let deleted = created.delete(ctx, Some("cleanup")).await.unwrap();
+    assert_eq!(deleted.id(), ChannelId::new(33));
+    let seen = session.one();
+    assert_eq!(
+        (seen.method.as_str(), seen.reason.as_deref()),
+        ("DELETE", Some("cleanup"))
+    );
+    assert!(ctx.channels().fetch(ChannelId::new(33)).is_cached());
+    session.finish().await;
+}
+
+#[tokio::test]
+async fn role_and_guild_writes() {
+    use djs_rs::model::rest::{
+        CreateGuildRole, ModifyGuild, ModifyGuildRole, ModifyGuildRolePosition,
+    };
+
+    let session = Session::start(Some(full_cache())).await;
+    let ctx = &session.ctx;
+    let roles = ctx.roles(GUILD);
+    let base = format!("/guilds/{GUILD}");
+
+    let mut body = CreateGuildRole::default();
+    body.name = Some("mods".into());
+    let created = roles.create(&body, Some("staff")).await.unwrap();
+    assert_eq!(
+        (created.id, created.name.as_str()),
+        (RoleId::new(77), "mods")
+    );
+    assert!(roles.fetch(RoleId::new(77)).is_cached());
+    let seen = session.one();
+    assert_eq!(
+        (seen.method.as_str(), seen.path.clone()),
+        ("POST", format!("{base}/roles"))
+    );
+    assert_eq!(seen.body["name"], "mods");
+
+    let mut edit = ModifyGuildRole::default();
+    edit.name = Some("admins".into());
+    let edited = roles.edit(RoleId::new(77), &edit, None).await.unwrap();
+    assert_eq!(edited.name, "admins");
+    assert_eq!(
+        roles.cache().unwrap().get(RoleId::new(77)).unwrap().name,
+        "admins"
+    );
+    assert_eq!(session.one().path, format!("{base}/roles/77"));
+
+    let ordered = roles
+        .set_positions(&[ModifyGuildRolePosition::new(RoleId::new(5), 1)], None)
+        .await
+        .unwrap();
+    let ids: Vec<u64> = ordered.keys().map(|id| id.get()).collect();
+    assert_eq!(ids, [3, 5]);
+    let seen = session.one();
+    assert_eq!(
+        (seen.method.as_str(), seen.body.clone()),
+        ("PATCH", json!([{"id": "5", "position": 1}]))
+    );
+
+    roles.delete(RoleId::new(77), Some("unused")).await.unwrap();
+    let seen = session.one();
+    assert_eq!(
+        (
+            seen.method.as_str(),
+            seen.path.clone(),
+            seen.reason.as_deref()
+        ),
+        ("DELETE", format!("{base}/roles/77"), Some("unused"))
+    );
+    // Removed from the cache by GUILD_ROLE_DELETE, not by the request (D-236).
+    assert!(roles.fetch(RoleId::new(77)).is_cached());
+
+    let guild = ctx.guilds().fetch(GUILD).await.unwrap();
+    session.take();
+    let mut body = ModifyGuild::default();
+    body.name = Some("Renamed".into());
+    let edited = guild.edit(ctx, &body, Some("rebrand")).await.unwrap();
+    assert_eq!(edited.name, "Renamed");
+    assert_eq!(
+        ctx.guilds().cache().unwrap().get(GUILD).unwrap().name,
+        "Renamed"
+    );
+    let seen = session.one();
+    assert_eq!(
+        (
+            seen.method.as_str(),
+            seen.path.clone(),
+            seen.reason.as_deref()
+        ),
+        ("PATCH", base, Some("rebrand"))
+    );
+    assert_eq!(guild.channels(ctx).guild_id(), GUILD);
+    session.finish().await;
+}
+
+#[tokio::test]
+async fn member_search_prune_and_the_bots_own_membership() {
+    use djs_rs::model::rest::{
+        BeginGuildPrune, GetGuildPruneCount, ModifyCurrentMember, SearchGuildMembers,
+    };
+
+    let session = Session::start(Some(full_cache())).await;
+    let ctx = &session.ctx;
+    let members = ctx.members(GUILD);
+    let base = format!("/guilds/{GUILD}");
+
+    let found = members
+        .search(&SearchGuildMembers::new("user"))
+        .await
+        .unwrap();
+    assert_eq!(found.keys().copied().collect::<Vec<_>>(), [UserId::new(7)]);
+    assert!(members.fetch(UserId::new(7)).is_cached());
+    assert_eq!(session.one().path, format!("{base}/members/search"));
+
+    let mut me = ModifyCurrentMember::default();
+    me.nick = djs_rs::model::util::Patch::Set("bot".into());
+    let bot = members.edit_me(&me, None).await.unwrap();
+    assert_eq!(
+        (bot.user.id, bot.nick.as_deref()),
+        (UserId::new(1), Some("bot"))
+    );
+    let seen = session.one();
+    assert_eq!(
+        (seen.method.as_str(), seen.path.clone()),
+        ("PATCH", format!("{base}/members/@me"))
+    );
+    assert_eq!(seen.body, json!({"nick": "bot"}));
+
+    assert_eq!(
+        members
+            .prune_count(&GetGuildPruneCount::default())
+            .await
+            .unwrap(),
+        3
+    );
+    assert_eq!(session.one().method, "GET");
+    let pruned = members
+        .prune(&BeginGuildPrune::default(), Some("inactive"))
+        .await
+        .unwrap();
+    assert_eq!(pruned, Some(2));
+    let seen = session.one();
+    assert_eq!(
+        (
+            seen.method.as_str(),
+            seen.path.clone(),
+            seen.reason.as_deref()
+        ),
+        ("POST", format!("{base}/prune"), Some("inactive"))
+    );
+    session.finish().await;
+}
+
+#[tokio::test]
+async fn reactions_are_listed_and_removed() {
+    use djs_rs::model::rest::GetReactions;
+
+    let session = Session::start(Some(full_cache())).await;
+    let ctx = &session.ctx;
+    let messages = ctx.messages(CHANNEL);
+    let message = MessageId::new(50);
+    let fire = "/channels/20/messages/50/reactions/%F0%9F%94%A5";
+
+    let users = messages
+        .reaction_users(message, "🔥".into(), &GetReactions::default())
+        .await
+        .unwrap();
+    assert_eq!(users.keys().map(|id| id.get()).collect::<Vec<_>>(), [7, 8]);
+    assert!(ctx.users().fetch(UserId::new(8)).is_cached());
+    assert_eq!(session.one().path, fire);
+
+    messages.remove_reaction(message, "🔥", None).await.unwrap();
+    assert_eq!(session.one().path, format!("{fire}/@me"));
+    messages
+        .remove_reaction(message, "🔥", Some(UserId::new(7)))
+        .await
+        .unwrap();
+    assert_eq!(session.one().path, format!("{fire}/7"));
+    messages
+        .remove_emoji_reactions(message, "🔥")
+        .await
+        .unwrap();
+    assert_eq!(session.one().path, fire);
+
+    let cached = messages.fetch(message).await.unwrap();
+    session.take();
+    cached.remove_all_reactions(ctx).await.unwrap();
+    let seen = session.one();
+    assert_eq!(
+        (seen.method.as_str(), seen.path.as_str()),
+        ("DELETE", "/channels/20/messages/50/reactions")
     );
     session.finish().await;
 }

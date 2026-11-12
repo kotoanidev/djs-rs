@@ -6,7 +6,10 @@ use djs_cache::{Backend, CachedMember, GuildView};
 use djs_collection::Collection;
 use djs_model::{
     id::{GuildId, RoleId, UserId},
-    rest::{CreateGuildBan, ListGuildMembers, ModifyGuildMember},
+    rest::{
+        BeginGuildPrune, CreateGuildBan, GetGuildPruneCount, ListGuildMembers, ModifyCurrentMember,
+        ModifyGuildMember, SearchGuildMembers,
+    },
     util::{Patch, Timestamp},
 };
 use djs_rest::Error;
@@ -241,5 +244,88 @@ impl<'a, B: Backend> MemberManager<'a, B> {
     /// Returns the REST error if the request failed (for example, the user is not banned).
     pub async fn unban(self, user_id: UserId, reason: Option<&str>) -> Result<(), Error> {
         self.ctx.bans(self.guild_id).remove(user_id, reason).await
+    }
+    /// Members whose username or nickname starts with a query ([Search Guild
+    /// Members](djs_rest::Rest::search_guild_members)); the members are cached.
+    ///
+    /// discord.js counterpart: `GuildMemberManager#search`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    pub async fn search(
+        self,
+        query: &SearchGuildMembers,
+    ) -> Result<Collection<UserId, Arc<CachedMember>>, Error> {
+        let members = self
+            .ctx
+            .rest()
+            .search_guild_members(self.guild_id, query)
+            .await?;
+        Ok(members
+            .iter()
+            .map(|member| {
+                let member = self.ctx.store_member(self.guild_id, member);
+                (member.user.id, member)
+            })
+            .collect())
+    }
+
+    /// Edits the bot's own membership: its nickname and guild profile ([Modify Current
+    /// Member](djs_rest::Rest::modify_current_member)); the result is cached.
+    ///
+    /// discord.js counterpart: `GuildMemberManager#editMe`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed (it needs `CHANGE_NICKNAME` for the
+    /// nickname).
+    pub async fn edit_me(
+        self,
+        body: &ModifyCurrentMember,
+        reason: Option<&str>,
+    ) -> Result<Arc<CachedMember>, Error> {
+        let member = self
+            .ctx
+            .rest()
+            .modify_current_member(self.guild_id, body, reason)
+            .await?;
+        Ok(self.ctx.store_member(self.guild_id, &member))
+    }
+
+    /// How many members a prune would kick ([Get Guild Prune
+    /// Count](djs_rest::Rest::get_guild_prune_count)).
+    ///
+    /// discord.js counterpart: `GuildMemberManager#prune` with `dry: true`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed (it needs `MANAGE_GUILD` and
+    /// `KICK_MEMBERS`).
+    pub async fn prune_count(self, query: &GetGuildPruneCount) -> Result<u32, Error> {
+        self.ctx
+            .rest()
+            .get_guild_prune_count(self.guild_id, query)
+            .await
+    }
+
+    /// Kicks inactive members ([Begin Guild Prune](djs_rest::Rest::begin_guild_prune)),
+    /// returning how many were kicked unless `compute_prune_count` was `false`.
+    ///
+    /// discord.js counterpart: `GuildMemberManager#prune`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed (it needs `MANAGE_GUILD` and
+    /// `KICK_MEMBERS`).
+    pub async fn prune(
+        self,
+        body: &BeginGuildPrune,
+        reason: Option<&str>,
+    ) -> Result<Option<u32>, Error> {
+        self.ctx
+            .rest()
+            .begin_guild_prune(self.guild_id, body, reason)
+            .await
     }
 }

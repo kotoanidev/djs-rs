@@ -7,6 +7,7 @@ use djs_collection::Collection;
 use djs_model::{
     guild::Role,
     id::{GuildId, RoleId},
+    rest::{CreateGuildRole, ModifyGuildRole, ModifyGuildRolePosition},
 };
 use djs_rest::Error;
 
@@ -79,6 +80,88 @@ impl<'a, B: Backend> RoleManager<'a, B> {
     /// Returns the REST error if the request failed.
     pub async fn list(self) -> Result<Collection<RoleId, Arc<Role>>, Error> {
         let roles = self.ctx.rest().get_guild_roles(self.guild_id).await?;
+        Ok(roles
+            .iter()
+            .map(|role| (role.id, self.ctx.store_role(self.guild_id, role)))
+            .collect())
+    }
+    /// Creates a role ([Create Guild Role](djs_rest::Rest::create_guild_role)); it is cached.
+    ///
+    /// discord.js counterpart: `RoleManager#create`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed (it needs `MANAGE_ROLES`).
+    pub async fn create(
+        self,
+        body: &CreateGuildRole,
+        reason: Option<&str>,
+    ) -> Result<Arc<Role>, Error> {
+        let role = self
+            .ctx
+            .rest()
+            .create_guild_role(self.guild_id, body, reason)
+            .await?;
+        Ok(self.ctx.store_role(self.guild_id, &role))
+    }
+
+    /// Edits a role ([Modify Guild Role](djs_rest::Rest::modify_guild_role)); the result is
+    /// cached.
+    ///
+    /// discord.js counterpart: `RoleManager#edit` / `Role#edit`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed (the role must be below the bot's highest
+    /// role).
+    pub async fn edit(
+        self,
+        role_id: RoleId,
+        body: &ModifyGuildRole,
+        reason: Option<&str>,
+    ) -> Result<Arc<Role>, Error> {
+        let role = self
+            .ctx
+            .rest()
+            .modify_guild_role(self.guild_id, role_id, body, reason)
+            .await?;
+        Ok(self.ctx.store_role(self.guild_id, &role))
+    }
+
+    /// Deletes a role ([Delete Guild Role](djs_rest::Rest::delete_guild_role)). The cache is
+    /// updated by the `GUILD_ROLE_DELETE` event that follows (D-236).
+    ///
+    /// discord.js counterpart: `RoleManager#delete` / `Role#delete`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    pub async fn delete(self, role_id: RoleId, reason: Option<&str>) -> Result<(), Error> {
+        self.ctx
+            .rest()
+            .delete_guild_role(self.guild_id, role_id, reason)
+            .await
+    }
+
+    /// Moves roles ([Modify Guild Role
+    /// Positions](djs_rest::Rest::modify_guild_role_positions)), returning every role of the
+    /// guild in Discord's order; the roles are cached.
+    ///
+    /// discord.js counterpart: `RoleManager#setPositions`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    pub async fn set_positions(
+        self,
+        positions: &[ModifyGuildRolePosition],
+        reason: Option<&str>,
+    ) -> Result<Collection<RoleId, Arc<Role>>, Error> {
+        let roles = self
+            .ctx
+            .rest()
+            .modify_guild_role_positions(self.guild_id, positions, reason)
+            .await?;
         Ok(roles
             .iter()
             .map(|role| (role.id, self.ctx.store_role(self.guild_id, role)))

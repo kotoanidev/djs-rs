@@ -2,13 +2,14 @@
 
 use std::{future::Future, sync::Arc};
 
-use djs_cache::{Backend, CachedMessage, ChannelView};
+use djs_cache::{Backend, CachedMessage, CachedUser, ChannelView};
 use djs_collection::Collection;
 use djs_model::{
     channel::Channel,
-    id::{ChannelId, MessageId},
+    id::{ChannelId, MessageId, UserId},
     rest::{
-        BulkDeleteMessages, CreateMessage, EditMessage, GetChannelMessages, StartThreadFromMessage,
+        BulkDeleteMessages, CreateMessage, EditMessage, GetChannelMessages, GetReactions,
+        StartThreadFromMessage,
     },
 };
 use djs_rest::{Error, ReactionEmoji};
@@ -271,5 +272,100 @@ impl<'a, B: Backend> MessageManager<'a, B> {
             .crosspost_message(self.channel_id, message_id)
             .await?;
         Ok(self.ctx.store_message(&message))
+    }
+    /// The users who reacted to a message with an emoji ([Get
+    /// Reactions](djs_rest::Rest::get_reactions), up to 100 per page); the users are cached.
+    ///
+    /// discord.js counterpart: `ReactionUserManager#fetch`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    pub async fn reaction_users(
+        self,
+        message_id: MessageId,
+        emoji: ReactionEmoji<'_>,
+        query: &GetReactions,
+    ) -> Result<Collection<UserId, Arc<CachedUser>>, Error> {
+        let users = self
+            .ctx
+            .rest()
+            .get_reactions(self.channel_id, message_id, emoji, query)
+            .await?;
+        Ok(users
+            .iter()
+            .map(|user| (user.id, self.ctx.store_user(user)))
+            .collect())
+    }
+
+    /// Removes a reaction: the bot's own with `user: None`, or another user's ([Delete Own
+    /// Reaction](djs_rest::Rest::delete_own_reaction) / [Delete User
+    /// Reaction](djs_rest::Rest::delete_user_reaction)).
+    ///
+    /// discord.js counterpart: `ReactionUserManager#remove`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed (other users' reactions need
+    /// `MANAGE_MESSAGES`).
+    pub fn remove_reaction<'e>(
+        self,
+        message_id: MessageId,
+        emoji: impl Into<ReactionEmoji<'e>>,
+        user: Option<UserId>,
+    ) -> impl Future<Output = Result<(), Error>> + Send {
+        let emoji = emoji.into();
+        let Self { ctx, channel_id } = self;
+        async move {
+            match user {
+                None => {
+                    ctx.rest()
+                        .delete_own_reaction(channel_id, message_id, emoji)
+                        .await
+                }
+                Some(user_id) => {
+                    ctx.rest()
+                        .delete_user_reaction(channel_id, message_id, emoji, user_id)
+                        .await
+                }
+            }
+        }
+    }
+
+    /// Removes every reaction with one emoji ([Delete All Reactions for
+    /// Emoji](djs_rest::Rest::delete_all_reactions_for_emoji)).
+    ///
+    /// discord.js counterpart: `MessageReaction#remove`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed (it needs `MANAGE_MESSAGES`).
+    pub fn remove_emoji_reactions<'e>(
+        self,
+        message_id: MessageId,
+        emoji: impl Into<ReactionEmoji<'e>>,
+    ) -> impl Future<Output = Result<(), Error>> + Send {
+        let emoji = emoji.into();
+        let Self { ctx, channel_id } = self;
+        async move {
+            ctx.rest()
+                .delete_all_reactions_for_emoji(channel_id, message_id, emoji)
+                .await
+        }
+    }
+
+    /// Removes every reaction from a message ([Delete All
+    /// Reactions](djs_rest::Rest::delete_all_reactions)).
+    ///
+    /// discord.js counterpart: `ReactionManager#removeAll`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed (it needs `MANAGE_MESSAGES`).
+    pub async fn remove_all_reactions(self, message_id: MessageId) -> Result<(), Error> {
+        self.ctx
+            .rest()
+            .delete_all_reactions(self.channel_id, message_id)
+            .await
     }
 }
