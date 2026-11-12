@@ -1946,6 +1946,16 @@ and why.
 - **Alternatives:** `Deref` to `IndexMap` (its whole API, but its versions become ours);
   no access at all.
 
+### D-218 — `djs-util` stays empty for now; Phase 7 is closed
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `djs-util` stays an unpublished placeholder with no items. It is filled only
+  when two or more crates need the same helper; the shard ID calculation of
+  `@discordjs/util` already lives in `djs-model` (`ShardId::for_guild`), and its other
+  helpers duplicate std (`LazyLock`, ranges) or are JavaScript-specific. Phase 7 is done with
+  `djs-formatters` and `djs-collection`; Phase 8 is next.
+- **Alternatives:** remove the crate from the workspace; fill it with Rust counterparts of
+  `@discordjs/util` now.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)

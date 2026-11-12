@@ -21,8 +21,9 @@ a lock-free backend (D-176), resolved roles/messages of interactions (open quest
 components incl. Components V2, and modals, with rules measured on the live API where Discord
 allows it; benchmarks + extreme-load tests in `docs/PERFORMANCE.md`). Left open: removing
 parts with the builders (open question), a container walked twice by `validate_components`.
-**Phase 7 — small standalone crates: in progress** (D-208–D-217 decided; `djs-formatters` ✅,
-`djs-collection` ✅, `djs-util` next, see "Next step").
+**Phase 7 — small standalone crates: ✅ done 2026-11-12** (D-208–D-218; `djs-formatters` and
+`djs-collection` built, benchmarked and stress-tested; `djs-util` stays empty until two crates
+need a helper, D-218). **Phase 8 is next**, see "Next step".
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-075 in `docs/DECISIONS.md`; Claude defaults C-001 …
@@ -414,8 +415,15 @@ discord.js names where they fit + Rust traits; no `each`/`reduce`/`some`/`every`
       ("Phase 7 — djs-collection"). Fixed on the way: `random_n` hashed a fresh
       `RandomState` per index (now wyrand, 3–4× faster); `partition` rehashed every entry
       (now `extract_if`, 1.7× faster).
-3. **Next:** `djs-util` — "only what other crates need" (D-208). Ask the owner first what
-   goes there (or whether to skip it for now and close Phase 7), then implement.
+3. ✅ `djs-util`: stays an empty placeholder until two or more crates need a helper (D-218).
+
+## Next step — Phase 8 (`djs-rs` full high-level client, ROADMAP)
+Not started. **First ask the owner** (AskUserQuestion, in Polish, recommendation marked)
+before writing code: the order of Phase 8's parts (events + structures with methods +
+managers; interactions; collectors; partials / intents guidance; examples), the shape of
+structures with methods (owned data + a client handle, or views over the cache), manager
+fetch/cache semantics, and the open question "`Collection` in the cache and the client".
+Record the answers as D-219+ and commit them before implementing.
 
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON
   body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").

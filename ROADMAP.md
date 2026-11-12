@@ -99,11 +99,12 @@ just with narrow scope.
       (D-197–D-207; message and V2 rules checked on the live API, modal rules from the docs)
 - [x] Benchmarks + extreme-load tests of the builders (D-041, `docs/PERFORMANCE.md`)
 
-## Phase 7 — Small standalone crates
+## Phase 7 — Small standalone crates ✅
 - [x] `djs-collection` — `Collection<K, V>` with the discord.js `Collection` API surface
       (D-209, D-210, D-214–D-217; benchmarked)
 - [x] `djs-formatters` — mentions, markdown, timestamps, escaping (D-211–D-213; benchmarked)
-- [ ] `djs-util` — shared helpers (filled as other crates need them)
+- [x] `djs-util` — shared helpers, filled only when two or more crates need one; empty for
+      now (D-218)
 
 ## Phase 8 — `djs-rs` full high-level client (≈ discord.js)
 - [ ] All events, structures with methods, managers (fetch/cache semantics)

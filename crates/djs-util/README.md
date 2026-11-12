@@ -2,14 +2,17 @@
 
 Shared utilities used across the djs-rs crates.
 
-> **Status:** pre-alpha — this crate is a placeholder and contains no functionality yet.
+> **Status:** pre-alpha — this crate is an intentional placeholder with no items yet (D-218).
 > Track progress in the [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
 
 **discord.js counterpart:** `@discordjs/util`
 
 ## Planned scope
 
-Small, dependency-free helpers shared by the other djs-rs crates.
+Small, dependency-free helpers shared by two or more djs-rs crates, added only when such a
+need appears. The shard ID calculation of `@discordjs/util` already lives in `djs-model`
+(`ShardId::for_guild`); its other helpers are covered by the standard library or are
+specific to JavaScript.
 
 ## Part of djs-rs
 
