@@ -1789,6 +1789,22 @@ and why.
 - **Alternatives:** count code points without a test (D-183) and document the 413; count
   UTF-16 units for this limit to be safe.
 
+### D-202 — Premium buttons have their own builder type
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `ButtonBuilder::premium(sku_id)` returns a `PremiumButtonBuilder` with only
+  `.disabled()` and `.id()`, so a label or emoji (which Discord forbids and `PremiumButton`
+  cannot hold) is a compile-time error instead of being lost when the button goes into a row.
+- **Alternatives:** one `ButtonBuilder` with the error in its `build()` (lost inside a row);
+  rows and containers keeping unbuilt builders.
+
+### D-203 — Select menu options: a shortcut plus a builder
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `StringSelectMenuBuilder::option(label, value)` for a plain option,
+  `.option_with(StringSelectMenuOptionBuilder::new(label, value).description(…).emoji(…)
+  .default(true))` for a full one, `.options(iter)` for several (builders or `SelectOption`s).
+- **Alternatives:** the option builder only; one `.option(impl Into<…>)` taking a
+  `(label, value)` tuple or a builder.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
