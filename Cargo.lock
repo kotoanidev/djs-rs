@@ -201,6 +201,10 @@ dependencies = [
 [[package]]
 name = "djs-collection"
 version = "0.0.0"
+dependencies = [
+ "foldhash",
+ "indexmap",
+]
 
 [[package]]
 name = "djs-formatters"
@@ -274,6 +278,7 @@ dependencies = [
  "bytes",
  "djs-builders",
  "djs-cache",
+ "djs-collection",
  "djs-formatters",
  "djs-gateway",
  "djs-model",

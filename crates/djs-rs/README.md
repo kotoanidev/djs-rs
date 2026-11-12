@@ -49,6 +49,7 @@ A runnable version lives in [`examples/ping.rs`](https://github.com/kotoanidev/d
 | Cache | `djs-cache` | `djs_rs::cache` |
 | Builders (embeds, commands, components, modals) | `djs-builders` | `djs_rs::builders` |
 | Formatters (mentions, timestamps, markdown, escaping) | `djs-formatters` | `djs_rs::formatters` |
+| `Collection` (insertion-ordered map with discord.js' helpers) | `djs-collection` | `djs_rs::collection` |
 
 Handlers run concurrently in their own tokio tasks by default (like discord.js); switch to
 `HandlerMode::Sequential` for strictly ordered processing. If you prefer an explicit loop,

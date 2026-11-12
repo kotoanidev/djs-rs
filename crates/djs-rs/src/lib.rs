@@ -36,6 +36,10 @@ pub use djs_builders as builders;
 /// [`djs_formatters`].
 pub use djs_formatters as formatters;
 
+/// An insertion-ordered map with discord.js' `Collection` helpers — re-export of
+/// [`djs_collection`].
+pub use djs_collection as collection;
+
 /// The most commonly used items, for a single glob import:
 ///
 /// ```

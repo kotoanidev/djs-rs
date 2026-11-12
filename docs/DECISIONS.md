@@ -3075,6 +3075,27 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   by looking back for `http` / `https` (ASCII case-insensitive) and forward for `://` plus a
   non-space byte. Line starts are only tracked when a line option is on.
 
+### C-089 — `Collection` details (D-209, D-210, D-214–D-217)
+- **Callback arguments** follow discord.js' order: value first, key second
+  (`find(|value, key| …)`, `sort_by(|a, b, key_a, key_b| …)`); `map_values` passes the value
+  by value and the key by reference, `flat_map` both by value.
+- **Left out or folded in:** the `amount` overloads of `first` / `last` (use
+  `.values().take(n)` / `.rev()`), `firstKey(n)` and the like; `random(amount)` is
+  `random_n(count)` (distinct values in random order); discord.js' default `sort()` compares
+  values as strings, ours needs `V: Ord`; `toJSON` (no serde dependency yet); `clone` and
+  `equals` are `Clone` and `PartialEq` (order-insensitive, as `equals`).
+- **Added for Rust:** `retain`, `index_of`, `get_key_value`, `remove_entry`, `swap_remove`
+  (D-215), `into_keys`, `into_values`, `values_mut`, `iter_mut`, `Index<&Q>` (panics on a
+  missing key, like `HashMap`), `From<[(K, V); N]>`, `FromIterator`, `Extend`; own iterator
+  types in `djs_collection::iter` (D-217); lookups take `&Q` where `K: Borrow<Q>` (std's
+  convention, so `indexmap`'s `Equivalent` stays out of the API).
+- **Randomness:** std's `RandomState` gives 64 bits per pick, mapped with a multiply-shift;
+  `random_n` shuffles all indexes partially when it takes a quarter or more, otherwise samples
+  with Floyd's algorithm and shuffles the picks. Not for unpredictability.
+- **Hashers:** transformations that build a new map (`partition`, `map_values`, `merge`)
+  need `S: Clone` to reuse the hasher; `combine_entries` and `flat_map` need `S: Default`.
+- **`djs_rs::collection`** re-exports the crate, like the other layers.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

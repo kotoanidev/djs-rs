@@ -21,8 +21,8 @@ a lock-free backend (D-176), resolved roles/messages of interactions (open quest
 components incl. Components V2, and modals, with rules measured on the live API where Discord
 allows it; benchmarks + extreme-load tests in `docs/PERFORMANCE.md`). Left open: removing
 parts with the builders (open question), a container walked twice by `validate_components`.
-**Phase 7 — small standalone crates: in progress** (D-208–D-213 decided; `djs-formatters` ✅,
-`djs-collection` next, see "Next step").
+**Phase 7 — small standalone crates: in progress** (D-208–D-217 decided; `djs-formatters` ✅,
+`djs-collection` built, its benchmarks next, see "Next step").
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-075 in `docs/DECISIONS.md`; Claude defaults C-001 …
@@ -401,9 +401,19 @@ discord.js names where they fit + Rust traits; no `each`/`reduce`/`some`/`every`
       in `docs/PERFORMANCE.md` ("Phase 7 — djs-formatters"). Fixed on the way: plain text
       scanned byte by byte (now a lookup-table skip, 3.9× faster) and a quadratic case for
       long backtick runs with code content skipped.
-2. **Next:** `djs-collection` (D-209, D-210, D-214 consuming transformations, D-215
-   order-keeping `remove`, D-216 foldhash default, D-217 own API + `IndexMap` access). Whether
-   `djs-cache` / the `Client` return it is left to Phase 8 (open question).
+2. `djs-collection` (D-209, D-210, D-214–D-217, C-089):
+   a. ✅ The crate: `crates/djs-collection/src/{collection.rs (Collection, DefaultHashBuilder;
+      map basics, discord.js helpers, consuming transformations, trait impls), iter.rs
+      (iterator! macro wrapping indexmap's iterators), random.rs (RandomState-based picks,
+      Floyd / partial Fisher–Yates)}`; tests `tests/collection.rs`; `djs_rs::collection`.
+      Whether `djs-cache` / the `Client` return it is left to Phase 8 (open question).
+   b. **Next:** benchmarks + extreme-load tests (D-041): `benches/collection.rs` (divan:
+      get / insert / remove vs `std::collections::HashMap` and `IndexMap` with the same
+      hasher, `remove` (shift) vs `swap_remove` at sizes 100 / 10 000, `filter` / `sweep` /
+      `partition` / `sort_by` / `random` / `random_n` / `merge` on 10 000 entries),
+      `tests/stress.rs` (millions of entries, memory per entry, adversarial remove patterns,
+      all cores reading shared collections); results in `docs/PERFORMANCE.md`; then tick
+      `djs-collection` in ROADMAP.
 3. `djs-util`: only what other crates need.
 
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON

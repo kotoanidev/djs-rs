@@ -8,6 +8,14 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-collection` (Phase 7 step 2, D-209, D-210, D-214–D-217, C-089): `Collection<K, V, S>`,
+  an insertion-ordered map on `indexmap` hashing with foldhash, with the map basics
+  (`remove` keeps the order, `swap_remove` is O(1)), discord.js' helpers (`first`, `last`,
+  `at`, `find`, `random`, `random_n`, `ensure`, `sweep`, `sort_by`, `reverse`, `map`,
+  `has_all`, `has_any`), consuming transformations (`filter`, `partition`, `map_values`,
+  `flat_map`, `concat`, `union`, `intersection`, `difference`, `symmetric_difference`,
+  `merge`, `combine_entries`), own iterator types and access to the `IndexMap`. Re-exported
+  as `djs_rs::collection`.
 - `djs-formatters` benchmarks (`benches/formatters.rs`) and extreme-load tests
   (`tests/stress.rs`: randomized invariants, adversarial megabytes, all cores), results in
   `docs/PERFORMANCE.md` (Phase 7 step 1b, C-088). Escaping plain text is 3.9× faster

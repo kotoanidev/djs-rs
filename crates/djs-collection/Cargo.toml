@@ -14,6 +14,11 @@ readme = "README.md"
 publish = false
 
 [dependencies]
+foldhash.workspace = true
+indexmap.workspace = true
+
+[dev-dependencies]
+indexmap.workspace = true
 
 [lints]
 workspace = true
