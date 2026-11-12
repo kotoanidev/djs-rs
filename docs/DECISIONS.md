@@ -1832,6 +1832,25 @@ and why.
     description of 1024 × 🔥 (code points).
 - **Alternatives:** the docs only.
 
+### D-206 — Modal builders: shortcuts as for embeds, menus and V2
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `ModalBuilder::new(custom_id, title)` with `.label(text, field)` (a label
+  without a description), `.component(LabelBuilder::new(text, field).description(…))` and
+  `.text(…)`; `TextInputBuilder::short(custom_id)` / `::paragraph(custom_id)` (like D-197);
+  `RadioGroupBuilder` / `CheckboxGroupBuilder` with `.option(label, value)` and
+  `.option_with(…)` (like D-203); `FileUploadBuilder`, `CheckboxBuilder`. `build()` returns
+  `ModalCallbackData`.
+- **Alternatives:** no shortcuts: always `LabelBuilder`, `TextInputBuilder::new(id, style)`
+  and option builders.
+
+### D-207 — Modals are built from labels only
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `ModalBuilder` takes labels and text displays; an action row in a modal (the
+  deprecated way, a text input with its own label) is a `ValidationError`, and
+  `TextInputBuilder` has no deprecated `.label()`. The old format stays possible with
+  `build_unchecked()` and the model types.
+- **Alternatives:** support both, like discord.js v14.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
