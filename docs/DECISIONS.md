@@ -1822,6 +1822,14 @@ and why.
   small uploaded text file for `attachment://`), accepted ones deleted at once: an empty
   container, a section with 0 and with 4 texts, a file with an `https` URL, a thumbnail with
   an `ftp` URL, a gallery with 0 and 11 items, descriptions of 1024 × 🔥 and 1025 letters.
+- **Live result, 2026-11-12** (10 messages; the 3 accepted ones deleted at once):
+  - **rejected (`50035`):** an empty container (`BASE_TYPE_BAD_LENGTH`, 1-40 components), a
+    section with 0 or 4 texts (1-3), a file component with an `https` URL
+    (`UNFURLED_MEDIA_ITEM_MUST_USE_ATTACHMENT_PROTOCOL`: files need `attachment://`), a gallery
+    with 0 or 11 items (1-10), a thumbnail description of 1025 letters (1-1024);
+  - **accepted:** a file component with `attachment://probe.txt` and the uploaded file, a
+    thumbnail with an `ftp://` URL (like embed images, D-188 / D-190), a thumbnail
+    description of 1024 × 🔥 (code points).
 - **Alternatives:** the docs only.
 
 ---
