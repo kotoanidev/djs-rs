@@ -136,6 +136,13 @@ impl<K: Eq + Hash + Copy> Children<K> {
         }
     }
 
+    fn contains(&self, key: &K) -> bool {
+        match self {
+            Self::Unordered(keys) => keys.contains(key),
+            Self::Ordered(order) => order.live.contains_key(key),
+        }
+    }
+
     fn insert(&mut self, key: K) {
         match self {
             Self::Unordered(keys) => {
@@ -305,6 +312,18 @@ where
     }
 
     pub(crate) fn insert(&self, parent: P, key: K, value: Arc<V>) -> Inserted<K, V> {
+        // An update of a key the parent already has leaves the index as it is (re-inserting
+        // does not move a key in the insertion order). A shared lock on the parent's entry
+        // keeps the index and the store consistent — removals lock it exclusively — and lets
+        // updates of one parent run in parallel instead of queueing behind each other.
+        if let Some(children) = self.index.get(&parent)
+            && children.contains(&key)
+        {
+            return Inserted {
+                previous: self.store.insert((parent, key), value),
+                evicted: None,
+            };
+        }
         let mut children = self
             .index
             .entry(parent)
@@ -422,6 +441,15 @@ impl<P: Eq + Hash + Copy, K: Eq + Hash + Copy> Index<P, K> {
     }
 
     pub(crate) fn insert(&self, parent: P, key: K) {
+        // Most inserts are of a key already listed (a message in a known channel): a shared
+        // lock is enough to see that.
+        if self
+            .map
+            .get(&parent)
+            .is_some_and(|keys| keys.contains(&key))
+        {
+            return;
+        }
         self.map
             .entry(parent)
             .or_insert_with(|| HashSet::with_hasher(Hasher::default()))

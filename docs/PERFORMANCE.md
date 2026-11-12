@@ -14,6 +14,7 @@ The side-by-side comparison with discord.js on Node.js (D-123) is a separate pag
 # Micro-benchmarks (timings + allocations per operation)
 cargo bench -p djs-model   # gateway decoding (decode) and REST bodies (encode)
 cargo bench -p djs-rest    # routes, requests, CDN and OAuth2 URLs
+cargo bench -p djs-cache   # applying events, reads, sweeps, foldhash vs SipHash
 
 # Extreme-load tests: ignored by default, run in release mode, print `[stress]` lines.
 # For A/B comparisons on a hybrid CPU, pin both builds to the same cores (taskset -c 0,2; C-072)
@@ -21,6 +22,7 @@ cargo test -p djs-model   --release --test stress -- --ignored --nocapture --tes
 cargo test -p djs-gateway --release --test stress -- --ignored --nocapture --test-threads 1
 cargo test -p djs-rest    --release --test stress -- --ignored --nocapture --test-threads 1
 cargo test -p djs-rs      --release --test stress -- --ignored --nocapture --test-threads 1
+cargo test -p djs-cache   --release --test stress -- --ignored --nocapture --test-threads 1
 ```
 
 The stress tests run their mock Discord servers (gateway and REST) inside the same process, on
@@ -620,4 +622,126 @@ The same floods built from `d9cffea` (git worktree) and from this commit, run al
 - **Conclusion:** Phase 4 costs at most 1.5–3 % shard CPU on the hottest path; the larger
   unpinned swings are P-core/E-core placement on this hybrid CPU. A/B runs on this laptop
   must pin both builds to the same cores (C-072).
+
+## Phase 5 — `djs-cache` (in progress, 2026-11-12)
+
+Step 6 of Phase 5 (D-041). The micro-benchmarks ran pinned to one P-core (`taskset -c 2`), the
+stress tests to CPU 0–3 (2 P-cores with hyperthreading) unless marked "unpinned" (all 12
+CPUs). Each micro-benchmark was run two or three times; ranges are the medians of the runs.
+
+### Applying events (`benches/cache.rs`, `update`)
+
+A cache configured like discord.js (`CacheConfig::discord_js()`: everything, 200 messages per
+channel) holding the event's guild (1000 members with presences, 20 channels, 10 roles) and
+a full message channel. The events are decoded before the timed part.
+
+| Event | Time | Allocations | What it does |
+|---|---:|---:|---|
+| `GUILD_CREATE`, 1000 members, discord.js config | 289–320 µs | 6 182 (1.57 MB) | guild, channels, roles, emojis, members, users, presences, voice states |
+| `GUILD_CREATE`, 1000 members, default config | 4.9–5.2 µs | 65 | guild, channels, roles only |
+| `MESSAGE_CREATE`, channel at its limit | 228 ns | 3 | insert, evict the oldest; author shared with users |
+| `MESSAGE_CREATE`, messages not cached (default) | 2.6 ns | 0 | reads the configuration |
+| `MESSAGE_UPDATE` | 38 ns | — | replaces the cached message |
+| `MESSAGE_DELETE` | 27 ns | — | |
+| `MESSAGE_REACTION_ADD` | 100 ns | — | member upsert + the message's reactions |
+| `PRESENCE_UPDATE` | 94–106 ns | 3 (1 KB) | copies two activities |
+| `GUILD_MEMBER_ADD` | 75 ns | — | |
+| `GUILD_MEMBER_UPDATE` | 84–103 ns | 2 (208 B) | |
+| `VOICE_STATE_UPDATE` | 149–159 ns | — | voice state + its member |
+| `CHANNEL_UPDATE` | 66–68 ns | — | |
+| `TYPING_START`, `INTERACTION_CREATE` | 1.5–1.6 ns | 0 | nothing (see the findings) |
+
+- **The cost of copying events (D-161).** Updates borrow the event and copy what the cache
+  keeps. Cloning a whole decoded `GUILD_CREATE` takes 134–141 µs (3 050 allocations), about
+  half of applying it (289–320 µs, plus 627 µs to decode it, `VS_NODE.md`); cloning a
+  `MESSAGE_CREATE` 117 ns, a `PRESENCE_UPDATE` 129 ns, a `GUILD_MEMBER_UPDATE` 62 ns. Taking
+  events by value could save at most that copy — about a fifth of decode + cache for a
+  `GUILD_CREATE`, less for the hot events, where the map work dominates.
+- **A cache that is off costs nothing:** a disabled resource is one configuration check
+  (2.6 ns), and the default configuration applies a 1000-member `GUILD_CREATE` in 5 µs.
+
+### Reads and sweeps (`read`, `sweep`)
+
+| Operation | Time |
+|---|---:|
+| `guilds().get`, `members(g).get`, `presences(g).get` | 14–16 ns |
+| `messages(c).get`, a missing member | 11.6 ns |
+| `channels().in_guild(g)` (20 channels) | 26–32 ns |
+| `members(g).values()` (1000 `Arc`s) | 14–17 µs |
+| `sweep_members`, 1000 scanned, none removed | 16.8–17.5 µs (17 ns each) |
+| `sweep_messages_older_than`, 200 scanned, none removed | 3.6–4.1 µs |
+| `sweep_messages_older_than`, 2000 removed from 10 channels | 204–243 µs (≈ 110 ns each) |
+
+### foldhash vs SipHash (D-158)
+
+The same cache with stores hashing with the standard library's SipHash-1-3
+(`std::hash::RandomState`), through the public `Backend` trait (`SipBackend` in the bench;
+the internal indexes keep foldhash in both).
+
+| Operation | foldhash (default) | SipHash | SipHash slower by |
+|---|---:|---:|---:|
+| `members(g).get` | 15.2–16.5 ns | 19.9–22.2 ns | 30–34 % |
+| `GUILD_MEMBER_UPDATE` | 84–90 ns | 97–110 ns | 16–22 % |
+| `PRESENCE_UPDATE` | 94–106 ns | 101–135 ns | 7–28 % |
+| `GUILD_CREATE`, 1000 members | 289–320 µs | 357–358 µs | 12–24 % |
+
+The claim behind D-158 holds: foldhash makes lookups about a third faster and whole updates
+15–20 % faster. Discord's IDs are not attacker-chosen keys, so SipHash's DoS resistance buys
+nothing here (D-158).
+
+### Extreme load (`tests/stress.rs`)
+
+| Test | Result |
+|---|---|
+| Startup: 500 guilds × 1000 members (unique users), discord.js config | applied in 166–172 ms (2.9–3.0 M members/s, 0.34 ms per guild); **+202 MiB RSS, 424 B per member** (member, user, presence-free, channels, roles, emojis, voice states, indexes) |
+| Same, members + users only | 159–182 ms; +191 MiB, **400 B per member** |
+| Same, default config | 3 ms; +0 MiB (members not kept) |
+| Message churn: 2 M `MESSAGE_CREATE`s over 1000 channels, 200 per channel | 1.7–2.1 M messages/s on 1 thread, 3.0–3.8 M/s on 4 (including cloning each event); always 200 000 cached; RSS flat from the first round (+153–155 MiB, ≈ 780 B per message with embeds and mentions) |
+| Sweeping under load: 4 writers + a sweep every millisecond, 2 s | 2.0–2.4 M inserts/s, 606–852 sweeps, nothing left after the last; no deadlock |
+| Guild churn: 300 × join + leave of a 1000-member guild | 218–226 ms; RSS flat (65.8–65.9 MiB every 50 rounds); nothing left in any resource |
+| Type sizes (x86_64) | `CachedGuild` 440 B, `CachedMember` 176 B, `CachedMessage` 512 B, `CachedPresence` 152 B, `User` 144 B, `Channel` 200 B, `Role` 128 B, `VoiceState` 80 B, `Cache` 1 696 B (guarded by `type_sizes`) |
+
+**Concurrent readers and writers** (one 10 000-member guild; writers apply member and
+presence updates, readers look members and presences up; millions per second):
+
+| Writers + readers | Pinned to 4 CPUs, before → after the fix below | Unpinned (12 CPUs), before → after |
+|---|---|---|
+| 1 + 0 | 4.95 → 4.78 updates | 4.79 → 4.25 updates |
+| 0 + 1 | 55.9 → 55.5 reads | 55.0 → 53.4 reads |
+| 2 + 2 | 4.80 / 42.7 → 4.21 / 40.4 | 3.70 / 62.4 → 4.51 / 52.1 |
+| 4 + 4 | **0.66** / 63.5 → **1.96** / 54.7 | 6.02 / 69.4 → 5.73 / 67.3 |
+| 2 + 8 | **0.03–0.07** / 66.6 → **0.04–0.11** / 64.4 | 2.69 / 107.7 → 2.81 / 101.8 |
+| 8 + 2 | 4.18 / 38.2 → 4.90 / 32.7 | 6.60 / 31.6 → **9.43** / 36.5 |
+
+### Findings and optimization candidates (Phase 5)
+
+- **Fixed: updates of one guild queued behind each other.** `Scoped::insert` held the
+  guild's index entry exclusively while writing the store, so every update of a guild's
+  members or presences took the same lock. An update of a key the guild already has now
+  takes the entry's lock shared (re-inserting never moves a key in the FIFO order, so the
+  index is unchanged; removals still lock it exclusively); `Index::insert` checks with a
+  shared lock first. Writers now scale (8 writers unpinned: 6.6 → 9.4 M updates/s), and
+  single-threaded updates got faster (`MESSAGE_CREATE` at the limit 314 → 228 ns,
+  `GUILD_MEMBER_UPDATE` 109 → 84–103 ns, `VOICE_STATE_UPDATE` 177 → 149–159 ns;
+  `GUILD_CREATE` unchanged within noise, 284 → 289–320 µs) (C-078).
+- **Open: writers starve when readers outnumber CPUs.** With 10 threads on 4 CPUs, 2 writers
+  next to 8 busy readers manage only 0.04–0.11 M updates/s (unpinned: 2.8 M). DashMap's
+  `RwLock` lets readers in whenever no writer holds it, and a reader preempted while holding
+  a shard's read lock (≈ 10 ns per `get`, millions of times per second) blocks a writer of
+  that shard for a whole time slice. No lock order fixes lock-holder preemption; a backend
+  with lock-free reads would. A tokio bot runs one worker per CPU and reads far less than
+  64 M times per second, so this needs oversubscription and synthetic read rates — but it
+  is recorded as an open question (a lock-free `Backend`, which needs a new dependency).
+- **Open: 424 B per member** is more than the 373 B the `VS_NODE.md` stand-in (decoded
+  guilds in a `HashMap`) needed. Where it goes: `CachedMember` 176 B + `Arc` 16 B, the
+  shared `User` 144 B + `Arc` 16 B, the member's `(guild, user)` key and pointer in its
+  store, the user's in theirs, the guild → members index, and the role list's heap block.
+  Candidates: a smaller `User` (most of its 144 B are rarely set `Option`s), keeping the
+  roles inline, and the per-guild index for unlimited resources.
+- **`CachedPresence` is 152 B** for two IDs, a status and a box of activities:
+  `ClientStatus` holds four `Option<Status>`, and `Status` can carry an unknown status as
+  text. A compact cached form (one byte per platform) would halve it.
+- **`TYPING_START` and `INTERACTION_CREATE` are not applied.** Both carry a member (and an
+  interaction its user and resolved users/members); discord.js caches them. To be decided
+  with the owner (the decided scope is "every dispatch event that carries cacheable state").
 

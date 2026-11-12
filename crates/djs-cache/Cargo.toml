@@ -20,8 +20,13 @@ djs-model.workspace = true
 foldhash.workspace = true
 
 [dev-dependencies]
+divan.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+
+[[bench]]
+name = "cache"
+harness = false
 
 [lints]
 workspace = true

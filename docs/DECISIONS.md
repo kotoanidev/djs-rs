@@ -2366,9 +2366,27 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   is unchanged. `Client`'s `Debug` shows the cache. djs-rs enables tokio's `time` feature for
   the sweep intervals (already used by djs-gateway).
 
+### C-078 — Updates of existing keys take the index lock shared (Phase 5, step 6)
+- `Scoped::insert` checks the parent's index entry under a shared lock first: when the key
+  is already there (an update), it writes the store while holding that shared lock and
+  returns; only new keys take the entry exclusively. `Index::insert` likewise returns early
+  when the key is listed. Re-inserting a key never moves it in the FIFO order (D-157), so
+  the semantics are unchanged. Removals and sweeps keep the exclusive lock, so the index and
+  the store stay consistent; the lock order (index → store) is unchanged. Measured in
+  `docs/PERFORMANCE.md` (Phase 5): parallel writers scale, single-threaded updates got
+  faster.
+
 ---
 
 ## Open questions (to ask the owner when relevant)
+
+- **A cache backend with lock-free reads**: with more busy threads than CPUs, DashMap's
+  reader-preferring `RwLock` and lock-holder preemption starve writers (2 writers + 8 readers
+  on 4 CPUs: 0.04–0.11 M updates/s, `docs/PERFORMANCE.md` Phase 5). A second `Backend` on a
+  lock-free map (e.g. `papaya` or `scc`) would avoid it; it needs a new dependency.
+- **Cache memory per member** (424 B with discord.js' defaults): a smaller cached `User`,
+  inline role lists or a different per-guild index could reduce it; each changes internals
+  only, but a compact cached `User` would be a new public type.
 
 - **Identify coordination across processes in `Client`**: with `Shards::Range`, every process
   has its own `LocalIdentifyQueue`. A `ClientBuilder::identify_queue(Arc<dyn IdentifyQueue>)`

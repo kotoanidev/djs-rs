@@ -305,12 +305,16 @@ user), D-153 (updates return the previous state), D-154 (order below), D-155–D
    sweep, shut down when `login` returns); `djs_rs::cache` re-export. Tests in
    `crates/djs-rs/tests/end_to_end.rs` (cache filled before handlers, custom
    `CountingBackend`, sweeps run, no cache by default) and a unit test in `client.rs`.
-6. **Next: benchmarks + extreme-load tests (D-041)** for djs-cache: event → cache update
-   throughput per resource (benches in `crates/djs-cache/benches/`), concurrent readers +
-   writers, memory per cached guild/member/message (size tests), the foldhash vs SipHash claim
-   (D-158), the cost of copying events into the cache (D-161), the djs-rs `Client` with and
-   without a cache (stress test like `crates/djs-rs/tests/stress.rs`), and a re-run of
-   `docs/VS_NODE.md` (discord.js caches by default). Then mark Phase 5 done.
+6. **In progress: benchmarks + extreme-load tests (D-041).** Done: `crates/djs-cache/benches/cache.rs`
+   (divan; hot events, reads, sweeps, `SipBackend` for D-158), `crates/djs-cache/tests/stress.rs`
+   (startup memory, concurrency, churn, sweeps under load, type sizes), the shared-lock fast
+   path in `limits.rs` (C-078); results in `docs/PERFORMANCE.md` "Phase 5". Findings: writer
+   starvation under oversubscription (open question: lock-free backend), 424 B per member
+   (open question), `TYPING_START` / `INTERACTION_CREATE` not applied (ask the owner).
+   Left: the djs-rs `Client` flood with and without a cache (`crates/djs-rs/tests/stress.rs`),
+   re-running `docs/VS_NODE.md` with the real cache (its memory section used a `HashMap`
+   stand-in and says the cache "can only store the same or less" — false at 424 vs 373 B per
+   member, must be corrected), then mark Phase 5 done.
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON
   body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").
 

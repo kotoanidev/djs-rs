@@ -8,6 +8,12 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-cache` benchmarks (`benches/cache.rs`: every hot event, reads, sweeps, foldhash vs
+  SipHash) and extreme-load tests (`tests/stress.rs`: 500 000 members, concurrent readers
+  and writers, bounded message churn, sweeping under load, guild churn, type sizes); results
+  in `docs/PERFORMANCE.md` (Phase 5 step 6). Updates of entries a guild already has now take
+  its index entry shared instead of exclusively, so writers of one guild no longer queue
+  behind each other (C-078).
 - djs-rs `Client` cache (Phase 5 step 5, D-170–D-172): `ClientBuilder::cache(CacheConfig)`
   (no cache by default), `Client::cache()` / `Context::cache()` → `Option<&Cache<B>>`, every
   event applied to the cache before its handlers run, the configured sweeps run while logged
