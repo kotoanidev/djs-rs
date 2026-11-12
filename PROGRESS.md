@@ -318,7 +318,8 @@ user), D-153 (updates return the previous state), D-154 (order below), D-155–D
    b. ✅ D-175 → D-177 (C-080): measured in a fresh process (`startup_500_guilds` spawns a
       child per configuration) 546 B per member; with the compact `CachedUser` and
       `CachedMember` (`model.rs`) 418 B (−23 %).
-   c. The djs-rs `Client` flood with and without a cache (`crates/djs-rs/tests/stress.rs`).
+   c. ✅ The djs-rs `Client` flood with and without a cache (`crates/djs-rs/tests/stress.rs`,
+      `flood_1m_{sequential,concurrent}_with_cache`): −14 % sequential, −6 % concurrent.
    d. D-174: re-run `docs/VS_NODE.md` with djs-rs + `CacheConfig::discord_js()` in the summary
       and the real cache in the memory section (the page's claim that the cache "can only
       store the same or less" must go).

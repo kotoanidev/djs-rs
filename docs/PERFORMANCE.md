@@ -719,6 +719,19 @@ presence updates, readers look members and presences up; millions per second):
 | 2 + 8 | **0.03–0.07** / 66.6 → **0.04–0.11** / 64.4 | 2.69 / 107.7 → 2.81 / 101.8 |
 | 8 + 2 | 4.18 / 38.2 → 4.90 / 32.7 | 6.60 / 31.6 → **9.43** / 36.5 |
 
+### `djs-rs` — `Client` flood with and without a cache (`djs-rs/tests/stress.rs`)
+
+1 000 000 `MESSAGE_CREATE`s through one shard and one handler, pinned to CPU 0–3; the cached
+runs use `CacheConfig::discord_js()` (every message cached, 200 per channel — the flood's
+one channel evicts its oldest on every event —, with its author and member). Two runs each.
+
+| Handlers | Without a cache | With discord.js' default cache | Cost of the cache |
+|---|---:|---:|---:|
+| `Sequential` | 487 000–490 000 events/s | 415 000–422 000 events/s | −14 % (+0.34 µs per event) |
+| `Concurrent` (default) | 258 000–259 000 events/s | 243 000–245 000 events/s | −6 % |
+
+Peak RSS stays at 7–8 MiB with the cache: 200 messages, one user and one member.
+
 ### Findings and optimization candidates (Phase 5)
 
 - **Fixed: updates of one guild queued behind each other.** `Scoped::insert` held the

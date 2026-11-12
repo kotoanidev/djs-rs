@@ -23,7 +23,9 @@ use std::{
 use std::convert::Infallible;
 
 use bytes::Bytes;
-use djs_rs::{HandlerMode, Shards, gateway::Compression, prelude::*, rest::Rest};
+use djs_rs::{
+    HandlerMode, Shards, cache::CacheConfig, gateway::Compression, prelude::*, rest::Rest,
+};
 use futures_util::{SinkExt, StreamExt};
 use http_body_util::Full;
 use hyper::{Request, Response, body::Incoming, server::conn::http1, service::service_fn};
@@ -142,16 +144,28 @@ impl Counter {
 ///
 /// One shard connects straight to the mock gateway; more shards go through Get Gateway Bot
 /// (`Shards::Auto`, as a bot does by default), which recommends that many.
-async fn run(shards: u32, events: u64, handlers: u64, mode: HandlerMode, stream: bool) -> Duration {
+async fn run(
+    shards: u32,
+    events: u64,
+    handlers: u64,
+    mode: HandlerMode,
+    stream: bool,
+    cache: bool,
+) -> Duration {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let url = format!("ws://{}", listener.local_addr().unwrap());
     let per_shard = events / u64::from(shards);
     let server = tokio::spawn(serve(listener, shards, per_shard));
 
-    let builder = Client::builder("stress-token")
+    let mut builder = Client::builder("stress-token")
         .intents(Intents::GUILD_MESSAGES)
         .compression(Compression::None)
         .handler_mode(mode);
+    if cache {
+        // What discord.js caches by default: every message is cached (200 per channel, so
+        // the flood's channel evicts its oldest), with its author and member.
+        builder = builder.cache(CacheConfig::discord_js());
+    }
     let client = if shards == 1 {
         builder.gateway_url(url).shards(Shards::Count(1)).build()
     } else {
@@ -232,10 +246,11 @@ async fn measure(
     handlers: u64,
     mode: HandlerMode,
     stream: bool,
+    cache: bool,
 ) {
     let before = memory_kib();
     reset_peak_memory();
-    let elapsed = run(shards, events, handlers, mode, stream).await;
+    let elapsed = run(shards, events, handlers, mode, stream, cache).await;
     let memory = match (before, memory_kib()) {
         (Some((before, _)), Some((after, peak))) => format!(
             "rss {} → {} MiB, peak {} MiB",
@@ -264,6 +279,7 @@ async fn flood_1m_concurrent_handlers() {
         1,
         HandlerMode::Concurrent,
         false,
+        false,
     )
     .await;
 }
@@ -278,6 +294,7 @@ async fn flood_1m_sequential_handlers() {
         1,
         HandlerMode::Sequential,
         false,
+        false,
     )
     .await;
 }
@@ -285,7 +302,16 @@ async fn flood_1m_sequential_handlers() {
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "stress test; run with --release --ignored"]
 async fn flood_200k_fan_out_to_10_handlers() {
-    measure("fan-out", 1, 200_000, 10, HandlerMode::Concurrent, false).await;
+    measure(
+        "fan-out",
+        1,
+        200_000,
+        10,
+        HandlerMode::Concurrent,
+        false,
+        false,
+    )
+    .await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -298,6 +324,7 @@ async fn flood_1m_handlers_and_event_stream() {
         1,
         HandlerMode::Concurrent,
         true,
+        false,
     )
     .await;
 }
@@ -312,6 +339,7 @@ async fn flood_1m_over_16_shards_concurrent() {
         1_000_000,
         1,
         HandlerMode::Concurrent,
+        false,
         false,
     )
     .await;
@@ -328,6 +356,39 @@ async fn flood_1m_over_16_shards_sequential() {
         1,
         HandlerMode::Sequential,
         false,
+        false,
+    )
+    .await;
+}
+
+/// The sequential flood with discord.js' default cache: every event is applied to the cache
+/// before its handler runs (D-171).
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "stress test; run with --release --ignored"]
+async fn flood_1m_sequential_with_cache() {
+    measure(
+        "sequential + cache",
+        1,
+        1_000_000,
+        1,
+        HandlerMode::Sequential,
+        false,
+        true,
+    )
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "stress test; run with --release --ignored"]
+async fn flood_1m_concurrent_with_cache() {
+    measure(
+        "concurrent + cache",
+        1,
+        1_000_000,
+        1,
+        HandlerMode::Concurrent,
+        false,
+        true,
     )
     .await;
 }
