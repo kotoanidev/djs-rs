@@ -13,10 +13,12 @@ use std::sync::Arc;
 use djs_cache::{Cache, CacheConfig, Limit};
 use djs_model::{
     channel::Channel,
+    emoji::Emoji,
     gateway::payload::GuildCreate,
     guild::{Guild, Member, Role},
-    id::{ChannelId, GuildId, MessageId, RoleId, UserId},
+    id::{ChannelId, EmojiId, GuildId, MessageId, RoleId, StickerId, UserId},
     message::Message,
+    sticker::Sticker,
     user::User,
 };
 use serde::de::DeserializeOwned;
@@ -207,4 +209,42 @@ fn guilds_keep_what_only_guild_create_sends() {
     let stored = cache.store_guild(&decode(other));
     assert_eq!(stored.member_count, 1234);
     assert_eq!(stored.joined_at, None);
+}
+
+#[test]
+fn emojis_and_stickers_are_stored_per_guild() {
+    let cache = Cache::with_config(
+        CacheConfig::builder()
+            .emojis(Limit::Unlimited)
+            .stickers(Limit::Unlimited)
+            .build(),
+    );
+    let emoji: Emoji = decode(json!({"id": "41", "name": "ferris", "roles": [],
+                                      "require_colons": true, "managed": false,
+                                      "animated": false, "available": true}));
+    let stored = cache.store_emoji(GUILD, &emoji);
+    assert!(Arc::ptr_eq(
+        &cache.emojis(GUILD).get(EmojiId::new(41)).unwrap(),
+        &stored
+    ));
+    assert!(
+        cache
+            .emojis(GuildId::new(9))
+            .get(EmojiId::new(41))
+            .is_none()
+    );
+
+    let sticker: Sticker = decode(json!({"id": "42", "name": "wave", "tags": "wave",
+                                          "type": 2, "format_type": 1, "available": true,
+                                          "guild_id": GUILD.to_string()}));
+    let stored = cache.store_sticker(GUILD, &sticker);
+    assert!(Arc::ptr_eq(
+        &cache.stickers(GUILD).get(StickerId::new(42)).unwrap(),
+        &stored
+    ));
+
+    // Disabled by default: converted only.
+    let nothing = nothing();
+    assert_eq!(nothing.store_emoji(GUILD, &emoji).name, "ferris");
+    assert!(!nothing.emojis(GUILD).is_enabled());
 }

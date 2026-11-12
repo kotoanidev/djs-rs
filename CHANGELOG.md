@@ -8,6 +8,15 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-rs` emojis, stickers, invites and webhooks (Phase 8 step 2c batch 2, D-237–D-241,
+  C-095): `ctx.emojis(guild)` and `ctx.stickers(guild)` (cached, like roles),
+  `ctx.invites()` (by code, plus create and list for channels and guilds) and
+  `ctx.webhooks()` (by ID, plus create and list; sending and the webhook's messages with its
+  token). `ChannelExt::create_webhook` / `webhooks` / `create_invite` / `invites`,
+  `GuildExt::emojis` / `stickers` / `webhooks` / `invites` and the new `WebhookExt`
+  (`send`, `edit`, `delete`; `WebhookError::MissingToken` for webhooks without a token).
+  `WebhookClient` sends through a webhook URL without a bot (`from_url`, `send`, its
+  messages, `edit`, `delete`). `djs-cache`: `Cache::store_emoji` and `store_sticker`.
 - `djs-rs` manager writes (Phase 8 step 2c batch 1, D-234–D-236, C-094): channels edited,
   deleted and given permission overwrites for a role or a member (`OverwriteTarget`); a
   guild's channels listed, created and reordered through `ctx.guild_channels(guild)` /

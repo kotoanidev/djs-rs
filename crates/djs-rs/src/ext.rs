@@ -16,34 +16,40 @@
 //! | [`UserExt`] | [`User`], [`CachedUser`] |
 //! | [`MemberExt`] | [`CachedMember`], the [`GuildMemberAdd`] and [`GuildMemberUpdate`] payloads (the model [`Member`](djs_model::guild::Member) does not know its guild) |
 //! | [`GuildExt`] | [`Guild`], [`CachedGuild`] |
+//! | [`WebhookExt`] | [`Webhook`] |
 //!
 //! Import the traits with [`prelude`](crate::prelude).
 
 use std::{future::Future, sync::Arc};
 
 use djs_cache::{Backend, CachedGuild, CachedMember, CachedMessage, CachedUser};
+use djs_collection::Collection;
 use djs_model::{
     channel::Channel,
     gateway::payload::{GuildMemberAdd, GuildMemberUpdate},
     guild::Guild,
-    id::{ChannelId, GuildId, MessageId, RoleId, UserId},
+    id::{ChannelId, GuildId, MessageId, RoleId, UserId, WebhookId},
+    invite::InviteWithMetadata,
     message::{Message, MessageReference},
     permissions::Permissions,
     rest::{
-        CreateGuildBan, CreateMessage, EditMessage, ModifyGuild, ModifyGuildChannel,
-        ModifyGuildMember, StartThreadFromMessage,
+        CreateChannelInvite, CreateGuildBan, CreateMessage, CreateWebhook, EditMessage,
+        ExecuteWebhook, ModifyGuild, ModifyGuildChannel, ModifyGuildMember, ModifyWebhook,
+        StartThreadFromMessage,
     },
     user::User,
     util::Timestamp,
+    webhook::Webhook,
 };
 use djs_rest::{Error, ReactionEmoji};
 
 use crate::{
     Context,
     manager::{
-        BanManager, GuildChannelManager, MemberManager, MessageManager, OverwriteTarget,
-        RoleManager,
+        BanManager, EmojiManager, GuildChannelManager, MemberManager, MessageManager,
+        OverwriteTarget, RoleManager, StickerManager,
     },
+    webhook::WebhookError,
 };
 
 /// Actions on a message: [`Message`] or [`CachedMessage`].
@@ -373,6 +379,66 @@ pub trait ChannelExt: sealed::Channel {
         ctx.channels()
             .delete_permissions(self.channel_id(), target, reason)
     }
+
+    /// Creates a webhook in this channel ([`WebhookManager::create`](crate::manager::WebhookManager::create)).
+    ///
+    /// discord.js counterpart: `TextChannel#createWebhook`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    fn create_webhook<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+        body: &CreateWebhook,
+        reason: Option<&str>,
+    ) -> impl Future<Output = Result<Webhook, Error>> + Send {
+        ctx.webhooks().create(self.channel_id(), body, reason)
+    }
+
+    /// The webhooks of this channel ([`WebhookManager::list_channel`](crate::manager::WebhookManager::list_channel)).
+    ///
+    /// discord.js counterpart: `TextChannel#fetchWebhooks`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    fn webhooks<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+    ) -> impl Future<Output = Result<Collection<WebhookId, Webhook>, Error>> + Send {
+        ctx.webhooks().list_channel(self.channel_id())
+    }
+
+    /// Creates an invite to this channel ([`InviteManager::create`](crate::manager::InviteManager::create)).
+    ///
+    /// discord.js counterpart: `TextChannel#createInvite`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    fn create_invite<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+        body: &CreateChannelInvite,
+        reason: Option<&str>,
+    ) -> impl Future<Output = Result<InviteWithMetadata, Error>> + Send {
+        ctx.invites().create(self.channel_id(), body, reason)
+    }
+
+    /// The invites to this channel ([`InviteManager::list_channel`](crate::manager::InviteManager::list_channel)).
+    ///
+    /// discord.js counterpart: `TextChannel#fetchInvites`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    fn invites<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+    ) -> impl Future<Output = Result<Collection<String, InviteWithMetadata>, Error>> + Send {
+        ctx.invites().list_channel(self.channel_id())
+    }
 }
 
 impl ChannelExt for Channel {}
@@ -643,14 +709,131 @@ pub trait GuildExt: sealed::Guild {
     ) -> impl Future<Output = Result<(), Error>> + Send {
         ctx.guilds().leave(self.guild_id())
     }
+
+    /// The manager of this guild's custom emojis.
+    ///
+    /// discord.js counterpart: `Guild#emojis`.
+    fn emojis<'a, B: Backend>(&self, ctx: &'a Context<B>) -> EmojiManager<'a, B> {
+        ctx.emojis(self.guild_id())
+    }
+
+    /// The manager of this guild's stickers.
+    ///
+    /// discord.js counterpart: `Guild#stickers`.
+    fn stickers<'a, B: Backend>(&self, ctx: &'a Context<B>) -> StickerManager<'a, B> {
+        ctx.stickers(self.guild_id())
+    }
+
+    /// The webhooks of this guild ([`WebhookManager::list_guild`](crate::manager::WebhookManager::list_guild)).
+    ///
+    /// discord.js counterpart: `Guild#fetchWebhooks`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    fn webhooks<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+    ) -> impl Future<Output = Result<Collection<WebhookId, Webhook>, Error>> + Send {
+        ctx.webhooks().list_guild(self.guild_id())
+    }
+
+    /// The invites to this guild ([`InviteManager::list_guild`](crate::manager::InviteManager::list_guild)).
+    ///
+    /// discord.js counterpart: `GuildInviteManager#fetch()`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    fn invites<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+    ) -> impl Future<Output = Result<Collection<String, InviteWithMetadata>, Error>> + Send {
+        ctx.invites().list_guild(self.guild_id())
+    }
 }
 
 impl GuildExt for Guild {}
 impl GuildExt for CachedGuild {}
 
+/// Actions on a [`Webhook`] (D-237, D-240).
+///
+/// This trait is sealed.
+///
+/// # Examples
+///
+/// ```no_run
+/// # use djs_rs::prelude::*;
+/// # use djs_rs::model::id::ChannelId;
+/// # async fn run(ctx: Context, channel: ChannelId) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+/// let webhooks = ctx.webhooks().list_channel(channel).await?;
+/// if let Some(webhook) = webhooks.values().find(|webhook| webhook.token.is_some()) {
+///     webhook.send(&ctx, "Hello from a webhook").await?;
+/// }
+/// # Ok(())
+/// # }
+/// ```
+pub trait WebhookExt: sealed::Webhook {
+    /// Sends a message through this webhook with its token
+    /// ([`WebhookManager::send`](crate::manager::WebhookManager::send)).
+    ///
+    /// discord.js counterpart: `Webhook#send`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`WebhookError::MissingToken`] for a webhook without a token (channel-follower
+    /// and application webhooks), or the REST error if the request failed.
+    fn send<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+        body: impl Into<ExecuteWebhook>,
+    ) -> impl Future<Output = Result<Arc<CachedMessage>, WebhookError>> + Send {
+        let (webhook_id, token) = self.webhook_parts();
+        let body = body.into();
+        let webhooks = ctx.webhooks();
+        async move {
+            let token = token.ok_or(WebhookError::MissingToken)?;
+            Ok(webhooks.send(webhook_id, token, body).await?)
+        }
+    }
+
+    /// Edits this webhook ([`WebhookManager::edit`](crate::manager::WebhookManager::edit)).
+    ///
+    /// discord.js counterpart: `Webhook#edit`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    fn edit<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+        body: &ModifyWebhook,
+        reason: Option<&str>,
+    ) -> impl Future<Output = Result<Webhook, Error>> + Send {
+        ctx.webhooks().edit(self.webhook_parts().0, body, reason)
+    }
+
+    /// Deletes this webhook ([`WebhookManager::delete`](crate::manager::WebhookManager::delete)).
+    ///
+    /// discord.js counterpart: `Webhook#delete`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    fn delete<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+        reason: Option<&str>,
+    ) -> impl Future<Output = Result<(), Error>> + Send {
+        ctx.webhooks().delete(self.webhook_parts().0, reason)
+    }
+}
+
+impl WebhookExt for Webhook {}
+
 /// The IDs the extension traits need; sealed so the traits stay implementable only here.
 mod sealed {
-    use super::{ChannelId, GuildId, MessageId, UserId};
+    use super::{ChannelId, GuildId, MessageId, UserId, WebhookId};
 
     pub trait Message {
         /// The channel and the message.
@@ -720,6 +903,17 @@ mod sealed {
 
     pub trait Guild {
         fn guild_id(&self) -> GuildId;
+    }
+
+    pub trait Webhook {
+        /// The ID and the token, if the webhook has one.
+        fn webhook_parts(&self) -> (WebhookId, Option<&str>);
+    }
+
+    impl Webhook for djs_model::webhook::Webhook {
+        fn webhook_parts(&self) -> (WebhookId, Option<&str>) {
+            (self.id, self.token.as_deref())
+        }
     }
 
     impl Guild for djs_model::guild::Guild {

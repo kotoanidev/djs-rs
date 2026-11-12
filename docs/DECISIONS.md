@@ -3435,6 +3435,28 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   `delete_permissions`.
 - Left for later batches: Add Guild Member (OAuth2), Modify Group DM, voice states.
 
+### C-095 — Phase 8 step 2c batch 2: emojis, stickers, invites, webhooks (D-237–D-241)
+- **`EmojiManager` / `StickerManager`** (`ctx.emojis(guild)`, `ctx.stickers(guild)`,
+  `GuildExt::emojis` / `stickers`) work like `RoleManager`: `cache`, `fetch`, `list`,
+  `create`, `edit`, `delete`. `djs-cache` gained `Cache::store_emoji` / `store_sticker`.
+  Standard stickers (Get Sticker, sticker packs) and application emojis wait for batch 4,
+  which brings the application ID with the application commands.
+- **Uncached `fetch`** (invites, webhooks) returns a `Fetch` too, never cached, like bans,
+  so every `fetch` reads the same; `InviteManager::fetch` borrows the code and the query.
+- **Invite lists are keyed by the code as a `String`**: `djs-model` does not re-export
+  `CompactString` and `djs-rs` does not depend on `compact_str`.
+- **`WebhookManager`**: the methods using the webhook's token take `token: &str`; `send`
+  waits for the message (`?wait=true`) and caches it, as do `fetch_message` and
+  `edit_message`; `fetch_with_token` reads a webhook of another application.
+- **`WebhookExt`** has `send` (`WebhookError`), `edit` and `delete` (D-237); a webhook's
+  messages go through the manager.
+- **`WebhookClient`** lives in `djs_rs::webhook` (with `WebhookError` and
+  `InvalidWebhookUrl`) and is re-exported at the crate root like `Client`; `rest(Rest)`
+  swaps its REST client (proxy, tests); it returns model `Message`s (no cache);
+  `from_url` accepts only `https://` URLs.
+- Tests (`tests/managers.rs`) check that webhook-token routes carry no `Authorization`
+  header (D-121) for the bot's webhooks and for `WebhookClient`.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

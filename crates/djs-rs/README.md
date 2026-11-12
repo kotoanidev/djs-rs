@@ -4,9 +4,10 @@ A high-performance, discord.js-style framework for building Discord bots in Rust
 
 > **Status:** pre-alpha. A working end-to-end bot: client with automatic sharding, every
 > discord.js event (with the previous state from the cache), managers for guilds, channels,
-> users, members, messages, reactions, roles and bans with methods on the structures,
-> presence and an optional cache. The full discord.js surface arrives in later phases — see
-> the [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
+> users, members, messages, reactions, roles, bans, emojis, stickers, invites and webhooks
+> with methods on the structures, a `WebhookClient`, presence and an optional cache. The
+> full discord.js surface arrives in later phases — see the
+> [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
 
 **discord.js counterpart:** `discord.js`
 
@@ -90,7 +91,8 @@ Handlers run concurrently in their own tokio tasks by default (like discord.js);
 
 The operations of a resource live on a manager reached from the handler `Context`:
 `ctx.guilds()`, `ctx.channels()`, `ctx.guild_channels(guild)`, `ctx.users()`,
-`ctx.members(guild)`, `ctx.messages(channel)`, `ctx.roles(guild)` and `ctx.bans(guild)`
+`ctx.members(guild)`, `ctx.messages(channel)`, `ctx.roles(guild)`, `ctx.bans(guild)`,
+`ctx.emojis(guild)`, `ctx.stickers(guild)`, `ctx.invites()` and `ctx.webhooks()`
 (discord.js' `client.guilds`, `guild.channels`, `guild.members`, …).
 
 - `fetch(id)` returns the cached value without a request, and asks Discord otherwise; the
@@ -124,6 +126,21 @@ fn moderate(client: &Client) {
         Ok(())
     });
 }
+```
+
+## Webhooks without a bot
+
+`WebhookClient` sends through a webhook URL — from a script, a CI job or a server — with no
+bot token and no gateway connection (discord.js' `WebhookClient`):
+
+```rust,no_run
+use djs_rs::WebhookClient;
+
+# async fn run() -> Result<(), Box<dyn std::error::Error>> {
+let webhook = WebhookClient::from_url(&std::env::var("WEBHOOK_URL")?)?;
+webhook.send("Build passed").await?;
+# Ok(())
+# }
 ```
 
 ## The cache

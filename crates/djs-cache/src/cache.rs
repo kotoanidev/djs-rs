@@ -1205,6 +1205,26 @@ impl<B: Backend> Cache<B> {
         cached
     }
 
+    /// Stores a custom emoji of `guild_id`, for example from Get Guild Emoji, and returns it
+    /// as cached ([`Resource::Emoji`]).
+    pub fn store_emoji(&self, guild_id: GuildId, emoji: &Emoji) -> Arc<Emoji> {
+        let cached = Arc::new(emoji.clone());
+        if let Some(emojis) = &self.emojis {
+            emojis.insert(guild_id, emoji.id, Arc::clone(&cached));
+        }
+        cached
+    }
+
+    /// Stores a sticker of `guild_id`, for example from Get Guild Sticker, and returns it as
+    /// cached ([`Resource::Sticker`]).
+    pub fn store_sticker(&self, guild_id: GuildId, sticker: &Sticker) -> Arc<Sticker> {
+        let cached = Arc::new(sticker.clone());
+        if let Some(stickers) = &self.stickers {
+            stickers.insert(guild_id, sticker.id, Arc::clone(&cached));
+        }
+        cached
+    }
+
     /// Stores a guild, for example from Get Guild, and returns it as cached
     /// ([`Resource::Guild`]); its roles, emojis and stickers replace the cached ones when
     /// sent, as for `GUILD_UPDATE`.

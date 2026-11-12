@@ -9,6 +9,7 @@ pub mod event;
 pub mod ext;
 mod handler;
 pub mod manager;
+pub mod webhook;
 
 pub use self::{
     client::{Client, ClientBuilder, EventStream, HandlerMode, Shards},
@@ -16,6 +17,7 @@ pub use self::{
     error::Error,
     event::Events,
     handler::HandlerError,
+    webhook::WebhookClient,
 };
 
 /// Discord API types — re-export of [`djs_model`].
@@ -50,7 +52,7 @@ pub use djs_collection as collection;
 pub mod prelude {
     pub use crate::{
         Client, Context, Events, HandlerError,
-        ext::{ChannelExt, GuildExt, MemberExt, MessageExt, UserExt},
+        ext::{ChannelExt, GuildExt, MemberExt, MessageExt, UserExt, WebhookExt},
         model::gateway::Intents,
     };
 }

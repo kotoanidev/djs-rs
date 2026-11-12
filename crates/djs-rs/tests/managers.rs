@@ -53,6 +53,9 @@ struct Seen {
     path: String,
     body: Value,
     reason: Option<String>,
+    query: String,
+    /// Whether the request carried an `Authorization` header (the bot token).
+    authorized: bool,
 }
 
 type Log = Arc<Mutex<Vec<Seen>>>;
@@ -85,11 +88,74 @@ fn channel(id: &str) -> Value {
            "position": 0, "permission_overwrites": [], "nsfw": false})
 }
 
+fn emoji(id: &str) -> Value {
+    json!({"id": id, "name": format!("emoji_{id}"), "roles": [], "require_colons": true,
+           "managed": false, "animated": false, "available": true})
+}
+
+fn sticker(id: &str) -> Value {
+    json!({"id": id, "name": format!("sticker-{id}"), "tags": "wave", "type": 2,
+           "format_type": 1, "available": true, "guild_id": GUILD.to_string()})
+}
+
+fn invite(code: &str) -> Value {
+    json!({"type": 0, "code": code, "channel": {"id": "20", "type": 0, "name": "general"},
+           "expires_at": null, "uses": 1, "max_uses": 0, "max_age": 86_400,
+           "temporary": false, "created_at": "2026-11-12T10:00:00.000000+00:00"})
+}
+
+fn webhook(id: &str, token: &Value) -> Value {
+    json!({"id": id, "type": 1, "guild_id": GUILD.to_string(), "channel_id": "20",
+           "name": "hook", "avatar": null, "token": token, "application_id": null})
+}
+
 fn guild() -> Value {
     let create: Value = serde_json::from_str(&payloads::guild_create(1, 3, 0, 1, 2)).unwrap();
     let mut guild = create["d"].clone();
     guild["approximate_member_count"] = json!(42);
     guild
+}
+
+/// The mock API's expression, invite and webhook routes.
+fn respond_extra(method: &str, segments: &[&str], body: &Value) -> Option<(u16, Value)> {
+    let named = |mut value: Value| {
+        if let Some(name) = body.get("name") {
+            value["name"] = name.clone();
+        }
+        value
+    };
+    let response = match (method, segments) {
+        ("GET", ["guilds", _, "emojis"]) => (200, json!([emoji("41"), emoji("40")])),
+        ("GET", ["guilds", _, "emojis", id]) => (200, emoji(id)),
+        ("POST", ["guilds", _, "emojis"]) => (200, named(emoji("43"))),
+        ("PATCH", ["guilds", _, "emojis", id]) => (200, named(emoji(id))),
+        ("GET", ["guilds", _, "stickers"]) => (200, json!([sticker("44")])),
+        ("GET", ["guilds", _, "stickers", id]) => (200, sticker(id)),
+        ("POST", ["guilds", _, "stickers"]) => (200, sticker("45")),
+        ("PATCH", ["guilds", _, "stickers", id]) => (200, named(sticker(id))),
+        ("GET" | "DELETE", ["invites", code]) => (200, invite(code)),
+        ("POST", ["channels", _, "invites"]) => (200, invite("fresh")),
+        ("GET", ["channels", _, "invites"]) => (200, json!([invite("a1"), invite("b2")])),
+        ("GET", ["guilds", _, "invites"]) => (200, json!([invite("g3")])),
+        ("POST", ["channels", _, "webhooks"]) => (200, named(webhook("60", &json!("tok")))),
+        ("GET", ["channels", _, "webhooks"]) => (
+            200,
+            json!([webhook("60", &json!("tok")), webhook("61", &Value::Null)]),
+        ),
+        ("GET", ["guilds", _, "webhooks"]) => (200, json!([webhook("60", &json!("tok"))])),
+        ("GET", ["webhooks", id] | ["webhooks", id, _]) => (200, webhook(id, &json!("tok"))),
+        ("PATCH", ["webhooks", id] | ["webhooks", id, _]) => {
+            (200, named(webhook(id, &json!("tok"))))
+        }
+        ("POST", ["webhooks", _, _]) => (200, message("20", "70", &body["content"])),
+        ("GET", ["webhooks", _, _, "messages", id]) => (200, message("20", id, &json!("hooked"))),
+        ("PATCH", ["webhooks", _, _, "messages", id]) => (200, message("20", id, &body["content"])),
+        ("DELETE", ["guilds", _, "emojis" | "stickers", _] | ["webhooks", ..]) => {
+            (204, Value::Null)
+        }
+        _ => return None,
+    };
+    Some(response)
 }
 
 /// The mock API: what Discord would answer, by method and path.
@@ -104,6 +170,9 @@ fn respond(method: &str, path: &str, body: &Value) -> (u16, Value) {
         }
         value
     };
+    if let Some(response) = respond_extra(method, &segments, body) {
+        return response;
+    }
     match (method, segments.as_slice()) {
         ("GET", ["guilds", _, "members", id] | ["users", id]) if *id == unknown => not_found,
         // Routes whose last segment would otherwise be read as an ID.
@@ -218,6 +287,8 @@ async fn mock_rest() -> (String, Log) {
                             .headers()
                             .get("x-audit-log-reason")
                             .map(|value| value.to_str().unwrap().to_owned());
+                        let query = request.uri().query().unwrap_or_default().to_owned();
+                        let authorized = request.headers().contains_key("authorization");
                         let body = request.into_body().collect().await.unwrap().to_bytes();
                         let body: Value = serde_json::from_slice(&body).unwrap_or(Value::Null);
                         let (status, response) = respond(&method, &path, &body);
@@ -226,6 +297,8 @@ async fn mock_rest() -> (String, Log) {
                             path,
                             body,
                             reason,
+                            query,
+                            authorized,
                         });
                         let body = if status == 204 {
                             Bytes::new()
@@ -1102,4 +1175,308 @@ async fn reactions_are_listed_and_removed() {
         ("DELETE", "/channels/20/messages/50/reactions")
     );
     session.finish().await;
+}
+
+#[tokio::test]
+async fn emojis_and_stickers() {
+    use djs_rs::model::{
+        id::{EmojiId, StickerId},
+        rest::{
+            CreateGuildEmoji, CreateGuildSticker, FileUpload, ModifyGuildEmoji, ModifyGuildSticker,
+        },
+        util::ImageData,
+    };
+
+    let config = CacheConfig::builder()
+        .emojis(Limit::Unlimited)
+        .stickers(Limit::Unlimited)
+        .build();
+    let session = Session::start(Some(config)).await;
+    let ctx = &session.ctx;
+    let emojis = ctx.emojis(GUILD);
+    let base = format!("/guilds/{GUILD}");
+
+    let listed = emojis.list().await.unwrap();
+    assert_eq!(
+        listed.keys().map(|id| id.get()).collect::<Vec<_>>(),
+        [41, 40]
+    );
+    assert!(emojis.fetch(EmojiId::new(40)).is_cached());
+    let image = ImageData::with_content_type(&b"\x89PNG"[..], "image/png");
+    let created = emojis
+        .create(&CreateGuildEmoji::new("ferris", image), Some("fun"))
+        .await
+        .unwrap();
+    assert_eq!(created.name, "ferris");
+    assert!(emojis.cache().unwrap().contains(EmojiId::new(43)));
+    let mut rename = ModifyGuildEmoji::default();
+    rename.name = Some("crab".into());
+    let renamed = emojis.edit(EmojiId::new(43), &rename, None).await.unwrap();
+    assert_eq!(renamed.name, "crab");
+    emojis.delete(EmojiId::new(43), None).await.unwrap();
+    let seen: Vec<String> = session
+        .take()
+        .into_iter()
+        .map(|seen| format!("{} {}", seen.method, seen.path))
+        .collect();
+    assert_eq!(
+        seen,
+        [
+            format!("GET {base}/emojis"),
+            format!("POST {base}/emojis"),
+            format!("PATCH {base}/emojis/43"),
+            format!("DELETE {base}/emojis/43"),
+        ]
+    );
+
+    let guild = ctx.guilds().fetch(GUILD).await.unwrap();
+    let stickers = guild.stickers(ctx);
+    let fetched = stickers.fetch(StickerId::new(44)).await.unwrap();
+    assert_eq!(fetched.name, "sticker-44");
+    assert!(stickers.fetch(StickerId::new(44)).is_cached());
+    let file = FileUpload::new("wave.png", &b"\x89PNG"[..]);
+    let created = stickers
+        .create(&CreateGuildSticker::new("wave", "wave", file), None)
+        .await
+        .unwrap();
+    assert!(Arc::ptr_eq(
+        &stickers.cache().unwrap().get(StickerId::new(45)).unwrap(),
+        &created
+    ));
+    let mut rename = ModifyGuildSticker::default();
+    rename.name = Some("hello".into());
+    assert_eq!(
+        stickers
+            .edit(StickerId::new(45), &rename, None)
+            .await
+            .unwrap()
+            .name,
+        "hello"
+    );
+    assert_eq!(stickers.list().await.unwrap().len(), 1);
+    stickers
+        .delete(StickerId::new(45), Some("old"))
+        .await
+        .unwrap();
+    let seen = session.take().pop().unwrap();
+    assert_eq!(
+        (
+            seen.method.as_str(),
+            seen.path.clone(),
+            seen.reason.as_deref()
+        ),
+        ("DELETE", format!("{base}/stickers/45"), Some("old"))
+    );
+    session.finish().await;
+}
+
+#[tokio::test]
+async fn invites() {
+    use djs_rs::model::rest::{CreateChannelInvite, GetInvite};
+
+    let session = Session::start(None).await;
+    let ctx = &session.ctx;
+    let invites = ctx.invites();
+
+    let mut query = GetInvite::default();
+    query.with_counts = Some(true);
+    let fetch = invites.fetch("djs-rs", &query);
+    assert!(!fetch.is_cached());
+    assert_eq!(fetch.await.unwrap().code, "djs-rs");
+    let seen = session.one();
+    assert_eq!(
+        (seen.path.as_str(), seen.query.as_str()),
+        ("/invites/djs-rs", "with_counts=true")
+    );
+
+    let deleted = invites.delete("djs-rs", Some("leaked")).await.unwrap();
+    assert_eq!(deleted.code, "djs-rs");
+    assert_eq!(session.one().method, "DELETE");
+
+    let channel = ctx.channels().fetch(CHANNEL).await.unwrap();
+    session.take();
+    let mut body = CreateChannelInvite::default();
+    body.max_age = Some(3600);
+    let created = channel.create_invite(ctx, &body, None).await.unwrap();
+    assert_eq!(created.code, "fresh");
+    assert_eq!(created.metadata.unwrap().max_age, 86_400);
+    let seen = session.one();
+    assert_eq!(
+        (seen.method.as_str(), seen.path.as_str()),
+        ("POST", "/channels/20/invites")
+    );
+    assert_eq!(seen.body["max_age"], 3600);
+
+    let listed = channel.invites(ctx).await.unwrap();
+    assert_eq!(listed.keys().cloned().collect::<Vec<_>>(), ["a1", "b2"]);
+    let guild_invites = invites.list_guild(GUILD).await.unwrap();
+    assert!(guild_invites.get("g3").is_some());
+    let paths: Vec<String> = session.take().into_iter().map(|seen| seen.path).collect();
+    assert_eq!(
+        paths,
+        [
+            "/channels/20/invites".to_owned(),
+            format!("/guilds/{GUILD}/invites")
+        ]
+    );
+    session.finish().await;
+}
+
+#[tokio::test]
+async fn webhooks_through_the_bot() {
+    use djs_rs::{
+        model::{
+            id::WebhookId,
+            rest::{CreateWebhook, EditWebhookMessage, ModifyWebhook},
+        },
+        webhook::WebhookError,
+    };
+
+    let session = Session::start(Some(full_cache())).await;
+    let ctx = &session.ctx;
+    let webhooks = ctx.webhooks();
+    let id = WebhookId::new(60);
+
+    let channel = ctx.channels().fetch(CHANNEL).await.unwrap();
+    session.take();
+    let created = channel
+        .create_webhook(ctx, &CreateWebhook::new("deploys"), Some("ci"))
+        .await
+        .unwrap();
+    assert_eq!(created.name.as_deref(), Some("deploys"));
+    let seen = session.one();
+    assert_eq!(
+        (seen.method.as_str(), seen.path.as_str(), seen.authorized),
+        ("POST", "/channels/20/webhooks", true)
+    );
+
+    let listed = channel.webhooks(ctx).await.unwrap();
+    assert_eq!(listed.len(), 2);
+    let guild = ctx.guilds().fetch(GUILD).await.unwrap();
+    assert!(guild.webhooks(ctx).await.unwrap().get(&id).is_some());
+    assert_eq!(webhooks.fetch(id).await.unwrap().id, id);
+    session.take();
+
+    // Sent with the webhook's token: the bot token is not sent, and the message is cached.
+    let sent = created.send(ctx, "deployed").await.unwrap();
+    assert_eq!(sent.content, "deployed");
+    let seen = session.one();
+    assert_eq!(
+        (
+            seen.method.as_str(),
+            seen.path.as_str(),
+            seen.query.as_str(),
+            seen.authorized
+        ),
+        ("POST", "/webhooks/60/tok", "wait=true", false)
+    );
+    assert!(ctx.messages(CHANNEL).fetch(sent.id).is_cached());
+
+    // A webhook without a token cannot send, and nothing is requested.
+    let follower = listed.get(&WebhookId::new(61)).unwrap();
+    assert!(matches!(
+        follower.send(ctx, "nope").await,
+        Err(WebhookError::MissingToken)
+    ));
+    assert!(session.take().is_empty());
+
+    let fetched = webhooks
+        .fetch_message(id, "tok", MessageId::new(70), None)
+        .await
+        .unwrap();
+    assert_eq!(fetched.content, "hooked");
+    let edited = webhooks
+        .edit_message(
+            id,
+            "tok",
+            MessageId::new(70),
+            &EditWebhookMessage::from("v2"),
+        )
+        .await
+        .unwrap();
+    assert_eq!(edited.content, "v2");
+    webhooks
+        .delete_message(id, "tok", MessageId::new(70), Some(ChannelId::new(31)))
+        .await
+        .unwrap();
+    let seen = session.take();
+    assert!(seen.iter().all(|seen| !seen.authorized), "{seen:?}");
+    assert_eq!(seen[2].path, "/webhooks/60/tok/messages/70");
+    assert_eq!(seen[2].query, "thread_id=31");
+
+    let mut rename = ModifyWebhook::default();
+    rename.name = Some("renamed".into());
+    created.edit(ctx, &rename, None).await.unwrap();
+    created.delete(ctx, Some("unused")).await.unwrap();
+    let seen: Vec<(String, String, bool)> = session
+        .take()
+        .into_iter()
+        .map(|seen| (seen.method, seen.path, seen.authorized))
+        .collect();
+    assert_eq!(
+        seen,
+        [
+            ("PATCH".into(), "/webhooks/60".into(), true),
+            ("DELETE".into(), "/webhooks/60".into(), true),
+        ]
+    );
+    assert_eq!(webhooks.fetch_with_token(id, "tok").await.unwrap().id, id);
+    assert!(!session.one().authorized);
+    session.finish().await;
+}
+
+#[tokio::test]
+async fn a_webhook_client_needs_no_bot() {
+    use djs_rs::{
+        WebhookClient,
+        model::{
+            id::WebhookId,
+            rest::{EditWebhookMessage, ModifyWebhook},
+        },
+    };
+
+    let (api, log) = mock_rest().await;
+    let webhook = WebhookClient::from_url("https://discord.com/api/webhooks/60/tok")
+        .unwrap()
+        .rest(Rest::builder().api(api).build());
+    assert_eq!(webhook.id(), WebhookId::new(60));
+
+    let sent = webhook.send("from CI").await.unwrap();
+    assert_eq!(sent.content, "from CI");
+    let fetched = webhook.fetch_message(sent.id, None).await.unwrap();
+    assert_eq!(fetched.content, "hooked");
+    webhook
+        .edit_message(sent.id, &EditWebhookMessage::from("edited"))
+        .await
+        .unwrap();
+    webhook.delete_message(sent.id, None).await.unwrap();
+    assert_eq!(webhook.fetch().await.unwrap().id, WebhookId::new(60));
+    let mut rename = ModifyWebhook::default();
+    rename.name = Some("ci".into());
+    assert_eq!(
+        webhook.edit(&rename).await.unwrap().name.as_deref(),
+        Some("ci")
+    );
+    webhook.delete().await.unwrap();
+
+    let seen: Vec<(String, String)> = log
+        .lock()
+        .unwrap()
+        .iter()
+        .inspect(|seen| assert!(!seen.authorized, "{seen:?}"))
+        .map(|seen| (seen.method.clone(), seen.path.clone()))
+        .collect();
+    let message = "/webhooks/60/tok/messages/70";
+    assert_eq!(
+        seen,
+        [
+            ("POST".into(), "/webhooks/60/tok".into()),
+            ("GET".into(), message.into()),
+            ("PATCH".into(), message.into()),
+            ("DELETE".into(), message.into()),
+            ("GET".into(), "/webhooks/60/tok".into()),
+            ("PATCH".into(), "/webhooks/60/tok".into()),
+            ("DELETE".into(), "/webhooks/60/tok".into()),
+        ]
+    );
 }

@@ -460,8 +460,12 @@ fields with `Deref` to `new`). Steps:
       edit / delete / overwrites, `ctx.guild_channels(guild)` list / create / positions,
       roles create / edit / delete / positions, guild edit / leave, member search / prune /
       `edit_me`, reactions (users, remove); tests in `tests/managers.rs`.
-      (2) **Next:** emojis, stickers, invites, webhooks;
-      (3) threads and thread members, scheduled events, stage instances, soundboard;
+      (2) ✅ emojis, stickers, invites, webhooks (D-237 one webhook manager, D-238
+      `WebhookClient`, D-239 one invite manager, D-240 `WebhookError::MissingToken`, D-241
+      `InvalidWebhookUrl`; C-095): `manager/{emoji,sticker,invite,webhook}.rs`,
+      `src/webhook.rs`, `Cache::store_emoji` / `store_sticker`.
+      (3) **Next:** threads and thread members, scheduled events, stage instances,
+      soundboard;
       (4) audit log, auto moderation, integrations, application commands. Each with methods
       on the structures where discord.js has them, and tests in `tests/managers.rs`.
    d. Benchmarks + extreme-load tests (D-041): `fetch` hit vs miss, the REST write-back, a

@@ -36,12 +36,16 @@
 
 mod ban;
 mod channel;
+mod emoji;
 mod guild;
 mod guild_channel;
+mod invite;
 mod member;
 mod message;
 mod role;
+mod sticker;
 mod user;
+mod webhook;
 
 use core::{
     fmt,
@@ -56,9 +60,11 @@ use djs_cache::{
 };
 use djs_model::{
     channel::Channel,
+    emoji::Emoji,
     guild::{Guild, Member, Role},
     id::GuildId,
     message::Message,
+    sticker::Sticker,
     user::User,
 };
 use djs_rest::Error;
@@ -66,12 +72,16 @@ use djs_rest::Error;
 pub use self::{
     ban::BanManager,
     channel::{ChannelManager, OverwriteTarget},
+    emoji::EmojiManager,
     guild::GuildManager,
     guild_channel::GuildChannelManager,
+    invite::InviteManager,
     member::MemberManager,
     message::MessageManager,
     role::RoleManager,
+    sticker::StickerManager,
     user::UserManager,
+    webhook::WebhookManager,
 };
 use crate::Context;
 
@@ -220,6 +230,20 @@ impl<B: Backend> Context<B> {
         )
     }
 
+    pub(crate) fn store_emoji(&self, guild_id: GuildId, emoji: &Emoji) -> Arc<Emoji> {
+        self.cache().map_or_else(
+            || CONVERT.store_emoji(guild_id, emoji),
+            |cache| cache.store_emoji(guild_id, emoji),
+        )
+    }
+
+    pub(crate) fn store_sticker(&self, guild_id: GuildId, sticker: &Sticker) -> Arc<Sticker> {
+        self.cache().map_or_else(
+            || CONVERT.store_sticker(guild_id, sticker),
+            |cache| cache.store_sticker(guild_id, sticker),
+        )
+    }
+
     /// Returns the guild manager (D-229).
     ///
     /// discord.js counterpart: `Client#guilds`.
@@ -282,5 +306,37 @@ impl<B: Backend> Context<B> {
     #[must_use]
     pub const fn bans(&self, guild_id: GuildId) -> BanManager<'_, B> {
         BanManager::new(self, guild_id)
+    }
+
+    /// Returns the manager of a guild's custom emojis.
+    ///
+    /// discord.js counterpart: `Guild#emojis`.
+    #[must_use]
+    pub const fn emojis(&self, guild_id: GuildId) -> EmojiManager<'_, B> {
+        EmojiManager::new(self, guild_id)
+    }
+
+    /// Returns the manager of a guild's stickers.
+    ///
+    /// discord.js counterpart: `Guild#stickers`.
+    #[must_use]
+    pub const fn stickers(&self, guild_id: GuildId) -> StickerManager<'_, B> {
+        StickerManager::new(self, guild_id)
+    }
+
+    /// Returns the invite manager (D-239).
+    ///
+    /// discord.js counterpart: `Guild#invites` and `Client#fetchInvite`.
+    #[must_use]
+    pub const fn invites(&self) -> InviteManager<'_, B> {
+        InviteManager::new(self)
+    }
+
+    /// Returns the webhook manager (D-237).
+    ///
+    /// discord.js counterpart: the webhook methods of `TextChannel`, `Guild` and `Client`.
+    #[must_use]
+    pub const fn webhooks(&self) -> WebhookManager<'_, B> {
+        WebhookManager::new(self)
     }
 }
