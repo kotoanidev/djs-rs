@@ -37,6 +37,7 @@ mod stage_instance;
 mod sticker;
 mod subscription;
 mod user;
+mod voice;
 mod webhook;
 
 pub use self::{
@@ -87,6 +88,7 @@ pub use self::{
     sticker::{CreateGuildSticker, ModifyGuildSticker},
     subscription::ListSkuSubscriptions,
     user::{CreateDm, CreateGroupDm, CurrentUserGuild, GetCurrentUserGuilds, ModifyCurrentUser},
+    voice::{ModifyCurrentUserVoiceState, ModifyUserVoiceState},
     webhook::{CreateWebhook, EditWebhookMessage, ExecuteWebhook, ModifyWebhook},
 };
 

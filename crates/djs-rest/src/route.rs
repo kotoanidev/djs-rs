@@ -1291,6 +1291,35 @@ routes! {
         message_id: MessageId,
     } => POST "/channels/{channel_id}/polls/{message_id}/expire", major: channel_id;
 
+    // Voice.
+
+    /// [List Voice Regions](https://docs.discord.com/developers/resources/voice#list-voice-regions).
+    ListVoiceRegions => GET "/voice/regions";
+    /// [Get Current User Voice State](https://docs.discord.com/developers/resources/voice#get-current-user-voice-state).
+    GetCurrentUserVoiceState {
+        /// The guild.
+        guild_id: GuildId,
+    } => GET "/guilds/{guild_id}/voice-states/@me", major: guild_id;
+    /// [Get User Voice State](https://docs.discord.com/developers/resources/voice#get-user-voice-state).
+    GetUserVoiceState {
+        /// The guild.
+        guild_id: GuildId,
+        /// The user.
+        user_id: UserId,
+    } => GET "/guilds/{guild_id}/voice-states/{user_id}", major: guild_id;
+    /// [Modify Current User Voice State](https://docs.discord.com/developers/resources/voice#modify-current-user-voice-state).
+    ModifyCurrentUserVoiceState {
+        /// The guild.
+        guild_id: GuildId,
+    } => PATCH "/guilds/{guild_id}/voice-states/@me", major: guild_id;
+    /// [Modify User Voice State](https://docs.discord.com/developers/resources/voice#modify-user-voice-state).
+    ModifyUserVoiceState {
+        /// The guild.
+        guild_id: GuildId,
+        /// The user.
+        user_id: UserId,
+    } => PATCH "/guilds/{guild_id}/voice-states/{user_id}", major: guild_id;
+
     // Lobbies (Discord Social SDK).
 
     /// [Create Lobby](https://docs.discord.com/developers/resources/lobby#create-lobby).

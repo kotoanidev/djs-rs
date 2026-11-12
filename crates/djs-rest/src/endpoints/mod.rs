@@ -23,6 +23,7 @@ mod stage_instance;
 mod sticker;
 mod subscription;
 mod user;
+mod voice;
 mod webhook;
 
 use djs_model::{permissions::Permissions, rest::GatewayBot};

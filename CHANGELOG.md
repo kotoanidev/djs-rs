@@ -8,6 +8,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Voice endpoints: `list_voice_regions`, `get_current_user_voice_state`,
+  `get_user_voice_state`, `modify_current_user_voice_state` and `modify_user_voice_state`
+  (bodies `ModifyCurrentUserVoiceState`, `ModifyUserVoiceState`).
 - Lobby endpoints (16 methods, Discord Social SDK): create, create-or-join, get, modify and
   delete lobbies; add, bulk-update, remove members and leave; link and unlink a channel;
   channel invites for oneself or a member; send and read messages and set their moderation
