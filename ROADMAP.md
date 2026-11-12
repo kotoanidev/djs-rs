@@ -92,7 +92,7 @@ just with narrow scope.
       with equal caches, D-174), compact cached types (D-177)
 
 ## Phase 6 — `djs-builders` (≈ @discordjs/builders)
-- [ ] `EmbedBuilder` with Discord limit validation
+- [x] `EmbedBuilder` with Discord limit validation (D-186–D-191; limits checked on the live API)
 - [ ] Slash and context-menu command builders (options, subcommands, localizations, choices)
 - [ ] Component builders (buttons, select menus, action rows, Components V2), modal builders
 

@@ -8,6 +8,14 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-builders` `EmbedBuilder` (Phase 6 step 1, D-178–D-191, C-081): consuming setters
+  for every part, `EmbedAuthorBuilder` / `EmbedFooterBuilder` (or a plain text),
+  `EmbedBuilder::from(embed)`, `build()` → `Result<Embed, ValidationError>` and
+  `build_unchecked()`. `build()` checks the limits the way Discord applies them, as measured
+  with a test bot: lengths in code points after trimming, URL schemes, the 6000-character
+  total and that the embed has content; `embed_length` and `validate_embeds` check a whole
+  message. `djs_builders` is re-exported as `djs_rs::builders`; `djs-model` gained
+  constructors for `EmbedField`, `EmbedAuthor`, `EmbedFooter` and `EmbedImage`.
 - `docs/VS_NODE.md` re-measured with equal caches (D-174): djs-rs with
   `CacheConfig::discord_js()` handles 1.9× the events of discord.js and needs 2.5–4.6× less
   memory for the same cached guilds (391–413 vs 843–1,019 B per member); the memory section

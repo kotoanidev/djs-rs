@@ -2589,9 +2589,38 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - Sizes (x86_64): `CachedMember` 176 → 96 B, `CachedUser` 104 B (`User`: 144 B); guarded in
   `tests/stress.rs` (`type_sizes`).
 
+### C-081 — `EmbedBuilder` details (D-186–D-191)
+- **Model constructors:** the embed types are `#[non_exhaustive]`, so `djs-model` gained
+  `EmbedField::new(name, value, inline)`, `EmbedAuthor::new(name)`, `EmbedFooter::new(text)`
+  and `EmbedImage::new(url)` (no validation in the model).
+- **`ValidationError`:** `field` is a `Cow<'static, str>` path written like Discord's error
+  paths (`fields[3].name`, `author.url`), formatted only when an error occurs;
+  `ValidationError::field()` returns it. Variants: `TooLong`, `TooMany`, `Missing` (for the
+  command builders), `OutOfRange { min, max, actual: i64 }`, `InvalidUrl { allowed }` (the
+  URL itself is not stored, so it cannot leak into logs), `Empty { needs }` (the hint shown in
+  the message). Hand-written `Display` / `Error` (no `thiserror` in this crate).
+- **Pieces:** `EmbedAuthorBuilder` / `EmbedFooterBuilder` also have `build()` (paths without
+  the `author.` / `footer.` prefix) and `build_unchecked()`, following D-180's "every
+  builder"; they convert from `&str`, `&String`, `String`, `CompactString` and the model
+  type. `fields(iter)` takes `EmbedField`s.
+- **Order of checks:** title, description, URL, color, fields (count, then each name and
+  value), footer, image, thumbnail, author, the 6000 total (`field: "embed"`), content.
+- **Not tried live, decided by analogy:** an author with a blank name does not count as
+  content (a blank footer does not); URLs are checked as given, not trimmed; the 6000 total
+  counts trimmed code points like the individual limits.
+- **Unchanged parts:** `build()` does not touch `type`, so an embed taken from a received
+  message keeps its type; setters cannot remove a part (see the open question).
+- **Dependencies:** `djs-builders` uses the existing workspace crates `djs-model` and
+  `compact_str` (`std`), and `serde_json` as a dev-dependency.
+
 ---
 
 ## Open questions (to ask the owner when relevant)
+
+- **Removing parts with the builders**: discord.js can clear a part (`setTitle(null)`) and
+  replace or splice fields (`setFields`, `spliceFields`). `EmbedBuilder` only sets and adds;
+  clearing (for example `clear_footer()` or `Option` setters) would matter when editing a
+  received embed.
 
 - **Resolved roles, messages and channels of interactions**: discord.js also caches the
   resolved roles (full objects), messages (full objects) and channels (partial) of an

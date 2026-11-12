@@ -113,6 +113,30 @@ pub struct EmbedFooter {
     pub proxy_icon_url: Option<CompactString>,
 }
 
+impl EmbedFooter {
+    /// Creates a footer with `text` and no icon.
+    ///
+    /// Nothing is validated; `djs-builders` checks Discord's limits.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use djs_model::message::EmbedFooter;
+    ///
+    /// let footer = EmbedFooter::new("Page 1 of 3");
+    /// assert_eq!(footer.text, "Page 1 of 3");
+    /// assert_eq!(footer.icon_url, None);
+    /// ```
+    #[must_use]
+    pub fn new(text: impl Into<CompactString>) -> Self {
+        Self {
+            text: text.into(),
+            icon_url: None,
+            proxy_icon_url: None,
+        }
+    }
+}
+
 /// The [image or thumbnail of an embed](https://docs.discord.com/developers/resources/message#embed-object-embed-image-structure).
 ///
 /// discord.js counterpart: `EmbedAssetData`.
@@ -146,6 +170,37 @@ pub struct EmbedImage {
     /// The media flags.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub flags: Option<EmbedMediaFlags>,
+}
+
+impl EmbedImage {
+    /// Creates an image or thumbnail showing `url` (`http(s)` or `attachment://`), with no
+    /// metadata — the metadata is filled in by Discord.
+    ///
+    /// Nothing is validated; `djs-builders` checks the URL scheme.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use djs_model::message::EmbedImage;
+    ///
+    /// let image = EmbedImage::new("attachment://chart.png");
+    /// assert_eq!(image.url, "attachment://chart.png");
+    /// assert_eq!(image.width, None);
+    /// ```
+    #[must_use]
+    pub fn new(url: impl Into<CompactString>) -> Self {
+        Self {
+            url: url.into(),
+            proxy_url: None,
+            height: None,
+            width: None,
+            content_type: None,
+            placeholder: None,
+            placeholder_version: None,
+            description: None,
+            flags: None,
+        }
+    }
 }
 
 /// The [video of an embed](https://docs.discord.com/developers/resources/message#embed-object-embed-video-structure).
@@ -211,6 +266,31 @@ pub struct EmbedAuthor {
     pub proxy_icon_url: Option<CompactString>,
 }
 
+impl EmbedAuthor {
+    /// Creates an author named `name`, with no URL and no icon.
+    ///
+    /// Nothing is validated; `djs-builders` checks Discord's limits.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use djs_model::message::EmbedAuthor;
+    ///
+    /// let author = EmbedAuthor::new("djs-rs");
+    /// assert_eq!(author.name, "djs-rs");
+    /// assert_eq!(author.url, None);
+    /// ```
+    #[must_use]
+    pub fn new(name: impl Into<CompactString>) -> Self {
+        Self {
+            name: name.into(),
+            url: None,
+            icon_url: None,
+            proxy_icon_url: None,
+        }
+    }
+}
+
 /// A [field of an embed](https://docs.discord.com/developers/resources/message#embed-object-embed-field-structure).
 ///
 /// discord.js counterpart: `APIEmbedField`.
@@ -224,4 +304,31 @@ pub struct EmbedField {
     /// Whether the field is shown next to other inline fields.
     #[serde(default, skip_serializing_if = "core::ops::Not::not")]
     pub inline: bool,
+}
+
+impl EmbedField {
+    /// Creates a field named `name` showing `value`, next to other inline fields if `inline`.
+    ///
+    /// Nothing is validated; `djs-builders` checks Discord's limits.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use djs_model::message::EmbedField;
+    ///
+    /// let field = EmbedField::new("Ping", "42 ms", true);
+    /// assert_eq!((field.name.as_str(), field.value.as_str(), field.inline), ("Ping", "42 ms", true));
+    /// ```
+    #[must_use]
+    pub fn new(
+        name: impl Into<CompactString>,
+        value: impl Into<CompactString>,
+        inline: bool,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            value: value.into(),
+            inline,
+        }
+    }
 }

@@ -47,6 +47,7 @@ A runnable version lives in [`examples/ping.rs`](https://github.com/kotoanidev/d
 | REST client | `djs-rest` | `djs_rs::rest` |
 | Gateway | `djs-gateway` | `djs_rs::gateway` |
 | Cache | `djs-cache` | `djs_rs::cache` |
+| Builders (embeds, commands, components) | `djs-builders` | `djs_rs::builders` |
 
 Handlers run concurrently in their own tokio tasks by default (like discord.js); switch to
 `HandlerMode::Sequential` for strictly ordered processing. If you prefer an explicit loop,

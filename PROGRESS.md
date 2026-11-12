@@ -17,7 +17,7 @@ measured need after D-150) and resharding while running (open question).
 limits, sweeps, opt-in `Client` cache; benchmarks + extreme-load tests in
 `docs/PERFORMANCE.md`, `docs/VS_NODE.md` re-measured with equal caches). Left open on purpose:
 a lock-free backend (D-176), resolved roles/messages of interactions (open question).
-**Phase 6 — `djs-builders`: in progress** (decisions D-178–D-185 taken, see "Next step").
+**Phase 6 — `djs-builders`: in progress** (decisions D-178–D-191 taken, step 1 done, see "Next step").
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-075 in `docs/DECISIONS.md`; Claude defaults C-001 …
@@ -333,10 +333,18 @@ Decided 2026-11-12: D-178 (builders consume `self`), D-179 (validation in `build
 `Result`), D-180 (`build_unchecked()`), D-181 (order: embeds → commands → components),
 D-182 (`ValidationError` enum, first violation), D-183 (limits count code points after
 trimming), D-184 (verify the counting on the live API with the test bot), D-185 (discord.js
-names, `djs_rs::builders` re-export). Steps:
+names, `djs_rs::builders` re-export), D-186 (`EmbedBuilder` API), D-187 / D-190 (URL
+schemes), D-188 / D-191 (empty texts and empty embeds, measured live), D-189 (message-wide
+`validate_embeds`). Steps:
 0. ✅ The live counting test (D-184): code points after trimming, recorded under D-183.
-1. **Next:** `EmbedBuilder` (+ field/author/footer pieces), `ValidationError`, the shared length check.
-2. Slash and context-menu command builders (options, subcommands, localizations, choices).
+1. ✅ `EmbedBuilder` (C-081): `crates/djs-builders/src/{error.rs (ValidationError),
+   check.rs (shared length / count / URL checks), embed.rs (EmbedBuilder,
+   EmbedAuthorBuilder, EmbedFooterBuilder, embed_length, validate_embeds)}`; constructors
+   for the embed types in `djs-model/src/message/embed.rs`; tests
+   `crates/djs-builders/tests/embed.rs` (the live results as test cases); `djs_rs::builders`.
+2. **Next:** slash and context-menu command builders (options, subcommands, localizations,
+   choices). Ask the owner about their API first (as for D-186), then check the command
+   limits against Discord's docs; a live test only with the owner's approval.
 3. Components (buttons, select menus, action rows), Components V2, modals.
 4. Benchmarks + extreme-load tests (D-041).
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON

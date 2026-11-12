@@ -29,6 +29,9 @@ pub use djs_gateway as gateway;
 /// [`ClientBuilder::cache`].
 pub use djs_cache as cache;
 
+/// Validated builders for embeds, commands and components — re-export of [`djs_builders`].
+pub use djs_builders as builders;
+
 /// The most commonly used items, for a single glob import:
 ///
 /// ```
