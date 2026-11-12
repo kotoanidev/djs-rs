@@ -1649,6 +1649,48 @@ and why.
 - **Alternatives:** a cautious rule without a test (reject only an embed with nothing but a
   color); no empty-embed check.
 
+### D-192 — Command builders: values passed to one `.option()`
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `SlashCommandBuilder::new(name, description)` (name and description cannot be
+  forgotten), options as values of option types named like discord.js
+  (`SlashCommandStringOption::new(name, description).required(true)`, …) passed to a single
+  `.option(…)`, subcommands through `.subcommand(SlashCommandSubcommandBuilder)` and
+  `.subcommand_group(SlashCommandSubcommandGroupBuilder)`, context-menu commands through
+  `ContextMenuCommandBuilder::user(name)` / `::message(name)`. Localizations, default member
+  permissions, contexts, integration types and NSFW are setters. `build()` returns
+  `CreateApplicationCommand`.
+- **Alternatives:** closures like discord.js (`string_option(|o| o.name(…))`, `Missing`
+  errors for unset names); values with one method per option type (`.string_option(…)`).
+
+### D-193 — Mixing subcommands and options is checked in `build()`
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** one `SlashCommandBuilder` type; a level that mixes subcommands (or groups)
+  with other options is a `ValidationError` from `build()`, so a command can be assembled in a
+  loop.
+- **Alternatives:** type states like discord.js (`SlashCommandSubcommandsOnlyBuilder`), a
+  compile-time error.
+
+### D-194 — Command names: a dependency-free approximation of Discord's pattern
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** slash command, subcommand and option names (and their localizations) must have
+  1-32 characters, each a Unicode letter or number by the standard library
+  (`char::is_alphabetic` / `char::is_numeric`), `-`, `_`, `ʼ` (U+02BC), or from the
+  Devanagari or Thai blocks, and no letter that has a lowercase form. The accepted set is a
+  little wider than Discord's `^[-_\u02BC\p{L}\p{N}\p{sc=Deva}\p{sc=Thai}]{1,32}$` (for
+  example combining marks of other scripts), so a valid name is never rejected; Discord
+  rejects the rest.
+- **Alternatives:** the exact pattern with the `regex` crate (new dependency); only the length
+  and lowercase check.
+
+### D-195 — Unclear command rules are checked on the live API in the test guild
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** about 20 guild commands created by the test bot in its test guild (Discord
+  allows 200 creations per guild per day), each deleted at once, to settle what the docs leave
+  open: how the 8000-character total and descriptions are counted (code points? trimmed?),
+  edge-case names, repeated option names, `min` above `max`, empty values. The token stays in
+  `.env`.
+- **Alternatives:** the documentation and discord.js only, unclear cases documented as such.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
