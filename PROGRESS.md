@@ -275,13 +275,19 @@ reserved), D-143 (order below). One commit per step:
    flood +1.5–3 % shard CPU (C-072, `docs/PERFORMANCE.md` "A/B against the start of Phase 4").
 
 ## Next step — Phase 5 (`djs-cache`, ROADMAP)
-Ask the owner first (significant decisions): cache backend and the DashMap dependency, the
-cache trait shape, which resources are cached by default, size limits / sweepers, how the
-djs-rs `Client` exposes the cache, and the step order. Then implement step by step, with
-benchmarks + extreme-load tests at the end (D-041). Re-run the `docs/VS_NODE.md` showcase
-once the cache lands.
+Decided 2026-11-12: D-016 (pluggable, DashMap default), D-081 (own compact cached types),
+D-151 (reads return `Arc<T>`), D-152 (minimal defaults: guilds, channels, roles, current
+user), D-153 (updates return the previous state), D-154 (order below). One commit per step:
+1. Backend trait + DashMap backend + configuration (resources on/off, size limits) — next.
+   Still to ask before coding: the trait granularity / names, the eviction rule for size
+   limits, and the configuration API shape.
+2. Guilds, channels, roles, emojis, stickers, members, users.
+3. Messages, presences, voice states, threads, scheduled events, stage instances, soundboard.
+4. Sweepers.
+5. djs-rs `Client` integration.
+6. Benchmarks + extreme-load tests (D-041), re-run `docs/VS_NODE.md`.
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON
   body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").
 
 ## Blocked on the owner
-- Phase 5 decisions (see "Next step — Phase 5").
+- Phase 5 step 1 API questions (see "Next step — Phase 5").

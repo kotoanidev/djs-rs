@@ -1263,6 +1263,42 @@ and why.
   won, so both experiments were removed (the code is in commit `af58a18`), no feature was
   added and serde_json stays the only parser (`docs/PERFORMANCE.md`, Phase 4).
 
+### D-151 — Cache reads return `Arc<T>`
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** reading from `djs-cache` (e.g. a guild by ID) returns an `Arc` of the cached
+  value: a cheap clone that holds no lock, so it can be kept across `.await`. An update
+  replaces the `Arc` (one allocation per changed entity). The backend trait (D-016) works on
+  `Arc` values and needs no lifetimes or GATs.
+- **Alternatives:** DashMap guards as in twilight/serenity (no copy, in-place updates, but
+  deadlocks when held across `.await` or while writing the same map shard); owned clones.
+
+### D-152 — Minimal cache by default
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** by default the cache keeps only guilds, channels, roles and the current user.
+  Every other resource (threads, emojis, stickers, members, users, voice states, presences,
+  messages, scheduled events, stage instances, soundboard sounds, …) is opt-in. This differs
+  from discord.js, which caches everything its intents deliver (messages 200 per channel);
+  the documentation says so and shows how to enable the discord.js set.
+- **Alternatives:** discord.js defaults (everything, messages limited to 200 per channel);
+  everything without limits.
+
+### D-153 — Cache updates return the previous state
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** applying an event to the cache always returns the previous version of what it
+  changed or removed (an `Arc`, cheap with D-151), so the djs-rs `Client` can give handlers
+  the old and the new state like discord.js (`messageUpdate(oldMessage, newMessage)`,
+  Phase 8). A resource that is not cached has no previous state.
+- **Alternatives:** only when enabled in the configuration; never.
+
+### D-154 — Phase 5 order
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** one commit per step: (1) backend trait + DashMap backend + configuration
+  (resources on/off, size limits); (2) guilds, channels, roles, emojis, stickers, members,
+  users; (3) messages, presences, voice states, threads, scheduled events, stage instances,
+  soundboard; (4) sweepers; (5) the djs-rs `Client` integration; (6) benchmarks,
+  extreme-load tests and a new `docs/VS_NODE.md` run.
+- **Alternatives:** a minimal guild cache wired into `Client` first, then the rest.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
