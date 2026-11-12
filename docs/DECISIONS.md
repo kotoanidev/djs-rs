@@ -1639,6 +1639,13 @@ and why.
   field, a URL, a timestamp, an empty footer, an empty field) and no message content, sent by
   the test bot like D-184 / D-188, accepted ones deleted at once. `build()` then rejects
   exactly the embeds Discord rejects as empty.
+- **Live result, 2026-11-12** (12 messages; the 5 accepted ones deleted at once): an embed
+  with only an image, only a thumbnail, only a footer `"f"`, only an author `"a"` or only a
+  field — even one with an empty name and value — was accepted. An embed with only an empty
+  or whitespace-only title, only an empty description, only a URL, only a timestamp or only an
+  empty footer was rejected as `embeds[0].description: BASE_TYPE_REQUIRED`. So an embed has
+  content when it has a title, description, footer text or author name that is not blank, an
+  image, a thumbnail or at least one field.
 - **Alternatives:** a cautious rule without a test (reject only an embed with nothing but a
   color); no empty-embed check.
 
