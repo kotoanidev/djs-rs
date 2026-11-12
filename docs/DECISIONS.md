@@ -1461,6 +1461,39 @@ and why.
 - **Alternatives:** the `Client` always uses `Cache<DashMapBackend>` (custom backends only with
   `djs-cache` on its own; a type parameter could come in Phase 8).
 
+### D-173 — Typing, interactions and thread members update the cache like discord.js
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** the cache applies `TYPING_START` (its member), `INTERACTION_CREATE` (its
+  user, its member, and the resolved users and members) and `THREAD_MEMBERS_UPDATE` (the
+  thread's `member_count` and the added members as guild members), like discord.js. Partial
+  channels resolved in interactions are not cached, so they never replace full ones. Each
+  returns its previous state like the other member events. Found by the Phase 5 benchmarks
+  (`docs/PERFORMANCE.md`).
+- **Alternatives:** typing and interactions only; leave them out as a documented difference.
+
+### D-174 — `VS_NODE.md` compares with equal caches
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** the summary of `docs/VS_NODE.md` compares djs-rs with
+  `CacheConfig::discord_js()` (what discord.js caches by default) against discord.js'
+  defaults; djs-rs without a cache (its default, D-170) is a separate row. The memory section
+  uses the real cache instead of the `HashMap` stand-in.
+- **Alternatives:** keep "default configurations" in the summary (djs-rs without a cache);
+  both rows in the summary.
+
+### D-175 — Cache memory is optimized now, internally
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** before Phase 5 closes, the cache's memory per entry (424 B per member with
+  discord.js' defaults) is reduced with measured internal changes only. A change that needs
+  a new public type (e.g. a compact cached user) is asked separately.
+- **Alternatives:** also allow new public types now; leave it for later.
+
+### D-176 — A lock-free cache backend stays open
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** the writer starvation under oversubscription (`docs/PERFORMANCE.md`,
+  Phase 5) is not addressed now; a backend with lock-free reads (and its dependency) remains
+  an open question.
+- **Alternatives:** evaluate `papaya` / `scc` now as a benchmark dependency.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
@@ -2380,13 +2413,13 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 
 ## Open questions (to ask the owner when relevant)
 
-- **A cache backend with lock-free reads**: with more busy threads than CPUs, DashMap's
+- **A cache backend with lock-free reads** (deferred, D-176): with more busy threads than CPUs, DashMap's
   reader-preferring `RwLock` and lock-holder preemption starve writers (2 writers + 8 readers
   on 4 CPUs: 0.04–0.11 M updates/s, `docs/PERFORMANCE.md` Phase 5). A second `Backend` on a
   lock-free map (e.g. `papaya` or `scc`) would avoid it; it needs a new dependency.
-- **Cache memory per member** (424 B with discord.js' defaults): a smaller cached `User`,
-  inline role lists or a different per-guild index could reduce it; each changes internals
-  only, but a compact cached `User` would be a new public type.
+- **Cache memory per member** (424 B with discord.js' defaults): internal reductions are
+  being made now (D-175); a compact cached `User` would be a new public type and is to be
+  asked separately.
 
 - **Identify coordination across processes in `Client`**: with `Shards::Range`, every process
   has its own `LocalIdentifyQueue`. A `ClientBuilder::identify_queue(Arc<dyn IdentifyQueue>)`
