@@ -1956,6 +1956,101 @@ and why.
 - **Alternatives:** remove the crate from the workspace; fill it with Rust counterparts of
   `@discordjs/util` now.
 
+### D-219 — Phase 8 order: events, structures, interactions, collectors, partials, examples
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** Phase 8 is built in the ROADMAP order: (1) every event, (2) structures with
+  methods and managers (fetch / cache), (3) interactions (replies, deferrals, follow-ups,
+  modals, autocomplete), (4) collectors and `await_*` helpers, (5) partials and intents
+  guidance, then the examples directory.
+- **Alternatives:** interactions right after the events; interactions first with a minimal
+  set of events.
+
+### D-220 — Structures with methods are extension traits taking `&ctx`
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** following D-006 (`msg.reply(&ctx, "Pong!")`), the methods of discord.js
+  structures (`reply`, `kick`, `send`, …) are extension traits on the `djs-model` types
+  (`MessageExt`, `GuildMemberExt`, …, in `djs_rs::ext` and the prelude); every method takes
+  the `Context` (or the `Client`) as an argument. Event payloads, cached data and REST
+  results stay the same types, with no per-object handle.
+- **Alternatives:** own djs-rs structures holding the data and a client handle
+  (`msg.reply("Pong!")`, +8–16 B and an `Arc` clone per object); both levels.
+
+### D-221 — Events with a previous state hand it in one payload
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** handlers keep the `|ctx, event|` signature for every event (D-171). Events
+  that change cached state get a payload holding both, for example
+  `{ old: Option<Arc<CachedMessage>>, new: … }`; `old` is `None` when nothing was cached
+  (no cache, disabled resource, or never seen), like a discord.js partial.
+- **Alternatives:** separate `|ctx, old, new|` arguments (different `on` signatures per
+  event); the previous state through `ctx.previous()`.
+
+### D-222 — `Events` uses discord.js' event names, plus `Raw`
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `Events` covers discord.js' events by their names (`Events::GuildMemberAdd`,
+  …), including the events discord.js derives where they make sense (for example
+  `GuildAvailable` from `GUILD_CREATE`), plus `Events::Raw`, which hands every gateway
+  dispatch as its `djs-model` value so nothing is out of reach.
+- **Alternatives:** one event per gateway dispatch with Discord's names; gateway events and
+  `Raw` only, derived events later.
+
+### D-223 — Derived events without a cache: the client keeps only unavailable guild IDs
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** the `Client` always keeps, per shard, the IDs of the guilds it knows to be
+  unavailable (from `READY` and from `GUILD_DELETE` with `unavailable`; 8 B per guild, freed
+  as they arrive), so `GuildCreate` (joined), `GuildAvailable` and `GuildUnavailable` are
+  told apart with or without a cache. The per-item events derived by diffing a list
+  (`EmojiCreate` / `EmojiDelete` / `EmojiUpdate`, the sticker ones, …) need that resource in
+  the cache; without it, only the event carrying the whole list is emitted, and the
+  documentation says so.
+- **Alternatives:** every derived event needs the cache (`GUILD_CREATE` is always
+  `GuildCreate`); the client always keeps the guild IDs and the emoji and sticker lists.
+
+### D-224 — `ShardReady` and `ClientReady` fire at `READY`, without waiting for guilds
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `ShardReady` fires at each shard's `READY`; `ClientReady` fires once, at the
+  `READY` of the last shard to become ready. Neither waits for the guilds' `GUILD_CREATE`s
+  (discord.js waits up to `waitGuildTimeout`), so the cache can still be filling; the
+  documentation says so.
+- **Alternatives:** discord.js' behaviour (wait for the guilds or a timeout); unchanged
+  (`ClientReady` at every shard's `READY`, no `ShardReady`).
+
+### D-225 — Handler payloads: the `djs-model` type where it suffices
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** an event with nothing to add hands its `djs-model` payload unchanged (no
+  copy). Events with a previous state (D-221) or derived by the client get their own types in
+  `djs_rs::event::payload`, named after the event (`payload::MessageUpdate { old, new }`,
+  `payload::EmojiUpdate { old, new }`, …).
+- **Alternatives:** an own type for every event, wrapping the model.
+
+### D-226 — Shard lifecycle events; diagnostics stay in `tracing`
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `ShardDisconnect`, `ShardReconnecting`, `ShardResume`, `ShardError` and
+  `Invalidated` are events, because bots react to them; discord.js' `debug`, `warn`,
+  `error` and `cacheSweep` stay `tracing` output only (D-026).
+- **Alternatives:** all of them as events too; no lifecycle events (only `tracing` and
+  `Raw`).
+
+### D-227 — Previous state only where discord.js hands an old or removed object
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** a payload with the previous state (D-221) is given to the events whose
+  discord.js counterpart hands an old or a removed object: updates (`MessageUpdate`,
+  `GuildUpdate`, `ChannelUpdate`, `RoleUpdate`, `GuildMemberUpdate`, `PresenceUpdate`,
+  `VoiceStateUpdate`, `ThreadUpdate`, `UserUpdate`, `StageInstanceUpdate`,
+  `GuildScheduledEventUpdate`, the soundboard, emoji and sticker updates, …) and removals
+  (`MessageDelete`, `MessageBulkDelete`, `GuildDelete`, `GuildMemberRemove`, `RoleDelete`,
+  `ThreadDelete`, …). Other events (reactions, typing, …) keep their `djs-model` payload
+  (D-225), even where the cache returns a previous state.
+- **Alternatives:** every event for which the cache returns a previous state.
+
+### D-228 — Previous-state payloads: `old` and `new`, with `Deref` to `new`
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** those payloads have two public fields: `old` (an `Option` of the cached state
+  before the event) and `new` (Discord's data for the event, as its `djs-model` type), and
+  implement `Deref<Target = …>` to `new`, so `update.content` reads like it does on
+  `MessageCreate`. For a removal, `new` is Discord's removal notice (`delete.id`,
+  `delete.channel_id`) and `old` the removed object.
+- **Alternatives:** the same fields without `Deref`; `old` and `event` without `Deref`.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)

@@ -418,12 +418,23 @@ discord.js names where they fit + Rust traits; no `each`/`reduce`/`some`/`every`
 3. ✅ `djs-util`: stays an empty placeholder until two or more crates need a helper (D-218).
 
 ## Next step — Phase 8 (`djs-rs` full high-level client, ROADMAP)
-Not started. **First ask the owner** (AskUserQuestion, in Polish, recommendation marked)
-before writing code: the order of Phase 8's parts (events + structures with methods +
-managers; interactions; collectors; partials / intents guidance; examples), the shape of
-structures with methods (owned data + a client handle, or views over the cache), manager
-fetch/cache semantics, and the open question "`Collection` in the cache and the client".
-Record the answers as D-219+ and commit them before implementing.
+Decided 2026-11-12: D-219 (order: events → structures + managers → interactions →
+collectors → partials / intents → examples), D-220 (methods are extension traits on the
+`djs-model` types taking `&ctx`), D-221 (one payload with the previous state), D-222
+(discord.js event names + `Raw`), D-223 (the client keeps only unavailable guild IDs;
+per-item diff events need the cache), D-224 (`ShardReady` / `ClientReady` at `READY`, no
+waiting), D-225 (`djs-model` payload where it suffices, own types in
+`djs_rs::event::payload`), D-226 (shard lifecycle events; diagnostics in `tracing`), D-227
+(previous state only where discord.js hands an old or removed object), D-228 (`old` + `new`
+fields with `Deref` to `new`). Steps:
+1. **Next:** every event (D-221–D-228): event markers and `Event` impls for all discord.js
+   events and the remaining gateway dispatches, `Raw`, previous-state payloads, derived
+   events (guild availability, emoji / sticker / soundboard diffs), shard lifecycle events,
+   `ClientReady` once; tests with the mock gateway; then benchmarks + extreme-load tests of
+   the dispatch path (D-041).
+2. Structures with methods (extension traits) and managers (fetch / cache semantics; ask the
+   open question "`Collection` in the cache and the client" first).
+3. Interactions. 4. Collectors and `await_*`. 5. Partials and intents guidance. 6. Examples.
 
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON
   body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").
