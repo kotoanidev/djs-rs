@@ -1194,6 +1194,40 @@ and why.
   if benchmarks show a gain, 6) mock-gateway tests, benchmarks and extreme-load tests (D-041).
 - **Alternatives:** compression and simd-json first.
 
+### D-144 — The IDENTIFY queue is a trait with a local default
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `djs_gateway::IdentifyQueue` is a trait (`wait_turn(&self, ShardId)` returning
+  a boxed `Send` future that completes when the shard may identify); `LocalIdentifyQueue::
+  new(max_concurrency)` is the in-process implementation (one IDENTIFY per bucket
+  `shard % max_concurrency` every 5 s). `Config` holds it as `Arc<dyn IdentifyQueue>`
+  (`ConfigBuilder::identify_queue`); the default is a local queue with `max_concurrency` 1. A
+  queue shared by several processes (e.g. Redis) can be plugged in later without breaking the
+  API (like discord.js `IIdentifyThrottler`, twilight `Queue`).
+- **Alternatives:** only a concrete queue type.
+
+### D-145 — Shards are created with `djs_gateway::create_shards`
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `create_shards(range, total, config)` returns an iterator over the shards of
+  `range` out of `total`; they share the config's IDENTIFY queue (a cloned `Config` shares
+  it). `Shard::with_config` keeps working for manual setups.
+- **Alternatives:** a `ShardsBuilder` with `total`, `range` and `build() -> Vec<Shard>`.
+
+### D-146 — `Client` shards automatically by default
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** In Phase 4 the djs-rs `Client` runs one tokio task per shard, with the shard
+  count Discord recommends and `max_concurrency` from Get Gateway Bot by default.
+  `ClientBuilder::shards(Shards::Auto | Shards::Count(n) | Shards::Range { range, total })`
+  overrides it. (discord.js defaults to one shard; `'auto'` is opt-in.)
+- **Alternatives:** one shard by default with auto opt-in; leaving `Client` single-sharded
+  until the djs-rs phase.
+
+### D-147 — Not enough session starts is an error
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** If `session_start_limit.remaining` is lower than the number of shards to
+  start, `Client::login` returns an error with the remaining count and the time until the
+  reset, without connecting (like discord.js).
+- **Alternatives:** waiting `reset_after` (up to 24 h) and connecting then.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
