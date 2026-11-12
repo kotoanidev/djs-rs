@@ -334,8 +334,8 @@ Decided 2026-11-12: D-178 (builders consume `self`), D-179 (validation in `build
 D-182 (`ValidationError` enum, first violation), D-183 (limits count code points after
 trimming), D-184 (verify the counting on the live API with the test bot), D-185 (discord.js
 names, `djs_rs::builders` re-export). Steps:
-0. **Next:** the live counting test (D-184), result recorded under D-183.
-1. `EmbedBuilder` (+ field/author/footer pieces), `ValidationError`, the shared length check.
+0. ✅ The live counting test (D-184): code points after trimming, recorded under D-183.
+1. **Next:** `EmbedBuilder` (+ field/author/footer pieces), `ValidationError`, the shared length check.
 2. Slash and context-menu command builders (options, subcommands, localizations, choices).
 3. Components (buttons, select menus, action rows), Components V2, modals.
 4. Benchmarks + extreme-load tests (D-041).

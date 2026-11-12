@@ -1549,8 +1549,13 @@ and why.
 - **Date:** 2026-11-12 · **Decided by:** Owner
 - **Decision:** a text limit counts the Unicode code points (`chars().count()`) of the text
   without leading and trailing whitespace, which Discord's documentation says it trims.
-  discord.js counts UTF-16 code units, so it counts an emoji such as 🔥 twice. To be
-  confirmed on the live API (D-184) before the builders rely on it.
+  discord.js counts UTF-16 code units, so it counts an emoji such as 🔥 twice.
+- **Confirmed on the live API (D-184), 2026-11-12:** embed titles of 256 ASCII letters, of
+  256 × 🔥 (512 UTF-16 units, 1 024 bytes), of 256 two-byte letters, of 51 family emoji + `a`
+  (256 code points, 52 graphemes) and of 256 letters wrapped in spaces were accepted; 257
+  letters, 257 × 🔥 and 52 family emoji (260 code points, 52 graphemes) were rejected
+  (`50035 Invalid Form Body`). Discord counts code points after trimming — not UTF-16 units,
+  graphemes or bytes. The accepted test messages were deleted.
 - **Alternatives:** UTF-16 code units like discord.js; decide only after the live test.
 
 ### D-184 — Character counting is checked on the live API with the test bot
