@@ -17,7 +17,7 @@ measured need after D-150) and resharding while running (open question).
 limits, sweeps, opt-in `Client` cache; benchmarks + extreme-load tests in
 `docs/PERFORMANCE.md`, `docs/VS_NODE.md` re-measured with equal caches). Left open on purpose:
 a lock-free backend (D-176), resolved roles/messages of interactions (open question).
-**Next: Phase 6 — `djs-builders`** (needs the owner's decisions first, see "Next step").
+**Phase 6 — `djs-builders`: in progress** (decisions D-178–D-185 taken, see "Next step").
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-075 in `docs/DECISIONS.md`; Claude defaults C-001 …
@@ -329,11 +329,16 @@ user), D-153 (updates return the previous state), D-154 (order below), D-155–D
    e. ✅ Phase 5 marked done (ROADMAP, PROGRESS).
 
 ## Next step — Phase 6 (`djs-builders`, ROADMAP)
-Not started. Ask the owner before writing code: the builder API shape (consuming
-`self` builders vs `&mut self`, how validation errors surface: at `build()` returning
-`Result`, or panics, or both), whether builders live in `djs-builders` and produce the
-`djs-model` request types, where Discord's limits (embed lengths, option counts, component
-rules) are checked, and the order of the three ROADMAP items (embeds, commands, components).
+Decided 2026-11-12: D-178 (builders consume `self`), D-179 (validation in `build()` →
+`Result`), D-180 (`build_unchecked()`), D-181 (order: embeds → commands → components),
+D-182 (`ValidationError` enum, first violation), D-183 (limits count code points after
+trimming), D-184 (verify the counting on the live API with the test bot), D-185 (discord.js
+names, `djs_rs::builders` re-export). Steps:
+0. **Next:** the live counting test (D-184), result recorded under D-183.
+1. `EmbedBuilder` (+ field/author/footer pieces), `ValidationError`, the shared length check.
+2. Slash and context-menu command builders (options, subcommands, localizations, choices).
+3. Components (buttons, select menus, action rows), Components V2, modals.
+4. Benchmarks + extreme-load tests (D-041).
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON
   body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").
 

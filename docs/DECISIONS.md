@@ -1509,6 +1509,67 @@ and why.
   an open question.
 - **Alternatives:** evaluate `papaya` / `scc` now as a benchmark dependency.
 
+### D-178 — Builders consume `self`
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** the `djs-builders` builders take and return `self`
+  (`EmbedBuilder::new().title("x").field(…).build()`), like `ClientBuilder`, `RestBuilder` and
+  `CacheConfigBuilder`; conditional changes reassign (`builder = builder.field(…)`).
+- **Alternatives:** `&mut self` methods (discord.js-like mutation); both styles.
+
+### D-179 — Builders validate in `build()`
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** setters only store; `build()` checks every Discord limit and rule and returns
+  `Result<ModelType, ValidationError>`. Calls can come in any order, and nothing panics in a
+  bot's code. Differs from discord.js, whose setters throw at once.
+- **Alternatives:** setters panic on bad values (discord.js-like); setters return `Result` and
+  `build()` checks cross-field rules.
+
+### D-180 — `build_unchecked()` skips validation
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** every builder also has `build_unchecked()`, which builds without any check
+  (for example when Discord raises a limit before the library does). Chosen per call; no
+  global state. discord.js counterpart: `disableValidators()`.
+- **Alternatives:** `build()` only; a process-wide switch like discord.js.
+
+### D-181 — Phase 6 order: embeds, commands, components
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** the ROADMAP order, one commit (with tests) per step: `EmbedBuilder` first (it
+  sets the validation pattern), then slash and context-menu command builders, then
+  components, Components V2 and modals.
+- **Alternatives:** embeds → components → commands; commands first.
+
+### D-182 — One structured validation error, the first found
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `build()` returns the first violation as a `#[non_exhaustive]` enum
+  `ValidationError` with variants such as `TooLong { field, max, actual }`,
+  `TooMany { … }` and `Missing { field }`, and a readable `Display`.
+- **Alternatives:** all violations at once (`Vec<ValidationError>`); a message-only error.
+
+### D-183 — Limits count Unicode code points after trimming
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** a text limit counts the Unicode code points (`chars().count()`) of the text
+  without leading and trailing whitespace, which Discord's documentation says it trims.
+  discord.js counts UTF-16 code units, so it counts an emoji such as 🔥 twice. To be
+  confirmed on the live API (D-184) before the builders rely on it.
+- **Alternatives:** UTF-16 code units like discord.js; decide only after the live test.
+
+### D-184 — Character counting is checked on the live API with the test bot
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** a one-off test sends a few messages with embeds at the title limit (ASCII,
+  emoji outside the BMP, multi-code-point emoji, surrounding whitespace) from the owner's test
+  bot to a channel of its test guild, deletes them, and records which are accepted. The token
+  stays in `.env` and is never printed.
+- **Alternatives:** no requests to Discord; document the uncertainty.
+
+### D-185 — Builders are named like discord.js and re-exported as `djs_rs::builders`
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `EmbedBuilder`, `SlashCommandBuilder`, `ContextMenuCommandBuilder`,
+  `ActionRowBuilder`, `ButtonBuilder`, `ModalBuilder`, … as in `@discordjs/builders`; the crate
+  is re-exported as `djs_rs::builders` (like `model`, `rest`, `gateway`, `cache`); the prelude
+  is unchanged.
+- **Alternatives:** the same names, the most common ones also in the prelude; Rust-style entry
+  points on the model types (`Embed::builder()`).
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
