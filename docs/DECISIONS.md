@@ -1435,6 +1435,32 @@ and why.
   them.
 - **Alternatives:** nothing swept by default.
 
+### D-170 — The `Client` caches only on request
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** a djs-rs `Client` has no cache unless one is configured
+  (`ClientBuilder::cache(CacheConfig)`); `client.cache()` and `ctx.cache()` return
+  `Option<&Cache>`. Bots without a cache pay nothing for it. This differs from discord.js,
+  where the cache always exists; the documentation says so.
+- **Alternatives:** always a cache, the minimal `CacheConfig::default()` unless configured.
+
+### D-171 — Handlers get the previous state in Phase 8
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** the `Client` applies each event to the cache before its handlers run (the
+  discord.js order), so handlers read the new state through `ctx.cache()`. Old/new pairs for
+  handlers (`messageUpdate(old, new)`, …) come in Phase 8 with the djs-rs structures and
+  events, so the event API is designed once.
+- **Alternatives:** hand handlers the previous state now (e.g. `ctx.previous()`), likely to
+  change in Phase 8.
+
+### D-172 — The `Client` is generic over the cache backend
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `Client<B: Backend = DashMapBackend>` (and its builder and `Context`) take the
+  cache backend as a type parameter with the default backend as default, and
+  `ClientBuilder::cache_backend(backend)` switches it, so custom backends (D-016) work through
+  the `Client` too. Code naming `Client` / `Context` without a parameter keeps working.
+- **Alternatives:** the `Client` always uses `Cache<DashMapBackend>` (custom backends only with
+  `djs-cache` on its own; a type parameter could come in Phase 8).
+
 ---
 
 ## Defaults chosen by Claude (reviewable)

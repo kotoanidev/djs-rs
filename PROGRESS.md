@@ -297,11 +297,11 @@ user), D-153 (updates return the previous state), D-154 (order below), D-155–D
 4. ✅ Sweepers (D-167–D-169, C-076): `Sweep` / `SweepConfig` in `config.rs`, `Global::sweep`
    / `Scoped::sweep` in `limits.rs`, `Cache::sweep_*` (+ `sweep_per_guild!`) in `cache.rs`;
    tests `crates/djs-cache/tests/sweep.rs`.
-5. **Next: the djs-rs `Client` integration.** Ask the owner first: how the `Client` owns
-   the cache (always vs opt-in, `ClientBuilder::cache(CacheConfig)`, `client.cache()`),
-   whether handlers get the previous state now or only in Phase 8, whether the cache is
-   updated before handlers run (discord.js order), and the sweep scheduling (one tokio task
-   per configured sweep).
+5. **Next: the djs-rs `Client` integration.** Decided: D-170 (cache only on request,
+   `ClientBuilder::cache(CacheConfig)`, `client.cache()` / `ctx.cache()` →
+   `Option<&Cache<B>>`), D-171 (cache updated before handlers; old/new for handlers in Phase
+   8), D-172 (`Client<B = DashMapBackend>`, `ClientBuilder::cache_backend`). Sweeps: one tokio
+   task per configured sweep, stopped on shutdown.
 6. Benchmarks + extreme-load tests (D-041), re-run `docs/VS_NODE.md`.
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON
   body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").
