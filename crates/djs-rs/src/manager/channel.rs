@@ -7,7 +7,7 @@ use djs_model::{
     channel::{Channel, OverwriteType},
     id::{ChannelId, GenericId, RoleId, UserId},
     permissions::Permissions,
-    rest::{EditChannelPermissions, ModifyGuildChannel, ModifyThread},
+    rest::{EditChannelPermissions, ModifyGuildChannel, ModifyThread, SendSoundboardSound},
 };
 use djs_rest::Error;
 
@@ -138,6 +138,26 @@ impl<'a, B: Backend> ChannelManager<'a, B> {
         reason: Option<&str>,
     ) -> Result<Channel, Error> {
         self.ctx.rest().delete_channel(channel_id, reason).await
+    }
+
+    /// Plays a soundboard sound in the voice channel the bot is connected to ([Send
+    /// Soundboard Sound](djs_rest::Rest::send_soundboard_sound)).
+    ///
+    /// discord.js counterpart: `VoiceChannel#sendSoundboardSound`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed (it needs `SPEAK` and
+    /// `USE_SOUNDBOARD`, and the bot must not be muted or deafened).
+    pub async fn send_soundboard_sound(
+        self,
+        channel_id: ChannelId,
+        body: &SendSoundboardSound,
+    ) -> Result<(), Error> {
+        self.ctx
+            .rest()
+            .send_soundboard_sound(channel_id, body)
+            .await
     }
 
     /// Sets a channel's permission overwrite for a role or a member (D-235): `allow` and

@@ -464,9 +464,12 @@ fields with `Deref` to `new`). Steps:
       `WebhookClient`, D-239 one invite manager, D-240 `WebhookError::MissingToken`, D-241
       `InvalidWebhookUrl`; C-095): `manager/{emoji,sticker,invite,webhook}.rs`,
       `src/webhook.rs`, `Cache::store_emoji` / `store_sticker`.
-      (3) **Next:** threads and thread members, scheduled events, stage instances,
-      soundboard;
-      (4) audit log, auto moderation, integrations, application commands. Each with methods
+      (3) ✅ threads and thread members (D-242), scheduled events, stage instances,
+      soundboard (D-243 default sounds on the `Context`; C-096):
+      `manager/{thread,scheduled_event,stage_instance,soundboard}.rs`.
+      (4) **Next:** audit log, auto moderation, integrations, application commands (and
+      application emojis, standard stickers and sticker packs, which need the application
+      ID or no guild). Each with methods
       on the structures where discord.js has them, and tests in `tests/managers.rs`.
    d. Benchmarks + extreme-load tests (D-041): `fetch` hit vs miss, the REST write-back, a
       flood of handler `reply`s through the mock API.

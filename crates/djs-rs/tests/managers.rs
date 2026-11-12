@@ -109,6 +109,38 @@ fn webhook(id: &str, token: &Value) -> Value {
            "name": "hook", "avatar": null, "token": token, "application_id": null})
 }
 
+fn thread(id: &str) -> Value {
+    json!({"id": id, "type": 11, "guild_id": GUILD.to_string(), "parent_id": "20",
+           "name": format!("thread-{id}"), "owner_id": "1", "message_count": 0,
+           "member_count": 1,
+           "thread_metadata": {"archived": false, "auto_archive_duration": 1440,
+                               "archive_timestamp": "2026-11-12T10:00:00.000000+00:00",
+                               "locked": false}})
+}
+
+fn thread_member(thread: &str, user: &str) -> Value {
+    json!({"id": thread, "user_id": user, "join_timestamp": "2026-11-12T10:00:00.000000+00:00",
+           "flags": 0})
+}
+
+fn scheduled_event(id: &str) -> Value {
+    json!({"id": id, "guild_id": GUILD.to_string(), "channel_id": null, "creator_id": null,
+           "name": format!("event-{id}"), "scheduled_start_time": "2026-12-01T18:00:00.000000+00:00",
+           "scheduled_end_time": "2026-12-01T19:00:00.000000+00:00", "privacy_level": 2,
+           "status": 1, "entity_type": 3, "entity_id": null,
+           "entity_metadata": {"location": "Online"}, "user_count": 12})
+}
+
+fn stage(channel: &str, topic: &Value) -> Value {
+    json!({"id": "51", "guild_id": GUILD.to_string(), "channel_id": channel, "topic": topic,
+           "privacy_level": 2, "discoverable_disabled": false, "guild_scheduled_event_id": null})
+}
+
+fn sound(id: &str) -> Value {
+    json!({"name": format!("sound-{id}"), "sound_id": id, "volume": 1.0, "emoji_id": null,
+           "emoji_name": null, "guild_id": GUILD.to_string(), "available": true})
+}
+
 fn guild() -> Value {
     let create: Value = serde_json::from_str(&payloads::guild_create(1, 3, 0, 1, 2)).unwrap();
     let mut guild = create["d"].clone();
@@ -150,9 +182,71 @@ fn respond_extra(method: &str, segments: &[&str], body: &Value) -> Option<(u16, 
         ("POST", ["webhooks", _, _]) => (200, message("20", "70", &body["content"])),
         ("GET", ["webhooks", _, _, "messages", id]) => (200, message("20", id, &json!("hooked"))),
         ("PATCH", ["webhooks", _, _, "messages", id]) => (200, message("20", id, &body["content"])),
-        ("DELETE", ["guilds", _, "emojis" | "stickers", _] | ["webhooks", ..]) => {
-            (204, Value::Null)
+        // Threads.
+        ("POST", ["channels", _, "threads"]) if body.get("message").is_some() => {
+            let mut post = named(thread("34"));
+            post["message"] = message("34", "34", &body["message"]["content"]);
+            (200, post)
         }
+        ("POST", ["channels", _, "threads"]) => (200, named(thread("33"))),
+        ("GET", ["channels", _, "threads", "archived", "public" | "private"]) => (
+            200,
+            json!({"threads": [thread("35")], "members": [], "has_more": true}),
+        ),
+        (
+            "GET",
+            [
+                "channels",
+                _,
+                "users",
+                "@me",
+                "threads",
+                "archived",
+                "private",
+            ],
+        ) => (
+            200,
+            json!({"threads": [thread("36")], "members": [thread_member("36", "1")],
+                   "has_more": false}),
+        ),
+        ("GET", ["guilds", _, "threads", "active"]) => (
+            200,
+            json!({"threads": [thread("31"), thread("37")], "members": []}),
+        ),
+        ("GET", ["channels", id, "thread-members"]) => {
+            (200, json!([thread_member(id, "7"), thread_member(id, "8")]))
+        }
+        ("GET", ["channels", id, "thread-members", user]) => (200, thread_member(id, user)),
+        // Scheduled events, stages, soundboard.
+        ("GET", ["guilds", _, "scheduled-events"]) => (200, json!([scheduled_event("50")])),
+        ("POST", ["guilds", _, "scheduled-events"]) => (200, named(scheduled_event("54"))),
+        ("GET", ["guilds", _, "scheduled-events", id]) => (200, scheduled_event(id)),
+        ("PATCH", ["guilds", _, "scheduled-events", id]) => (200, named(scheduled_event(id))),
+        ("GET", ["guilds", _, "scheduled-events", id, "users"]) => (
+            200,
+            json!([{"guild_scheduled_event_id": id, "user": user("7")}]),
+        ),
+        ("POST", ["stage-instances"]) => (200, stage("52", &body["topic"])),
+        ("GET", ["stage-instances", channel]) => (200, stage(channel, &json!("live"))),
+        ("PATCH", ["stage-instances", channel]) => (200, stage(channel, &body["topic"])),
+        ("GET", ["soundboard-default-sounds"]) => (200, json!([sound("1"), sound("2")])),
+        ("GET", ["guilds", _, "soundboard-sounds"]) => (200, json!({"items": [sound("53")]})),
+        ("GET", ["guilds", _, "soundboard-sounds", id]) => (200, sound(id)),
+        ("POST", ["guilds", _, "soundboard-sounds"]) => (200, named(sound("55"))),
+        ("PATCH", ["guilds", _, "soundboard-sounds", id]) => (200, named(sound(id))),
+        (
+            "DELETE",
+            [
+                "guilds",
+                _,
+                "emojis" | "stickers" | "scheduled-events" | "soundboard-sounds",
+                _,
+            ]
+            | ["webhooks", ..]
+            | ["stage-instances", _],
+        )
+        | ("PUT" | "DELETE", ["channels", _, "thread-members", _])
+        | ("POST", ["channels", _, "send-soundboard-sound"]) => (204, Value::Null),
         _ => return None,
     };
     Some(response)
@@ -1479,4 +1573,300 @@ async fn a_webhook_client_needs_no_bot() {
             ("DELETE".into(), "/webhooks/60/tok".into()),
         ]
     );
+}
+
+#[tokio::test]
+async fn threads_are_created_and_listed() {
+    use djs_rs::model::{
+        channel::ChannelType,
+        rest::{
+            ForumThreadMessage, ListArchivedThreads, ListJoinedPrivateArchivedThreads,
+            StartThreadInForumOrMediaChannel, StartThreadWithoutMessage,
+        },
+    };
+
+    let session = Session::start(Some(full_cache())).await;
+    let ctx = &session.ctx;
+    let cached_thread = |id: u64| {
+        ctx.cache()
+            .unwrap()
+            .threads(GUILD)
+            .get(ChannelId::new(id))
+            .is_some()
+    };
+
+    let channel = ctx.channels().fetch(CHANNEL).await.unwrap();
+    session.take();
+    let threads = channel.threads(ctx);
+    let created = threads
+        .create(
+            &StartThreadWithoutMessage::new("talk", ChannelType::PublicThread),
+            Some("topic"),
+        )
+        .await
+        .unwrap();
+    assert_eq!(created.name(), Some("talk"));
+    assert!(cached_thread(33));
+    let seen = session.one();
+    assert_eq!(
+        (seen.method.as_str(), seen.path.as_str()),
+        ("POST", "/channels/20/threads")
+    );
+
+    let post = threads
+        .create_in_forum(
+            &StartThreadInForumOrMediaChannel::new("post", ForumThreadMessage::from("first!")),
+            None,
+        )
+        .await
+        .unwrap();
+    assert_eq!(post.id(), ChannelId::new(34));
+    // The starter message is cached under the thread's ID.
+    let starter = ctx.messages(post.id()).fetch(MessageId::new(34));
+    assert!(starter.is_cached());
+    assert_eq!(starter.await.unwrap().content, "first!");
+    session.take();
+
+    let archived = threads
+        .list_public_archived(&ListArchivedThreads::default())
+        .await
+        .unwrap();
+    assert!(archived.has_more);
+    assert!(cached_thread(35));
+    threads
+        .list_private_archived(&ListArchivedThreads::default())
+        .await
+        .unwrap();
+    let joined = threads
+        .list_joined_private_archived(&ListJoinedPrivateArchivedThreads::default())
+        .await
+        .unwrap();
+    assert_eq!(joined.members.len(), 1);
+    let active = ctx
+        .guild_channels(GUILD)
+        .list_active_threads()
+        .await
+        .unwrap();
+    assert_eq!(
+        active.threads.keys().map(|id| id.get()).collect::<Vec<_>>(),
+        [31, 37]
+    );
+    assert!(!active.has_more);
+    let paths: Vec<String> = session.take().into_iter().map(|seen| seen.path).collect();
+    assert_eq!(
+        paths,
+        [
+            "/channels/20/threads/archived/public".to_owned(),
+            "/channels/20/threads/archived/private".to_owned(),
+            "/channels/20/users/@me/threads/archived/private".to_owned(),
+            format!("/guilds/{GUILD}/threads/active"),
+        ]
+    );
+
+    session.finish().await;
+}
+
+#[tokio::test]
+async fn thread_members() {
+    use djs_rs::model::rest::{GetThreadMember, ListThreadMembers};
+
+    let session = Session::start(Some(full_cache())).await;
+    let ctx = &session.ctx;
+    let created = ctx.channels().fetch(ChannelId::new(33)).await.unwrap();
+    session.take();
+    let members = created.thread_members(ctx);
+    members.join().await.unwrap();
+    members.add(UserId::new(7)).await.unwrap();
+    members.remove(UserId::new(7)).await.unwrap();
+    members.leave().await.unwrap();
+    let seen: Vec<String> = session
+        .take()
+        .into_iter()
+        .map(|seen| format!("{} {}", seen.method, seen.path))
+        .collect();
+    assert_eq!(
+        seen,
+        [
+            "PUT /channels/33/thread-members/@me",
+            "PUT /channels/33/thread-members/7",
+            "DELETE /channels/33/thread-members/7",
+            "DELETE /channels/33/thread-members/@me",
+        ]
+    );
+    let listed = members.list(&ListThreadMembers::default()).await.unwrap();
+    assert_eq!(listed.keys().map(|id| id.get()).collect::<Vec<_>>(), [7, 8]);
+    let mut query = GetThreadMember::default();
+    query.with_member = Some(true);
+    let member = members.fetch(UserId::new(8), &query).await.unwrap();
+    assert_eq!(member.user_id, Some(UserId::new(8)));
+    let seen = session.take().pop().unwrap();
+    assert_eq!(
+        (seen.path.as_str(), seen.query.as_str()),
+        ("/channels/33/thread-members/8", "with_member=true")
+    );
+    session.finish().await;
+}
+
+#[tokio::test]
+async fn scheduled_events_with_their_user_count() {
+    use djs_rs::model::{
+        id::ScheduledEventId,
+        rest::{CreateGuildScheduledEvent, GetGuildScheduledEventUsers, ModifyGuildScheduledEvent},
+    };
+
+    let config = CacheConfig::builder()
+        .scheduled_events(Limit::Unlimited)
+        .build();
+    let session = Session::start(Some(config)).await;
+    let ctx = &session.ctx;
+    let guild = ctx.guilds().fetch(GUILD).await.unwrap();
+    session.take();
+    let base = format!("/guilds/{GUILD}");
+
+    let events = guild.scheduled_events(ctx);
+    let listed = events.list().await.unwrap();
+    assert_eq!(
+        listed.get(&ScheduledEventId::new(50)).unwrap().user_count,
+        Some(12)
+    );
+    assert!(events.fetch(ScheduledEventId::new(50)).is_cached());
+    let seen = session.one();
+    assert_eq!(
+        (seen.path.clone(), seen.query.as_str()),
+        (format!("{base}/scheduled-events"), "with_user_count=true")
+    );
+    let start = Timestamp::parse("2026-12-01T18:00:00.000000+00:00").unwrap();
+    let end = Timestamp::parse("2026-12-01T19:00:00.000000+00:00").unwrap();
+    let body = CreateGuildScheduledEvent::external("Online", "Launch", start, end);
+    let created = events.create(&body, None).await.unwrap();
+    assert!(events.cache().unwrap().contains(created.id));
+    let mut edit = ModifyGuildScheduledEvent::default();
+    edit.name = Some("Relaunch".into());
+    assert_eq!(
+        events.edit(created.id, &edit, None).await.unwrap().name,
+        "Relaunch"
+    );
+    let users = events
+        .users(created.id, &GetGuildScheduledEventUsers::default())
+        .await
+        .unwrap();
+    assert!(users.get(&UserId::new(7)).is_some());
+    events.delete(created.id).await.unwrap();
+    let seen: Vec<String> = session
+        .take()
+        .into_iter()
+        .map(|seen| format!("{} {}", seen.method, seen.path))
+        .collect();
+    assert_eq!(
+        seen,
+        [
+            format!("POST {base}/scheduled-events"),
+            format!("PATCH {base}/scheduled-events/54"),
+            format!("GET {base}/scheduled-events/54/users"),
+            format!("DELETE {base}/scheduled-events/54"),
+        ]
+    );
+
+    session.finish().await;
+}
+
+#[tokio::test]
+async fn stage_instances_by_their_channel() {
+    use djs_rs::model::rest::{CreateStageInstance, ModifyStageInstance};
+
+    let config = CacheConfig::builder()
+        .stage_instances(Limit::Unlimited)
+        .build();
+    let session = Session::start(Some(config)).await;
+    let ctx = &session.ctx;
+    let guild = ctx.guilds().fetch(GUILD).await.unwrap();
+    session.take();
+    let stages = guild.stage_instances(ctx);
+    let stage_channel = ChannelId::new(52);
+    let opened = stages
+        .create(
+            &CreateStageInstance::new(stage_channel, "Q&A"),
+            Some("weekly"),
+        )
+        .await
+        .unwrap();
+    assert_eq!(opened.topic, "Q&A");
+    let fetch = stages.fetch(stage_channel);
+    assert!(fetch.is_cached(), "found by its channel");
+    assert!(Arc::ptr_eq(&fetch.await.unwrap(), &opened));
+    let mut edit = ModifyStageInstance::default();
+    edit.topic = Some("AMA".into());
+    assert_eq!(
+        stages.edit(stage_channel, &edit, None).await.unwrap().topic,
+        "AMA"
+    );
+    stages.delete(stage_channel, None).await.unwrap();
+    let seen: Vec<String> = session
+        .take()
+        .into_iter()
+        .map(|seen| format!("{} {}", seen.method, seen.path))
+        .collect();
+    assert_eq!(
+        seen,
+        [
+            "POST /stage-instances",
+            "PATCH /stage-instances/52",
+            "DELETE /stage-instances/52",
+        ]
+    );
+
+    session.finish().await;
+}
+
+#[tokio::test]
+async fn soundboard_sounds() {
+    use djs_rs::model::{
+        id::SoundboardSoundId,
+        rest::{CreateGuildSoundboardSound, SendSoundboardSound},
+        util::SoundData,
+    };
+
+    let config = CacheConfig::builder()
+        .soundboard_sounds(Limit::Unlimited)
+        .build();
+    let session = Session::start(Some(config)).await;
+    let ctx = &session.ctx;
+    let guild = ctx.guilds().fetch(GUILD).await.unwrap();
+    session.take();
+    let base = format!("/guilds/{GUILD}");
+    let stage_channel = ChannelId::new(52);
+    let defaults = ctx.default_soundboard_sounds().await.unwrap();
+    assert_eq!(defaults.len(), 2);
+    let sounds = guild.soundboard_sounds(ctx);
+    assert_eq!(sounds.list().await.unwrap().len(), 1);
+    assert!(sounds.fetch(SoundboardSoundId::new(53)).is_cached());
+    let quack = SoundData::with_content_type(&b"ID3"[..], "audio/mpeg");
+    let created = sounds
+        .create(&CreateGuildSoundboardSound::new("quack", quack), None)
+        .await
+        .unwrap();
+    assert_eq!(created.name, "quack");
+    sounds.delete(created.sound_id, None).await.unwrap();
+    let voice = ctx.channels().fetch(stage_channel).await.unwrap();
+    voice
+        .send_soundboard_sound(ctx, &SendSoundboardSound::new(created.sound_id))
+        .await
+        .unwrap();
+    let seen: Vec<String> = session
+        .take()
+        .into_iter()
+        .map(|seen| format!("{} {}", seen.method, seen.path))
+        .collect();
+    assert_eq!(
+        seen,
+        [
+            "GET /soundboard-default-sounds".to_owned(),
+            format!("GET {base}/soundboard-sounds"),
+            format!("POST {base}/soundboard-sounds"),
+            format!("DELETE {base}/soundboard-sounds/55"),
+            "GET /channels/52".to_owned(),
+            "POST /channels/52/send-soundboard-sound".to_owned(),
+        ]
+    );
+    session.finish().await;
 }

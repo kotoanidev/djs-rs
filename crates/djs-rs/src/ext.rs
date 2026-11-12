@@ -35,7 +35,7 @@ use djs_model::{
     rest::{
         CreateChannelInvite, CreateGuildBan, CreateMessage, CreateWebhook, EditMessage,
         ExecuteWebhook, ModifyGuild, ModifyGuildChannel, ModifyGuildMember, ModifyWebhook,
-        StartThreadFromMessage,
+        SendSoundboardSound, StartThreadFromMessage,
     },
     user::User,
     util::Timestamp,
@@ -47,7 +47,8 @@ use crate::{
     Context,
     manager::{
         BanManager, EmojiManager, GuildChannelManager, MemberManager, MessageManager,
-        OverwriteTarget, RoleManager, StickerManager,
+        OverwriteTarget, RoleManager, ScheduledEventManager, SoundboardSoundManager,
+        StageInstanceManager, StickerManager, ThreadManager, ThreadMemberManager,
     },
     webhook::WebhookError,
 };
@@ -439,6 +440,37 @@ pub trait ChannelExt: sealed::Channel {
     ) -> impl Future<Output = Result<Collection<String, InviteWithMetadata>, Error>> + Send {
         ctx.invites().list_channel(self.channel_id())
     }
+
+    /// The manager of this channel's threads: create, list archived (D-242).
+    ///
+    /// discord.js counterpart: `TextChannel#threads`.
+    fn threads<'a, B: Backend>(&self, ctx: &'a Context<B>) -> ThreadManager<'a, B> {
+        ctx.threads(self.channel_id())
+    }
+
+    /// The manager of this thread's members: add, remove, join, leave (D-242).
+    ///
+    /// discord.js counterpart: `ThreadChannel#members`.
+    fn thread_members<'a, B: Backend>(&self, ctx: &'a Context<B>) -> ThreadMemberManager<'a, B> {
+        ctx.thread_members(self.channel_id())
+    }
+
+    /// Plays a soundboard sound in this voice channel
+    /// ([`ChannelManager::send_soundboard_sound`](crate::manager::ChannelManager::send_soundboard_sound)).
+    ///
+    /// discord.js counterpart: `VoiceChannel#sendSoundboardSound`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    fn send_soundboard_sound<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+        body: &SendSoundboardSound,
+    ) -> impl Future<Output = Result<(), Error>> + Send {
+        ctx.channels()
+            .send_soundboard_sound(self.channel_id(), body)
+    }
 }
 
 impl ChannelExt for Channel {}
@@ -750,6 +782,33 @@ pub trait GuildExt: sealed::Guild {
         ctx: &Context<B>,
     ) -> impl Future<Output = Result<Collection<String, InviteWithMetadata>, Error>> + Send {
         ctx.invites().list_guild(self.guild_id())
+    }
+
+    /// The manager of this guild's scheduled events.
+    ///
+    /// discord.js counterpart: `Guild#scheduledEvents`.
+    fn scheduled_events<'a, B: Backend>(
+        &self,
+        ctx: &'a Context<B>,
+    ) -> ScheduledEventManager<'a, B> {
+        ctx.scheduled_events(self.guild_id())
+    }
+
+    /// The manager of this guild's live stages.
+    ///
+    /// discord.js counterpart: `Guild#stageInstances`.
+    fn stage_instances<'a, B: Backend>(&self, ctx: &'a Context<B>) -> StageInstanceManager<'a, B> {
+        ctx.stage_instances(self.guild_id())
+    }
+
+    /// The manager of this guild's soundboard sounds.
+    ///
+    /// discord.js counterpart: `Guild#soundboardSounds`.
+    fn soundboard_sounds<'a, B: Backend>(
+        &self,
+        ctx: &'a Context<B>,
+    ) -> SoundboardSoundManager<'a, B> {
+        ctx.soundboard_sounds(self.guild_id())
     }
 }
 

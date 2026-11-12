@@ -248,3 +248,60 @@ fn emojis_and_stickers_are_stored_per_guild() {
     assert_eq!(nothing.store_emoji(GUILD, &emoji).name, "ferris");
     assert!(!nothing.emojis(GUILD).is_enabled());
 }
+
+#[test]
+fn events_stages_and_sounds_are_stored_per_guild() {
+    use djs_model::{
+        guild_scheduled_event::GuildScheduledEvent,
+        id::{ScheduledEventId, SoundboardSoundId, StageInstanceId},
+        soundboard::SoundboardSound,
+        stage_instance::StageInstance,
+    };
+
+    let cache = Cache::with_config(
+        CacheConfig::builder()
+            .scheduled_events(Limit::Unlimited)
+            .stage_instances(Limit::Unlimited)
+            .soundboard_sounds(Limit::Unlimited)
+            .build(),
+    );
+    let event: GuildScheduledEvent = decode(json!({
+        "id": "50", "guild_id": GUILD.to_string(), "channel_id": null, "creator_id": null,
+        "name": "Launch", "scheduled_start_time": "2026-12-01T18:00:00.000000+00:00",
+        "scheduled_end_time": "2026-12-01T19:00:00.000000+00:00", "privacy_level": 2,
+        "status": 1, "entity_type": 3, "entity_id": null,
+        "entity_metadata": {"location": "Online"}
+    }));
+    let stored = cache.store_scheduled_event(GUILD, &event);
+    assert!(Arc::ptr_eq(
+        &cache
+            .scheduled_events(GUILD)
+            .get(ScheduledEventId::new(50))
+            .unwrap(),
+        &stored
+    ));
+    let stage: StageInstance = decode(json!({
+        "id": "51", "guild_id": GUILD.to_string(), "channel_id": "52", "topic": "Q&A",
+        "privacy_level": 2, "discoverable_disabled": false, "guild_scheduled_event_id": null
+    }));
+    let stored = cache.store_stage_instance(GUILD, &stage);
+    assert!(Arc::ptr_eq(
+        &cache
+            .stage_instances(GUILD)
+            .get(StageInstanceId::new(51))
+            .unwrap(),
+        &stored
+    ));
+    let sound: SoundboardSound = decode(json!({
+        "name": "quack", "sound_id": "53", "volume": 1.0, "emoji_id": null,
+        "emoji_name": "🦆", "guild_id": GUILD.to_string(), "available": true
+    }));
+    let stored = cache.store_soundboard_sound(GUILD, &sound);
+    assert!(Arc::ptr_eq(
+        &cache
+            .soundboard_sounds(GUILD)
+            .get(SoundboardSoundId::new(53))
+            .unwrap(),
+        &stored
+    ));
+}

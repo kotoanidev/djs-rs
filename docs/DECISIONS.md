@@ -3475,6 +3475,30 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - Tests (`tests/managers.rs`) check that webhook-token routes carry no `Authorization`
   header (D-121) for the bot's webhooks and for `WebhookClient`.
 
+### C-096 — Phase 8 step 2c batch 3: threads, scheduled events, stages, soundboard (D-242, D-243)
+- **`ThreadManager`** (`ctx.threads(parent)`): `create` (Start Thread without Message),
+  `create_in_forum` (returns the thread; the starter message, whose ID is the thread's, is
+  cached too), `list_public_archived`, `list_private_archived`,
+  `list_joined_private_archived`. **`ThreadMemberManager`** (`ctx.thread_members(thread)`):
+  `fetch(user, &GetThreadMember)` (never cached, a `Fetch` like the other uncached ones),
+  `list` (keyed by user ID; entries without one are skipped), `add`, `remove`, `join`,
+  `leave`. Neither has `cache()`: threads are cached per guild, not per parent.
+- **`FetchedThreads`** (discord.js' name): `threads` as a cached `Collection`, the bot's
+  `members`, `has_more`; returned by the archived lists and by
+  `GuildChannelManager::list_active_threads` (`has_more` always `false`).
+- **`ScheduledEventManager`** (`ctx.scheduled_events(guild)`): `cache`, `fetch`, `list` —
+  both ask for `with_user_count` — `create`, `edit`, `delete` (Discord takes no reason),
+  `users` (the model `GuildScheduledEventUser`, keyed by user ID, not cached).
+- **`StageInstanceManager`** (`ctx.stage_instances(guild)`, guild-scoped like discord.js so
+  the cache can be read): methods take the stage *channel*; `fetch(channel)` finds the
+  cached stage by scanning the guild's stages.
+- **`SoundboardSoundManager`** (`ctx.soundboard_sounds(guild)`): like the emoji manager.
+  `ctx.default_soundboard_sounds()` returns the uncached model sounds keyed by ID (D-243);
+  `ChannelManager::send_soundboard_sound` / `ChannelExt::send_soundboard_sound` play one.
+- `djs-cache` gained `store_scheduled_event`, `store_stage_instance` and
+  `store_soundboard_sound`. Shortcuts: `ChannelExt::threads` / `thread_members`,
+  `GuildExt::scheduled_events` / `stage_instances` / `soundboard_sounds`.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

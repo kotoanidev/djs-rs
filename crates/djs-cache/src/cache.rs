@@ -1225,6 +1225,48 @@ impl<B: Backend> Cache<B> {
         cached
     }
 
+    /// Stores a scheduled event of `guild_id`, for example from Get Guild Scheduled Event,
+    /// and returns it as cached ([`Resource::ScheduledEvent`]).
+    pub fn store_scheduled_event(
+        &self,
+        guild_id: GuildId,
+        event: &GuildScheduledEvent,
+    ) -> Arc<GuildScheduledEvent> {
+        let cached = Arc::new(event.clone());
+        if let Some(events) = &self.scheduled_events {
+            events.insert(guild_id, event.id, Arc::clone(&cached));
+        }
+        cached
+    }
+
+    /// Stores a stage instance of `guild_id`, for example from Get Stage Instance, and
+    /// returns it as cached ([`Resource::StageInstance`]).
+    pub fn store_stage_instance(
+        &self,
+        guild_id: GuildId,
+        stage: &StageInstance,
+    ) -> Arc<StageInstance> {
+        let cached = Arc::new(stage.clone());
+        if let Some(stages) = &self.stage_instances {
+            stages.insert(guild_id, stage.id, Arc::clone(&cached));
+        }
+        cached
+    }
+
+    /// Stores a soundboard sound of `guild_id`, for example from Get Guild Soundboard Sound,
+    /// and returns it as cached ([`Resource::SoundboardSound`]).
+    pub fn store_soundboard_sound(
+        &self,
+        guild_id: GuildId,
+        sound: &SoundboardSound,
+    ) -> Arc<SoundboardSound> {
+        let cached = Arc::new(sound.clone());
+        if let Some(sounds) = &self.soundboard_sounds {
+            sounds.insert(guild_id, sound.sound_id, Arc::clone(&cached));
+        }
+        cached
+    }
+
     /// Stores a guild, for example from Get Guild, and returns it as cached
     /// ([`Resource::Guild`]); its roles, emojis and stickers replace the cached ones when
     /// sent, as for `GUILD_UPDATE`.

@@ -8,6 +8,14 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-rs` threads, scheduled events, stages and the soundboard (Phase 8 step 2c batch 3,
+  D-242, D-243, C-096): `ctx.threads(parent)` (create, create in a forum, archived lists),
+  `ctx.thread_members(thread)` (fetch, list, add, remove, join, leave),
+  `ctx.guild_channels(guild).list_active_threads()`, `ctx.scheduled_events(guild)` (with
+  user counts and interested users), `ctx.stage_instances(guild)` (by stage channel),
+  `ctx.soundboard_sounds(guild)`, `ctx.default_soundboard_sounds()` and
+  `send_soundboard_sound`; lists of threads come as `FetchedThreads`. `djs-cache`:
+  `store_scheduled_event`, `store_stage_instance`, `store_soundboard_sound`.
 - `djs-rs` emojis, stickers, invites and webhooks (Phase 8 step 2c batch 2, D-237–D-241,
   C-095): `ctx.emojis(guild)` and `ctx.stickers(guild)` (cached, like roles),
   `ctx.invites()` (by code, plus create and list for channels and guilds) and

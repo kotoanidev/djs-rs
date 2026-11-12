@@ -43,7 +43,11 @@ mod invite;
 mod member;
 mod message;
 mod role;
+mod scheduled_event;
+mod soundboard;
+mod stage_instance;
 mod sticker;
+mod thread;
 mod user;
 mod webhook;
 
@@ -58,12 +62,16 @@ use std::sync::{Arc, LazyLock};
 use djs_cache::{
     Backend, Cache, CacheConfig, CachedGuild, CachedMember, CachedMessage, CachedUser, Limit,
 };
+use djs_collection::Collection;
 use djs_model::{
     channel::Channel,
     emoji::Emoji,
     guild::{Guild, Member, Role},
-    id::GuildId,
+    guild_scheduled_event::GuildScheduledEvent,
+    id::{ChannelId, GuildId, SoundboardSoundId},
     message::Message,
+    soundboard::SoundboardSound,
+    stage_instance::StageInstance,
     sticker::Sticker,
     user::User,
 };
@@ -79,7 +87,11 @@ pub use self::{
     member::MemberManager,
     message::MessageManager,
     role::RoleManager,
+    scheduled_event::ScheduledEventManager,
+    soundboard::SoundboardSoundManager,
+    stage_instance::StageInstanceManager,
     sticker::StickerManager,
+    thread::{FetchedThreads, ThreadManager, ThreadMemberManager},
     user::UserManager,
     webhook::WebhookManager,
 };
@@ -244,6 +256,39 @@ impl<B: Backend> Context<B> {
         )
     }
 
+    pub(crate) fn store_scheduled_event(
+        &self,
+        guild_id: GuildId,
+        event: &GuildScheduledEvent,
+    ) -> Arc<GuildScheduledEvent> {
+        self.cache().map_or_else(
+            || CONVERT.store_scheduled_event(guild_id, event),
+            |cache| cache.store_scheduled_event(guild_id, event),
+        )
+    }
+
+    pub(crate) fn store_stage_instance(
+        &self,
+        guild_id: GuildId,
+        stage: &StageInstance,
+    ) -> Arc<StageInstance> {
+        self.cache().map_or_else(
+            || CONVERT.store_stage_instance(guild_id, stage),
+            |cache| cache.store_stage_instance(guild_id, stage),
+        )
+    }
+
+    pub(crate) fn store_soundboard_sound(
+        &self,
+        guild_id: GuildId,
+        sound: &SoundboardSound,
+    ) -> Arc<SoundboardSound> {
+        self.cache().map_or_else(
+            || CONVERT.store_soundboard_sound(guild_id, sound),
+            |cache| cache.store_soundboard_sound(guild_id, sound),
+        )
+    }
+
     /// Returns the guild manager (D-229).
     ///
     /// discord.js counterpart: `Client#guilds`.
@@ -288,7 +333,7 @@ impl<B: Backend> Context<B> {
     ///
     /// discord.js counterpart: `TextChannel#messages` (and `TextChannel#send`).
     #[must_use]
-    pub const fn messages(&self, channel_id: djs_model::id::ChannelId) -> MessageManager<'_, B> {
+    pub const fn messages(&self, channel_id: ChannelId) -> MessageManager<'_, B> {
         MessageManager::new(self, channel_id)
     }
 
@@ -322,6 +367,65 @@ impl<B: Backend> Context<B> {
     #[must_use]
     pub const fn stickers(&self, guild_id: GuildId) -> StickerManager<'_, B> {
         StickerManager::new(self, guild_id)
+    }
+
+    /// Returns the manager of a guild's scheduled events.
+    ///
+    /// discord.js counterpart: `Guild#scheduledEvents`.
+    #[must_use]
+    pub const fn scheduled_events(&self, guild_id: GuildId) -> ScheduledEventManager<'_, B> {
+        ScheduledEventManager::new(self, guild_id)
+    }
+
+    /// Returns the manager of a guild's live stages.
+    ///
+    /// discord.js counterpart: `Guild#stageInstances`.
+    #[must_use]
+    pub const fn stage_instances(&self, guild_id: GuildId) -> StageInstanceManager<'_, B> {
+        StageInstanceManager::new(self, guild_id)
+    }
+
+    /// Returns the manager of a guild's soundboard sounds.
+    ///
+    /// discord.js counterpart: `Guild#soundboardSounds`.
+    #[must_use]
+    pub const fn soundboard_sounds(&self, guild_id: GuildId) -> SoundboardSoundManager<'_, B> {
+        SoundboardSoundManager::new(self, guild_id)
+    }
+
+    /// Returns the manager of the threads of a parent channel (D-242).
+    ///
+    /// discord.js counterpart: `TextChannel#threads` / `ForumChannel#threads`.
+    #[must_use]
+    pub const fn threads(&self, channel_id: ChannelId) -> ThreadManager<'_, B> {
+        ThreadManager::new(self, channel_id)
+    }
+
+    /// Returns the manager of a thread's members (D-242).
+    ///
+    /// discord.js counterpart: `ThreadChannel#members`.
+    #[must_use]
+    pub const fn thread_members(&self, thread_id: ChannelId) -> ThreadMemberManager<'_, B> {
+        ThreadMemberManager::new(self, thread_id)
+    }
+
+    /// Discord's default soundboard sounds, available in every guild ([List Default
+    /// Soundboard Sounds](djs_rest::Rest::list_default_soundboard_sounds); D-243). They are
+    /// not cached.
+    ///
+    /// discord.js counterpart: `Client#fetchDefaultSoundboardSounds`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    pub async fn default_soundboard_sounds(
+        &self,
+    ) -> Result<Collection<SoundboardSoundId, SoundboardSound>, Error> {
+        let sounds = self.rest().list_default_soundboard_sounds().await?;
+        Ok(sounds
+            .into_iter()
+            .map(|sound| (sound.sound_id, sound))
+            .collect())
     }
 
     /// Returns the invite manager (D-239).

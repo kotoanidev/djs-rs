@@ -11,6 +11,7 @@ use djs_model::{
 };
 use djs_rest::Error;
 
+use super::FetchedThreads;
 use crate::Context;
 
 /// The channels of one guild, as a whole (D-234). Returned by [`Context::guild_channels`].
@@ -100,5 +101,23 @@ impl<'a, B: Backend> GuildChannelManager<'a, B> {
             .rest()
             .modify_guild_channel_positions(self.guild_id, positions, reason)
             .await
+    }
+    /// The guild's active threads, with the bot's memberships ([List Active Guild
+    /// Threads](djs_rest::Rest::list_active_guild_threads)); the threads are cached.
+    ///
+    /// discord.js counterpart: `GuildChannelManager#fetchActiveThreads`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    pub async fn list_active_threads(self) -> Result<FetchedThreads, Error> {
+        let active = self
+            .ctx
+            .rest()
+            .list_active_guild_threads(self.guild_id)
+            .await?;
+        Ok(self
+            .ctx
+            .fetched_threads(&active.threads, active.members, false))
     }
 }
