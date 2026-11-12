@@ -20,9 +20,19 @@ use std::{
     time::{Duration, Instant},
 };
 
-use djs_rs::{HandlerMode, Shards, gateway::Compression, prelude::*};
+use std::convert::Infallible;
+
+use bytes::Bytes;
+use djs_rs::{HandlerMode, Shards, gateway::Compression, prelude::*, rest::Rest};
 use futures_util::{SinkExt, StreamExt};
-use tokio::{net::TcpListener, sync::Notify, time::timeout};
+use http_body_util::Full;
+use hyper::{Request, Response, body::Incoming, server::conn::http1, service::service_fn};
+use hyper_util::rt::TokioIo;
+use tokio::{
+    net::{TcpListener, TcpStream},
+    sync::Notify,
+    time::timeout,
+};
 use tokio_websockets::{Message, ServerBuilder};
 
 const STEP: Duration = Duration::from_secs(60);
@@ -38,9 +48,45 @@ fn message_create(sequence: u64) -> String {
     )
 }
 
-/// Serves one session that sends `events` `MESSAGE_CREATE` dispatches after READY.
-async fn serve(listener: TcpListener, events: u64) {
-    let (stream, _) = timeout(STEP, listener.accept()).await.unwrap().unwrap();
+/// Serves `sessions` sessions that each send `events` `MESSAGE_CREATE` dispatches after READY.
+async fn serve(listener: TcpListener, sessions: u32, events: u64) {
+    let mut tasks = Vec::new();
+    for _ in 0..sessions {
+        let (stream, _) = timeout(STEP, listener.accept()).await.unwrap().unwrap();
+        tasks.push(tokio::spawn(serve_session(stream, events)));
+    }
+    for task in tasks {
+        task.await.unwrap();
+    }
+}
+
+/// A mock REST API whose Get Gateway Bot recommends `shards` shards, all allowed to identify
+/// at once. Returns its base URL.
+async fn mock_rest(gateway_url: String, shards: u32) -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}/api", listener.local_addr().unwrap());
+    let body = Bytes::from(format!(
+        r#"{{"url":"{gateway_url}","shards":{shards},"session_start_limit":{{"total":1000,"remaining":1000,"reset_after":0,"max_concurrency":{shards}}}}}"#
+    ));
+    tokio::spawn(async move {
+        loop {
+            let (stream, _) = listener.accept().await.unwrap();
+            let body = body.clone();
+            tokio::spawn(async move {
+                let service = service_fn(move |_: Request<Incoming>| {
+                    let body = body.clone();
+                    async move { Ok::<_, Infallible>(Response::new(Full::new(body))) }
+                });
+                let _ = http1::Builder::new()
+                    .serve_connection(TokioIo::new(stream), service)
+                    .await;
+            });
+        }
+    });
+    base
+}
+
+async fn serve_session(stream: TcpStream, events: u64) {
     stream.set_nodelay(true).unwrap();
     let (_, mut ws) = ServerBuilder::new().accept(stream).await.unwrap();
     ws.send(Message::text(HELLO.to_owned())).await.unwrap();
@@ -90,20 +136,30 @@ impl Counter {
     }
 }
 
-/// Floods a client with `events` messages, registering `handlers` counting handlers, and
-/// optionally consuming the event stream as well. Returns the elapsed time.
-async fn run(events: u64, handlers: u64, mode: HandlerMode, stream: bool) -> Duration {
+/// Floods a client running `shards` shards with `events` messages in total, registering
+/// `handlers` counting handlers, and optionally consuming the event stream as well. Returns the
+/// elapsed time from `login` to the last handler call.
+///
+/// One shard connects straight to the mock gateway; more shards go through Get Gateway Bot
+/// (`Shards::Auto`, as a bot does by default), which recommends that many.
+async fn run(shards: u32, events: u64, handlers: u64, mode: HandlerMode, stream: bool) -> Duration {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let url = format!("ws://{}", listener.local_addr().unwrap());
-    let server = tokio::spawn(serve(listener, events));
+    let per_shard = events / u64::from(shards);
+    let server = tokio::spawn(serve(listener, shards, per_shard));
 
-    let client = Client::builder("stress-token")
+    let builder = Client::builder("stress-token")
         .intents(Intents::GUILD_MESSAGES)
-        .gateway_url(url)
-        .shards(Shards::Count(1))
         .compression(Compression::None)
-        .handler_mode(mode)
-        .build();
+        .handler_mode(mode);
+    let client = if shards == 1 {
+        builder.gateway_url(url).shards(Shards::Count(1)).build()
+    } else {
+        let rest = mock_rest(url, shards).await;
+        builder
+            .rest(Rest::builder().token("stress-token").api(rest).build())
+            .build()
+    };
     let counter = Counter::new(events * handlers);
     for _ in 0..handlers {
         let counter = counter.clone();
@@ -169,10 +225,17 @@ fn reset_peak_memory() {
     let _ = std::fs::write("/proc/self/clear_refs", "5");
 }
 
-async fn measure(name: &str, events: u64, handlers: u64, mode: HandlerMode, stream: bool) {
+async fn measure(
+    name: &str,
+    shards: u32,
+    events: u64,
+    handlers: u64,
+    mode: HandlerMode,
+    stream: bool,
+) {
     let before = memory_kib();
     reset_peak_memory();
-    let elapsed = run(events, handlers, mode, stream).await;
+    let elapsed = run(shards, events, handlers, mode, stream).await;
     let memory = match (before, memory_kib()) {
         (Some((before, _)), Some((after, peak))) => format!(
             "rss {} → {} MiB, peak {} MiB",
@@ -194,19 +257,35 @@ async fn measure(name: &str, events: u64, handlers: u64, mode: HandlerMode, stre
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "stress test; run with --release --ignored"]
 async fn flood_1m_concurrent_handlers() {
-    measure("concurrent", 1_000_000, 1, HandlerMode::Concurrent, false).await;
+    measure(
+        "concurrent",
+        1,
+        1_000_000,
+        1,
+        HandlerMode::Concurrent,
+        false,
+    )
+    .await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "stress test; run with --release --ignored"]
 async fn flood_1m_sequential_handlers() {
-    measure("sequential", 1_000_000, 1, HandlerMode::Sequential, false).await;
+    measure(
+        "sequential",
+        1,
+        1_000_000,
+        1,
+        HandlerMode::Sequential,
+        false,
+    )
+    .await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "stress test; run with --release --ignored"]
 async fn flood_200k_fan_out_to_10_handlers() {
-    measure("fan-out", 200_000, 10, HandlerMode::Concurrent, false).await;
+    measure("fan-out", 1, 200_000, 10, HandlerMode::Concurrent, false).await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -214,10 +293,41 @@ async fn flood_200k_fan_out_to_10_handlers() {
 async fn flood_1m_handlers_and_event_stream() {
     measure(
         "handler + stream",
+        1,
         1_000_000,
         1,
         HandlerMode::Concurrent,
         true,
+    )
+    .await;
+}
+
+/// Automatic sharding (D-146): 16 shards, each in its own task, 1M events in total.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "stress test; run with --release --ignored"]
+async fn flood_1m_over_16_shards_concurrent() {
+    measure(
+        "16 shards, concurrent",
+        16,
+        1_000_000,
+        1,
+        HandlerMode::Concurrent,
+        false,
+    )
+    .await;
+}
+
+/// The same with sequential handlers: each shard runs its handlers in its own task.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "stress test; run with --release --ignored"]
+async fn flood_1m_over_16_shards_sequential() {
+    measure(
+        "16 shards, sequential",
+        16,
+        1_000_000,
+        1,
+        HandlerMode::Sequential,
+        false,
     )
     .await;
 }

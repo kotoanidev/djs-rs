@@ -269,8 +269,11 @@ reserved), D-143 (order below). One commit per step:
    gateway.rs` (command, update_presence, create_shards, identify turn), stress tests
    `thousand_shards_*`, `hundred_shards_long_streams_*`, `send_limit_in_real_time`,
    `type_sizes`, Discord-like compression parameters (C-071); results in
-   `docs/PERFORMANCE.md` ("Phase 4"). Next: a djs-rs `Client` stress test with many shards
-   (mock REST returning `max_concurrency`), then mark Phase 4 done (ROADMAP, PROGRESS).
+   `docs/PERFORMANCE.md` ("Phase 4"); djs-rs `Client` stress with 16 shards (5.1–5.5× one
+   shard). **Open:** an A/B against `d9cffea` shows a throughput regression on loopback
+   (gateway −8…−20 %, djs-rs sequential up to −30 %, `docs/PERFORMANCE.md` "A/B against the
+   start of Phase 4"); the shard's own CPU grew only 1–5 %. Asked the owner how to proceed
+   (profiling needs `perf`, not installed). Phase 4 is done once this is settled.
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON
   body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").
 

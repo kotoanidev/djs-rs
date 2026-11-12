@@ -548,3 +548,43 @@ shards and mock server connections):
 
 Held commands never delay incoming events.
 
+### `djs-rs` — `Client` with automatic sharding (`tests/stress.rs`, D-146)
+
+1M `MESSAGE_CREATE` in total, one counting handler; with 16 shards the client goes through Get
+Gateway Bot (mock REST recommending 16 shards, `max_concurrency` 16), as a bot does by default.
+Each test in its own process:
+
+| Run | Events/s | vs 1 shard | Peak memory |
+|---|---:|---:|---:|
+| 1 shard, `Concurrent` | 211 000–219 000 | — | 10 MiB |
+| 16 shards, `Concurrent` | **1 109 000** | 5.1× | 156 MiB |
+| 1 shard, `Sequential` | 372 000–409 000 | — | 7 MiB |
+| 16 shards, `Sequential` | **2 159 000** | 5.5× | 9 MiB |
+| 1 shard, 10 handlers (fan-out) | 96 000 (961 000 handler calls/s) | — | 10 MiB |
+| 1 shard, handler + `events()` stream | 214 000 | — | 11 MiB |
+
+Shards run in their own tasks and scale across the 12 hardware threads.
+
+### A/B against the start of Phase 4 (`d9cffea`) — a regression to look into
+
+The same floods built from `d9cffea` (git worktree) and from this commit, run alternately:
+
+| Measure | Before Phase 4 | Now | Change |
+|---|---:|---:|---:|
+| `djs-gateway` 1M plain flood, events/s | 554 000–638 000 | 490 000–523 000 | −8 … −20 % |
+| — shard thread CPU per event (`/proc/thread-self/schedstat`) | 1 664–1 742 ns | 1 692–1 826 ns | +1 … +5 % |
+| — whole process CPU (shard + mock server) | 2.00–2.09 s | 2.10–2.13 s | +2.5 % |
+| `djs-rs` `Sequential`, events/s | 403 000–578 000 (bimodal) | 382 000–409 000 | −5 … −30 % |
+| — whole process CPU | 2.2–2.8 s | 2.8–3.0 s | +10 … +25 % |
+| `djs-rs` `Concurrent`, events/s | 211 000–302 000 | 211 000–260 000 | 0 … −25 % |
+
+- Bisecting the gateway flood over the Phase 4 commits: the send limit (`8d105f7`) −8 %, the
+  IDENTIFY queue (`b0c9d23`) −7 %, presence ±0, zlib (`477df45`, not used by a plain flood)
+  −4 %. The shard's own CPU per event grew only 30–80 ns, so most of the throughput loss on
+  loopback comes from how the shard and the mock server (same process) are scheduled — the
+  "before" runs switch between a fast and a slow mode, the current ones stay in the slow one.
+- Running a lone shard directly on the `login` task instead of a spawned one did not change
+  the `djs-rs` numbers (tried, reverted).
+- Not resolved yet: the extra CPU in the `djs-rs` sequential flood (+0.3–0.5 µs per event)
+  is larger than the shard's own +30–80 ns. A profiler (`perf`) is needed to find it.
+

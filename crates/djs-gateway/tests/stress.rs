@@ -221,6 +221,7 @@ async fn drain(url: &str, compression: Compression, expected: u64) -> Duration {
     let mut shard = Shard::with_config(ShardId::ONE, config);
     let mut started = None;
     let mut received = 0;
+    let mut cpu_at_ready = 0_u64;
     while received < expected {
         let event = timeout(STEP, shard.next_event())
             .await
@@ -228,7 +229,10 @@ async fn drain(url: &str, compression: Compression, expected: u64) -> Duration {
             .expect("shard ended")
             .expect("shard error");
         match event {
-            GatewayEvent::Dispatch(_, DispatchEvent::Ready(_)) => started = Some(Instant::now()),
+            GatewayEvent::Dispatch(_, DispatchEvent::Ready(_)) => {
+                started = Some(Instant::now());
+                cpu_at_ready = thread_cpu_ns();
+            }
             GatewayEvent::Dispatch(sequence, _) => {
                 received += 1;
                 assert_eq!(sequence, received + 1, "dispatch out of order");
@@ -237,8 +241,24 @@ async fn drain(url: &str, compression: Compression, expected: u64) -> Duration {
         }
     }
     let elapsed = started.expect("no READY").elapsed();
+    let cpu = thread_cpu_ns() - cpu_at_ready;
+    println!(
+        "[stress]   shard thread CPU: {:.1} ns per event",
+        cpu as f64 / expected as f64
+    );
     shard.close().await;
     elapsed
+}
+
+/// CPU time of the current thread in nanoseconds (Linux `schedstat`).
+fn thread_cpu_ns() -> u64 {
+    std::fs::read_to_string("/proc/thread-self/schedstat")
+        .unwrap()
+        .split_whitespace()
+        .next()
+        .unwrap()
+        .parse()
+        .unwrap()
 }
 
 /// `(VmRSS, VmHWM)` of this process in KiB, from `/proc/self/status` (Linux only).
