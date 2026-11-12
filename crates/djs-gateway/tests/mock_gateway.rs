@@ -51,8 +51,13 @@ async fn send(server: &mut Server, payload: Value) {
 
 /// Receives the next text payload sent by the client.
 async fn recv(server: &mut Server) -> Value {
+    recv_within(server, STEP).await
+}
+
+/// Receives the next text payload, waiting up to `wait` for each message.
+async fn recv_within(server: &mut Server, wait: Duration) -> Value {
     loop {
-        let message = timeout(STEP, server.next())
+        let message = timeout(wait, server.next())
             .await
             .expect("client sent nothing")
             .expect("connection ended")
@@ -256,9 +261,8 @@ async fn zombied_connection_is_replaced_respecting_the_identify_limit() {
         // Without a session the shard identifies again — but not sooner than 5 s after the
         // previous identify.
         let again = loop {
-            let payload = timeout(Duration::from_secs(10), recv(&mut second))
-                .await
-                .unwrap();
+            // Longer than `recv`'s timeout: the shard waits about 5 s before identifying.
+            let payload = recv_within(&mut second, Duration::from_secs(10)).await;
             if payload["op"] == 2 {
                 break Instant::now();
             }
@@ -469,15 +473,7 @@ async fn shards_share_the_identify_queue() {
                 send(&mut connection, hello(45_000)).await;
                 // Longer than `recv`'s timeout: shard 2 waits 5 s for its turn.
                 let shard = loop {
-                    let message = timeout(Duration::from_secs(10), connection.next())
-                        .await
-                        .expect("the shard did not identify")
-                        .expect("connection ended")
-                        .unwrap();
-                    let Some(text) = message.as_text() else {
-                        continue;
-                    };
-                    let payload: Value = serde_json::from_str(text).unwrap();
+                    let payload = recv_within(&mut connection, Duration::from_secs(10)).await;
                     if payload["op"] == 2 {
                         break payload["d"]["shard"].clone();
                     }
