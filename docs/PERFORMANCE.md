@@ -1061,3 +1061,71 @@ tests at `e65961a` (before the events) and at the events commit, alternating run
 - The emoji / sticker diffs (D-223) run only on `GUILD_EMOJIS_UPDATE` /
   `GUILD_STICKERS_UPDATE`: one hash map of the cached list, linear in its length (at most a few
   hundred items), so they were not benchmarked separately.
+
+## Phase 8 — `djs-rs` managers (2026-11-12)
+
+Step 2d of Phase 8 (D-041): the managers of steps 2b–2c (D-229–D-247, C-093–C-097). Laptop
+i7-1355U (2 P-cores with HT + 8 E-cores, 12 threads); micro-benchmarks pinned to two
+separate P-cores (`taskset -c 0,2`, C-072); every REST request goes to an in-process mock
+API (no request reaches Discord).
+
+### The cache path (`djs-rs/benches/managers.rs`, divan with `AllocProfiler`)
+
+The futures are polled once with a no-op waker, so no runtime is measured.
+
+| Operation | Median | Allocations |
+|---|---:|---:|
+| `cache.members(guild).get(user)` (the floor) | 14.7 ns | 0 |
+| `ctx.members(guild).fetch(user).await`, cache hit | 15.9 ns | 0 |
+| `ctx.messages(channel).fetch(id).await`, cache hit | 15.6 ns | 0 |
+| `ctx.roles(guild).fetch(id).await`, cache hit | 15.2 ns | 0 |
+| A forced `fetch` turned into its future (not sent) | 74.6 ns | 1 (1.48 KB) |
+
+- **A cache hit allocates nothing and costs ≈ 1 ns over reading the view**: the `Fetch`
+  builder reads the cache when it is created, and its `IntoFuture` keeps the hit inline;
+  only a request is boxed (C-093).
+- **The boxed REST future is 1.48 KB**: the request future of `djs-rest` plus the
+  conversion. It is allocated once per request (≈ 75 ns), against ≈ 35 µs for the request
+  through the mock API below.
+
+### Storing REST results (`djs-cache/benches/cache.rs`, `store`)
+
+| Operation | Median | Allocations |
+|---|---:|---:|
+| `store_user`, the same user again (reused) | 16.6 ns | 0 |
+| `store_member`, a cached member replaced (forced `fetch`) | 64.2 ns | 2 (128 B) |
+| `store_member`, a new member and user (`fetch` that missed) | 176 ns | 3–4 (306 B) |
+| `store_message`, a sent message in a channel at its limit of 200 | 271 ns | 3 (737 B) |
+| `store_member` with members not cached (converted only) | 32.9 ns | 3 (248 B) |
+
+- Storing adds 0.02–0.3 µs to a request of ≈ 35 µs (< 1 %). Without a cache the conversion
+  still allocates the cached type (D-233: managers always return it).
+
+### Extreme load (`djs-rs/tests/stress_managers.rs`)
+
+| Test | Result |
+|---|---:|
+| 1 000 000 member fetches answered by the cache, one task (3 rounds) | 23–25 ns each (view `get` 17–20 ns) — 40–44 M/s |
+| The same on 1 / 6 / 12 / 48 tasks (12 threads) | 42 / 99 / 107 / 117 M fetches/s |
+| 100 000 forced member fetches, 64 in flight (2 rounds) | 36.0–37.2 µs per request vs 34.4–34.8 µs for the bare `Rest::get_guild_member` |
+| 100 000 `ctx.messages(channel).send("pong")`, 64 in flight, without / with discord.js' cache | 40.6 / 41.5 µs vs 41.6 / 40.2 µs for the bare `Rest::create_message` (within noise) |
+| 200 000 distinct members fetched (misses, cached) | 36.8 µs per request; RSS 9.3 → 76.8 MiB, **354 B per member + user** |
+| 200 000 fetches of those members (hits, larger working set) | 47 ns each |
+
+- The REST floods are bound by the in-process HTTP mock and client (≈ 27–29 k requests/s
+  on 12 threads); the manager's share (conversion and storing, ≤ 0.3 µs) is below the noise
+  of these runs (±4 %).
+- Hits scale with the cores until the E-cores are saturated (2.8× from 1 to 48 tasks on
+  this laptop's 2 + 8 cores); the cache's DashMap reads do not contend.
+- Members stored from the REST API take 354 B with their user (no presence, no voice
+  state) — less than the 546 B measured with discord.js' defaults through the gateway in
+  Phase 5, which also keeps presences.
+
+### Findings and optimization candidates (Phase 8, managers)
+
+- **Open, small:** the 1.48 KB boxed future per request comes mostly from `djs-rest`'s
+  request future (the Phase 3 candidate "REST future size"); shrinking it there shrinks
+  every manager request.
+- Converting without a cache allocates the cached type (3 allocations for a member); a
+  client without a cache that only reads fields could skip it, but D-233 chose one return
+  type for both.

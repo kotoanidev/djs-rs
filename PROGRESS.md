@@ -438,7 +438,7 @@ fields with `Deref` to `new`). Steps:
       `Raw` / unwatched floods; A/B against `e65961a` pinned to two P-cores: −2.4 % (+45 ns
       per event, spread bookkeeping, same `perf` profile); results in `docs/PERFORMANCE.md`
       ("Phase 8 — djs-rs events").
-2. Structures with methods and managers (D-220, D-229–D-233): managers on the `Context`
+2. ✅ Structures with methods and managers (D-220, D-229–D-247): managers on the `Context`
    (`ctx.members(guild).fetch(user)`), `fetch` cache-first with `force` and REST write-back
    (new public write API in `djs-cache`), lists as `Collection`, `fetch` returning the cached
    type behind an `Arc` (REST results converted), methods for model and cached types; the
@@ -472,11 +472,17 @@ fields with `Deref` to `new`). Steps:
       on `GuildManager` (D-246), auto moderation, application emojis, standard stickers
       (C-097): `manager/{command,auto_moderation,application_emoji}.rs`. Each with methods
       on the structures where discord.js has them; 25 tests in `tests/managers.rs`.
-   d. **Next:** benchmarks + extreme-load tests (D-041): `fetch` hit vs miss (the cached
-      path should allocate nothing), the REST write-back (`store_*`), a flood of handler
-      `reply`s through the mock REST API, and many concurrent managers; results in
-      `docs/PERFORMANCE.md` ("Phase 8 — managers").
-3. Interactions. 4. Collectors and `await_*`. 5. Partials and intents guidance. 6. Examples.
+   d. ✅ Benchmarks + extreme-load tests (D-041, C-098): `benches/managers.rs` (a cache hit
+      costs ≈ 1 ns over the view and allocates nothing; a request boxes one 1.48 KB
+      future), `djs-cache` `store` benches (0.02–0.3 µs), `tests/stress_managers.rs` (hits
+      42 → 117 M/s on 1 → 48 tasks; REST floods within noise of the bare `Rest`; 354 B per
+      member stored from REST); results in `docs/PERFORMANCE.md` ("Phase 8 — managers").
+3. **Next: interactions** (ROADMAP Phase 8): replying to slash commands, buttons, selects,
+   modals and autocomplete (`reply`, `defer_reply`, `edit_reply`, `follow_up`,
+   `defer_update`, `update`, `show_modal`, `respond` with choices), typed access to command
+   options and component values, and interaction structures for the model and cached
+   types. Ask the owner the shape questions first (D-219 put interactions third).
+4. Collectors and `await_*`. 5. Partials and intents guidance. 6. Examples.
 
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON
   body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").

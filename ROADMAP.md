@@ -107,7 +107,7 @@ just with narrow scope.
       now (D-218)
 
 ## Phase 8 — `djs-rs` full high-level client (≈ discord.js)
-- [ ] All events, structures with methods, managers (fetch/cache semantics)
+- [x] All events, structures with methods, managers (fetch/cache semantics)
 - [ ] Interactions: replies, deferrals, follow-ups, modals, autocomplete
 - [ ] Collectors (message, reaction, interaction) and `await_*` helpers
 - [ ] Partials, intents/privileged intents guidance

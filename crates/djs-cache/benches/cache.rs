@@ -88,6 +88,90 @@ fn discord_js_cache<B: Backend>(backend: B) -> Cache<B> {
     cache
 }
 
+/// Storing objects received from the REST API (D-230): what a manager's `fetch` or `send`
+/// adds to the request.
+mod store {
+    use super::{Bencher, Cache, CacheConfig, GUILD, Limit, black_box, payloads};
+    use djs_model::{guild::Member, message::Message, user::User};
+    use serde_json::{Value, json};
+
+    fn member(id: u64) -> Member {
+        serde_json::from_value(json!({
+            "user": {"id": id.to_string(), "username": "nelly", "discriminator": "0",
+                     "global_name": null, "avatar": null},
+            "nick": "nick", "roles": ["11", "12"], "joined_at": "2026-01-01T00:00:00.000000+00:00",
+            "deaf": false, "mute": false, "flags": 0, "pending": false
+        }))
+        .unwrap()
+    }
+
+    fn members_cache() -> Cache {
+        Cache::with_config(
+            CacheConfig::builder()
+                .members(Limit::Unlimited)
+                .users(Limit::Unlimited)
+                .messages(Limit::Max(200))
+                .build(),
+        )
+    }
+
+    /// The same user again: the stored one is equal and reused.
+    #[divan::bench]
+    fn user_unchanged(bencher: Bencher<'_, '_>) {
+        let cache = members_cache();
+        let user: User = member(7).user;
+        cache.store_user(&user);
+        bencher.bench(|| cache.store_user(black_box(&user)));
+    }
+
+    /// A member already cached, replaced by the same one (a forced `fetch`).
+    #[divan::bench]
+    fn member_replaced(bencher: Bencher<'_, '_>) {
+        let cache = members_cache();
+        let member = member(7);
+        cache.store_member(GUILD, &member);
+        bencher.bench(|| cache.store_member(GUILD, black_box(&member)));
+    }
+
+    /// A new member each time (a `fetch` that missed): member and user inserted.
+    #[divan::bench]
+    fn member_new(bencher: Bencher<'_, '_>) {
+        let cache = members_cache();
+        let mut next = 1_000;
+        bencher
+            .with_inputs(|| {
+                next += 1;
+                member(next)
+            })
+            .bench_local_refs(|member| cache.store_member(GUILD, member));
+    }
+
+    /// A sent message stored in a channel at its limit of 200 (a manager's `send`).
+    #[divan::bench]
+    fn message_sent(bencher: Bencher<'_, '_>) {
+        let cache = members_cache();
+        let create: Value = serde_json::from_str(payloads::MESSAGE_CREATE).unwrap();
+        let template: Message = serde_json::from_value(create["d"].clone()).unwrap();
+        let mut next = 1_000;
+        bencher
+            .with_inputs(|| {
+                next += 1;
+                let mut message = template.clone();
+                message.id = djs_model::id::MessageId::new(next);
+                message
+            })
+            .bench_local_refs(|message| cache.store_message(message));
+    }
+
+    /// Converting without storing: the resource is disabled (or the client has no cache).
+    #[divan::bench]
+    fn member_not_cached(bencher: Bencher<'_, '_>) {
+        let cache = Cache::new();
+        let member = member(7);
+        bencher.bench(|| cache.store_member(GUILD, black_box(&member)));
+    }
+}
+
 /// Applying each hot event to a cache configured like discord.js (everything, 200 messages per
 /// channel) that already holds the event's guild.
 mod update {

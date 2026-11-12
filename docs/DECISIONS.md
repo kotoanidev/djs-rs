@@ -3553,6 +3553,19 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - **Standard stickers** follow D-243: `ctx.sticker(id)`, `ctx.sticker_packs()`,
   `ctx.sticker_pack(id)`, not cached.
 
+### C-098 — Phase 8 manager benchmarks (D-041)
+- `djs-rs` gained `divan` as a dev-dependency (already a workspace dependency used by the
+  other crates' benches, as in C-090) for `benches/managers.rs`: the cache path, polled once
+  with a no-op waker (`Waker::noop`, stable since 1.85) so no runtime is measured, with
+  `AllocProfiler` counting allocations; a client connected to a local mock gateway provides
+  the `Context`.
+- `djs-cache/benches/cache.rs` gained a `store` group (`store_user`, `store_member`,
+  `store_message`).
+- `djs-rs/tests/stress_managers.rs` (ignored): cache-hit floods on 1 to 48 tasks, REST
+  floods with 64 requests in flight against the bare `Rest` calls, and 200 000 members
+  stored from REST with the RSS per member. The mock REST API runs in-process with
+  `global_requests_per_second(0)`.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

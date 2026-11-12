@@ -8,6 +8,10 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Manager benchmarks (Phase 8 step 2d, C-098): `djs-rs/benches/managers.rs` (a cache hit
+  through a manager costs ≈ 1 ns over reading the cache and allocates nothing),
+  `djs-cache` `store` benches and `djs-rs/tests/stress_managers.rs` (cache hits on every
+  core, REST floods, 200 000 members stored from REST); results in `docs/PERFORMANCE.md`.
 - `djs-rs` application commands, auto moderation and the audit log (Phase 8 step 2c batch 4,
   D-244–D-247, C-097): `ctx.application_id()` from `READY`; `ctx.commands()` and
   `ctx.guild_commands(guild)` (fetch, list, create, edit, delete, set; command permissions in
