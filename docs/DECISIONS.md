@@ -1138,6 +1138,31 @@ and why.
   `djs_model::rest::Gateway { url }`, next to `GatewayBot`.
 - **Alternatives:** returning the URL alone, unwrapped from `{"url": …}`.
 
+### D-137 — CDN URLs are built by `djs_rest::cdn::Cdn`
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** Like `REST#cdn` in @discordjs/rest: a `Cdn` struct holding the CDN and media
+  proxy base URLs (defaults `https://cdn.discordapp.com` and `https://media.discordapp.net`,
+  configurable on `RestBuilder`), with one method per CDN endpoint returning a `String`.
+  `Rest::cdn()` returns the client's `&Cdn`; `Cdn::default()` works without a client. The
+  guild widget image URL (D-116) is `Rest::guild_widget_image_url`, as it uses the API base.
+- **Alternatives:** free functions with a fixed base URL; URL methods on the model types
+  (those can still come later in djs-rs on top of `Cdn`).
+
+### D-138 — Animated images default to animated WebP
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** Without an explicit format, an animated hash (`a_…`) gives
+  `.webp?animated=true` (what Discord's docs recommend; WebP and AVIF uploads convert badly to
+  GIF), and other images `.webp`. `force_static` gives a static `.webp`.
+- **Alternatives:** `.gif` for animated hashes, as discord.js v14 does.
+
+### D-139 — Image formats and sizes are enums
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `cdn::ImageFormat { Webp, Png, Jpeg, Gif }` and
+  `cdn::ImageSize { S16, S32, S64, S128, S256, S512, S1024, S2048, S4096 }`, so an invalid size
+  cannot be written and URL building never fails.
+- **Alternatives:** `size: u16` validated at runtime (`Result` or panic), like discord.js'
+  `RangeError`.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
