@@ -649,3 +649,72 @@ async fn zstd_stream_payloads_are_decompressed() {
     drop(shard);
     server.await.unwrap();
 }
+
+#[cfg(feature = "zlib-stream")]
+#[tokio::test]
+async fn zlib_stream_payloads_are_decompressed() {
+    use flate2::{Compress, FlushCompress};
+
+    /// Compresses like Discord: one zlib stream per connection, sync-flushed after every
+    /// payload.
+    fn compress(compressor: &mut Compress, data: &[u8]) -> Vec<u8> {
+        let mut out = Vec::new();
+        let start = compressor.total_in();
+        loop {
+            out.reserve(4096);
+            let read = usize::try_from(compressor.total_in() - start).unwrap();
+            compressor
+                .compress_vec(&data[read..], &mut out, FlushCompress::Sync)
+                .unwrap();
+            let read = usize::try_from(compressor.total_in() - start).unwrap();
+            if read == data.len() && out.len() < out.capacity() {
+                return out;
+            }
+        }
+    }
+
+    let (listener, url) = listener().await;
+    let resume_url = url.clone();
+    let server = tokio::spawn(async move {
+        let (mut connection, query) = accept(&listener).await;
+        assert_eq!(query, "v=10&encoding=json&compress=zlib-stream");
+        let mut compressor = Compress::new(flate2::Compression::default(), true);
+        for payload in [hello(45_000), ready(1, &resume_url), message_create(2)] {
+            let compressed = compress(&mut compressor, payload.to_string().as_bytes());
+            if payload["op"] == 0 && payload["t"] == "MESSAGE_CREATE" {
+                // Discord may split a payload over several messages.
+                let (head, tail) = compressed.split_at(compressed.len() / 2);
+                connection
+                    .send(Message::binary(head.to_vec()))
+                    .await
+                    .unwrap();
+                connection
+                    .send(Message::binary(tail.to_vec()))
+                    .await
+                    .unwrap();
+            } else {
+                connection.send(Message::binary(compressed)).await.unwrap();
+            }
+            if payload["op"] == 10 {
+                recv_op(&mut connection, 2).await;
+            }
+        }
+        let _ = timeout(STEP, connection.next()).await;
+    });
+
+    let config = Config::builder(TOKEN, INTENTS)
+        .gateway_url(&url)
+        .compression(Compression::ZlibStream)
+        .build();
+    let mut shard = Shard::with_config(ShardId::ONE, config);
+    let events = collect_until(&mut shard, |event| {
+        matches!(
+            event,
+            GatewayEvent::Dispatch(_, DispatchEvent::MessageCreate(_))
+        )
+    })
+    .await;
+    assert_eq!(events.len(), 3);
+    drop(shard);
+    server.await.unwrap();
+}

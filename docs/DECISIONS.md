@@ -2005,6 +2005,18 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   `ClientBuilder::presence`). The running shards' senders live in `Inner::senders`, cleared
   when `login` returns.
 
+### C-070 — zlib-stream details (D-140)
+- `Compression::default()` is `ZstdStream` with the `zstd-stream` feature, otherwise
+  `ZlibStream` with `zlib-stream`, otherwise `None`.
+- Following Discord's docs, messages are buffered until one ends with the `Z_SYNC_FLUSH`
+  suffix `00 00 ff ff`; a message that already ends with it while nothing is buffered is
+  inflated directly (the usual case). `Decompressor::decompress` returns `None` for the start
+  of a split payload. Buffers above 1 MiB are released after use, like zstd's.
+- A payload that does not inflate completely, or a stream end (Discord never ends it), is a
+  `Decompress` error, which reconnects like other decompression errors.
+- `flate2 = { version = "1.1.11", default-features = false }` in the workspace, with the
+  `zlib-rs` feature in djs-gateway; djs-rs forwards a `zlib-stream` feature.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

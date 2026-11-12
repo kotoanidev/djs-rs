@@ -10,8 +10,8 @@ D-041).
 **Phase 3 — full `djs-rest` coverage: ✅ done 2026-11-12** (every documented REST route, OAuth2,
 CDN URLs; benchmarks + extreme-load tests in `docs/PERFORMANCE.md`).
 **Phase 4 — full `djs-gateway` coverage: in progress** — steps 1 (send limit), 2 (IDENTIFY
-queue + sharding) and 3 (gateway commands / presence) done; next is step 4, zlib-stream (see
-"Next step" below).
+queue + sharding), 3 (gateway commands / presence) and 4 (zlib-stream) done; next is step 5,
+simd-json (see "Next step" below).
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-075 in `docs/DECISIONS.md`; Claude defaults C-001 …
@@ -258,8 +258,9 @@ reserved), D-143 (order below). One commit per step:
    `MessageSender::update_presence` (kept for new sessions), `ClientBuilder::presence`,
    `Client::set_presence`, `Activity` constructors. Collectors (members, soundboard) and
    voice state helpers are Phase 6; any command already goes through `command()`.
-4. **zlib-stream** (D-140) — ask before adding `flate2` to `[workspace.dependencies]` only if
-   its features differ from D-140.
+4. ✅ **zlib-stream** (D-140, C-070): `Compression::ZlibStream` (`compression.rs`,
+   `flate2` 1.1.11 + `zlib-rs`), split payloads buffered; unit + mock-gateway tests; stress
+   A/B against zstd in `docs/PERFORMANCE.md` ("Phase 4").
 5. **simd-json** (D-013), kept only with a measured gain.
 6. Mock-gateway tests, benches and extreme-load tests (D-041) in `docs/PERFORMANCE.md`.
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON

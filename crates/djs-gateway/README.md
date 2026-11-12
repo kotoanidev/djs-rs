@@ -15,8 +15,9 @@ A Discord gateway (WebSocket) client with transport compression — part of
   heartbeats with jitter, zombie detection, Hello timeout, exponential reconnect backoff and
   close-code handling all happen while you wait for the next event. No background tasks, no
   internal channels.
-- **zstd-stream compression** by default (feature `zstd-stream`), with a decompression buffer
-  that is reused across messages and released after oversized payloads.
+- **zstd-stream compression** by default (feature `zstd-stream`), or **zlib-stream** in pure
+  Rust (feature `zlib-stream`), with a decompression buffer that is reused across messages
+  and released after oversized payloads.
 - **Sharding.** `create_shards(range, total, config)` creates the shards of a bot; they take
   turns identifying through a shared `IdentifyQueue` (`LocalIdentifyQueue` honours
   `max_concurrency`; implement the trait to coordinate several processes). Run each shard in
@@ -59,6 +60,7 @@ while let Some(event) = shard.next_event().await {
 | Feature | Default | Description |
 |---|---|---|
 | `zstd-stream` | ✅ | `zstd-stream` transport compression (needs a C compiler) |
+| `zlib-stream` | | `zlib-stream` transport compression with the pure-Rust `zlib-rs` (no C compiler; compresses less and decodes more slowly than zstd) |
 | `native-roots` | | Also trust the operating system's root certificates (e.g. a corporate proxy's CA), in addition to the bundled Mozilla roots |
 
 ## Part of djs-rs

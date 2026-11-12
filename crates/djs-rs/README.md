@@ -77,6 +77,7 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 | Feature | Default | Description |
 |---|---|---|
 | `zstd-stream` | ✅ | `zstd-stream` gateway compression (needs a C compiler) |
+| `zlib-stream` | | `zlib-stream` gateway compression in pure Rust (no C compiler) |
 | `native-roots` | | Also trust the operating system's root certificates (e.g. a corporate proxy's CA), in addition to the bundled Mozilla roots, for REST and gateway connections |
 
 ## License

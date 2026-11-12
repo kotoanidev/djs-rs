@@ -98,13 +98,42 @@ impl StreamCompressor {
     }
 }
 
+/// Compresses payloads like Discord's `zlib-stream`: one zlib stream, sync-flushed after every
+/// payload (default level 6).
+#[cfg(feature = "zlib-stream")]
+struct ZlibStreamCompressor(flate2::Compress);
+
+#[cfg(feature = "zlib-stream")]
+impl ZlibStreamCompressor {
+    fn new() -> Self {
+        Self(flate2::Compress::new(flate2::Compression::default(), true))
+    }
+
+    fn compress(&mut self, data: &[u8]) -> Vec<u8> {
+        let mut out = Vec::with_capacity(data.len() / 3 + 64);
+        let start = self.0.total_in();
+        loop {
+            out.reserve(4096);
+            let read = usize::try_from(self.0.total_in() - start).unwrap();
+            self.0
+                .compress_vec(&data[read..], &mut out, flate2::FlushCompress::Sync)
+                .unwrap();
+            let read = usize::try_from(self.0.total_in() - start).unwrap();
+            if read == data.len() && out.len() < out.capacity() {
+                out.shrink_to_fit();
+                return out;
+            }
+        }
+    }
+}
+
 /// How the mock gateway encodes frames.
 enum Frames {
     /// Text frames generated on the fly by the server task.
     Text(Box<dyn Iterator<Item = String> + Send>),
     /// Precomputed binary (compressed) frames, starting with Hello and READY.
     #[cfg_attr(
-        not(feature = "zstd-stream"),
+        not(any(feature = "zstd-stream", feature = "zlib-stream")),
         expect(dead_code, reason = "only compressed floods use binary frames")
     )]
     Binary(Vec<Vec<u8>>),
@@ -386,6 +415,86 @@ async fn flood_2k_large_unknown_events_zstd() {
     );
     println!(
         "[stress]   zstd ratio: {raw} → {sent} bytes ({:.1}x); decompressed {:.1} MB/s",
+        raw as f64 / sent as f64,
+        raw as f64 / elapsed.as_secs_f64() / 1e6
+    );
+}
+
+/// One million `MESSAGE_CREATE` frames compressed with `zlib-stream`.
+#[cfg(feature = "zlib-stream")]
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "stress test; run with --release --ignored"]
+async fn flood_1m_message_creates_zlib() {
+    const EVENTS: u64 = 1_000_000;
+    let mut compressor = ZlibStreamCompressor::new();
+    let mut frames = vec![
+        compressor.compress(HELLO.as_bytes()),
+        compressor.compress(READY.as_bytes()),
+    ];
+    frames.extend(
+        (2..EVENTS + 2).map(|sequence| compressor.compress(message_create(sequence).as_bytes())),
+    );
+    let raw: u64 = (2..EVENTS + 2)
+        .map(|sequence| message_create(sequence).len() as u64)
+        .sum();
+
+    let (listener, url) = listener().await;
+    let server = tokio::spawn(serve(listener, Frames::Binary(frames)));
+    let baseline = memory_kib();
+    reset_peak_memory();
+    let elapsed = drain(&url, Compression::ZlibStream, EVENTS).await;
+    let sent = server.await.unwrap();
+    report(
+        "1M MESSAGE_CREATE, zlib-stream",
+        EVENTS,
+        sent,
+        elapsed,
+        baseline,
+    );
+    println!(
+        "[stress]   zlib ratio: {raw} → {sent} bytes ({:.1}x); decompressed {:.1} MB/s",
+        raw as f64 / sent as f64,
+        raw as f64 / elapsed.as_secs_f64() / 1e6
+    );
+}
+
+/// 2 000 ~200 KB unknown events compressed with `zlib-stream`; memory must stay bounded.
+#[cfg(feature = "zlib-stream")]
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "stress test; run with --release --ignored"]
+async fn flood_2k_large_unknown_events_zlib() {
+    const EVENTS: u64 = 2_000;
+    let mut compressor = ZlibStreamCompressor::new();
+    let mut frames = vec![
+        compressor.compress(HELLO.as_bytes()),
+        compressor.compress(READY.as_bytes()),
+    ];
+    // The same payloads as the zstd variant.
+    let mut raw = 0;
+    for sequence in 2..EVENTS + 2 {
+        let payload = large_unknown_event(sequence, 1_000).replace(
+            "1000000000000000",
+            &format!("{:016}", 2_000_000_000_000_000 + sequence * 1_000),
+        );
+        raw += payload.len() as u64;
+        frames.push(compressor.compress(payload.as_bytes()));
+    }
+
+    let (listener, url) = listener().await;
+    let server = tokio::spawn(serve(listener, Frames::Binary(frames)));
+    let baseline = memory_kib();
+    reset_peak_memory();
+    let elapsed = drain(&url, Compression::ZlibStream, EVENTS).await;
+    let sent = server.await.unwrap();
+    report(
+        "2k large unknown events (1000 members), zlib-stream",
+        EVENTS,
+        sent,
+        elapsed,
+        baseline,
+    );
+    println!(
+        "[stress]   zlib ratio: {raw} → {sent} bytes ({:.1}x); decompressed {:.1} MB/s",
         raw as f64 / sent as f64,
         raw as f64 / elapsed.as_secs_f64() / 1e6
     );

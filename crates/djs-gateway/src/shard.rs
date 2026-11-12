@@ -403,7 +403,9 @@ impl Shard {
                 return None;
             };
             match decompressor.decompress(message.as_payload()) {
-                Ok(bytes) => match core::str::from_utf8(bytes) {
+                // The start of a payload split over several messages.
+                Ok(None) => return None,
+                Ok(Some(bytes)) => match core::str::from_utf8(bytes) {
                     Ok(json) => parse(json),
                     Err(error) => (
                         None,

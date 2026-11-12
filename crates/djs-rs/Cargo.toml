@@ -17,6 +17,8 @@ publish = false
 default = ["zstd-stream"]
 ## `zstd-stream` gateway transport compression (D-015).
 zstd-stream = ["djs-gateway/zstd-stream"]
+## `zlib-stream` gateway transport compression (D-015, D-140; pure Rust).
+zlib-stream = ["djs-gateway/zlib-stream"]
 ## Also trust the operating system's root certificates (e.g. a corporate proxy's CA), in
 ## addition to the bundled `webpki-roots`, for REST and gateway connections (D-088, D-100).
 native-roots = ["djs-gateway/native-roots", "djs-rest/native-roots"]

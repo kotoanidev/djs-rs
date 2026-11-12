@@ -8,6 +8,10 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `zlib-stream` transport compression (feature `zlib-stream` in djs-gateway and djs-rs,
+  D-140): `Compression::ZlibStream`, decoded with `flate2` + the pure-Rust `zlib-rs`,
+  including payloads split over several WebSocket messages. Stress-tested against zstd
+  (`docs/PERFORMANCE.md`, Phase 4).
 - Presence (D-148, D-149): `ConfigBuilder::presence` (sent in every IDENTIFY),
   `MessageSender::update_presence` (also kept for later sessions), `ClientBuilder::presence`,
   `Client::set_presence` (every shard), and `Activity::{playing, streaming, listening,

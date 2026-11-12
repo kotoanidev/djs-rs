@@ -402,3 +402,38 @@ The fixed one-second windows of Phase 1 were replaced with a sliding log. `globa
 The extra 0.2 s is the 50 ms offset by which every window is extended (so that latency jitter
 cannot squeeze 51 requests into Discord's second); a burst of 50 still goes out at once.
 
+## Phase 4 — full `djs-gateway` (in progress, 2026-11-12)
+
+Same machine (Intel Core i7-1355U, 12 threads, Linux 7.3.3, rustc 1.99.1). Results are added
+step by step; the full Phase 4 benchmarks and extreme-load tests follow in step 6.
+
+### `zlib-stream` vs `zstd-stream` (`djs-gateway/tests/stress.rs`, D-140)
+
+`zlib-stream` uses `flate2` with the pure-Rust `zlib-rs` backend; the mock gateway compresses
+with zlib level 6 and zstd level 3, one stream per connection, flushed after every payload.
+Three runs each (`--release --ignored --test-threads 1`):
+
+| Flood | Compression | Events/s | Ratio | Decompressed | Wire bytes |
+|---|---|---:|---:|---:|---:|
+| 1M `MESSAGE_CREATE` | plain | 508 000 | 1× | — | 884 MB |
+| | `zlib-stream` | 513 000–560 000 | 26.4× | 453–495 MB/s | 33.5 MB |
+| | `zstd-stream` | 579 000–625 000 | 38.9× | 512–553 MB/s | 22.7 MB |
+| 2k ~200 KB unknown events | plain | 6 130 | 1× | — | 438 MB |
+| | `zlib-stream` | 4 400–4 920 | 39.0× | 964–1 077 MB/s | 11.2 MB |
+| | `zstd-stream` | 6 000–6 270 | 163.1× | 1 313–1 373 MB/s | 2.7 MB |
+
+- zlib decodes 10 % fewer small events and 25 % fewer large ones per second than zstd, and
+  sends 1.5× (small) to 4× (large) more bytes; zstd stays the default (D-015). zlib is still
+  as fast as plain text on loopback for small events, because 26× fewer bytes are read.
+- Memory stays bounded: 21 MiB peak for the 2k large events (zlib, run on its own), as the
+  output and split-payload buffers are released above 1 MiB.
+- A payload split over several WebSocket messages is buffered until Discord's sync-flush
+  suffix; the common single-message case inflates straight from the message (no copy).
+
+Reproduce:
+
+```bash
+cargo test --release -p djs-gateway --all-features --test stress -- --ignored --nocapture \
+  --test-threads 1 zlib zstd
+```
+
