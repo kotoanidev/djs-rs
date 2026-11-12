@@ -1,8 +1,75 @@
-//! The checks shared by every builder: text lengths and URL schemes.
+//! The checks shared by every builder: text lengths, URL schemes, and the [`Path`] of a value
+//! for error messages.
 
-use std::borrow::Cow;
+use std::{borrow::Cow, fmt};
 
 use crate::ValidationError;
+
+/// Where a value sits in the JSON sent to Discord, for the `field` of a [`ValidationError`].
+///
+/// Built on the stack while walking nested values (`options[2].choices[0]`) and formatted only
+/// when an error is reported, so valid input costs no allocation.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum Path<'a> {
+    /// The value being built.
+    Root,
+    /// Item `index` of the list `list` inside `parent`.
+    Item {
+        parent: &'a Path<'a>,
+        list: &'static str,
+        index: usize,
+    },
+}
+
+impl<'a> Path<'a> {
+    /// The path of item `index` of the list `list` here.
+    pub(crate) const fn item(&'a self, list: &'static str, index: usize) -> Self {
+        Self::Item {
+            parent: self,
+            list,
+            index,
+        }
+    }
+
+    /// The path of the field `name` here (borrowed when here is the root).
+    pub(crate) fn field(&self, name: &'static str) -> Cow<'static, str> {
+        match self {
+            Self::Root => name.into(),
+            Self::Item { .. } => format!("{self}.{name}").into(),
+        }
+    }
+
+    /// The path of the entry `key` of the map `map` here, e.g. `name_localizations.pl`.
+    pub(crate) fn entry(&self, map: &'static str, key: &str) -> Cow<'static, str> {
+        match self {
+            Self::Root => format!("{map}.{key}").into(),
+            Self::Item { .. } => format!("{self}.{map}.{key}").into(),
+        }
+    }
+
+    /// This path itself, e.g. `options[1]`.
+    pub(crate) fn this(&self) -> Cow<'static, str> {
+        self.to_string().into()
+    }
+}
+
+impl fmt::Display for Path<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Root => Ok(()),
+            Self::Item {
+                parent: Self::Root,
+                list,
+                index,
+            } => write!(f, "{list}[{index}]"),
+            Self::Item {
+                parent,
+                list,
+                index,
+            } => write!(f, "{parent}.{list}[{index}]"),
+        }
+    }
+}
 
 /// The schemes Discord allows for links: the title and author URLs (D-187).
 pub(crate) const WEB: &[&str] = &["http://", "https://"];
@@ -43,11 +110,36 @@ pub(crate) fn text(
     Ok(actual)
 }
 
+/// Like [`text`], but a blank text is [`ValidationError::Missing`]: Discord requires it to
+/// have at least one character after trimming (D-195).
+pub(crate) fn required_text(
+    field: impl FnOnce() -> Cow<'static, str>,
+    text: &str,
+    max: usize,
+) -> Result<usize, ValidationError> {
+    let actual = length(text);
+    if actual == 0 {
+        return Err(ValidationError::Missing { field: field() });
+    }
+    if actual > max {
+        return Err(ValidationError::TooLong {
+            field: field(),
+            max,
+            actual,
+        });
+    }
+    Ok(actual)
+}
+
 /// Returns [`ValidationError::TooMany`] if a list of `actual` items is above `max`.
-pub(crate) fn count(field: &'static str, actual: usize, max: usize) -> Result<(), ValidationError> {
+pub(crate) fn count(
+    field: impl FnOnce() -> Cow<'static, str>,
+    actual: usize,
+    max: usize,
+) -> Result<(), ValidationError> {
     if actual > max {
         return Err(ValidationError::TooMany {
-            field: field.into(),
+            field: field(),
             max,
             actual,
         });
@@ -108,6 +200,40 @@ mod tests {
                 actual: 4
             })
         );
+    }
+
+    #[test]
+    fn paths_are_written_like_discord_writes_them() {
+        let root = Path::Root;
+        assert_eq!(root.field("name"), "name");
+        assert!(matches!(root.field("name"), Cow::Borrowed(_)));
+        assert_eq!(
+            root.entry("name_localizations", "pl"),
+            "name_localizations.pl"
+        );
+        let option = root.item("options", 2);
+        let choice = option.item("choices", 0);
+        assert_eq!(option.this(), "options[2]");
+        assert_eq!(choice.field("name"), "options[2].choices[0].name");
+        assert_eq!(
+            choice.entry("name_localizations", "de"),
+            "options[2].choices[0].name_localizations.de"
+        );
+    }
+
+    #[test]
+    fn a_required_text_must_not_be_blank() {
+        assert_eq!(required_text(|| unreachable!(), " a ", 1), Ok(1));
+        assert_eq!(
+            required_text(|| "description".into(), "   ", 100),
+            Err(ValidationError::Missing {
+                field: "description".into()
+            })
+        );
+        assert!(matches!(
+            required_text(|| "description".into(), "ab", 1),
+            Err(ValidationError::TooLong { .. })
+        ));
     }
 
     #[test]

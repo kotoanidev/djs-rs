@@ -411,7 +411,7 @@ fn validate(embed: &Embed) -> Result<(), ValidationError> {
             actual: color.into(),
         });
     }
-    check::count("fields", embed.fields.len(), limits::FIELDS)?;
+    check::count(|| "fields".into(), embed.fields.len(), limits::FIELDS)?;
     for (index, field) in embed.fields.iter().enumerate() {
         total += check::text(
             || format!("fields[{index}].name").into(),
@@ -524,7 +524,7 @@ pub fn embed_length(embed: &Embed) -> usize {
 /// );
 /// ```
 pub fn validate_embeds(embeds: &[Embed]) -> Result<(), ValidationError> {
-    check::count("embeds", embeds.len(), limits::EMBEDS)?;
+    check::count(|| "embeds".into(), embeds.len(), limits::EMBEDS)?;
     let total = embeds.iter().map(embed_length).sum();
     if total > limits::TOTAL {
         return Err(ValidationError::TooLong {

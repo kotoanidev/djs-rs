@@ -368,6 +368,24 @@ pub struct SubCommandOption {
     pub options: Vec<CommandOption>,
 }
 
+impl SubCommandOption {
+    /// Creates a subcommand or a subcommand group, named `name` and described by `description`, without translations.
+    ///
+    /// Nothing is validated; `djs-builders` checks Discord's rules.
+    #[must_use]
+    pub fn new(name: impl Into<CompactString>, description: impl Into<CompactString>) -> Self {
+        Self {
+            name: name.into(),
+            name_localizations: BTreeMap::new(),
+            description: description.into(),
+            description_localizations: BTreeMap::new(),
+            name_localized: None,
+            description_localized: None,
+            options: Vec::new(),
+        }
+    }
+}
+
 /// A string option.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
@@ -405,6 +423,28 @@ pub struct StringOption {
     /// [`choices`](Self::choices)).
     #[serde(skip_serializing_if = "core::ops::Not::not")]
     pub autocomplete: bool,
+}
+
+impl StringOption {
+    /// Creates an optional string option without choices or bounds, named `name` and described by `description`, without translations.
+    ///
+    /// Nothing is validated; `djs-builders` checks Discord's rules.
+    #[must_use]
+    pub fn new(name: impl Into<CompactString>, description: impl Into<CompactString>) -> Self {
+        Self {
+            name: name.into(),
+            name_localizations: BTreeMap::new(),
+            description: description.into(),
+            description_localizations: BTreeMap::new(),
+            name_localized: None,
+            description_localized: None,
+            required: false,
+            choices: Vec::new(),
+            min_length: None,
+            max_length: None,
+            autocomplete: false,
+        }
+    }
 }
 
 /// An integer option.
@@ -445,6 +485,28 @@ pub struct IntegerOption {
     pub autocomplete: bool,
 }
 
+impl IntegerOption {
+    /// Creates an optional integer option without choices or bounds, named `name` and described by `description`, without translations.
+    ///
+    /// Nothing is validated; `djs-builders` checks Discord's rules.
+    #[must_use]
+    pub fn new(name: impl Into<CompactString>, description: impl Into<CompactString>) -> Self {
+        Self {
+            name: name.into(),
+            name_localizations: BTreeMap::new(),
+            description: description.into(),
+            description_localizations: BTreeMap::new(),
+            name_localized: None,
+            description_localized: None,
+            required: false,
+            choices: Vec::new(),
+            min_value: None,
+            max_value: None,
+            autocomplete: false,
+        }
+    }
+}
+
 /// A number (double) option.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
@@ -483,6 +545,28 @@ pub struct NumberOption {
     pub autocomplete: bool,
 }
 
+impl NumberOption {
+    /// Creates an optional number option without choices or bounds, named `name` and described by `description`, without translations.
+    ///
+    /// Nothing is validated; `djs-builders` checks Discord's rules.
+    #[must_use]
+    pub fn new(name: impl Into<CompactString>, description: impl Into<CompactString>) -> Self {
+        Self {
+            name: name.into(),
+            name_localizations: BTreeMap::new(),
+            description: description.into(),
+            description_localizations: BTreeMap::new(),
+            name_localized: None,
+            description_localized: None,
+            required: false,
+            choices: Vec::new(),
+            min_value: None,
+            max_value: None,
+            autocomplete: false,
+        }
+    }
+}
+
 /// A boolean, user, role or mentionable option (they share this structure).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
@@ -507,6 +591,24 @@ pub struct BasicOption {
     /// Whether the option must be filled.
     #[serde(skip_serializing_if = "core::ops::Not::not")]
     pub required: bool,
+}
+
+impl BasicOption {
+    /// Creates an optional boolean, user, role or mentionable option, named `name` and described by `description`, without translations.
+    ///
+    /// Nothing is validated; `djs-builders` checks Discord's rules.
+    #[must_use]
+    pub fn new(name: impl Into<CompactString>, description: impl Into<CompactString>) -> Self {
+        Self {
+            name: name.into(),
+            name_localizations: BTreeMap::new(),
+            description: description.into(),
+            description_localizations: BTreeMap::new(),
+            name_localized: None,
+            description_localized: None,
+            required: false,
+        }
+    }
 }
 
 /// A channel option.
@@ -538,6 +640,25 @@ pub struct ChannelOption {
     pub channel_types: Vec<ChannelType>,
 }
 
+impl ChannelOption {
+    /// Creates an optional channel option offering every channel type, named `name` and described by `description`, without translations.
+    ///
+    /// Nothing is validated; `djs-builders` checks Discord's rules.
+    #[must_use]
+    pub fn new(name: impl Into<CompactString>, description: impl Into<CompactString>) -> Self {
+        Self {
+            name: name.into(),
+            name_localizations: BTreeMap::new(),
+            description: description.into(),
+            description_localizations: BTreeMap::new(),
+            name_localized: None,
+            description_localized: None,
+            required: false,
+            channel_types: Vec::new(),
+        }
+    }
+}
+
 /// An attachment option.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
@@ -566,6 +687,25 @@ pub struct AttachmentOption {
     /// (extensions only; all when empty).
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub file_types: Vec<CompactString>,
+}
+
+impl AttachmentOption {
+    /// Creates an optional attachment option accepting every file type, named `name` and described by `description`, without translations.
+    ///
+    /// Nothing is validated; `djs-builders` checks Discord's rules.
+    #[must_use]
+    pub fn new(name: impl Into<CompactString>, description: impl Into<CompactString>) -> Self {
+        Self {
+            name: name.into(),
+            name_localizations: BTreeMap::new(),
+            description: description.into(),
+            description_localizations: BTreeMap::new(),
+            name_localized: None,
+            description_localized: None,
+            required: false,
+            file_types: Vec::new(),
+        }
+    }
 }
 
 /// An option of a type this version of the library does not know about; the fields every

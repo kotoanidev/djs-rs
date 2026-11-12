@@ -2683,6 +2683,38 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - **Dependencies:** `djs-builders` uses the existing workspace crates `djs-model` and
   `compact_str` (`std`), and `serde_json` as a dev-dependency.
 
+### C-082 — Command builder details (D-192–D-196)
+- **Model constructors:** `SubCommandOption`, `StringOption`, `IntegerOption`,
+  `NumberOption`, `BasicOption`, `ChannelOption` and `AttachmentOption` gained
+  `new(name, description)` in `djs-model` (optional, no choices or bounds).
+- **New `ValidationError` variants:** `InvalidName { field, character }` (the first
+  character that is not allowed; the message suggests the lower-case form when there is one)
+  and `Invalid { field, reason }` for rules between values (mixing subcommands with options,
+  repeated names, required after optional, choices with autocomplete, `max_value` below
+  `min_value`, a non-finite number). `min_length` / `max_length` out of range is
+  `OutOfRange`, with `min` raised to `min_length` as Discord reports it. Blank descriptions
+  and choice names are `Missing` (Discord: `BASE_TYPE_REQUIRED` / `BAD_LENGTH`).
+- **Paths:** nested values are written like Discord writes them (`options[0].options[1].name`,
+  `name_localizations.pl`) through a stack-built `check::Path`, formatted only on errors;
+  embeds use the same `check::count` / `check::text` helpers.
+- **Order of checks:** name, its translations, description, its translations, then per level
+  the count, and for each option: its place (mixing / group / subcommand rules), a repeated
+  name, required order, its own name, description and content; the 8000 total last.
+- **Setters:** `name_localizations` / `description_localizations` add to those already set
+  (discord.js replaces them); `contexts`, `integration_types`, `channel_types` and
+  `file_types` replace. `option` takes `impl Into<CommandOption>`, so a `djs-model`
+  `CommandOption` also works, and `subcommand` / `subcommand_group` are typed shortcuts for
+  it. Every option type, subcommand and group also has `build()` (paths start at its fields,
+  no 8000 total) and `build_unchecked()`. `SlashCommandAttachmentOption::file_types` exposes
+  the model's `file_types` (no discord.js counterpart).
+- **Not tried live, decided by the docs or by analogy:** integer limits ±(2^53 − 1) and number
+  limits ±2^53 (the docs); string choice values may be empty and count trimmed toward 8000;
+  integer and number choice values do not count toward 8000; context-menu names count
+  trimmed code points and have no character restriction; a group without subcommands is not
+  rejected.
+- **Not offered:** a builder for `PRIMARY_ENTRY_POINT` commands (discord.js has none either),
+  and starting a builder from a received `ApplicationCommand`.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

@@ -2,8 +2,8 @@
 
 Validated builders for Discord embeds, application commands, components and modals.
 
-> **Status:** pre-alpha. The embed builder is done; command, component and modal builders
-> follow. Track progress in the [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
+> **Status:** pre-alpha. The embed and command builders are done; component and modal
+> builders follow. Track progress in the [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
 
 **discord.js counterpart:** `@discordjs/builders`
 
@@ -37,6 +37,28 @@ assert_eq!(error.to_string(), "title is too long: 257 characters, at most 256 al
 # }
 ```
 
+Commands are built the same way, with options as values:
+
+```rust
+use djs_builders::{
+    ContextMenuCommandBuilder, SlashCommandBuilder, SlashCommandStringOption,
+    SlashCommandSubcommandBuilder,
+};
+
+# fn main() -> Result<(), djs_builders::ValidationError> {
+let tag = SlashCommandBuilder::new("tag", "Manages tags")
+    .subcommand(
+        SlashCommandSubcommandBuilder::new("show", "Shows a tag")
+            .option(SlashCommandStringOption::new("name", "The tag").required(true).autocomplete(true)),
+    )
+    .subcommand(SlashCommandSubcommandBuilder::new("list", "Lists every tag"))
+    .build()?;
+let report = ContextMenuCommandBuilder::message("Report message").build()?;
+# let _ = (tag, report);
+# Ok(())
+# }
+```
+
 ## What is checked
 
 The rules follow Discord's documentation and were checked on the live API with a test bot:
@@ -49,6 +71,13 @@ The rules follow Discord's documentation and were checked on the live API with a
   parsed; Discord rejects a malformed one.
 - **Empty texts** are allowed, because Discord accepts them, but an embed needs some content
   (a non-blank title, description, footer or author name, a field, an image or a thumbnail).
+- **Command names** follow Discord's pattern: 1-32 lower-case letters or numbers of any
+  script, `-`, `_` and `ʼ` (an approximation that never rejects a name Discord accepts).
+  Option names are unique per level, required options come first, subcommands do not mix
+  with other options, and a whole command stays within 8000 characters, counting the longest
+  translation of each text.
+- Two things Discord accepts are still rejected because they cannot work: `max_value` below
+  `min_value`, and choices together with autocomplete.
 - Limits that span a whole message — at most 10 embeds and 6000 characters across them —
   are checked by [`validate_embeds`]; [`embed_length`] measures one embed.
 
@@ -59,6 +88,10 @@ The rules follow Discord's documentation and were checked on the live API with a
 | [`EmbedBuilder`] | [`Embed`](https://docs.rs/djs-model/latest/djs_model/message/struct.Embed.html) | `EmbedBuilder` |
 | [`EmbedAuthorBuilder`] | `EmbedAuthor` | `EmbedAuthorOptions` |
 | [`EmbedFooterBuilder`] | `EmbedFooter` | `EmbedFooterOptions` |
+| [`SlashCommandBuilder`] | `CreateApplicationCommand` | `SlashCommandBuilder` |
+| [`SlashCommandSubcommandBuilder`], [`SlashCommandSubcommandGroupBuilder`] | `CommandOption` | the same names |
+| [`SlashCommandStringOption`], [`SlashCommandIntegerOption`], [`SlashCommandNumberOption`], [`SlashCommandBooleanOption`], [`SlashCommandUserOption`], [`SlashCommandChannelOption`], [`SlashCommandRoleOption`], [`SlashCommandMentionableOption`], [`SlashCommandAttachmentOption`] | `CommandOption` | the same names |
+| [`ContextMenuCommandBuilder`] | `CreateApplicationCommand` | `ContextMenuCommandBuilder` |
 
 ## Part of djs-rs
 

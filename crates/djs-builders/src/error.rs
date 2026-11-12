@@ -77,6 +77,23 @@ pub enum ValidationError {
         /// regard to case).
         allowed: &'static [&'static str],
     },
+    /// A command, subcommand or option name has a character Discord does not allow (D-194):
+    /// anything but letters, numbers, `-`, `_` and `ʼ`, or a letter that has a lower-case
+    /// form.
+    InvalidName {
+        /// The path of the name, e.g. `options[0].name`.
+        field: Cow<'static, str>,
+        /// The first character that is not allowed.
+        character: char,
+    },
+    /// Values that are valid one by one do not work together — for example a required option
+    /// after an optional one, or `choices` together with `autocomplete`.
+    Invalid {
+        /// The path of the value that breaks the rule, e.g. `options[1].required`.
+        field: Cow<'static, str>,
+        /// What is wrong, for the error message.
+        reason: &'static str,
+    },
     /// A value has no content at all, which Discord rejects — for example an embed with
     /// nothing but a color.
     Empty {
@@ -106,6 +123,8 @@ impl ValidationError {
             | Self::Missing { field }
             | Self::OutOfRange { field, .. }
             | Self::InvalidUrl { field, .. }
+            | Self::InvalidName { field, .. }
+            | Self::Invalid { field, .. }
             | Self::Empty { field, .. } => field,
         }
     }
@@ -144,6 +163,19 @@ impl fmt::Display for ValidationError {
                 }
                 Ok(())
             }
+            Self::InvalidName { field, character } => {
+                let mut lower = character.to_lowercase();
+                if lower.len() == 1 && lower.next() == Some(*character) {
+                    write!(f, "{field} cannot contain {character:?}")
+                } else {
+                    write!(
+                        f,
+                        "{field} must be lower case: use '{}' instead of '{character}'",
+                        character.to_lowercase()
+                    )
+                }
+            }
+            Self::Invalid { field, reason } => write!(f, "{field} is invalid: {reason}"),
             Self::Empty { field, needs } => {
                 write!(f, "{field} has no content: it needs {needs}")
             }
@@ -196,6 +228,27 @@ mod tests {
                     allowed: &["http://", "https://", "attachment://"],
                 },
                 "image.url must start with http://, https:// or attachment://",
+            ),
+            (
+                ValidationError::InvalidName {
+                    field: "name".into(),
+                    character: 'Ż',
+                },
+                "name must be lower case: use 'ż' instead of 'Ż'",
+            ),
+            (
+                ValidationError::InvalidName {
+                    field: "options[0].name".into(),
+                    character: ' ',
+                },
+                "options[0].name cannot contain ' '",
+            ),
+            (
+                ValidationError::Invalid {
+                    field: "options[1].required".into(),
+                    reason: "required options must come before optional ones",
+                },
+                "options[1].required is invalid: required options must come before optional ones",
             ),
             (
                 ValidationError::Empty {

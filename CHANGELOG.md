@@ -8,6 +8,17 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-builders` command builders (Phase 6 step 2, D-192–D-196, C-082):
+  `SlashCommandBuilder`, `SlashCommandSubcommandBuilder`,
+  `SlashCommandSubcommandGroupBuilder`, nine `SlashCommand…Option` types passed to one
+  `option(…)`, and `ContextMenuCommandBuilder::{user, message}`, with translations, default
+  member permissions, contexts, integration types and NSFW. `build()` checks Discord's rules
+  as measured on the live API — the name pattern, descriptions in trimmed code points, unique
+  names, required options first, no mixing of subcommands with options, `min_length` /
+  `max_length`, the 8000-character total with the longest translations — and rejects
+  `max_value` below `min_value` and choices with autocomplete. `ValidationError` gained
+  `InvalidName` and `Invalid`; `djs-model` gained `new(name, description)` for the option
+  types.
 - `djs-builders` `EmbedBuilder` (Phase 6 step 1, D-178–D-191, C-081): consuming setters
   for every part, `EmbedAuthorBuilder` / `EmbedFooterBuilder` (or a plain text),
   `EmbedBuilder::from(embed)`, `build()` → `Result<Embed, ValidationError>` and
