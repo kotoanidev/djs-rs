@@ -437,3 +437,39 @@ cargo test --release -p djs-gateway --all-features --test stress -- --ignored --
   --test-threads 1 zlib zstd
 ```
 
+### simd-json experiment (step 5, D-013, D-143) — in progress
+
+`djs-model/benches/simd.rs` decodes the same payloads with the same `GatewayEventDeserializer`
+seed through `serde_json` and through `simd-json` 0.19.0 (serde deserializer, reused
+`Buffers`, including the copy into a mutable buffer that in-place parsing needs).
+
+Method: on this laptop CPU, timings drift by ±15 % between runs (turbo, heat), and divan runs
+one group after the other. The final numbers therefore alternate the two groups
+(`--bench serde_json` / `--bench simd_json`), pinned to one core with `taskset`, and keep each
+case's best median over 3–4 alternations. simd-json ratio (`< 1` = simd-json faster):
+
+| Payload | P-core (CPU 2) | P-core (CPU 3) | E-core (CPU 6) |
+|---|---:|---:|---:|
+| `MESSAGE_CREATE` (1.5 KB fixture) | 0.87 | 0.91 | 0.89 |
+| `MESSAGE_UPDATE` | 0.85 | 0.93 | 0.89 |
+| `MESSAGE_CREATE`, 2 000 chars + 3 embeds (8 KB) | 0.94 | 0.98 | 0.97 |
+| `INTERACTION_CREATE` | 0.93 | 0.99 | 1.00 |
+| `PRESENCE_UPDATE`, `TYPING_START`, `READY`, member, voice, reaction, channel events | 0.94–1.04 | 0.97–1.03 | 0.93–1.03 |
+| `MESSAGE_DELETE` (smallest) | 1.19 | 1.19 | 1.18 |
+| `GUILD_CREATE` (1 000 members, 430 KB) | 1.00 | 1.02 | 1.01 |
+| unknown 200 KB event (skipped) | 1.59 | 1.63 | 1.40 |
+
+- simd-json wins 7–15 % (≈ 0.14 µs) on message events only; most events are within noise,
+  tiny payloads lose 18 %, and skipping a large unhandled event costs 40–63 % more (simd-json
+  indexes the whole document before serde sees it, while `serde_json` skips by scanning).
+- Peak memory for the `GUILD_CREATE` is 3.9 MB instead of 0.85 MB (simd-json's tape).
+- Decoding through simd-json's `BorrowedValue` DOM is 1.2–4× slower than serde_json: dropped.
+- `-C target-cpu=native` (AVX2) does not change the picture (ratios 0.85–1.19, skip 1.55).
+- An earlier single run had suggested 10–22 % on `MESSAGE_CREATE`; it was largely noise from
+  running the groups at different times.
+
+```bash
+cargo bench -p djs-model --bench simd --no-run
+taskset -c 2 target/release/deps/simd-<hash> --bench serde_json   # alternate with simd_json
+```
+

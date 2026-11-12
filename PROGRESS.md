@@ -261,7 +261,12 @@ reserved), D-143 (order below). One commit per step:
 4. ✅ **zlib-stream** (D-140, C-070): `Compression::ZlibStream` (`compression.rs`,
    `flate2` 1.1.11 + `zlib-rs`), split payloads buffered; unit + mock-gateway tests; stress
    A/B against zstd in `docs/PERFORMANCE.md` ("Phase 4").
-5. **simd-json** (D-013), kept only with a measured gain.
+5. **simd-json** (D-013), kept only with a measured gain — **in progress, owner chose "keep
+   investigating"**: `djs-model/benches/simd.rs` (dev-dependency `simd-json` 0.19.0, bench
+   only) measured serde_json vs simd-json; results in `docs/PERFORMANCE.md` ("simd-json
+   experiment"): ≤ 15 % gain on message events only, losses on tiny payloads and skipping,
+   4.6× memory on `GUILD_CREATE`. Next: ask the owner whether to also try `sonic-rs`
+   (another dependency) or to drop the feature; if dropped, remove the bench + dev-dependency.
 6. Mock-gateway tests, benches and extreme-load tests (D-041) in `docs/PERFORMANCE.md`.
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON
   body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").
