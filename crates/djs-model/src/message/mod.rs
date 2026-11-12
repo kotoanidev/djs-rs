@@ -740,6 +740,34 @@ pub struct Reaction {
     pub burst_colors: Vec<CompactString>,
 }
 
+impl Reaction {
+    /// Creates a reaction with `emoji` that nobody has used yet (all counts zero), to be
+    /// counted up — for example by a cache applying `MESSAGE_REACTION_ADD`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use djs_model::{emoji::PartialEmoji, message::Reaction};
+    ///
+    /// let mut reaction = Reaction::new(PartialEmoji::Unicode { name: "🔥".into() });
+    /// reaction.count += 1;
+    /// reaction.count_details.normal += 1;
+    /// assert_eq!(reaction.count, 1);
+    /// assert!(!reaction.me);
+    /// ```
+    #[must_use]
+    pub fn new(emoji: PartialEmoji) -> Self {
+        Self {
+            count: 0,
+            count_details: ReactionCountDetails::default(),
+            me: false,
+            me_burst: false,
+            emoji,
+            burst_colors: Vec::new(),
+        }
+    }
+}
+
 /// The [count of a reaction](https://docs.discord.com/developers/resources/message#reaction-count-details-object),
 /// split into normal and super ("burst") reactions.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]

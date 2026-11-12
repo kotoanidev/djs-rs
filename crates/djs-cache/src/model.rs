@@ -4,14 +4,28 @@ use std::sync::Arc;
 
 use compact_str::CompactString;
 use djs_model::{
-    gateway::payload::{AvailableGuild, GuildMemberUpdate},
+    application::PartialApplication,
+    channel::{Channel, ChannelType},
+    component::Component,
+    gateway::{
+        Activity, ClientStatus, Presence, Status,
+        payload::{AvailableGuild, GuildMemberUpdate},
+    },
     guild::{
         AgeRestrictionLevel, DefaultMessageNotificationLevel, ExplicitContentFilterLevel, Feature,
-        Guild, IncidentsData, Member, MemberFlags, MfaLevel, PremiumTier, SystemChannelFlags,
-        VerificationLevel, WelcomeScreen,
+        Guild, IncidentsData, Member, MemberFlags, MfaLevel, PartialMember, PremiumTier,
+        SystemChannelFlags, VerificationLevel, WelcomeScreen,
     },
-    id::{ApplicationId, ChannelId, GuildId, RoleId, UserId},
+    id::{ApplicationId, ChannelId, GuildId, MessageId, RoleId, UserId, WebhookId},
+    interaction::{MessageInteraction, Resolved},
+    message::{
+        Attachment, ChannelMention, Embed, InteractionMetadata, Mention, Message, MessageActivity,
+        MessageCall, MessageFlags, MessageReference, MessageSnapshot, MessageType, Nonce, Reaction,
+        ReferencedMessage, RoleSubscriptionData, SharedClientTheme,
+    },
     permissions::Permissions,
+    poll::Poll,
+    sticker::{Sticker, StickerItem},
     user::{AvatarDecorationData, Collectibles, User},
     util::{ImageHash, Locale, Timestamp},
 };
@@ -247,6 +261,28 @@ impl CachedMember {
         }
     }
 
+    /// Builds a member from the partial member attached to a message (or an interaction),
+    /// whose user is the message's author.
+    pub(crate) fn from_partial(guild_id: GuildId, member: &PartialMember, user: Arc<User>) -> Self {
+        Self {
+            guild_id,
+            user,
+            nick: member.nick.clone(),
+            avatar: member.avatar,
+            banner: member.banner,
+            roles: member.roles.clone(),
+            joined_at: member.joined_at,
+            premium_since: member.premium_since,
+            deaf: member.deaf,
+            mute: member.mute,
+            flags: member.flags,
+            pending: member.pending,
+            communication_disabled_until: member.communication_disabled_until,
+            avatar_decoration_data: member.avatar_decoration_data.clone(),
+            collectibles: member.collectibles.clone(),
+        }
+    }
+
     /// The member's ID (their user's ID).
     #[must_use]
     pub fn id(&self) -> UserId {
@@ -263,5 +299,142 @@ impl CachedMember {
             .as_deref()
             .or(self.user.global_name.as_deref())
             .unwrap_or(&self.user.username)
+    }
+}
+
+/// A cached message: a [`Message`] whose author is shared with the user resource, without the
+/// `member` field (members are a resource of their own, D-165).
+///
+/// When users are cached ([`Resource::User`](crate::Resource::User)), `author` is the same
+/// [`Arc`] the user resource holds, so an author of many messages is stored once. The author's
+/// guild member, when the message came with one, is cached as a member.
+///
+/// The fields mean the same as in [`Message`]; see the
+/// [message object](https://docs.discord.com/developers/resources/message#message-object).
+///
+/// discord.js counterpart: `Message`.
+#[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
+#[expect(missing_docs, reason = "the fields are documented on `Message`")]
+pub struct CachedMessage {
+    pub id: MessageId,
+    pub channel_id: ChannelId,
+    pub guild_id: Option<GuildId>,
+    pub author: Arc<User>,
+    pub content: CompactString,
+    pub timestamp: Timestamp,
+    pub edited_timestamp: Option<Timestamp>,
+    pub tts: bool,
+    pub mention_everyone: bool,
+    pub mentions: Vec<Mention>,
+    pub mention_roles: Vec<RoleId>,
+    pub mention_channels: Vec<ChannelMention>,
+    pub attachments: Vec<Attachment>,
+    pub embeds: Vec<Embed>,
+    pub reactions: Vec<Reaction>,
+    pub nonce: Option<Nonce>,
+    pub pinned: bool,
+    pub webhook_id: Option<WebhookId>,
+    pub kind: MessageType,
+    pub activity: Option<Box<MessageActivity>>,
+    pub application: Option<Box<PartialApplication>>,
+    pub application_id: Option<ApplicationId>,
+    pub flags: MessageFlags,
+    pub message_reference: Option<MessageReference>,
+    pub message_snapshots: Vec<MessageSnapshot>,
+    pub referenced_message: ReferencedMessage,
+    pub interaction_metadata: Option<Box<InteractionMetadata>>,
+    pub interaction: Option<Box<MessageInteraction>>,
+    pub components: Vec<Component>,
+    pub thread: Option<Box<Channel>>,
+    pub resolved: Option<Box<Resolved>>,
+    pub sticker_items: Vec<StickerItem>,
+    pub stickers: Vec<Sticker>,
+    pub position: Option<u32>,
+    pub role_subscription_data: Option<Box<RoleSubscriptionData>>,
+    pub poll: Option<Box<Poll>>,
+    pub call: Option<Box<MessageCall>>,
+    pub shared_client_theme: Option<Box<SharedClientTheme>>,
+    pub channel_type: Option<ChannelType>,
+}
+
+impl CachedMessage {
+    pub(crate) fn new(message: &Message, author: Arc<User>) -> Self {
+        Self {
+            id: message.id,
+            channel_id: message.channel_id,
+            guild_id: message.guild_id,
+            author,
+            content: message.content.clone(),
+            timestamp: message.timestamp,
+            edited_timestamp: message.edited_timestamp,
+            tts: message.tts,
+            mention_everyone: message.mention_everyone,
+            mentions: message.mentions.clone(),
+            mention_roles: message.mention_roles.clone(),
+            mention_channels: message.mention_channels.clone(),
+            attachments: message.attachments.clone(),
+            embeds: message.embeds.clone(),
+            reactions: message.reactions.clone(),
+            nonce: message.nonce.clone(),
+            pinned: message.pinned,
+            webhook_id: message.webhook_id,
+            kind: message.kind,
+            activity: message.activity.clone(),
+            application: message.application.clone(),
+            application_id: message.application_id,
+            flags: message.flags,
+            message_reference: message.message_reference,
+            message_snapshots: message.message_snapshots.clone(),
+            referenced_message: message.referenced_message.clone(),
+            interaction_metadata: message.interaction_metadata.clone(),
+            interaction: message.interaction.clone(),
+            components: message.components.clone(),
+            thread: message.thread.clone(),
+            resolved: message.resolved.clone(),
+            sticker_items: message.sticker_items.clone(),
+            stickers: message.stickers.clone(),
+            position: message.position,
+            role_subscription_data: message.role_subscription_data.clone(),
+            poll: message.poll.clone(),
+            call: message.call.clone(),
+            shared_client_theme: message.shared_client_theme.clone(),
+            channel_type: message.channel_type,
+        }
+    }
+}
+
+/// A cached presence: a member's status and activities (D-164).
+///
+/// It keeps its user's ID only; the user's data lives in the user resource. The activities are
+/// the model's, complete, in a boxed slice. Offline members have no cached presence.
+///
+/// See the [presence update](https://docs.discord.com/developers/events/gateway-events#presence-update).
+///
+/// discord.js counterpart: `Presence`.
+#[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
+pub struct CachedPresence {
+    /// The guild the presence is in.
+    pub guild_id: GuildId,
+    /// The user the presence is of.
+    pub user_id: UserId,
+    /// The overall status.
+    pub status: Status,
+    /// The status on each platform.
+    pub client_status: ClientStatus,
+    /// The current activities.
+    pub activities: Box<[Activity]>,
+}
+
+impl CachedPresence {
+    pub(crate) fn new(guild_id: GuildId, presence: &Presence) -> Self {
+        Self {
+            guild_id,
+            user_id: presence.user.id,
+            status: presence.status.clone(),
+            client_status: presence.client_status.clone(),
+            activities: presence.activities.clone().into_boxed_slice(),
+        }
     }
 }

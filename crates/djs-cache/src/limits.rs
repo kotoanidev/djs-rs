@@ -26,6 +26,14 @@ pub(crate) type ScopedOf<K, V, B> = Scoped<
     <B as crate::Backend>::Store<(djs_model::id::GuildId, K), V>,
 >;
 
+/// A resource kept per channel (messages), in backend `B`'s store keyed by `(channel, id)`.
+pub(crate) type ChannelScopedOf<K, V, B> = Scoped<
+    djs_model::id::ChannelId,
+    K,
+    V,
+    <B as crate::Backend>::Store<(djs_model::id::ChannelId, K), V>,
+>;
+
 /// The result of an insertion.
 #[derive(Debug)]
 pub(crate) struct Inserted<K, V> {

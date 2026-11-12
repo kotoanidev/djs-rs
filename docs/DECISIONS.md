@@ -2250,6 +2250,32 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   and its method hidden. Public names added: `CacheView`, `GuildView`, `CacheView::in_guild`,
   `Cache::unavailable_guilds`, `CachedMember::{id, display_name}`, the `Previous` variants.
 
+### C-075 — Cache event semantics (Phase 5, step 3)
+- Messages: `MESSAGE_UPDATE` replaces only a cached message (like discord.js); its author is
+  cached either way. Webhook authors are not cached as users (discord.js does the same). The
+  `member` of `MESSAGE_CREATE`, of `MESSAGE_REACTION_ADD` and of a voice state is cached as a
+  member. Deleting a channel, thread or guild drops its messages; a guild → channels-with-
+  messages index makes that work when the channel resource is off. A channel's
+  `last_message_id` is not updated on `MESSAGE_CREATE` (it would copy the channel on the
+  hottest event).
+- Reactions (D-166): matched by ID for custom emojis (names may be missing) and by the emoji
+  for Unicode ones; `me` / `me_burst` follow the current user; a reaction that drops to zero
+  is removed. The changed message keeps its place in the channel's insertion order.
+  `djs_model::message::Reaction::new(emoji)` was added: model types are non-exhaustive, so the
+  cache could not build a new reaction otherwise.
+- Presences: an `offline` presence removes the cached one (no presence = offline or unknown),
+  which keeps memory to online members; discord.js keeps offline presence objects. The
+  partial user of a presence is not applied to the user resource (member updates carry user
+  changes).
+- Voice states are the model type with `member` cleared and `guild_id` set; a state without a
+  channel (the user left voice) removes it.
+- Threads are the model `Channel`, per guild. `THREAD_LIST_SYNC` replaces the active
+  (unarchived) threads of the synced parents, or of the whole guild without `channel_ids`.
+  Thread members (`THREAD_MEMBER(S)_UPDATE`), scheduled event user counts and poll votes are
+  not tracked.
+- `GUILD_SOUNDBOARD_SOUNDS_UPDATE` updates the sounds it lists; `SOUNDBOARD_SOUNDS` (the
+  answer to a request) replaces the guild's sounds.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

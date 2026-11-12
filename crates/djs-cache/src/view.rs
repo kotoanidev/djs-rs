@@ -10,7 +10,7 @@ use djs_model::{
 
 use crate::{
     Backend,
-    limits::{Global, GlobalOf, Index, ScopedOf},
+    limits::{ChannelScopedOf, Global, GlobalOf, Index, ScopedOf},
 };
 
 /// A resource kept over the whole cache (guilds, channels, users), as returned by
@@ -246,6 +246,126 @@ where
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("GuildView")
             .field("guild_id", &self.guild_id)
+            .field("enabled", &self.is_enabled())
+            .field("len", &self.len())
+            .finish()
+    }
+}
+
+/// A resource kept per channel (messages), for one channel, as returned by
+/// [`Cache::messages`](crate::Cache::messages).
+///
+/// A view of a disabled resource is empty. Every read is a snapshot: the cache may change
+/// right after it.
+///
+/// discord.js counterpart: `channel.messages.cache`.
+///
+/// # Examples
+///
+/// ```
+/// use djs_cache::{Cache, CacheConfig, Limit};
+/// use djs_model::id::{ChannelId, MessageId};
+///
+/// let cache = Cache::with_config(CacheConfig::builder().messages(Limit::Max(100)).build());
+/// let messages = cache.messages(ChannelId::new(1));
+/// assert!(messages.is_enabled());
+/// assert!(messages.get(MessageId::new(2)).is_none());
+/// ```
+pub struct ChannelView<'a, K, V, B>
+where
+    K: Eq + Hash + Copy + Send + Sync + 'static,
+    V: Send + Sync + 'static,
+    B: Backend,
+{
+    entries: Option<&'a ChannelScopedOf<K, V, B>>,
+    channel_id: ChannelId,
+}
+
+impl<'a, K, V, B> ChannelView<'a, K, V, B>
+where
+    K: Eq + Hash + Copy + Send + Sync + 'static,
+    V: Send + Sync + 'static,
+    B: Backend,
+{
+    pub(crate) const fn new(
+        entries: Option<&'a ChannelScopedOf<K, V, B>>,
+        channel_id: ChannelId,
+    ) -> Self {
+        Self {
+            entries,
+            channel_id,
+        }
+    }
+
+    /// Returns the channel this view is about.
+    #[must_use]
+    pub const fn channel_id(&self) -> ChannelId {
+        self.channel_id
+    }
+
+    /// Returns whether the resource is cached at all.
+    #[must_use]
+    pub const fn is_enabled(&self) -> bool {
+        self.entries.is_some()
+    }
+
+    /// Returns the channel's entry with this ID.
+    ///
+    /// discord.js counterpart: `Collection#get`.
+    #[must_use]
+    pub fn get(&self, id: K) -> Option<Arc<V>> {
+        self.entries?.get(self.channel_id, id)
+    }
+
+    /// Returns whether the channel has a cached entry with this ID.
+    ///
+    /// discord.js counterpart: `Collection#has`.
+    #[must_use]
+    pub fn contains(&self, id: K) -> bool {
+        self.get(id).is_some()
+    }
+
+    /// Returns the number of the channel's cached entries.
+    ///
+    /// discord.js counterpart: `Collection#size`.
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.entries
+            .map_or(0, |entries| entries.len_of(self.channel_id))
+    }
+
+    /// Returns whether nothing of the channel is cached.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Returns the IDs of the channel's cached entries, in no particular order.
+    #[must_use]
+    pub fn keys(&self) -> Vec<K> {
+        self.entries
+            .map(|entries| entries.keys_of(self.channel_id))
+            .unwrap_or_default()
+    }
+
+    /// Returns the channel's cached entries, in no particular order.
+    #[must_use]
+    pub fn values(&self) -> Vec<Arc<V>> {
+        self.entries
+            .map(|entries| entries.values_of(self.channel_id))
+            .unwrap_or_default()
+    }
+}
+
+impl<K, V, B> fmt::Debug for ChannelView<'_, K, V, B>
+where
+    K: Eq + Hash + Copy + Send + Sync + 'static,
+    V: Send + Sync + 'static,
+    B: Backend,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ChannelView")
+            .field("channel_id", &self.channel_id)
             .field("enabled", &self.is_enabled())
             .field("len", &self.len())
             .finish()

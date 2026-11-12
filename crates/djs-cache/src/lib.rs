@@ -14,6 +14,6 @@ pub use backend::{Backend, Store};
 pub use cache::Cache;
 pub use config::{CacheConfig, CacheConfigBuilder, Limit, Resource};
 pub use dashmap_store::{DashMapBackend, DashMapStore};
-pub use model::{CachedGuild, CachedMember};
+pub use model::{CachedGuild, CachedMember, CachedMessage, CachedPresence};
 pub use update::{Previous, UpdateCache};
-pub use view::{CacheView, GuildView};
+pub use view::{CacheView, ChannelView, GuildView};

@@ -82,12 +82,10 @@ just with narrow scope.
 
 ## Phase 5 — `djs-cache`
 - [x] Cache trait (pluggable backend) + DashMap default backend (D-155, D-158)
-- [ ] Per-resource enable/disable and size limits (≈ `makeCache`) — configuration and
-      enforcement done (D-156, D-157, D-159); applied as the resources land
+- [x] Per-resource enable/disable and size limits (≈ `makeCache`; D-156, D-157, D-159)
 - [ ] Sweepers (≈ `sweepers` option), partials support
-- [ ] Event → cache update logic for every dispatch event — guilds, channels, roles, emojis,
-      stickers, members, users done (D-160–D-163); messages, presences, voice states, threads,
-      events, stage instances, soundboard next
+- [x] Event → cache update logic for every dispatch event that carries cacheable state
+      (D-160–D-166, C-074, C-075)
 - [ ] Memory/size tests, benchmarks
 
 ## Phase 6 — `djs-builders` (≈ @discordjs/builders)

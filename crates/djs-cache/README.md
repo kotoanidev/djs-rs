@@ -2,9 +2,10 @@
 
 Configurable, pluggable in-memory cache for Discord entities.
 
-> **Status:** pre-alpha, Phase 5 step 2 — guilds, channels, roles, emojis, stickers, members,
-> users and the current user are cached from their gateway events; messages, presences, voice
-> states, threads and the other guild resources follow, then sweepers.
+> **Status:** pre-alpha, Phase 5 step 3 — every resource is cached from its gateway events
+> (guilds, channels, threads, roles, emojis, stickers, members, users, messages with their
+> reactions, presences, voice states, scheduled events, stage instances, soundboard sounds and
+> the current user); sweepers follow.
 > Track progress in the [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
 
 **discord.js counterpart:** the caching layer inside `discord.js` (the managers' `cache`
@@ -27,9 +28,11 @@ collections, the `makeCache` and `sweepers` client options)
 - **Reads go through views**, like a discord.js manager's `cache`: `cache.guilds().get(id)`,
   `cache.members(guild_id).values()`, … They return [`Arc`](std::sync::Arc)s: cheap to clone,
   holding no lock, safe to keep across `.await`.
-- **Own types only where needed:** roles, emojis, stickers, users and channels are the
-  `djs-model` types; [`CachedGuild`] leaves out the lists kept elsewhere, and
-  [`CachedMember`] shares its user with the user resource.
+- **Own types only where needed:** roles, emojis, stickers, users, channels, threads, voice
+  states, scheduled events, stage instances and soundboard sounds are the `djs-model` types;
+  [`CachedGuild`] leaves out the lists kept elsewhere, [`CachedMember`] and
+  [`CachedMessage`] share their user with the user resource, and [`CachedPresence`] keeps
+  only its user's ID.
 - **Storage is pluggable:** the cache keeps each resource in a [`Store`] created by a
   [`Backend`]. The default [`DashMapBackend`] uses sharded concurrent maps with `foldhash`.
 

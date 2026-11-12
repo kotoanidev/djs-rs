@@ -8,6 +8,12 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-cache` messages, presences and the remaining guild resources (Phase 5 step 3,
+  D-164–D-166): `CachedMessage` (per channel, `cache.messages(channel)`, author shared with
+  users; reactions kept up to date by the reaction events), `CachedPresence`
+  (`cache.presences(guild)`), voice states, threads, scheduled events, stage instances and
+  soundboard sounds, each with its events and previous state.
+- `djs_model::message::Reaction::new(emoji)`, a reaction with zero counts.
 - `djs-cache` resources (Phase 5 step 2, D-160–D-163): guilds (`CachedGuild`), channels,
   roles, emojis, stickers, members (`CachedMember`, sharing its `Arc<User>`), users and the
   current user, kept up to date by `Cache::update(&payload)` for `READY`, `USER_UPDATE`, the

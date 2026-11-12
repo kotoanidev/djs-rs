@@ -6,24 +6,32 @@ use std::sync::{Arc, PoisonError, RwLock};
 use dashmap::DashMap;
 use djs_model::{
     channel::Channel,
-    emoji::Emoji,
+    emoji::{Emoji, PartialEmoji},
     gateway::{
-        DispatchEvent,
+        DispatchEvent, Presence, Status,
         payload::{AvailableGuild, GuildMemberUpdate},
     },
-    guild::{Guild, Member, Role},
-    id::{ChannelId, EmojiId, GuildId, RoleId, StickerId, UserId},
+    guild::{Guild, Member, PartialMember, Role},
+    guild_scheduled_event::GuildScheduledEvent,
+    id::{
+        ChannelId, EmojiId, GuildId, MessageId, RoleId, ScheduledEventId, SoundboardSoundId,
+        StageInstanceId, StickerId, UserId,
+    },
+    message::{Message, Reaction},
+    soundboard::SoundboardSound,
+    stage_instance::StageInstance,
     sticker::Sticker,
     user::{CurrentUser, User},
     util::Timestamp,
+    voice::VoiceState,
 };
 
 use crate::{
-    Backend, CacheConfig, CacheView, CachedGuild, CachedMember, DashMapBackend, GuildView,
-    Previous, Resource, Store, UpdateCache,
+    Backend, CacheConfig, CacheView, CachedGuild, CachedMember, CachedMessage, CachedPresence,
+    ChannelView, DashMapBackend, GuildView, Previous, Resource, Store, UpdateCache,
     config::Scope,
     dashmap_store::Hasher,
-    limits::{Global, GlobalOf, Index, Scoped, ScopedOf},
+    limits::{ChannelScopedOf, Global, GlobalOf, Index, Scoped, ScopedOf},
 };
 
 /// An in-memory view of Discord state, kept up to date from gateway events.
@@ -75,6 +83,16 @@ pub struct Cache<B: Backend = DashMapBackend> {
     stickers: Option<ScopedOf<StickerId, Sticker, B>>,
     members: Option<ScopedOf<UserId, CachedMember, B>>,
     users: Option<GlobalOf<UserId, User, B>>,
+    threads: Option<ScopedOf<ChannelId, Channel, B>>,
+    messages: Option<ChannelScopedOf<MessageId, CachedMessage, B>>,
+    /// The channels of each guild that have cached messages, for dropping a deleted guild's
+    /// messages even when channels are not cached.
+    message_channels: Index<GuildId, ChannelId>,
+    presences: Option<ScopedOf<UserId, CachedPresence, B>>,
+    voice_states: Option<ScopedOf<UserId, VoiceState, B>>,
+    scheduled_events: Option<ScopedOf<ScheduledEventId, GuildScheduledEvent, B>>,
+    stage_instances: Option<ScopedOf<StageInstanceId, StageInstance, B>>,
+    soundboard_sounds: Option<ScopedOf<SoundboardSoundId, SoundboardSound, B>>,
 }
 
 // The fields above match the scopes the resources declare (D-159).
@@ -86,6 +104,13 @@ const _: () = {
     assert!(matches!(Resource::Emoji.scope(), Scope::Guild));
     assert!(matches!(Resource::Sticker.scope(), Scope::Guild));
     assert!(matches!(Resource::Member.scope(), Scope::Guild));
+    assert!(matches!(Resource::Thread.scope(), Scope::Guild));
+    assert!(matches!(Resource::Message.scope(), Scope::Channel));
+    assert!(matches!(Resource::Presence.scope(), Scope::Guild));
+    assert!(matches!(Resource::VoiceState.scope(), Scope::Guild));
+    assert!(matches!(Resource::ScheduledEvent.scope(), Scope::Guild));
+    assert!(matches!(Resource::StageInstance.scope(), Scope::Guild));
+    assert!(matches!(Resource::SoundboardSound.scope(), Scope::Guild));
 };
 
 impl Cache {
@@ -126,6 +151,14 @@ impl<B: Backend> Cache<B> {
             stickers: scoped(&backend, &config, Resource::Sticker),
             members: scoped(&backend, &config, Resource::Member),
             users: global(&backend, &config, Resource::User),
+            threads: scoped(&backend, &config, Resource::Thread),
+            messages: channel_scoped(&backend, &config),
+            message_channels: Index::new(),
+            presences: scoped(&backend, &config, Resource::Presence),
+            voice_states: scoped(&backend, &config, Resource::VoiceState),
+            scheduled_events: scoped(&backend, &config, Resource::ScheduledEvent),
+            stage_instances: scoped(&backend, &config, Resource::StageInstance),
+            soundboard_sounds: scoped(&backend, &config, Resource::SoundboardSound),
             config,
             backend,
         }
@@ -235,6 +268,72 @@ impl<B: Backend> Cache<B> {
     pub fn members(&self, guild_id: GuildId) -> GuildView<'_, UserId, CachedMember, B> {
         GuildView::new(self.members.as_ref(), guild_id)
     }
+
+    /// Returns a guild's threads ([`Resource::Thread`]).
+    ///
+    /// discord.js counterpart: `guild.channels.cache` (threads are channels there).
+    #[must_use]
+    pub fn threads(&self, guild_id: GuildId) -> GuildView<'_, ChannelId, Channel, B> {
+        GuildView::new(self.threads.as_ref(), guild_id)
+    }
+
+    /// Returns a channel's (or thread's) messages ([`Resource::Message`]).
+    ///
+    /// discord.js counterpart: `channel.messages.cache`.
+    #[must_use]
+    pub fn messages(&self, channel_id: ChannelId) -> ChannelView<'_, MessageId, CachedMessage, B> {
+        ChannelView::new(self.messages.as_ref(), channel_id)
+    }
+
+    /// Returns a guild's presences ([`Resource::Presence`]), by user ID.
+    ///
+    /// discord.js counterpart: `guild.presences.cache`.
+    #[must_use]
+    pub fn presences(&self, guild_id: GuildId) -> GuildView<'_, UserId, CachedPresence, B> {
+        GuildView::new(self.presences.as_ref(), guild_id)
+    }
+
+    /// Returns a guild's voice states ([`Resource::VoiceState`]), by user ID. Their `member`
+    /// is always `None`: members are a resource of their own.
+    ///
+    /// discord.js counterpart: `guild.voiceStates.cache`.
+    #[must_use]
+    pub fn voice_states(&self, guild_id: GuildId) -> GuildView<'_, UserId, VoiceState, B> {
+        GuildView::new(self.voice_states.as_ref(), guild_id)
+    }
+
+    /// Returns a guild's scheduled events ([`Resource::ScheduledEvent`]).
+    ///
+    /// discord.js counterpart: `guild.scheduledEvents.cache`.
+    #[must_use]
+    pub fn scheduled_events(
+        &self,
+        guild_id: GuildId,
+    ) -> GuildView<'_, ScheduledEventId, GuildScheduledEvent, B> {
+        GuildView::new(self.scheduled_events.as_ref(), guild_id)
+    }
+
+    /// Returns a guild's stage instances ([`Resource::StageInstance`]).
+    ///
+    /// discord.js counterpart: `guild.stageInstances.cache`.
+    #[must_use]
+    pub fn stage_instances(
+        &self,
+        guild_id: GuildId,
+    ) -> GuildView<'_, StageInstanceId, StageInstance, B> {
+        GuildView::new(self.stage_instances.as_ref(), guild_id)
+    }
+
+    /// Returns a guild's soundboard sounds ([`Resource::SoundboardSound`]).
+    ///
+    /// discord.js counterpart: `guild.soundboardSounds.cache`.
+    #[must_use]
+    pub fn soundboard_sounds(
+        &self,
+        guild_id: GuildId,
+    ) -> GuildView<'_, SoundboardSoundId, SoundboardSound, B> {
+        GuildView::new(self.soundboard_sounds.as_ref(), guild_id)
+    }
 }
 
 /// The changes the event handlers in `update.rs` make.
@@ -270,6 +369,43 @@ impl<B: Backend> Cache<B> {
         for member in &guild.members {
             self.upsert_member(id, member);
         }
+        if let Some(threads) = &self.threads {
+            for thread in &guild.threads {
+                let mut thread = thread.clone();
+                set_guild_id(&mut thread, id);
+                threads.insert(id, thread.id(), Arc::new(thread));
+            }
+        }
+        for presence in &guild.presences {
+            self.update_presence(id, presence);
+        }
+        if let Some(voice_states) = &self.voice_states {
+            for state in guild
+                .voice_states
+                .iter()
+                .filter(|state| state.channel_id.is_some())
+            {
+                voice_states.insert(id, state.user_id, Arc::new(stripped_voice_state(state, id)));
+            }
+        }
+        replace(
+            self.stage_instances.as_ref(),
+            id,
+            &guild.stage_instances,
+            |stage| stage.id,
+        );
+        replace(
+            self.scheduled_events.as_ref(),
+            id,
+            &guild.guild_scheduled_events,
+            |event| event.id,
+        );
+        replace(
+            self.soundboard_sounds.as_ref(),
+            id,
+            &guild.soundboard_sounds,
+            |sound| sound.sound_id,
+        );
         self.put_guild(CachedGuild::from_available(guild))
     }
 
@@ -330,6 +466,17 @@ impl<B: Backend> Cache<B> {
         remove_all(self.emojis.as_ref(), id);
         remove_all(self.stickers.as_ref(), id);
         remove_all(self.members.as_ref(), id);
+        remove_all(self.threads.as_ref(), id);
+        remove_all(self.presences.as_ref(), id);
+        remove_all(self.voice_states.as_ref(), id);
+        remove_all(self.scheduled_events.as_ref(), id);
+        remove_all(self.stage_instances.as_ref(), id);
+        remove_all(self.soundboard_sounds.as_ref(), id);
+        if let Some(messages) = &self.messages {
+            for channel in self.message_channels.remove_parent(id) {
+                messages.remove_parent(channel);
+            }
+        }
     }
 
     /// Adds a guild member to the guild's member count.
@@ -373,8 +520,9 @@ impl<B: Backend> Cache<B> {
         inserted.previous
     }
 
-    /// `CHANNEL_DELETE`.
+    /// `CHANNEL_DELETE`. The channel's messages go too.
     pub(crate) fn remove_channel(&self, channel: &Channel) -> Option<Arc<Channel>> {
+        self.remove_messages_of(channel.guild_id(), channel.id());
         let removed = self.channels.as_ref()?.remove(&channel.id());
         let guild_id = channel
             .guild_id()
@@ -470,6 +618,240 @@ impl<B: Backend> Cache<B> {
         self.members.as_ref()?.remove(guild_id, user.id)
     }
 
+    /// `THREAD_CREATE` / `THREAD_UPDATE`.
+    pub(crate) fn insert_thread(&self, thread: &Channel) -> Option<Arc<Channel>> {
+        let threads = self.threads.as_ref()?;
+        let guild_id = thread.guild_id()?;
+        threads
+            .insert(guild_id, thread.id(), Arc::new(thread.clone()))
+            .previous
+    }
+
+    /// `THREAD_DELETE`. The thread's messages go too.
+    pub(crate) fn remove_thread(&self, guild_id: GuildId, id: ChannelId) -> Option<Arc<Channel>> {
+        self.remove_messages_of(Some(guild_id), id);
+        self.threads.as_ref()?.remove(guild_id, id)
+    }
+
+    /// `THREAD_LIST_SYNC`: the active threads of the synced parent channels (all of the
+    /// guild's when `parents` is `None`) are replaced. Returns the threads it replaced.
+    pub(crate) fn sync_threads(
+        &self,
+        guild_id: GuildId,
+        parents: Option<&[ChannelId]>,
+        synced: &[Channel],
+    ) -> Vec<Arc<Channel>> {
+        let Some(threads) = &self.threads else {
+            return Vec::new();
+        };
+        let mut previous = Vec::new();
+        for thread in threads.values_of(guild_id) {
+            let in_sync = parents.is_none_or(|parents| {
+                thread
+                    .parent_id()
+                    .is_some_and(|parent| parents.contains(&parent))
+            });
+            let active = thread
+                .as_thread()
+                .is_some_and(|thread| !thread.thread_metadata.archived);
+            if in_sync && active {
+                previous.extend(threads.remove(guild_id, thread.id()));
+            }
+        }
+        for thread in synced {
+            threads.insert(guild_id, thread.id(), Arc::new(thread.clone()));
+        }
+        previous
+    }
+
+    /// `MESSAGE_CREATE`. The author is cached as a user (unless it is a webhook) and, with
+    /// the message's member data, as a member.
+    pub(crate) fn insert_message(&self, message: &Message) -> Option<Arc<CachedMessage>> {
+        let author = if message.webhook_id.is_some() {
+            Arc::new(message.author.clone())
+        } else if self.messages.is_some() || self.members.is_some() {
+            self.share_user(&message.author)
+        } else {
+            self.cache_user(&message.author);
+            return None;
+        };
+        if let (Some(guild_id), Some(member), Some(members)) =
+            (message.guild_id, &message.member, &self.members)
+        {
+            put_partial_member(members, guild_id, member, Arc::clone(&author));
+        }
+        let messages = self.messages.as_ref()?;
+        if let Some(guild_id) = message.guild_id {
+            self.message_channels.insert(guild_id, message.channel_id);
+        }
+        let cached = CachedMessage::new(message, author);
+        messages
+            .insert(message.channel_id, message.id, Arc::new(cached))
+            .previous
+    }
+
+    /// `MESSAGE_UPDATE` (the full new message). Only a cached message is updated, like in
+    /// discord.js; the author and member are cached either way.
+    pub(crate) fn update_message(&self, message: &Message) -> Option<Arc<CachedMessage>> {
+        let cached = self
+            .messages
+            .as_ref()
+            .is_some_and(|messages| messages.get(message.channel_id, message.id).is_some());
+        if cached {
+            self.insert_message(message)
+        } else {
+            if message.webhook_id.is_none() {
+                self.cache_user(&message.author);
+            }
+            None
+        }
+    }
+
+    /// `MESSAGE_DELETE`.
+    pub(crate) fn remove_message(
+        &self,
+        channel_id: ChannelId,
+        id: MessageId,
+    ) -> Option<Arc<CachedMessage>> {
+        self.messages.as_ref()?.remove(channel_id, id)
+    }
+
+    fn remove_messages_of(&self, guild_id: Option<GuildId>, channel_id: ChannelId) {
+        if let Some(messages) = &self.messages {
+            messages.remove_parent(channel_id);
+            if let Some(guild_id) = guild_id {
+                self.message_channels.remove(guild_id, channel_id);
+            }
+        }
+    }
+
+    /// The reaction events (D-166): changes a cached message's reactions, returning the
+    /// message before.
+    pub(crate) fn react(
+        &self,
+        channel_id: ChannelId,
+        message_id: MessageId,
+        change: ReactionChange<'_>,
+    ) -> Option<Arc<CachedMessage>> {
+        let messages = self.messages.as_ref()?;
+        let mut message = CachedMessage::clone(&*messages.get(channel_id, message_id)?);
+        let me = self.current_user().map(|user| user.id);
+        change.apply(&mut message.reactions, me);
+        messages
+            .insert(channel_id, message_id, Arc::new(message))
+            .previous
+    }
+
+    /// `PRESENCE_UPDATE` and the presences of `GUILD_CREATE` / `GUILD_MEMBERS_CHUNK`. An
+    /// offline member's presence is removed.
+    pub(crate) fn update_presence(
+        &self,
+        guild_id: GuildId,
+        presence: &Presence,
+    ) -> Option<Arc<CachedPresence>> {
+        let presences = self.presences.as_ref()?;
+        if presence.status == Status::Offline {
+            return presences.remove(guild_id, presence.user.id);
+        }
+        presences
+            .insert(
+                guild_id,
+                presence.user.id,
+                Arc::new(CachedPresence::new(guild_id, presence)),
+            )
+            .previous
+    }
+
+    /// `VOICE_STATE_UPDATE`: a state without a channel means the user left voice. The
+    /// state's member is cached as a member.
+    pub(crate) fn update_voice_state(&self, state: &VoiceState) -> Option<Arc<VoiceState>> {
+        let guild_id = state.guild_id?;
+        if let Some(member) = &state.member {
+            self.upsert_member(guild_id, member);
+        }
+        let voice_states = self.voice_states.as_ref()?;
+        if state.channel_id.is_none() {
+            return voice_states.remove(guild_id, state.user_id);
+        }
+        voice_states
+            .insert(
+                guild_id,
+                state.user_id,
+                Arc::new(stripped_voice_state(state, guild_id)),
+            )
+            .previous
+    }
+
+    pub(crate) fn put_scheduled_event(
+        &self,
+        event: &GuildScheduledEvent,
+    ) -> Option<Arc<GuildScheduledEvent>> {
+        put(
+            self.scheduled_events.as_ref(),
+            event.guild_id,
+            event.id,
+            event,
+        )
+    }
+
+    pub(crate) fn remove_scheduled_event(
+        &self,
+        event: &GuildScheduledEvent,
+    ) -> Option<Arc<GuildScheduledEvent>> {
+        self.scheduled_events
+            .as_ref()?
+            .remove(event.guild_id, event.id)
+    }
+
+    pub(crate) fn put_stage_instance(&self, stage: &StageInstance) -> Option<Arc<StageInstance>> {
+        put(
+            self.stage_instances.as_ref(),
+            stage.guild_id,
+            stage.id,
+            stage,
+        )
+    }
+
+    pub(crate) fn remove_stage_instance(
+        &self,
+        stage: &StageInstance,
+    ) -> Option<Arc<StageInstance>> {
+        self.stage_instances
+            .as_ref()?
+            .remove(stage.guild_id, stage.id)
+    }
+
+    pub(crate) fn put_soundboard_sound(
+        &self,
+        guild_id: GuildId,
+        sound: &SoundboardSound,
+    ) -> Option<Arc<SoundboardSound>> {
+        put(
+            self.soundboard_sounds.as_ref(),
+            guild_id,
+            sound.sound_id,
+            sound,
+        )
+    }
+
+    pub(crate) fn remove_soundboard_sound(
+        &self,
+        guild_id: GuildId,
+        id: SoundboardSoundId,
+    ) -> Option<Arc<SoundboardSound>> {
+        self.soundboard_sounds.as_ref()?.remove(guild_id, id)
+    }
+
+    pub(crate) fn replace_soundboard_sounds(
+        &self,
+        guild_id: GuildId,
+        sounds: &[SoundboardSound],
+    ) -> Vec<Arc<SoundboardSound>> {
+        replace(self.soundboard_sounds.as_ref(), guild_id, sounds, |sound| {
+            sound.sound_id
+        })
+    }
+
     /// Caches a user seen in an event, if users are cached.
     fn cache_user(&self, user: &User) {
         if self.users.is_some() {
@@ -504,6 +886,7 @@ impl<B: Backend> fmt::Debug for Cache<B> {
             .field("channels", &self.channels().len())
             .field("users", &self.users().len())
             .field("members", &self.members.as_ref().map_or(0, Scoped::len))
+            .field("messages", &self.messages.as_ref().map_or(0, Scoped::len))
             .finish_non_exhaustive()
     }
 }
@@ -523,6 +906,153 @@ where
     limit
         .is_enabled()
         .then(|| Global::new(backend.store(resource, limit), limit))
+}
+
+/// Creates the message store (kept per channel), if messages are enabled.
+fn channel_scoped<B: Backend>(
+    backend: &B,
+    config: &CacheConfig,
+) -> Option<ChannelScopedOf<MessageId, CachedMessage, B>> {
+    let limit = config.limit(Resource::Message);
+    limit
+        .is_enabled()
+        .then(|| Scoped::new(backend.store(Resource::Message, limit), limit))
+}
+
+/// Inserts a copy of `value` into a guild resource, returning the previous one.
+fn put<K, V, S>(
+    entries: Option<&Scoped<GuildId, K, V, S>>,
+    guild_id: GuildId,
+    id: K,
+    value: &V,
+) -> Option<Arc<V>>
+where
+    K: Eq + Hash + Copy,
+    V: Clone,
+    S: Store<(GuildId, K), V>,
+{
+    entries?
+        .insert(guild_id, id, Arc::new(value.clone()))
+        .previous
+}
+
+/// Caches the partial member attached to a message, with the message's author as its user.
+fn put_partial_member<S>(
+    members: &Scoped<GuildId, UserId, CachedMember, S>,
+    guild_id: GuildId,
+    member: &PartialMember,
+    user: Arc<User>,
+) where
+    S: Store<(GuildId, UserId), CachedMember>,
+{
+    let id = user.id;
+    let cached = CachedMember::from_partial(guild_id, member, user);
+    members.insert(guild_id, id, Arc::new(cached));
+}
+
+/// A voice state as cached: with its guild, without its member (members are a resource of
+/// their own).
+fn stripped_voice_state(state: &VoiceState, guild_id: GuildId) -> VoiceState {
+    let mut state = state.clone();
+    state.guild_id = Some(guild_id);
+    state.member = None;
+    state
+}
+
+/// A change to a message's reactions (D-166).
+pub(crate) enum ReactionChange<'a> {
+    /// `MESSAGE_REACTION_ADD`.
+    Add {
+        emoji: &'a PartialEmoji,
+        user_id: UserId,
+        burst: bool,
+        burst_colors: &'a [compact_str::CompactString],
+    },
+    /// `MESSAGE_REACTION_REMOVE`.
+    Remove {
+        emoji: &'a PartialEmoji,
+        user_id: UserId,
+        burst: bool,
+    },
+    /// `MESSAGE_REACTION_REMOVE_ALL`.
+    RemoveAll,
+    /// `MESSAGE_REACTION_REMOVE_EMOJI`.
+    RemoveEmoji(&'a PartialEmoji),
+}
+
+impl ReactionChange<'_> {
+    fn apply(self, reactions: &mut Vec<Reaction>, me: Option<UserId>) {
+        match self {
+            Self::Add {
+                emoji,
+                user_id,
+                burst,
+                burst_colors,
+            } => {
+                let index = if let Some(index) = reactions
+                    .iter()
+                    .position(|reaction| same_emoji(&reaction.emoji, emoji))
+                {
+                    index
+                } else {
+                    reactions.push(Reaction::new(emoji.clone()));
+                    reactions.len() - 1
+                };
+                let reaction = &mut reactions[index];
+                let mine = me == Some(user_id);
+                reaction.count += 1;
+                if burst {
+                    reaction.count_details.burst += 1;
+                    reaction.me_burst |= mine;
+                    if reaction.burst_colors.is_empty() {
+                        reaction.burst_colors = burst_colors.to_vec();
+                    }
+                } else {
+                    reaction.count_details.normal += 1;
+                    reaction.me |= mine;
+                }
+            }
+            Self::Remove {
+                emoji,
+                user_id,
+                burst,
+            } => {
+                let Some(index) = reactions
+                    .iter()
+                    .position(|reaction| same_emoji(&reaction.emoji, emoji))
+                else {
+                    return;
+                };
+                let reaction = &mut reactions[index];
+                let mine = me == Some(user_id);
+                reaction.count = reaction.count.saturating_sub(1);
+                if burst {
+                    reaction.count_details.burst = reaction.count_details.burst.saturating_sub(1);
+                    reaction.me_burst &= !mine;
+                } else {
+                    reaction.count_details.normal = reaction.count_details.normal.saturating_sub(1);
+                    reaction.me &= !mine;
+                }
+                if reaction.count == 0 {
+                    reactions.remove(index);
+                }
+            }
+            Self::RemoveAll => reactions.clear(),
+            Self::RemoveEmoji(emoji) => {
+                reactions.retain(|reaction| !same_emoji(&reaction.emoji, emoji));
+            }
+        }
+    }
+}
+
+/// Whether two reaction emojis are the same: custom emojis by ID (their names may be missing),
+/// Unicode emojis by the emoji itself.
+fn same_emoji(a: &PartialEmoji, b: &PartialEmoji) -> bool {
+    match (a.id(), b.id()) {
+        (Some(a), Some(b)) => a == b,
+        (None, None) => a == b,
+        _ => false,
+    }
 }
 
 /// Creates the store of a resource kept per guild, if it is enabled.

@@ -290,14 +290,14 @@ user), D-153 (updates return the previous state), D-154 (order below), D-155–D
    (fields per resource, change helpers, views), `limits.rs` (`Scoped` keyed `(parent, id)`,
    `Index`, `GlobalOf` / `ScopedOf`); tests `crates/djs-cache/tests/events.rs` (payloads
    from `djs-model/tests/common/payloads.rs`).
-3. **Next:** messages (per channel, `MESSAGE_*`, also authors → users; `CHANNEL_DELETE`
-   drops a channel's messages), presences (compact type, D-081), voice states, threads
-   (`THREAD_*`, `GUILD_CREATE.threads`), scheduled events, stage instances, soundboard.
-   Decided: D-164 (`CachedPresence`: user ID, model statuses, `Box<[Activity]>`), D-165
-   (`CachedMessage`: author `Arc<User>`, no `member`), D-166 (reaction events update cached
-   messages). Voice states, threads (model `Channel`), scheduled events, stage instances and
-   soundboard sounds use the model types (D-160 pattern; voice states without `member`).
-4. Sweepers.
+3. ✅ Messages, reactions, presences, voice states, threads, scheduled events, stage
+   instances, soundboard (D-164–D-166, C-075): `CachedMessage` / `CachedPresence` in
+   `model.rs`, `ChannelView` in `view.rs`, `ReactionChange` in `cache.rs`,
+   `djs_model::message::Reaction::new`; tests `crates/djs-cache/tests/messages_and_more.rs`.
+4. **Next: sweepers** (≈ discord.js `sweepers`; D-154 step 4). Ask the owner first: the API
+   (e.g. `Cache::sweep_*` methods called by the user vs a background task needing tokio),
+   what can be swept (messages by age, archived threads, users not in any cached guild,
+   …) and the defaults (discord.js sweeps archived threads every hour, older than 4 h).
 5. djs-rs `Client` integration.
 6. Benchmarks + extreme-load tests (D-041), re-run `docs/VS_NODE.md`.
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON

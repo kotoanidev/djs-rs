@@ -11,15 +11,27 @@ use djs_model::{
             ChannelCreate, ChannelDelete, ChannelPinsUpdate, ChannelUpdate, GuildCreate,
             GuildDelete, GuildEmojisUpdate, GuildMemberAdd, GuildMemberRemove, GuildMemberUpdate,
             GuildMembersChunk, GuildRoleCreate, GuildRoleDelete, GuildRoleUpdate,
-            GuildStickersUpdate, GuildUpdate, Ready, UserUpdate,
+            GuildScheduledEventCreate, GuildScheduledEventDelete, GuildScheduledEventUpdate,
+            GuildSoundboardSoundCreate, GuildSoundboardSoundDelete, GuildSoundboardSoundUpdate,
+            GuildSoundboardSoundsUpdate, GuildStickersUpdate, GuildUpdate, MessageCreate,
+            MessageDelete, MessageDeleteBulk, MessageReactionAdd, MessageReactionRemove,
+            MessageReactionRemoveAll, MessageReactionRemoveEmoji, MessageUpdate, PresenceUpdate,
+            Ready, SoundboardSounds, StageInstanceCreate, StageInstanceDelete, StageInstanceUpdate,
+            ThreadCreate, ThreadDelete, ThreadListSync, ThreadUpdate, UserUpdate, VoiceStateUpdate,
         },
     },
     guild::Role,
+    guild_scheduled_event::GuildScheduledEvent,
+    soundboard::SoundboardSound,
+    stage_instance::StageInstance,
     sticker::Sticker,
     user::CurrentUser,
+    voice::VoiceState,
 };
 
-use crate::{Backend, Cache, CachedGuild, CachedMember};
+use crate::{
+    Backend, Cache, CachedGuild, CachedMember, CachedMessage, CachedPresence, cache::ReactionChange,
+};
 
 mod sealed {
     pub trait Sealed {}
@@ -51,7 +63,22 @@ mod sealed {
 /// | [`GuildMemberAdd`] | caches the member, counts it in the guild | `Option<Arc<CachedMember>>` |
 /// | [`GuildMemberUpdate`] | updates (or adds) the member | `Option<Arc<CachedMember>>` |
 /// | [`GuildMemberRemove`] | removes the member, uncounts it | `Option<Arc<CachedMember>>` |
-/// | [`GuildMembersChunk`] | caches the members | `Vec<Arc<CachedMember>>` (those replaced) |
+/// | [`GuildMembersChunk`] | caches the members (and their presences) | `Vec<Arc<CachedMember>>` (those replaced) |
+/// | [`MessageCreate`] | caches the message (author as a user, its member as a member) | `Option<Arc<CachedMessage>>` |
+/// | [`MessageUpdate`] | replaces a cached message | `Option<Arc<CachedMessage>>` |
+/// | [`MessageDelete`] | removes the message | `Option<Arc<CachedMessage>>` |
+/// | [`MessageDeleteBulk`] | removes the messages | `Vec<Arc<CachedMessage>>` |
+/// | [`MessageReactionAdd`], [`MessageReactionRemove`], [`MessageReactionRemoveAll`], [`MessageReactionRemoveEmoji`] | updates a cached message's reactions | `Option<Arc<CachedMessage>>` |
+/// | [`PresenceUpdate`] | caches the presence, or removes it when offline | `Option<Arc<CachedPresence>>` |
+/// | [`VoiceStateUpdate`] | caches the voice state, or removes it when the user left voice | `Option<Arc<VoiceState>>` |
+/// | [`ThreadCreate`], [`ThreadUpdate`] | caches the thread | `Option<Arc<Channel>>` |
+/// | [`ThreadDelete`] | removes the thread and its messages | `Option<Arc<Channel>>` |
+/// | [`ThreadListSync`] | replaces the synced channels' active threads | `Vec<Arc<Channel>>` |
+/// | [`GuildScheduledEventCreate`], [`GuildScheduledEventUpdate`], [`GuildScheduledEventDelete`] | caches / removes the event | `Option<Arc<GuildScheduledEvent>>` |
+/// | [`StageInstanceCreate`], [`StageInstanceUpdate`], [`StageInstanceDelete`] | caches / removes the stage instance | `Option<Arc<StageInstance>>` |
+/// | [`GuildSoundboardSoundCreate`], [`GuildSoundboardSoundUpdate`], [`GuildSoundboardSoundDelete`] | caches / removes the sound | `Option<Arc<SoundboardSound>>` |
+/// | [`GuildSoundboardSoundsUpdate`] | caches the sounds | `Vec<Arc<SoundboardSound>>` (those replaced) |
+/// | [`SoundboardSounds`] | replaces the guild's sounds | `Vec<Arc<SoundboardSound>>` |
 ///
 /// Users seen in member events are cached too when [`Resource::User`](crate::Resource::User)
 /// is enabled.
@@ -71,7 +98,7 @@ pub trait UpdateCache: sealed::Sealed {
 
 /// The previous state returned by [`Cache::update_dispatch`]: the
 /// [`UpdateCache::Previous`] of the event, in a variant per kind.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub enum Previous {
     /// The event changes nothing in the cache, or nothing was cached before it.
@@ -92,6 +119,27 @@ pub enum Previous {
     Member(Arc<CachedMember>),
     /// The members a [`GuildMembersChunk`] replaced.
     Members(Vec<Arc<CachedMember>>),
+    /// A message before a message or reaction event.
+    Message(Arc<CachedMessage>),
+    /// The messages a [`MessageDeleteBulk`] removed.
+    Messages(Vec<Arc<CachedMessage>>),
+    /// A presence before a [`PresenceUpdate`].
+    Presence(Arc<CachedPresence>),
+    /// A voice state before a [`VoiceStateUpdate`].
+    VoiceState(Arc<VoiceState>),
+    /// A thread before a thread event.
+    Thread(Arc<Channel>),
+    /// The threads a [`ThreadListSync`] replaced.
+    Threads(Vec<Arc<Channel>>),
+    /// A scheduled event before a scheduled event event.
+    ScheduledEvent(Arc<GuildScheduledEvent>),
+    /// A stage instance before a stage instance event.
+    StageInstance(Arc<StageInstance>),
+    /// A soundboard sound before a soundboard sound event.
+    SoundboardSound(Arc<SoundboardSound>),
+    /// The soundboard sounds a [`GuildSoundboardSoundsUpdate`] or [`SoundboardSounds`]
+    /// replaced.
+    SoundboardSounds(Vec<Arc<SoundboardSound>>),
 }
 
 /// Implements [`UpdateCache`] for a payload: `Payload => Previous, |event, cache| body`.
@@ -164,11 +212,99 @@ update_cache! {
         cache.remove_member(event.guild_id, &event.user)
     };
     GuildMembersChunk => Vec<Arc<CachedMember>>, |event, cache| {
+        for presence in &event.presences {
+            cache.update_presence(event.guild_id, presence);
+        }
         event
             .members
             .iter()
             .filter_map(|member| cache.upsert_member(event.guild_id, member))
             .collect()
+    };
+    MessageCreate => Option<Arc<CachedMessage>>, |event, cache| cache.insert_message(event);
+    MessageUpdate => Option<Arc<CachedMessage>>, |event, cache| cache.update_message(event);
+    MessageDelete => Option<Arc<CachedMessage>>, |event, cache| {
+        cache.remove_message(event.channel_id, event.id)
+    };
+    MessageDeleteBulk => Vec<Arc<CachedMessage>>, |event, cache| {
+        event
+            .ids
+            .iter()
+            .filter_map(|&id| cache.remove_message(event.channel_id, id))
+            .collect()
+    };
+    MessageReactionAdd => Option<Arc<CachedMessage>>, |event, cache| {
+        if let (Some(guild_id), Some(member)) = (event.guild_id, &event.member) {
+            cache.upsert_member(guild_id, member);
+        }
+        cache.react(event.channel_id, event.message_id, ReactionChange::Add {
+            emoji: &event.emoji,
+            user_id: event.user_id,
+            burst: event.burst,
+            burst_colors: &event.burst_colors,
+        })
+    };
+    MessageReactionRemove => Option<Arc<CachedMessage>>, |event, cache| {
+        cache.react(event.channel_id, event.message_id, ReactionChange::Remove {
+            emoji: &event.emoji,
+            user_id: event.user_id,
+            burst: event.burst,
+        })
+    };
+    MessageReactionRemoveAll => Option<Arc<CachedMessage>>, |event, cache| {
+        cache.react(event.channel_id, event.message_id, ReactionChange::RemoveAll)
+    };
+    MessageReactionRemoveEmoji => Option<Arc<CachedMessage>>, |event, cache| {
+        cache.react(event.channel_id, event.message_id, ReactionChange::RemoveEmoji(&event.emoji))
+    };
+    PresenceUpdate => Option<Arc<CachedPresence>>, |event, cache| {
+        cache.update_presence(event.guild_id?, event)
+    };
+    VoiceStateUpdate => Option<Arc<VoiceState>>, |event, cache| cache.update_voice_state(event);
+    ThreadCreate => Option<Arc<Channel>>, |event, cache| cache.insert_thread(&event.thread);
+    ThreadUpdate => Option<Arc<Channel>>, |event, cache| cache.insert_thread(event);
+    ThreadDelete => Option<Arc<Channel>>, |event, cache| {
+        cache.remove_thread(event.guild_id, event.id)
+    };
+    ThreadListSync => Vec<Arc<Channel>>, |event, cache| {
+        cache.sync_threads(event.guild_id, event.channel_ids.as_deref(), &event.threads)
+    };
+    GuildScheduledEventCreate => Option<Arc<GuildScheduledEvent>>, |event, cache| {
+        cache.put_scheduled_event(event)
+    };
+    GuildScheduledEventUpdate => Option<Arc<GuildScheduledEvent>>, |event, cache| {
+        cache.put_scheduled_event(event)
+    };
+    GuildScheduledEventDelete => Option<Arc<GuildScheduledEvent>>, |event, cache| {
+        cache.remove_scheduled_event(event)
+    };
+    StageInstanceCreate => Option<Arc<StageInstance>>, |event, cache| {
+        cache.put_stage_instance(event)
+    };
+    StageInstanceUpdate => Option<Arc<StageInstance>>, |event, cache| {
+        cache.put_stage_instance(event)
+    };
+    StageInstanceDelete => Option<Arc<StageInstance>>, |event, cache| {
+        cache.remove_stage_instance(event)
+    };
+    GuildSoundboardSoundCreate => Option<Arc<SoundboardSound>>, |event, cache| {
+        cache.put_soundboard_sound(event.guild_id?, event)
+    };
+    GuildSoundboardSoundUpdate => Option<Arc<SoundboardSound>>, |event, cache| {
+        cache.put_soundboard_sound(event.guild_id?, event)
+    };
+    GuildSoundboardSoundDelete => Option<Arc<SoundboardSound>>, |event, cache| {
+        cache.remove_soundboard_sound(event.guild_id, event.sound_id)
+    };
+    GuildSoundboardSoundsUpdate => Vec<Arc<SoundboardSound>>, |event, cache| {
+        event
+            .soundboard_sounds
+            .iter()
+            .filter_map(|sound| cache.put_soundboard_sound(event.guild_id, sound))
+            .collect()
+    };
+    SoundboardSounds => Vec<Arc<SoundboardSound>>, |event, cache| {
+        cache.replace_soundboard_sounds(event.guild_id, &event.soundboard_sounds)
     };
 }
 
@@ -201,6 +337,65 @@ pub(crate) fn dispatch<B: Backend>(cache: &Cache<B>, event: &DispatchEvent) -> P
             cache.update(&**event).map(Previous::Member).into()
         }
         DispatchEvent::GuildMembersChunk(event) => Previous::Members(cache.update(&**event)),
+        DispatchEvent::MessageCreate(event) => cache.update(&**event).map(Previous::Message).into(),
+        DispatchEvent::MessageUpdate(event) => cache.update(&**event).map(Previous::Message).into(),
+        DispatchEvent::MessageDelete(event) => cache.update(&**event).map(Previous::Message).into(),
+        DispatchEvent::MessageDeleteBulk(event) => Previous::Messages(cache.update(&**event)),
+        DispatchEvent::MessageReactionAdd(event) => {
+            cache.update(&**event).map(Previous::Message).into()
+        }
+        DispatchEvent::MessageReactionRemove(event) => {
+            cache.update(&**event).map(Previous::Message).into()
+        }
+        DispatchEvent::MessageReactionRemoveAll(event) => {
+            cache.update(event).map(Previous::Message).into()
+        }
+        DispatchEvent::MessageReactionRemoveEmoji(event) => {
+            cache.update(&**event).map(Previous::Message).into()
+        }
+        DispatchEvent::PresenceUpdate(event) => {
+            cache.update(&**event).map(Previous::Presence).into()
+        }
+        DispatchEvent::VoiceStateUpdate(event) => {
+            cache.update(&**event).map(Previous::VoiceState).into()
+        }
+        DispatchEvent::ThreadCreate(event) => cache.update(&**event).map(Previous::Thread).into(),
+        DispatchEvent::ThreadUpdate(event) => cache.update(&**event).map(Previous::Thread).into(),
+        DispatchEvent::ThreadDelete(event) => cache.update(&**event).map(Previous::Thread).into(),
+        DispatchEvent::ThreadListSync(event) => Previous::Threads(cache.update(&**event)),
+        DispatchEvent::GuildScheduledEventCreate(event) => {
+            cache.update(&**event).map(Previous::ScheduledEvent).into()
+        }
+        DispatchEvent::GuildScheduledEventUpdate(event) => {
+            cache.update(&**event).map(Previous::ScheduledEvent).into()
+        }
+        DispatchEvent::GuildScheduledEventDelete(event) => {
+            cache.update(&**event).map(Previous::ScheduledEvent).into()
+        }
+        DispatchEvent::StageInstanceCreate(event) => {
+            cache.update(&**event).map(Previous::StageInstance).into()
+        }
+        DispatchEvent::StageInstanceUpdate(event) => {
+            cache.update(&**event).map(Previous::StageInstance).into()
+        }
+        DispatchEvent::StageInstanceDelete(event) => {
+            cache.update(&**event).map(Previous::StageInstance).into()
+        }
+        DispatchEvent::GuildSoundboardSoundCreate(event) => {
+            cache.update(&**event).map(Previous::SoundboardSound).into()
+        }
+        DispatchEvent::GuildSoundboardSoundUpdate(event) => {
+            cache.update(&**event).map(Previous::SoundboardSound).into()
+        }
+        DispatchEvent::GuildSoundboardSoundDelete(event) => {
+            cache.update(event).map(Previous::SoundboardSound).into()
+        }
+        DispatchEvent::GuildSoundboardSoundsUpdate(event) => {
+            Previous::SoundboardSounds(cache.update(&**event))
+        }
+        DispatchEvent::SoundboardSounds(event) => {
+            Previous::SoundboardSounds(cache.update(&**event))
+        }
         _ => Previous::None,
     }
 }
