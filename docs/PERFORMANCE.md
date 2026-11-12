@@ -623,7 +623,7 @@ The same floods built from `d9cffea` (git worktree) and from this commit, run al
   unpinned swings are P-core/E-core placement on this hybrid CPU. A/B runs on this laptop
   must pin both builds to the same cores (C-072).
 
-## Phase 5 — `djs-cache` (in progress, 2026-11-12)
+## Phase 5 — `djs-cache` (2026-11-12)
 
 Step 6 of Phase 5 (D-041). The micro-benchmarks ran pinned to one P-core (`taskset -c 2`), the
 stress tests to CPU 0–3 (2 P-cores with hyperthreading) unless marked "unpinned" (all 12

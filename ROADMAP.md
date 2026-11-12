@@ -88,7 +88,8 @@ just with narrow scope.
       (D-160–D-166, C-074, C-075)
 - [x] djs-rs `Client` integration: opt-in cache, filled before handlers, sweeps run by the
       client, custom backends (D-170–D-172, C-077)
-- [ ] Memory/size tests, benchmarks
+- [x] Memory/size tests, benchmarks (D-041; `docs/PERFORMANCE.md` Phase 5, `docs/VS_NODE.md`
+      with equal caches, D-174), compact cached types (D-177)
 
 ## Phase 6 — `djs-builders` (≈ @discordjs/builders)
 - [ ] `EmbedBuilder` with Discord limit validation

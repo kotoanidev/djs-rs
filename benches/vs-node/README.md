@@ -25,7 +25,7 @@ benches/vs-node/run.sh     # runs everything and rewrites docs/VS_NODE.md
 | Scenario | Rust runner | Node.js runner | Mock |
 |----------|-------------|----------------|------|
 | Decoding | `vs-node decode` | `node/decode.mjs` | — (fixtures from `vs-node fixtures`) |
-| Event flood | `vs-node flood`, `vs-node shard-flood` | `node/flood.mjs --layer client\|ws` | `vs-node mock-gateway --messages N` |
+| Event flood | `vs-node flood [--cache discord-js] [--mode sequential]`, `vs-node shard-flood` | `node/flood.mjs --layer client\|ws` | `vs-node mock-gateway --messages N` |
 | Memory | `vs-node memory` | `node --expose-gc node/memory.mjs` | `vs-node mock-gateway --guilds N` |
 | REST | `vs-node rest` | `node/rest.mjs` | `vs-node mock-rest` |
 

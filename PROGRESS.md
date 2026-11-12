@@ -13,8 +13,11 @@ CDN URLs; benchmarks + extreme-load tests in `docs/PERFORMANCE.md`).
 sharding, presence, zlib-stream, JSON parsers measured; benchmarks + extreme-load tests and a
 `perf`-profiled A/B in `docs/PERFORMANCE.md`). Left open on purpose: zero-copy parsing (no
 measured need after D-150) and resharding while running (open question).
-**Phase 5 — `djs-cache`: in progress** — steps 1–5 done (cache, resources, sweeps, `Client`
-integration); next: step 6, benchmarks + extreme-load tests (see "Next step").
+**Phase 5 — `djs-cache`: ✅ done 2026-11-12** (pluggable cache, every resource and event,
+limits, sweeps, opt-in `Client` cache; benchmarks + extreme-load tests in
+`docs/PERFORMANCE.md`, `docs/VS_NODE.md` re-measured with equal caches). Left open on purpose:
+a lock-free backend (D-176), resolved roles/messages of interactions (open question).
+**Next: Phase 6 — `djs-builders`** (needs the owner's decisions first, see "Next step").
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-075 in `docs/DECISIONS.md`; Claude defaults C-001 …
@@ -320,10 +323,17 @@ user), D-153 (updates return the previous state), D-154 (order below), D-155–D
       `CachedMember` (`model.rs`) 418 B (−23 %).
    c. ✅ The djs-rs `Client` flood with and without a cache (`crates/djs-rs/tests/stress.rs`,
       `flood_1m_{sequential,concurrent}_with_cache`): −14 % sequential, −6 % concurrent.
-   d. D-174: re-run `docs/VS_NODE.md` with djs-rs + `CacheConfig::discord_js()` in the summary
-      and the real cache in the memory section (the page's claim that the cache "can only
-      store the same or less" must go).
-   e. Mark Phase 5 done (ROADMAP, PROGRESS).
+   d. ✅ D-174: `docs/VS_NODE.md` re-measured (`benches/vs-node/run.sh`, flood `--cache
+      discord-js`, memory through a cached `Client`); the flood client now uses
+      `Shards::Count(1)` — since D-146 it had called the real Get Gateway Bot and hung.
+   e. ✅ Phase 5 marked done (ROADMAP, PROGRESS).
+
+## Next step — Phase 6 (`djs-builders`, ROADMAP)
+Not started. Ask the owner before writing code: the builder API shape (consuming
+`self` builders vs `&mut self`, how validation errors surface: at `build()` returning
+`Result`, or panics, or both), whether builders live in `djs-builders` and produce the
+`djs-model` request types, where Discord's limits (embed lengths, option counts, component
+rules) are checked, and the order of the three ROADMAP items (embeds, commands, components).
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON
   body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").
 

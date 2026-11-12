@@ -1,6 +1,6 @@
 {
   "environment": {
-    "date": "2026-11-11",
+    "date": "2026-11-12",
     "cpu": "13th Gen Intel(R) Core(TM) i7-1355U",
     "threads": 12,
     "memory_gib": 15,
@@ -21,60 +21,60 @@
         "allocator": "system",
         "bytes": 1022,
         "library": "djs-rs",
-        "median_ns": 1338.9953781993843,
-        "min_ns": 1305.7572544078907,
+        "median_ns": 1396.3697519515356,
+        "min_ns": 1377.3485111064228,
         "payload": "MESSAGE_CREATE",
         "scenario": "decode",
         "variant": "djs-model typed decode",
         "runs": 1,
         "range": [
-          1338.9953781993843,
-          1338.9953781993843
+          1396.3697519515356,
+          1396.3697519515356
         ]
       },
       {
         "allocator": "system",
         "bytes": 519762,
         "library": "djs-rs",
-        "median_ns": 627267.7398119122,
-        "min_ns": 619197.1347962383,
+        "median_ns": 667777.6677740864,
+        "min_ns": 653520.0830564784,
         "payload": "GUILD_CREATE",
         "scenario": "decode",
         "variant": "djs-model typed decode",
         "runs": 1,
         "range": [
-          627267.7398119122,
-          627267.7398119122
+          667777.6677740864,
+          667777.6677740864
         ]
       },
       {
         "allocator": "mimalloc",
         "bytes": 1022,
         "library": "djs-rs",
-        "median_ns": 1387.5060206200078,
-        "min_ns": 1363.741123895985,
+        "median_ns": 1417.5525239654482,
+        "min_ns": 1410.6682693020016,
         "payload": "MESSAGE_CREATE",
         "scenario": "decode",
         "variant": "djs-model typed decode",
         "runs": 1,
         "range": [
-          1387.5060206200078,
-          1387.5060206200078
+          1417.5525239654482,
+          1417.5525239654482
         ]
       },
       {
         "allocator": "mimalloc",
         "bytes": 519762,
         "library": "djs-rs",
-        "median_ns": 643283.8649517685,
-        "min_ns": 637284.8263665595,
+        "median_ns": 665705.9461279461,
+        "min_ns": 652074.1414141414,
         "payload": "GUILD_CREATE",
         "scenario": "decode",
         "variant": "djs-model typed decode",
         "runs": 1,
         "range": [
-          643283.8649517685,
-          643283.8649517685
+          665705.9461279461,
+          665705.9461279461
         ]
       },
       {
@@ -83,12 +83,12 @@
         "bytes": 1022,
         "library": "discord.js",
         "variant": "JSON.parse + new Message()",
-        "median_ns": 4827.1732297595245,
-        "min_ns": 4773.817130697841,
+        "median_ns": 4748.4676175992445,
+        "min_ns": 4708.367559913997,
         "runs": 1,
         "range": [
-          4827.1732297595245,
-          4827.1732297595245
+          4748.4676175992445,
+          4748.4676175992445
         ]
       },
       {
@@ -97,12 +97,12 @@
         "bytes": 1022,
         "library": "Node.js",
         "variant": "JSON.parse only (no structures)",
-        "median_ns": 2111.485922215748,
-        "min_ns": 2085.5093541948204,
+        "median_ns": 2170.8163123987583,
+        "min_ns": 2117.860642257422,
         "runs": 1,
         "range": [
-          2111.485922215748,
-          2111.485922215748
+          2170.8163123987583,
+          2170.8163123987583
         ]
       },
       {
@@ -111,12 +111,12 @@
         "bytes": 519762,
         "library": "discord.js",
         "variant": "JSON.parse + new Guild()",
-        "median_ns": 3132458.879310345,
-        "min_ns": 2960971.6551724137,
+        "median_ns": 3200114.7586206896,
+        "min_ns": 2905862.8103448274,
         "runs": 1,
         "range": [
-          3132458.879310345,
-          3132458.879310345
+          3200114.7586206896,
+          3200114.7586206896
         ]
       },
       {
@@ -125,137 +125,173 @@
         "bytes": 519762,
         "library": "Node.js",
         "variant": "JSON.parse only (no structures)",
-        "median_ns": 1019535.0618556701,
-        "min_ns": 1011789.7989690722,
+        "median_ns": 1048928.2780748664,
+        "min_ns": 1039282.449197861,
         "runs": 1,
         "range": [
-          1019535.0618556701,
-          1019535.0618556701
+          1048928.2780748664,
+          1048928.2780748664
         ]
       }
     ],
     "flood": [
       {
-        "server_cpu_ms": 830,
+        "server_cpu_ms": 870,
         "allocator": "system",
-        "cpu_ms": 6740,
-        "cpu_us_per_event": 6.74000674000674,
+        "cpu_ms": 7220,
+        "cpu_us_per_event": 7.22000722000722,
         "events": 1000000,
-        "events_per_sec": 280913.46742756164,
+        "events_per_sec": 251060.74482129575,
         "library": "djs-rs",
-        "peak_rss_kib": 8432,
+        "peak_rss_kib": 9264,
         "scenario": "flood",
-        "seconds": 3.559811529,
+        "seconds": 3.9830958069999998,
+        "variant": "Client + messageCreate handler, CacheConfig::discord_js()",
+        "runs": 3,
+        "range": [
+          247697.06844729942,
+          257886.15842284344
+        ]
+      },
+      {
+        "server_cpu_ms": 860,
+        "allocator": "system",
+        "cpu_ms": 6950,
+        "cpu_us_per_event": 6.95000695000695,
+        "events": 1000000,
+        "events_per_sec": 274313.52963019384,
+        "library": "djs-rs",
+        "peak_rss_kib": 9172,
+        "scenario": "flood",
+        "seconds": 3.645460001,
         "variant": "Client + messageCreate handler",
         "runs": 3,
         "range": [
-          279313.1665049891,
-          283981.16558919416
+          272610.5047829873,
+          274791.8101176955
+        ]
+      },
+      {
+        "server_cpu_ms": 860,
+        "allocator": "mimalloc",
+        "cpu_ms": 6130,
+        "cpu_us_per_event": 6.13000613000613,
+        "events": 1000000,
+        "events_per_sec": 305717.8935838507,
+        "library": "djs-rs",
+        "peak_rss_kib": 21644,
+        "scenario": "flood",
+        "seconds": 3.270986164,
+        "variant": "Client + messageCreate handler",
+        "runs": 3,
+        "range": [
+          288638.20853491797,
+          310481.33170740266
+        ]
+      },
+      {
+        "server_cpu_ms": 860,
+        "allocator": "system",
+        "cpu_ms": 2240,
+        "cpu_us_per_event": 2.24000224000224,
+        "events": 1000000,
+        "events_per_sec": 441259.2114452785,
+        "library": "djs-rs",
+        "peak_rss_kib": 8312,
+        "scenario": "flood",
+        "seconds": 2.266239376,
+        "variant": "Client + messageCreate handler, HandlerMode::Sequential, CacheConfig::discord_js()",
+        "runs": 3,
+        "range": [
+          440252.1547618451,
+          445838.7220297387
         ]
       },
       {
         "server_cpu_ms": 850,
-        "allocator": "mimalloc",
-        "cpu_ms": 5910,
-        "cpu_us_per_event": 5.91000591000591,
-        "events": 1000000,
-        "events_per_sec": 317062.93222579354,
-        "library": "djs-rs",
-        "peak_rss_kib": 21012,
-        "scenario": "flood",
-        "seconds": 3.153944843,
-        "variant": "Client + messageCreate handler",
-        "runs": 3,
-        "range": [
-          300332.4044233987,
-          332925.6010505233
-        ]
-      },
-      {
-        "server_cpu_ms": 830,
         "allocator": "system",
-        "cpu_ms": 1810,
-        "cpu_us_per_event": 1.81000181000181,
+        "cpu_ms": 1880,
+        "cpu_us_per_event": 1.88000188000188,
         "events": 1000000,
-        "events_per_sec": 542948.665261066,
+        "events_per_sec": 524797.4315968176,
         "library": "djs-rs",
-        "peak_rss_kib": 7240,
+        "peak_rss_kib": 7696,
         "scenario": "flood",
-        "seconds": 1.841792906,
+        "seconds": 1.9054952250000001,
         "variant": "Client + messageCreate handler, HandlerMode::Sequential",
         "runs": 3,
         "range": [
-          525534.060649096,
-          554842.2930529903
+          517826.9065994354,
+          548481.8589997692
         ]
       },
       {
-        "server_cpu_ms": 840,
+        "server_cpu_ms": 850,
         "allocator": "system",
-        "cpu_ms": 1690,
-        "cpu_us_per_event": 1.69000169000169,
+        "cpu_ms": 1720,
+        "cpu_us_per_event": 1.72000172000172,
         "events": 1000000,
-        "events_per_sec": 585180.1327131935,
+        "events_per_sec": 573139.9352532224,
         "library": "djs-rs",
-        "peak_rss_kib": 7024,
+        "peak_rss_kib": 6992,
         "scenario": "flood",
-        "seconds": 1.708873805,
+        "seconds": 1.744772853,
         "variant": "djs-gateway Shard (typed events)",
         "runs": 3,
         "range": [
-          565857.6049363593,
-          603568.3422194687
+          561544.8397007163,
+          581736.2594784871
+        ]
+      },
+      {
+        "server_cpu_ms": 900,
+        "scenario": "flood",
+        "library": "discord.js",
+        "variant": "Client + messageCreate listener",
+        "events": 1000000,
+        "seconds": 7.653870944,
+        "events_per_sec": 130652.71250541744,
+        "cpu_ms": 8150,
+        "cpu_us_per_event": 8.15000815000815,
+        "peak_rss_kib": 129284,
+        "runs": 3,
+        "range": [
+          129546.38597754057,
+          132441.95287459466
         ]
       },
       {
         "server_cpu_ms": 880,
         "scenario": "flood",
         "library": "discord.js",
-        "variant": "Client + messageCreate listener",
-        "events": 1000000,
-        "seconds": 7.762137568,
-        "events_per_sec": 128830.36293025411,
-        "cpu_ms": 8300,
-        "cpu_us_per_event": 8.3000083000083,
-        "peak_rss_kib": 130800,
-        "runs": 3,
-        "range": [
-          128743.01083621118,
-          133743.15962603615
-        ]
-      },
-      {
-        "server_cpu_ms": 890,
-        "scenario": "flood",
-        "library": "discord.js",
         "variant": "Client + messageCreate listener, message cache off",
         "events": 1000000,
-        "seconds": 7.286055398,
-        "events_per_sec": 137248.3388301572,
+        "seconds": 7.257080444,
+        "events_per_sec": 137796.32287620264,
         "cpu_ms": 7680,
         "cpu_us_per_event": 7.68000768000768,
-        "peak_rss_kib": 130620,
+        "peak_rss_kib": 132276,
         "runs": 3,
         "range": [
-          136662.7076611411,
-          140480.28290873708
+          135400.10689545833,
+          139673.51136574167
         ]
       },
       {
-        "server_cpu_ms": 850,
+        "server_cpu_ms": 860,
         "scenario": "flood",
         "library": "@discordjs/ws",
         "variant": "WebSocketManager (parsed JSON dispatches)",
         "events": 1000000,
-        "seconds": 4.023829257,
-        "events_per_sec": 248519.24277362548,
-        "cpu_ms": 4100,
-        "cpu_us_per_event": 4.1000041000041,
-        "peak_rss_kib": 134316,
+        "seconds": 4.07283612,
+        "events_per_sec": 245528.90677074433,
+        "cpu_ms": 4160,
+        "cpu_us_per_event": 4.16000416000416,
+        "peak_rss_kib": 122960,
         "runs": 3,
         "range": [
-          244367.17638916703,
-          255485.0292912116
+          244646.8807147665,
+          245596.86934881963
         ]
       }
     ],
@@ -263,35 +299,35 @@
       {
         "server_cpu_ms": 0,
         "allocator": "system",
-        "connected_rss_kib": 5492,
+        "connected_rss_kib": 6348,
         "guilds": 0,
         "library": "djs-rs",
         "members": 0,
-        "peak_rss_kib": 5556,
-        "rss_kib": 5556,
+        "peak_rss_kib": 6348,
+        "rss_kib": 6348,
         "scenario": "memory",
-        "variant": "decoded guilds kept in a HashMap",
+        "variant": "Client + CacheConfig::discord_js()",
         "runs": 3,
         "range": [
-          5520,
-          5808
+          6252,
+          6376
         ]
       },
       {
         "server_cpu_ms": 0,
         "allocator": "mimalloc",
-        "connected_rss_kib": 11640,
+        "connected_rss_kib": 14604,
         "guilds": 0,
         "library": "djs-rs",
         "members": 0,
-        "peak_rss_kib": 11704,
-        "rss_kib": 11704,
+        "peak_rss_kib": 14604,
+        "rss_kib": 14604,
         "scenario": "memory",
-        "variant": "decoded guilds kept in a HashMap",
+        "variant": "Client + CacheConfig::discord_js()",
         "runs": 3,
         "range": [
-          11676,
-          11784
+          14360,
+          14880
         ]
       },
       {
@@ -301,180 +337,180 @@
         "variant": "Client with the default caches",
         "guilds": 0,
         "members": 0,
-        "connected_rss_kib": 104472,
-        "rss_kib": 105020,
-        "heap_used_kib": 17140,
-        "peak_rss_kib": 105024,
+        "connected_rss_kib": 104496,
+        "rss_kib": 105056,
+        "heap_used_kib": 17141,
+        "peak_rss_kib": 105060,
         "runs": 3,
         "range": [
-          101892,
-          105928
+          102948,
+          108964
+        ]
+      },
+      {
+        "server_cpu_ms": 60,
+        "allocator": "system",
+        "connected_rss_kib": 6480,
+        "guilds": 100,
+        "library": "djs-rs",
+        "members": 100000,
+        "peak_rss_kib": 44644,
+        "rss_kib": 44644,
+        "scenario": "memory",
+        "variant": "Client + CacheConfig::discord_js()",
+        "runs": 3,
+        "range": [
+          44616,
+          44700
+        ]
+      },
+      {
+        "server_cpu_ms": 50,
+        "allocator": "mimalloc",
+        "connected_rss_kib": 14680,
+        "guilds": 100,
+        "library": "djs-rs",
+        "members": 100000,
+        "peak_rss_kib": 64420,
+        "rss_kib": 64420,
+        "scenario": "memory",
+        "variant": "Client + CacheConfig::discord_js()",
+        "runs": 3,
+        "range": [
+          62616,
+          64700
         ]
       },
       {
         "server_cpu_ms": 40,
-        "allocator": "system",
-        "connected_rss_kib": 5440,
-        "guilds": 100,
-        "library": "djs-rs",
-        "members": 100000,
-        "peak_rss_kib": 42844,
-        "rss_kib": 42844,
-        "scenario": "memory",
-        "variant": "decoded guilds kept in a HashMap",
-        "runs": 3,
-        "range": [
-          42688,
-          42980
-        ]
-      },
-      {
-        "server_cpu_ms": 50,
-        "allocator": "mimalloc",
-        "connected_rss_kib": 11892,
-        "guilds": 100,
-        "library": "djs-rs",
-        "members": 100000,
-        "peak_rss_kib": 55612,
-        "rss_kib": 55612,
-        "scenario": "memory",
-        "variant": "decoded guilds kept in a HashMap",
-        "runs": 3,
-        "range": [
-          55596,
-          55612
-        ]
-      },
-      {
-        "server_cpu_ms": 50,
         "scenario": "memory",
         "library": "discord.js",
         "variant": "Client with the default caches",
         "guilds": 100,
         "members": 100000,
-        "connected_rss_kib": 104028,
-        "rss_kib": 200716,
-        "heap_used_kib": 93661,
-        "peak_rss_kib": 212228,
+        "connected_rss_kib": 103808,
+        "rss_kib": 203284,
+        "heap_used_kib": 93716,
+        "peak_rss_kib": 214512,
         "runs": 3,
         "range": [
-          200348,
-          203208
-        ]
-      },
-      {
-        "server_cpu_ms": 220,
-        "allocator": "system",
-        "connected_rss_kib": 5732,
-        "guilds": 500,
-        "library": "djs-rs",
-        "members": 500000,
-        "peak_rss_kib": 188020,
-        "rss_kib": 188020,
-        "scenario": "memory",
-        "variant": "decoded guilds kept in a HashMap",
-        "runs": 3,
-        "range": [
-          187672,
-          188084
+          193216,
+          206652
         ]
       },
       {
         "server_cpu_ms": 230,
-        "allocator": "mimalloc",
-        "connected_rss_kib": 11860,
+        "allocator": "system",
+        "connected_rss_kib": 6456,
         "guilds": 500,
         "library": "djs-rs",
         "members": 500000,
-        "peak_rss_kib": 213424,
-        "rss_kib": 213424,
+        "peak_rss_kib": 207940,
+        "rss_kib": 207940,
         "scenario": "memory",
-        "variant": "decoded guilds kept in a HashMap",
+        "variant": "Client + CacheConfig::discord_js()",
         "runs": 3,
         "range": [
-          213284,
-          213492
+          207916,
+          208112
         ]
       },
       {
-        "server_cpu_ms": 240,
+        "server_cpu_ms": 220,
+        "allocator": "mimalloc",
+        "connected_rss_kib": 14744,
+        "guilds": 500,
+        "library": "djs-rs",
+        "members": 500000,
+        "peak_rss_kib": 234612,
+        "rss_kib": 234612,
+        "scenario": "memory",
+        "variant": "Client + CacheConfig::discord_js()",
+        "runs": 3,
+        "range": [
+          222580,
+          236708
+        ]
+      },
+      {
+        "server_cpu_ms": 230,
         "scenario": "memory",
         "library": "discord.js",
         "variant": "Client with the default caches",
         "guilds": 500,
         "members": 500000,
-        "connected_rss_kib": 103152,
-        "rss_kib": 516816,
-        "heap_used_kib": 391755,
-        "peak_rss_kib": 535140,
+        "connected_rss_kib": 104408,
+        "rss_kib": 515832,
+        "heap_used_kib": 391758,
+        "peak_rss_kib": 529576,
         "runs": 3,
         "range": [
-          514812,
-          521156
+          515656,
+          517392
         ]
       }
     ],
     "rest": [
       {
-        "server_cpu_ms": 5030,
+        "server_cpu_ms": 4970,
         "allocator": "system",
         "concurrency": 64,
-        "cpu_ms": 4420,
-        "cpu_us_per_request": 14.733333333333333,
+        "cpu_ms": 4280,
+        "cpu_us_per_request": 14.266666666666667,
         "library": "djs-rs",
-        "p50_us": 268,
-        "p99_us": 825,
-        "peak_rss_kib": 13076,
+        "p50_us": 264,
+        "p99_us": 715,
+        "peak_rss_kib": 12348,
         "requests": 300000,
-        "requests_per_sec": 221159.44020467505,
+        "requests_per_sec": 231392.36024971824,
         "scenario": "rest",
-        "seconds": 1.356487427,
+        "seconds": 1.296499157,
         "variant": "djs-rest create_message",
         "runs": 3,
         "range": [
-          217328.46429482845,
-          229840.1921373909
+          207881.8784233975,
+          234401.2390211968
         ]
       },
       {
-        "server_cpu_ms": 5160,
+        "server_cpu_ms": 5260,
         "allocator": "mimalloc",
         "concurrency": 64,
-        "cpu_ms": 4750,
-        "cpu_us_per_request": 15.833333333333334,
+        "cpu_ms": 4700,
+        "cpu_us_per_request": 15.666666666666666,
         "library": "djs-rs",
-        "p50_us": 295,
-        "p99_us": 794,
-        "peak_rss_kib": 32564,
+        "p50_us": 301,
+        "p99_us": 965,
+        "peak_rss_kib": 32948,
         "requests": 300000,
-        "requests_per_sec": 206533.79221057185,
+        "requests_per_sec": 194977.89723732692,
         "scenario": "rest",
-        "seconds": 1.4525468049999999,
+        "seconds": 1.538635939,
         "variant": "djs-rest create_message",
         "runs": 3,
         "range": [
-          202412.9655015114,
-          207691.01123708687
+          192830.99074628952,
+          205015.7861061884
         ]
       },
       {
-        "server_cpu_ms": 5280,
+        "server_cpu_ms": 5570,
         "scenario": "rest",
         "library": "@discordjs/rest",
         "variant": "REST#post (Routes.channelMessages)",
         "requests": 300000,
         "concurrency": 64,
-        "seconds": 11.699517502,
-        "requests_per_sec": 25642.083098616316,
-        "p50_us": 2111,
-        "p99_us": 5937,
-        "cpu_ms": 14960,
-        "cpu_us_per_request": 49.86666666666667,
-        "peak_rss_kib": 216380,
+        "seconds": 11.708953711,
+        "requests_per_sec": 25621.418224428064,
+        "p50_us": 2117,
+        "p99_us": 5923,
+        "cpu_ms": 14990,
+        "cpu_us_per_request": 49.96666666666667,
+        "peak_rss_kib": 221336,
         "runs": 3,
         "range": [
-          25497.514211642985,
-          25862.116823810324
+          25552.62292843637,
+          25669.973121210733
         ]
       }
     ]

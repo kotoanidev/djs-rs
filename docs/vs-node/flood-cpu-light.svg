@@ -1,44 +1,50 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="840" height="420" viewBox="0 0 840 420" role="img" aria-labelledby="title desc" font-family="system-ui, -apple-system, &quot;Segoe UI&quot;, Roboto, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="484" viewBox="0 0 840 484" role="img" aria-labelledby="title desc" font-family="system-ui, -apple-system, &quot;Segoe UI&quot;, Roboto, sans-serif">
 <title id="title">CPU time per event during the flood</title>
-<desc id="desc">Full client (events reach a handler / listener), djs-rs Client, sequential handlers: 1.81 µs; Full client (events reach a handler / listener), djs-rs Client + mimalloc: 5.91 µs; Full client (events reach a handler / listener), djs-rs Client (default): 6.74 µs; Full client (events reach a handler / listener), discord.js Client, message cache off: 7.68 µs; Full client (events reach a handler / listener), discord.js Client (default): 8.30 µs; Gateway layer only (djs-gateway vs @discordjs/ws), djs-gateway Shard: 1.69 µs; Gateway layer only (djs-gateway vs @discordjs/ws), @discordjs/ws WebSocketManager: 4.10 µs</desc>
-<rect x="0.5" y="0.5" width="839" height="419" rx="8" fill="#fcfcfb" stroke="rgba(11,11,11,0.10)"/>
+<desc id="desc">Full client (events reach a handler / listener), djs-rs Client, sequential handlers, no cache: 1.88 µs; Full client (events reach a handler / listener), djs-rs Client, sequential handlers + cache like discord.js: 2.24 µs; Full client (events reach a handler / listener), djs-rs Client + mimalloc, no cache: 6.13 µs; Full client (events reach a handler / listener), djs-rs Client (default: no cache): 6.95 µs; Full client (events reach a handler / listener), djs-rs Client + cache like discord.js: 7.22 µs; Full client (events reach a handler / listener), discord.js Client, message cache off: 7.68 µs; Full client (events reach a handler / listener), discord.js Client (default): 8.15 µs; Gateway layer only (djs-gateway vs @discordjs/ws), djs-gateway Shard: 1.72 µs; Gateway layer only (djs-gateway vs @discordjs/ws), @discordjs/ws WebSocketManager: 4.16 µs</desc>
+<rect x="0.5" y="0.5" width="839" height="483" rx="8" fill="#fcfcfb" stroke="rgba(11,11,11,0.10)"/>
 <text x="24" y="34" font-size="16" font-weight="600" fill="#0b0b0b">CPU time per event during the flood</text>
 <text x="24" y="55" font-size="12.5" fill="#52514e">microseconds of CPU (all threads) per event, lower is better</text>
 <rect x="24" y="68" width="12" height="12" rx="3" fill="#2a78d6"/>
 <text x="42" y="78.5" font-size="12.5" fill="#52514e">djs-rs (Rust)</text>
 <rect x="150" y="68" width="12" height="12" rx="3" fill="#eb6834"/>
 <text x="168" y="78.5" font-size="12.5" fill="#52514e">Node.js (discord.js and its packages)</text>
-<line x1="324" y1="100" x2="324" y2="388" stroke="#c3c2b7" stroke-width="1"/>
-<text x="324" y="404" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">0 µs</text>
-<line x1="389.5" y1="100" x2="389.5" y2="388" stroke="#e1e0d9" stroke-width="1"/>
-<text x="389.5" y="404" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">2.5 µs</text>
-<line x1="455" y1="100" x2="455" y2="388" stroke="#e1e0d9" stroke-width="1"/>
-<text x="455" y="404" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">5 µs</text>
-<line x1="520.5" y1="100" x2="520.5" y2="388" stroke="#e1e0d9" stroke-width="1"/>
-<text x="520.5" y="404" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">7.5 µs</text>
-<line x1="586" y1="100" x2="586" y2="388" stroke="#e1e0d9" stroke-width="1"/>
-<text x="586" y="404" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">10 µs</text>
+<line x1="324" y1="100" x2="324" y2="452" stroke="#c3c2b7" stroke-width="1"/>
+<text x="324" y="468" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">0 µs</text>
+<line x1="389.5" y1="100" x2="389.5" y2="452" stroke="#e1e0d9" stroke-width="1"/>
+<text x="389.5" y="468" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">2.5 µs</text>
+<line x1="455" y1="100" x2="455" y2="452" stroke="#e1e0d9" stroke-width="1"/>
+<text x="455" y="468" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">5 µs</text>
+<line x1="520.5" y1="100" x2="520.5" y2="452" stroke="#e1e0d9" stroke-width="1"/>
+<text x="520.5" y="468" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">7.5 µs</text>
+<line x1="586" y1="100" x2="586" y2="452" stroke="#e1e0d9" stroke-width="1"/>
+<text x="586" y="468" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">10 µs</text>
 <text x="24" y="119" font-size="12.5" font-weight="600" fill="#52514e">Full client (events reach a handler / listener)</text>
-<text x="312" y="150.5" font-size="13" text-anchor="end" fill="#0b0b0b">djs-rs Client, sequential handlers</text>
-<path d="M324,136H367.4220474220474A4,4 0 0 1 371.4220474220474,140V152A4,4 0 0 1 367.4220474220474,156H324Z" fill="#2a78d6"><title>djs-rs Client, sequential handlers: 1.81 µs</title></path>
-<text x="379.4220474220474" y="150.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">1.81 µs</text>
-<text x="312" y="182.5" font-size="13" text-anchor="end" fill="#0b0b0b">djs-rs Client + mimalloc</text>
-<path d="M324,168H474.84215484215486A4,4 0 0 1 478.84215484215486,172V184A4,4 0 0 1 474.84215484215486,188H324Z" fill="#2a78d6"><title>djs-rs Client + mimalloc: 5.91 µs</title></path>
-<text x="486.84215484215486" y="182.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">5.91 µs</text>
-<text x="312" y="214.5" font-size="13" text-anchor="end" fill="#0b0b0b">djs-rs Client (default)</text>
-<path d="M324,200H496.58817658817657A4,4 0 0 1 500.58817658817657,204V216A4,4 0 0 1 496.58817658817657,220H324Z" fill="#2a78d6"><title>djs-rs Client (default): 6.74 µs</title></path>
-<text x="508.58817658817657" y="214.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">6.74 µs</text>
-<text x="312" y="246.5" font-size="13" text-anchor="end" fill="#0b0b0b">discord.js Client, message cache off</text>
-<path d="M324,232H521.2162012162012A4,4 0 0 1 525.2162012162012,236V248A4,4 0 0 1 521.2162012162012,252H324Z" fill="#eb6834"><title>discord.js Client, message cache off: 7.68 µs</title></path>
-<text x="533.2162012162012" y="246.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">7.68 µs</text>
-<text x="312" y="278.5" font-size="13" text-anchor="end" fill="#0b0b0b">discord.js Client (default)</text>
-<path d="M324,264H537.4602174602175A4,4 0 0 1 541.4602174602175,268V280A4,4 0 0 1 537.4602174602175,284H324Z" fill="#eb6834"><title>discord.js Client (default): 8.30 µs</title></path>
-<text x="549.4602174602175" y="278.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">8.30 µs</text>
-<text x="24" y="309" font-size="12.5" font-weight="600" fill="#52514e">Gateway layer only (djs-gateway vs @discordjs/ws)</text>
-<text x="312" y="340.5" font-size="13" text-anchor="end" fill="#0b0b0b">djs-gateway Shard</text>
-<path d="M324,326H364.27804427804426A4,4 0 0 1 368.27804427804426,330V342A4,4 0 0 1 364.27804427804426,346H324Z" fill="#2a78d6"><title>djs-gateway Shard: 1.69 µs</title></path>
-<text x="376.27804427804426" y="340.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">1.69 µs</text>
-<text x="312" y="372.5" font-size="13" text-anchor="end" fill="#0b0b0b">@discordjs/ws WebSocketManager</text>
-<path d="M324,358H427.42010742010746A4,4 0 0 1 431.42010742010746,362V374A4,4 0 0 1 427.42010742010746,378H324Z" fill="#eb6834"><title>@discordjs/ws WebSocketManager: 4.10 µs</title></path>
-<text x="439.42010742010746" y="372.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">4.10 µs</text>
+<text x="312" y="150.5" font-size="13" text-anchor="end" fill="#0b0b0b">djs-rs Client, sequential handlers, no cache</text>
+<path d="M324,136H369.25604925604927A4,4 0 0 1 373.25604925604927,140V152A4,4 0 0 1 369.25604925604927,156H324Z" fill="#2a78d6"><title>djs-rs Client, sequential handlers, no cache: 1.88 µs</title></path>
+<text x="381.25604925604927" y="150.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">1.88 µs</text>
+<text x="312" y="182.5" font-size="13" text-anchor="end" fill="#0b0b0b">djs-rs Client, sequential handlers + cache like discord.js</text>
+<path d="M324,168H378.6880586880587A4,4 0 0 1 382.6880586880587,172V184A4,4 0 0 1 378.6880586880587,188H324Z" fill="#2a78d6"><title>djs-rs Client, sequential handlers + cache like discord.js: 2.24 µs</title></path>
+<text x="390.6880586880587" y="182.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">2.24 µs</text>
+<text x="312" y="214.5" font-size="13" text-anchor="end" fill="#0b0b0b">djs-rs Client + mimalloc, no cache</text>
+<path d="M324,200H480.60616060616064A4,4 0 0 1 484.60616060616064,204V216A4,4 0 0 1 480.60616060616064,220H324Z" fill="#2a78d6"><title>djs-rs Client + mimalloc, no cache: 6.13 µs</title></path>
+<text x="492.60616060616064" y="214.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">6.13 µs</text>
+<text x="312" y="246.5" font-size="13" text-anchor="end" fill="#0b0b0b">djs-rs Client (default: no cache)</text>
+<path d="M324,232H502.0901820901821A4,4 0 0 1 506.0901820901821,236V248A4,4 0 0 1 502.0901820901821,252H324Z" fill="#2a78d6"><title>djs-rs Client (default: no cache): 6.95 µs</title></path>
+<text x="514.0901820901821" y="246.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">6.95 µs</text>
+<text x="312" y="278.5" font-size="13" text-anchor="end" fill="#0b0b0b">djs-rs Client + cache like discord.js</text>
+<path d="M324,264H509.1641891641892A4,4 0 0 1 513.1641891641892,268V280A4,4 0 0 1 509.1641891641892,284H324Z" fill="#2a78d6"><title>djs-rs Client + cache like discord.js: 7.22 µs</title></path>
+<text x="521.1641891641892" y="278.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">7.22 µs</text>
+<text x="312" y="310.5" font-size="13" text-anchor="end" fill="#0b0b0b">discord.js Client, message cache off</text>
+<path d="M324,296H521.2162012162012A4,4 0 0 1 525.2162012162012,300V312A4,4 0 0 1 521.2162012162012,316H324Z" fill="#eb6834"><title>discord.js Client, message cache off: 7.68 µs</title></path>
+<text x="533.2162012162012" y="310.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">7.68 µs</text>
+<text x="312" y="342.5" font-size="13" text-anchor="end" fill="#0b0b0b">discord.js Client (default)</text>
+<path d="M324,328H533.5302135302136A4,4 0 0 1 537.5302135302136,332V344A4,4 0 0 1 533.5302135302136,348H324Z" fill="#eb6834"><title>discord.js Client (default): 8.15 µs</title></path>
+<text x="545.5302135302136" y="342.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">8.15 µs</text>
+<text x="24" y="373" font-size="12.5" font-weight="600" fill="#52514e">Gateway layer only (djs-gateway vs @discordjs/ws)</text>
+<text x="312" y="404.5" font-size="13" text-anchor="end" fill="#0b0b0b">djs-gateway Shard</text>
+<path d="M324,390H365.06404506404505A4,4 0 0 1 369.06404506404505,394V406A4,4 0 0 1 365.06404506404505,410H324Z" fill="#2a78d6"><title>djs-gateway Shard: 1.72 µs</title></path>
+<text x="377.06404506404505" y="404.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">1.72 µs</text>
+<text x="312" y="436.5" font-size="13" text-anchor="end" fill="#0b0b0b">@discordjs/ws WebSocketManager</text>
+<path d="M324,422H428.99210899210897A4,4 0 0 1 432.99210899210897,426V438A4,4 0 0 1 428.99210899210897,442H324Z" fill="#eb6834"><title>@discordjs/ws WebSocketManager: 4.16 µs</title></path>
+<text x="440.99210899210897" y="436.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">4.16 µs</text>
 </svg>

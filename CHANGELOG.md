@@ -8,6 +8,12 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `docs/VS_NODE.md` re-measured with equal caches (D-174): djs-rs with
+  `CacheConfig::discord_js()` handles 1.9× the events of discord.js and needs 2.5–4.6× less
+  memory for the same cached guilds (391–413 vs 843–1,019 B per member); the memory section
+  uses the real cache instead of the `HashMap` stand-in, and its claim that a cache could
+  only need the same or less is corrected. The flood harness no longer calls the real
+  Discord API (a fixed shard skips Get Gateway Bot).
 - `djs-cache` applies `TYPING_START` (its member), `INTERACTION_CREATE` (its user and member,
   the resolved users and members) and `THREAD_MEMBERS_UPDATE` (the thread's member count,
   the added members) like discord.js (D-173, C-079).

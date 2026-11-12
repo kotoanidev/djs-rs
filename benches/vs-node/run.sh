@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Runs every scenario of the djs-rs vs discord.js showcase and regenerates the numbers and
-# charts of docs/VS_NODE.md (D-123). Linux only (/proc, taskset). Takes about five minutes.
+# charts of docs/VS_NODE.md (D-123). Linux only (/proc, taskset). Takes about seven minutes.
 #
 #   benches/vs-node/run.sh             # everything, 3 runs per configuration
 #   RUNS=1 benches/vs-node/run.sh      # quicker, noisier
