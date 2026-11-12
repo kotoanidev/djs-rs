@@ -1805,6 +1805,25 @@ and why.
 - **Alternatives:** the option builder only; one `.option(impl Into<…>)` taking a
   `(label, value)` tuple or a builder.
 
+### D-204 — Components V2 builders: the accessory in `new()`, text and item shortcuts
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `SectionBuilder::new(accessory)` (a button or a thumbnail; it cannot be
+  forgotten); `.text("…")` on sections and containers as a shortcut for a
+  `TextDisplayBuilder`, `.component(…)` for everything else (D-198); media galleries follow
+  D-203: `.item(url)` plus `.item_with(MediaGalleryItemBuilder::new(url).description(…)
+  .spoiler(true))`. The other builders are `ContainerBuilder`, `TextDisplayBuilder`,
+  `ThumbnailBuilder`, `MediaGalleryBuilder`, `FileBuilder` and `SeparatorBuilder`.
+- **Alternatives:** discord.js-like `.accessory(…)` with a `Missing` error and no shortcuts;
+  the accessory in `new()` without shortcuts.
+
+### D-205 — Unclear Components V2 rules are checked on the live API
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** about ten Components V2 messages from the test bot, like D-200 (one with a
+  small uploaded text file for `attachment://`), accepted ones deleted at once: an empty
+  container, a section with 0 and with 4 texts, a file with an `https` URL, a thumbnail with
+  an `ftp` URL, a gallery with 0 and 11 items, descriptions of 1024 × 🔥 and 1025 letters.
+- **Alternatives:** the docs only.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
