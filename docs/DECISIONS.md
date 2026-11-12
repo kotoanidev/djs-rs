@@ -1228,6 +1228,25 @@ and why.
   reset, without connecting (like discord.js).
 - **Alternatives:** waiting `reset_after` (up to 24 h) and connecting then.
 
+### D-148 — Presence: an initial one plus the last one set
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `ConfigBuilder::presence(UpdatePresence)` is sent in every IDENTIFY.
+  `MessageSender::update_presence(&UpdatePresence)` sends a presence update and also makes
+  it the presence of later IDENTIFYs (a new session keeps the last presence, unlike
+  discord.js, which falls back to the initial one). A plain `command(&UpdatePresence)` only
+  sends it (documented).
+- **Alternatives:** only the initial presence (like @discordjs/ws).
+
+### D-149 — djs-rs gets presence helpers now, collectors in Phase 6
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `ClientBuilder::presence(UpdatePresence)` (initial presence of every shard) and
+  `Client::set_presence(&UpdatePresence)` (every running shard) arrive in Phase 4. Requesting
+  guild members and soundboard sounds (collecting the response chunks) and updating the voice
+  state come in Phase 6 with discord.js-like structures (`guild.members.fetch()`); until then
+  any command can be sent with `ctx.shard().command(…)`.
+- **Alternatives:** also `request_guild_members`, `request_soundboard_sounds` and
+  `update_voice_state` on `Client` now (like @discordjs/core); nothing in djs-rs until Phase 6.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
