@@ -1711,6 +1711,14 @@ and why.
     localization of a field counts).
 - **Alternatives:** the documentation and discord.js only, unclear cases documented as such.
 
+### D-196 — Options that cannot work are rejected even though Discord accepts them
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** like D-190, `build()` rejects an option whose `min_value` is above its
+  `max_value` (it can never be filled) and an option with both `choices` and
+  `autocomplete` (forbidden by the docs; discord.js rejects it too), although the live API
+  accepted both (D-195). Everything else follows what Discord rejected in D-195.
+- **Alternatives:** reject only choices with autocomplete; accept both, exactly like Discord.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
