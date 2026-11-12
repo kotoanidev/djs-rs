@@ -1411,6 +1411,30 @@ and why.
 - **Alternatives:** leave a cached message's reactions as `MESSAGE_CREATE` / `MESSAGE_UPDATE`
   sent them.
 
+### D-167 — Sweepers: cache methods, scheduled by the djs-rs `Client`
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `djs-cache` offers synchronous sweep methods that return how many entries they
+  removed, and a sweep configuration (interval and lifetime) inside `CacheConfig`, but runs
+  nothing by itself, so it stays free of tokio. The djs-rs `Client` runs the configured sweeps
+  on their intervals (Phase 5, step 5).
+- **Alternatives:** an own tokio task in `djs-cache` behind a feature
+  (`Cache::spawn_sweepers`); manual sweep methods only, without a configuration.
+
+### D-168 — A sweep with a filter for every resource, plus lifetime presets
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** every resource can be swept with a filter (`cache.sweep_users(|user| …)`),
+  like discord.js `client.sweepers.sweepUsers(filter)`; two presets cover discord.js'
+  lifetimes: messages older than a lifetime, and threads archived for longer than one.
+- **Alternatives:** only the two presets.
+
+### D-169 — Default sweeps follow discord.js
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** by default, every hour, threads archived more than 4 hours ago are swept
+  (discord.js `Options.DefaultSweeperSettings`); this only matters when threads are cached,
+  which is off by default. Messages are not swept by default: their per-channel limit bounds
+  them.
+- **Alternatives:** nothing swept by default.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
