@@ -2209,6 +2209,15 @@ and why.
   `Guild#fetchAuditLogs`, `Guild#fetchIntegrations`).
 - **Alternatives:** separate `ctx.audit_log(guild)` and `ctx.integrations(guild)` managers.
 
+### D-247 — Application managers panic before the first `READY`
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `ctx.application_id()` returns `Option<ApplicationId>`; the managers that
+  need it (`ctx.commands()`, `ctx.guild_commands(guild)`, application emojis) panic when
+  called before the first `READY`, documented under `# Panics`. Handlers of gateway events
+  always run after `READY`, so ordinary code needs no `unwrap`.
+- **Alternatives:** `Option<CommandManager>`; reading the bot's ID from the token as a
+  fallback before `READY`.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
