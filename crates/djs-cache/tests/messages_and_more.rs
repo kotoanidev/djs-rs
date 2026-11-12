@@ -1,8 +1,9 @@
 //! Messages, reactions, presences, voice states, threads and the other guild resources.
 
-#[expect(
+#[allow(
     dead_code,
-    reason = "shared with the djs-model tests, which use other helpers"
+    reason = "shared with the djs-model tests; which helpers count as used differs between \
+              toolchains"
 )]
 #[path = "../../djs-model/tests/common/payloads.rs"]
 mod payloads;
@@ -16,12 +17,13 @@ use djs_model::{
     gateway::{
         DispatchEvent, Status,
         payload::{
-            ChannelDelete, GuildCreate, GuildDelete, GuildScheduledEventCreate,
+            ChannelDelete, GuildCreate, GuildDelete, GuildMemberAdd, GuildScheduledEventCreate,
             GuildScheduledEventDelete, GuildSoundboardSoundCreate, GuildSoundboardSoundDelete,
-            MessageCreate, MessageDelete, MessageDeleteBulk, MessageReactionAdd,
+            InteractionCreate, MessageCreate, MessageDelete, MessageDeleteBulk, MessageReactionAdd,
             MessageReactionRemove, MessageReactionRemoveAll, MessageReactionRemoveEmoji,
             MessageUpdate, PresenceUpdate, Ready, StageInstanceCreate, StageInstanceDelete,
-            ThreadCreate, ThreadDelete, ThreadListSync, ThreadUpdate, VoiceStateUpdate,
+            ThreadCreate, ThreadDelete, ThreadListSync, ThreadMembersUpdate, ThreadUpdate,
+            TypingStart, VoiceStateUpdate,
         },
     },
     id::{ChannelId, GuildId, MessageId, ScheduledEventId, SoundboardSoundId, UserId},
@@ -403,4 +405,155 @@ fn cached_messages_cover_every_model_field() {
             "CachedMessage lacks `{field}`"
         );
     }
+}
+
+/// The data `d` of the payload named `name` in `payloads::hot_events(7)`.
+fn hot_event_json(name: &str) -> Value {
+    let (_, json) = payloads::hot_events(7)
+        .into_iter()
+        .find(|(event, _)| *event == name)
+        .unwrap();
+    let mut value: Value = serde_json::from_str(&json).unwrap();
+    value["d"].take()
+}
+
+/// The ID of the `i`-th user of the payload helpers.
+const fn user(i: u64) -> UserId {
+    UserId::new(1_000_000_000_000_000_000 + i)
+}
+
+#[test]
+fn typing_caches_the_member() {
+    let cache = everything();
+    let typing: TypingStart = decode(hot_event_json("TYPING_START"));
+    assert!(cache.update(&typing).is_none());
+    let member = cache.members(GUILD).get(user(7)).unwrap();
+    assert_eq!(member.user.username, "member7");
+    assert!(cache.users().contains(user(7)));
+    // The second time it returns the member it replaced.
+    assert_eq!(cache.update(&typing).unwrap().id(), user(7));
+
+    // Typing in a DM carries no member: nothing to cache.
+    let mut dm = hot_event_json("TYPING_START");
+    for field in ["guild_id", "member"] {
+        dm.as_object_mut().unwrap().remove(field);
+    }
+    let cache = everything();
+    assert!(cache.update(&decode::<TypingStart>(dm)).is_none());
+    assert_eq!(cache.users().len(), 0);
+}
+
+#[test]
+fn interactions_cache_their_user_member_and_resolved_ones() {
+    let cache = everything();
+    // The resolved member is in a voice channel muted by a moderator.
+    let mut add = json!({"guild_id": GUILD.to_string()});
+    let member: Value = serde_json::from_str(&payloads::member(2)).unwrap();
+    add.as_object_mut()
+        .unwrap()
+        .extend(member.as_object().unwrap().clone());
+    add["mute"] = json!(true);
+    cache.update(&decode::<GuildMemberAdd>(add));
+
+    let interaction: InteractionCreate = decode(hot_event_json("INTERACTION_CREATE"));
+    assert!(cache.update(&interaction).is_none());
+    // The invoking member, with their user.
+    let invoker = cache.members(GUILD).get(user(1)).unwrap();
+    assert_eq!(invoker.user.username, "member1");
+    // The resolved member, with their resolved user; the partial member has no `mute`, so
+    // the cached one keeps it.
+    let resolved = cache.members(GUILD).get(user(2)).unwrap();
+    assert_eq!(
+        resolved.joined_at.unwrap().to_string(),
+        "2025-01-01T00:00:00.000000+00:00"
+    );
+    assert!(resolved.mute);
+    assert!(cache.users().contains(user(1)) && cache.users().contains(user(2)));
+    assert_eq!(cache.update(&interaction).unwrap().id(), user(1));
+    // Resolved channels are partial and not cached.
+    assert_eq!(cache.channels().len(), 0);
+}
+
+#[test]
+fn interactions_in_dms_cache_their_users() {
+    let mut data = hot_event_json("INTERACTION_CREATE");
+    let invoker = data["member"]["user"].take();
+    for field in ["guild_id", "guild", "member"] {
+        data.as_object_mut().unwrap().remove(field);
+    }
+    data["user"] = invoker;
+    data["context"] = json!(1);
+    let interaction: InteractionCreate = decode(data);
+
+    let cache = everything();
+    assert!(cache.update(&interaction).is_none());
+    let mut users = cache.users().keys();
+    users.sort_unstable();
+    assert_eq!(users, [user(1), user(2)]);
+    assert_eq!(cache.members(GUILD).len(), 0);
+
+    // With members off, users are still cached; with users off too, nothing is.
+    let cache = Cache::with_config(CacheConfig::builder().users(Limit::Unlimited).build());
+    cache.update(&decode::<InteractionCreate>(hot_event_json(
+        "INTERACTION_CREATE",
+    )));
+    assert_eq!(cache.users().len(), 2);
+    let cache = Cache::new();
+    cache.update(&decode::<InteractionCreate>(hot_event_json(
+        "INTERACTION_CREATE",
+    )));
+    assert_eq!(cache.users().len(), 0);
+}
+
+#[test]
+fn thread_members_update_counts_and_caches_members() {
+    let cache = everything();
+    cache.update(&decode::<ThreadCreate>(thread_json(60, 50, false)));
+    let member: Value = serde_json::from_str(&payloads::member(3)).unwrap();
+    let update: ThreadMembersUpdate = decode(json!({
+        "id": "60", "guild_id": GUILD.to_string(), "member_count": 2,
+        "added_members": [{
+            "id": "60", "user_id": user(3).to_string(),
+            "join_timestamp": "2026-11-12T10:00:00.000000+00:00", "flags": 0,
+            "member": member, "presence": null
+        }],
+        "removed_member_ids": []
+    }));
+    let before = cache.update(&update).unwrap();
+    let Channel::PublicThread(before) = &*before else {
+        panic!("expected a thread")
+    };
+    assert_eq!(before.member_count, Some(1));
+    let thread = cache.threads(GUILD).get(ChannelId::new(60)).unwrap();
+    let Channel::PublicThread(thread) = &*thread else {
+        panic!("expected a thread")
+    };
+    assert_eq!(thread.member_count, Some(2));
+    assert!(cache.members(GUILD).contains(user(3)));
+
+    // An uncached thread: its added members are still cached.
+    let cache = everything();
+    assert!(cache.update(&update).is_none());
+    assert!(cache.members(GUILD).contains(user(3)));
+}
+
+#[test]
+fn update_dispatch_handles_typing_interactions_and_thread_members() {
+    let cache = everything();
+    let event: DispatchEvent = {
+        let (_, json) = payloads::hot_events(7)
+            .into_iter()
+            .find(|(event, _)| *event == "TYPING_START")
+            .unwrap();
+        let value: Value = serde_json::from_str(&json).unwrap();
+        DispatchEvent::TypingStart(Box::new(decode(value["d"].clone())))
+    };
+    assert_eq!(cache.update_dispatch(&event), Previous::None);
+    assert!(
+        matches!(cache.update_dispatch(&event), Previous::Member(member) if member.id() == user(7))
+    );
+    let interaction =
+        DispatchEvent::InteractionCreate(Box::new(decode(hot_event_json("INTERACTION_CREATE"))));
+    assert_eq!(cache.update_dispatch(&interaction), Previous::None);
+    assert!(cache.members(GUILD).contains(user(1)));
 }

@@ -9,7 +9,7 @@ use djs_model::{
     emoji::{Emoji, PartialEmoji},
     gateway::{
         DispatchEvent, Presence, Status,
-        payload::{AvailableGuild, GuildMemberUpdate},
+        payload::{AvailableGuild, GuildMemberUpdate, ThreadMembersUpdate},
     },
     guild::{Guild, Member, PartialMember, Role},
     guild_scheduled_event::GuildScheduledEvent,
@@ -17,6 +17,7 @@ use djs_model::{
         ChannelId, EmojiId, GuildId, MessageId, RoleId, ScheduledEventId, SoundboardSoundId,
         StageInstanceId, StickerId, UserId,
     },
+    interaction::Interaction,
     message::{Message, Reaction},
     soundboard::SoundboardSound,
     stage_instance::StageInstance,
@@ -792,6 +793,27 @@ impl<B: Backend> Cache<B> {
             .previous
     }
 
+    /// `THREAD_MEMBERS_UPDATE` (D-173): the added members are cached as guild members, and a
+    /// cached thread gets the new member count.
+    pub(crate) fn update_thread_members(
+        &self,
+        update: &ThreadMembersUpdate,
+    ) -> Option<Arc<Channel>> {
+        for added in &update.added_members {
+            if let Some(member) = &added.member.member {
+                self.upsert_member(update.guild_id, member);
+            }
+        }
+        let threads = self.threads.as_ref()?;
+        let mut thread = Channel::clone(&*threads.get(update.guild_id, update.id)?);
+        if !set_member_count(&mut thread, update.member_count) {
+            return None;
+        }
+        threads
+            .insert(update.guild_id, update.id, Arc::new(thread))
+            .previous
+    }
+
     /// `THREAD_DELETE`. The thread's messages go too.
     pub(crate) fn remove_thread(&self, guild_id: GuildId, id: ChannelId) -> Option<Arc<Channel>> {
         self.remove_messages_of(Some(guild_id), id);
@@ -905,6 +927,53 @@ impl<B: Backend> Cache<B> {
         messages
             .insert(channel_id, message_id, Arc::new(message))
             .previous
+    }
+
+    /// `INTERACTION_CREATE` (D-173): the interaction's user and member, and the resolved users
+    /// and members, like discord.js. Resolved channels are partial and not cached.
+    pub(crate) fn apply_interaction(&self, interaction: &Interaction) -> Option<Arc<CachedMember>> {
+        if let Some(resolved) = interaction.data.resolved() {
+            for (id, user) in &resolved.users {
+                match (interaction.guild_id, resolved.members.get(id)) {
+                    (Some(guild_id), Some(member)) => {
+                        // Resolved members carry neither `deaf` nor `mute`.
+                        self.upsert_partial_member(guild_id, &member.member, user, true);
+                    }
+                    _ => self.cache_user(user),
+                }
+            }
+        }
+        if let (Some(guild_id), Some(member)) = (interaction.guild_id, &interaction.member) {
+            self.upsert_partial_member(guild_id, &member.member, member.user.as_ref()?, false)
+        } else {
+            if let Some(user) = &interaction.user {
+                self.cache_user(user);
+            }
+            None
+        }
+    }
+
+    /// Caches a partial member with its user. With `keep_voice`, a cached member keeps its
+    /// `deaf` and `mute` (absent from the partial member).
+    fn upsert_partial_member(
+        &self,
+        guild_id: GuildId,
+        member: &PartialMember,
+        user: &User,
+        keep_voice: bool,
+    ) -> Option<Arc<CachedMember>> {
+        let Some(members) = &self.members else {
+            self.cache_user(user);
+            return None;
+        };
+        let user = self.share_user(user);
+        let id = user.id;
+        let mut cached = CachedMember::from_partial(guild_id, member, user);
+        if keep_voice && let Some(previous) = members.get(guild_id, id) {
+            cached.deaf = previous.deaf;
+            cached.mute = previous.mute;
+        }
+        members.insert(guild_id, id, Arc::new(cached)).previous
     }
 
     /// `PRESENCE_UPDATE` and the presences of `GUILD_CREATE` / `GUILD_MEMBERS_CHUNK`. An
@@ -1288,6 +1357,19 @@ const fn set_guild_id(channel: &mut Channel, guild_id: GuildId) {
 }
 
 /// Sets the last pin time of a channel that has one; returns whether it has.
+/// Sets a thread's member count; `false` if `channel` is not a thread.
+const fn set_member_count(channel: &mut Channel, count: u32) -> bool {
+    match channel {
+        Channel::AnnouncementThread(thread)
+        | Channel::PublicThread(thread)
+        | Channel::PrivateThread(thread) => {
+            thread.member_count = Some(count);
+            true
+        }
+        _ => false,
+    }
+}
+
 const fn set_last_pin_timestamp(channel: &mut Channel, timestamp: Option<Timestamp>) -> bool {
     let slot = match channel {
         Channel::Text(channel) | Channel::Announcement(channel) => &mut channel.last_pin_timestamp,

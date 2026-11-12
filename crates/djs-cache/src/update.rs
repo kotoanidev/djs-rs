@@ -13,11 +13,12 @@ use djs_model::{
             GuildMembersChunk, GuildRoleCreate, GuildRoleDelete, GuildRoleUpdate,
             GuildScheduledEventCreate, GuildScheduledEventDelete, GuildScheduledEventUpdate,
             GuildSoundboardSoundCreate, GuildSoundboardSoundDelete, GuildSoundboardSoundUpdate,
-            GuildSoundboardSoundsUpdate, GuildStickersUpdate, GuildUpdate, MessageCreate,
-            MessageDelete, MessageDeleteBulk, MessageReactionAdd, MessageReactionRemove,
-            MessageReactionRemoveAll, MessageReactionRemoveEmoji, MessageUpdate, PresenceUpdate,
-            Ready, SoundboardSounds, StageInstanceCreate, StageInstanceDelete, StageInstanceUpdate,
-            ThreadCreate, ThreadDelete, ThreadListSync, ThreadUpdate, UserUpdate, VoiceStateUpdate,
+            GuildSoundboardSoundsUpdate, GuildStickersUpdate, GuildUpdate, InteractionCreate,
+            MessageCreate, MessageDelete, MessageDeleteBulk, MessageReactionAdd,
+            MessageReactionRemove, MessageReactionRemoveAll, MessageReactionRemoveEmoji,
+            MessageUpdate, PresenceUpdate, Ready, SoundboardSounds, StageInstanceCreate,
+            StageInstanceDelete, StageInstanceUpdate, ThreadCreate, ThreadDelete, ThreadListSync,
+            ThreadMembersUpdate, ThreadUpdate, TypingStart, UserUpdate, VoiceStateUpdate,
         },
     },
     guild::Role,
@@ -69,11 +70,14 @@ mod sealed {
 /// | [`MessageDelete`] | removes the message | `Option<Arc<CachedMessage>>` |
 /// | [`MessageDeleteBulk`] | removes the messages | `Vec<Arc<CachedMessage>>` |
 /// | [`MessageReactionAdd`], [`MessageReactionRemove`], [`MessageReactionRemoveAll`], [`MessageReactionRemoveEmoji`] | updates a cached message's reactions | `Option<Arc<CachedMessage>>` |
+/// | [`TypingStart`] | caches the typing member (in a guild) | `Option<Arc<CachedMember>>` |
+/// | [`InteractionCreate`] | caches the interaction's user and member, and the resolved users and members (not the resolved partial channels) | `Option<Arc<CachedMember>>` (the interaction's member) |
 /// | [`PresenceUpdate`] | caches the presence, or removes it when offline | `Option<Arc<CachedPresence>>` |
 /// | [`VoiceStateUpdate`] | caches the voice state, or removes it when the user left voice | `Option<Arc<VoiceState>>` |
 /// | [`ThreadCreate`], [`ThreadUpdate`] | caches the thread | `Option<Arc<Channel>>` |
 /// | [`ThreadDelete`] | removes the thread and its messages | `Option<Arc<Channel>>` |
 /// | [`ThreadListSync`] | replaces the synced channels' active threads | `Vec<Arc<Channel>>` |
+/// | [`ThreadMembersUpdate`] | sets the thread's member count; caches the added members as guild members | `Option<Arc<Channel>>` |
 /// | [`GuildScheduledEventCreate`], [`GuildScheduledEventUpdate`], [`GuildScheduledEventDelete`] | caches / removes the event | `Option<Arc<GuildScheduledEvent>>` |
 /// | [`StageInstanceCreate`], [`StageInstanceUpdate`], [`StageInstanceDelete`] | caches / removes the stage instance | `Option<Arc<StageInstance>>` |
 /// | [`GuildSoundboardSoundCreate`], [`GuildSoundboardSoundUpdate`], [`GuildSoundboardSoundDelete`] | caches / removes the sound | `Option<Arc<SoundboardSound>>` |
@@ -257,6 +261,10 @@ update_cache! {
     MessageReactionRemoveEmoji => Option<Arc<CachedMessage>>, |event, cache| {
         cache.react(event.channel_id, event.message_id, ReactionChange::RemoveEmoji(&event.emoji))
     };
+    TypingStart => Option<Arc<CachedMember>>, |event, cache| {
+        cache.upsert_member(event.guild_id?, event.member.as_deref()?)
+    };
+    InteractionCreate => Option<Arc<CachedMember>>, |event, cache| cache.apply_interaction(event);
     PresenceUpdate => Option<Arc<CachedPresence>>, |event, cache| {
         cache.update_presence(event.guild_id?, event)
     };
@@ -269,6 +277,7 @@ update_cache! {
     ThreadListSync => Vec<Arc<Channel>>, |event, cache| {
         cache.sync_threads(event.guild_id, event.channel_ids.as_deref(), &event.threads)
     };
+    ThreadMembersUpdate => Option<Arc<Channel>>, |event, cache| cache.update_thread_members(event);
     GuildScheduledEventCreate => Option<Arc<GuildScheduledEvent>>, |event, cache| {
         cache.put_scheduled_event(event)
     };
@@ -363,6 +372,13 @@ pub(crate) fn dispatch<B: Backend>(cache: &Cache<B>, event: &DispatchEvent) -> P
         DispatchEvent::ThreadUpdate(event) => cache.update(&**event).map(Previous::Thread).into(),
         DispatchEvent::ThreadDelete(event) => cache.update(&**event).map(Previous::Thread).into(),
         DispatchEvent::ThreadListSync(event) => Previous::Threads(cache.update(&**event)),
+        DispatchEvent::ThreadMembersUpdate(event) => {
+            cache.update(&**event).map(Previous::Thread).into()
+        }
+        DispatchEvent::TypingStart(event) => cache.update(&**event).map(Previous::Member).into(),
+        DispatchEvent::InteractionCreate(event) => {
+            cache.update(&**event).map(Previous::Member).into()
+        }
         DispatchEvent::GuildScheduledEventCreate(event) => {
             cache.update(&**event).map(Previous::ScheduledEvent).into()
         }

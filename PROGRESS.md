@@ -312,9 +312,9 @@ user), D-153 (updates return the previous state), D-154 (order below), D-155–D
    starvation under oversubscription (open question: lock-free backend), 424 B per member
    (open question), `TYPING_START` / `INTERACTION_CREATE` not applied (ask the owner).
    Decided 2026-11-12 (D-173–D-176). Left, in this order:
-   a. D-173: apply `TYPING_START`, `INTERACTION_CREATE` (user, member, resolved users and
-      members; not resolved channels) and `THREAD_MEMBERS_UPDATE` (thread `member_count`,
-      added members) in `crates/djs-cache/src/update.rs` + tests + bench rows.
+   a. ✅ D-173 (C-079): `TypingStart`, `InteractionCreate`, `ThreadMembersUpdate` in
+      `update.rs`; `Cache::{apply_interaction, upsert_partial_member, update_thread_members}`
+      in `cache.rs`; tests at the end of `tests/messages_and_more.rs`.
    b. D-175: reduce memory per member with internal changes only, measured with
       `startup_500_guilds_*` (424 B now); ask before any new public type.
    c. The djs-rs `Client` flood with and without a cache (`crates/djs-rs/tests/stress.rs`).

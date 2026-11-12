@@ -2409,9 +2409,25 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   `docs/PERFORMANCE.md` (Phase 5): parallel writers scale, single-threaded updates got
   faster.
 
+### C-079 — Typing, interaction and thread-member details (D-173)
+- Resolved members carry neither `deaf` nor `mute`: a cached member keeps its own when a
+  resolved one replaces it. The interaction's own member (with both) replaces it as is.
+- A resolved user without a resolved member (or any user in a DM) is cached as a user only.
+  Typing in a DM carries no user object, so it caches nothing.
+- `THREAD_MEMBERS_UPDATE` caches the added members' guild members even when the thread is
+  not cached; the presences sent with them are not cached (not part of D-173), nor are thread
+  members themselves (no thread-member resource).
+- Previous state: `TypingStart` and `InteractionCreate` return the member they replaced
+  (`Previous::Member` through `update_dispatch`), `ThreadMembersUpdate` the thread before.
+
 ---
 
 ## Open questions (to ask the owner when relevant)
+
+- **Resolved roles, messages and channels of interactions**: discord.js also caches the
+  resolved roles (full objects), messages (full objects) and channels (partial) of an
+  interaction. D-173 covers users and members only; roles and messages could follow, partial
+  channels would replace full ones.
 
 - **A cache backend with lock-free reads** (deferred, D-176): with more busy threads than CPUs, DashMap's
   reader-preferring `RwLock` and lock-holder preemption starve writers (2 writers + 8 readers

@@ -8,6 +8,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-cache` applies `TYPING_START` (its member), `INTERACTION_CREATE` (its user and member,
+  the resolved users and members) and `THREAD_MEMBERS_UPDATE` (the thread's member count,
+  the added members) like discord.js (D-173, C-079).
 - `djs-cache` benchmarks (`benches/cache.rs`: every hot event, reads, sweeps, foldhash vs
   SipHash) and extreme-load tests (`tests/stress.rs`: 500 000 members, concurrent readers
   and writers, bounded message churn, sweeping under load, guild churn, type sizes); results
