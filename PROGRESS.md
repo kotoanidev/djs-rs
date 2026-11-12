@@ -277,10 +277,11 @@ reserved), D-143 (order below). One commit per step:
 ## Next step — Phase 5 (`djs-cache`, ROADMAP)
 Decided 2026-11-12: D-016 (pluggable, DashMap default), D-081 (own compact cached types),
 D-151 (reads return `Arc<T>`), D-152 (minimal defaults: guilds, channels, roles, current
-user), D-153 (updates return the previous state), D-154 (order below). One commit per step:
+user), D-153 (updates return the previous state), D-154 (order below), D-155–D-159 (step 1 API). One commit per step:
 1. Backend trait + DashMap backend + configuration (resources on/off, size limits) — next.
-   Still to ask before coding: the trait granularity / names, the eviction rule for size
-   limits, and the configuration API shape.
+   API decided: D-155 (`Store` + `Backend`, `Cache<B = DashMapBackend>`), D-156 (`Limit`
+   per resource, `CacheConfig::discord_js()`), D-157 (FIFO eviction), D-158 (`foldhash`),
+   D-159 (limits per guild / per channel / whole cache).
 2. Guilds, channels, roles, emojis, stickers, members, users.
 3. Messages, presences, voice states, threads, scheduled events, stage instances, soundboard.
 4. Sweepers.
@@ -290,4 +291,4 @@ user), D-153 (updates return the previous state), D-154 (order below). One commi
   body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").
 
 ## Blocked on the owner
-- Phase 5 step 1 API questions (see "Next step — Phase 5").
+- Nothing.

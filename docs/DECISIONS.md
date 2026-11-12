@@ -1299,6 +1299,56 @@ and why.
   extreme-load tests and a new `docs/VS_NODE.md` run.
 - **Alternatives:** a minimal guild cache wired into `Client` first, then the rest.
 
+### D-155 — Cache backend: a `Store` per resource, created by a `Backend`
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `djs_cache::Store<K, V>` is a small trait for one resource's map (`get`,
+  `insert`, `remove`, `len`, `retain`, `values`, all on `Arc<V>`, D-151);
+  `djs_cache::Backend` creates one store per resource (`type Store<K, V>`, `fn store(resource,
+  limit)`). `Cache<B: Backend = DashMapBackend>` is generic over the backend, so calls are
+  static. The default `DashMapBackend` creates `DashMapStore`s. This mirrors discord.js
+  `makeCache`, which creates a collection per manager.
+- **Alternatives:** one large cache trait with a method per resource and operation;
+  `Box<dyn Store>` per resource from a factory (a backend per resource at run time, a vtable
+  call per access).
+
+### D-156 — Cache configuration: one `Limit` per resource
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `CacheConfig::builder()` takes a `Limit` per resource (`Limit::Disabled`,
+  `Limit::Max(n)`, `Limit::Unlimited`), which both turns the resource on or off and bounds its
+  size, like discord.js `Options.cacheWithLimits`. `CacheConfig::discord_js()` is a preset with
+  discord.js' defaults (everything, messages `Max(200)` per channel); `CacheConfig::default()`
+  is the minimal set of D-152.
+- **Alternatives:** bitflags to enable resources plus separate size-limit methods (twilight).
+
+### D-157 — A full resource evicts its oldest inserted entry
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** when a resource limited to `Max(n)` is full, inserting a new entry evicts the
+  entry inserted first (FIFO), like discord.js `LimitedCollection`. Reads stay plain reads; the
+  insertion order costs one key per entry, only in limited resources. Updating an existing
+  entry does not move it.
+- **Alternatives:** least recently used (every read becomes a write); smallest snowflake (needs
+  an ordered map).
+
+### D-158 — Cache keys are hashed with `foldhash`
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** new dependency `foldhash` 0.2 for the `DashMapStore` hasher
+  (`foldhash::fast::RandomState`): about 1–2 ns per snowflake key instead of 15–20 ns for
+  std's SipHash, with good mixing of the high bits DashMap uses to pick a shard and minimal
+  DoS resistance. To be confirmed by the Phase 5 benchmarks.
+- **Alternatives:** `rustc-hash` (FxHash; no DoS resistance, weaker mixing); std SipHash (no
+  new dependency, slower).
+
+### D-159 — Limits of guild resources count per guild
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `Limit::Max(n)` counts per guild for resources that belong to a guild
+  (members, presences, voice states, emojis, stickers, roles, threads, scheduled events, stage
+  instances, soundboard sounds), per channel for messages, and over the whole cache for guilds,
+  channels and users — the scopes of discord.js managers (`GuildMemberManager` per guild,
+  `MessageManager` per channel, `UserManager` per client). The cache enforces the limits
+  through its guild → IDs indexes, which it keeps anyway (e.g. for `GUILD_DELETE`).
+- **Alternatives:** every limit over the whole cache (simpler, but large guilds push out
+  small ones, unlike discord.js).
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
