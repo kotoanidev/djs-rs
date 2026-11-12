@@ -1782,6 +1782,10 @@ and why.
   and deleted at once if accepted: 4000 letters, 2000 × 🔥, 2001 × 🔥 (2001 code points, 4002
   UTF-16 units, 8004 bytes) and 3000 × € (3000 code points and UTF-16 units, 9000 bytes) —
   which separates code points, UTF-16 units and bytes.
+- **Live result, 2026-11-12:** all four were accepted (and deleted): 2001 × 🔥 (4002 UTF-16
+  units, 8004 bytes) and 3000 × € (9000 bytes) included. The 4000 limit counts **code
+  points**, like the others (D-183). The `413 Payload Too Large` for 4000 × 🔥 (16 000 bytes)
+  is a separate byte limit somewhere above 9000 bytes of text; it is documented, not checked.
 - **Alternatives:** count code points without a test (D-183) and document the 413; count
   UTF-16 units for this limit to be safe.
 
