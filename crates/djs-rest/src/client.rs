@@ -4,7 +4,7 @@ use core::{fmt, time::Duration};
 use std::sync::Arc;
 
 use bytes::Bytes;
-use djs_model::rest::FileUpload;
+use djs_model::{guild::WidgetStyle, id::GuildId, rest::FileUpload};
 use http::{
     HeaderMap, HeaderName, HeaderValue, StatusCode, Uri,
     header::{AUTHORIZATION, CONTENT_TYPE, USER_AGENT},
@@ -19,6 +19,7 @@ use serde::{Serialize, de::DeserializeOwned};
 use tokio::time::Instant;
 
 use crate::{
+    cdn::{self, Cdn},
     error::{ApiError, BoxError, Error, ErrorKind, RateLimitedBody},
     multipart::{Form, PreparedBody, RequestBody},
     query::{Query, QueryWriter},
@@ -78,6 +79,7 @@ struct Inner {
     invalid: InvalidRequests,
     /// `0` = no fail-fast limit.
     invalid_request_limit: u32,
+    cdn: Cdn,
 }
 
 /// The authorization header, validated once at construction.
@@ -116,6 +118,55 @@ impl Rest {
     #[must_use]
     pub fn new(token: impl Into<String>) -> Self {
         Self::builder().token(token).build()
+    }
+
+    /// Returns the client's [CDN URL builder](Cdn) (D-137), with the base URLs set on the
+    /// [`RestBuilder`].
+    ///
+    /// discord.js counterpart: `REST#cdn`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use djs_model::id::EmojiId;
+    /// use djs_rest::cdn::ImageOptions;
+    ///
+    /// let rest = djs_rest::Rest::new("my-token");
+    /// assert_eq!(
+    ///     rest.cdn().emoji(EmojiId::new(1), false, ImageOptions::new()),
+    ///     "https://cdn.discordapp.com/emojis/1.webp"
+    /// );
+    /// ```
+    #[must_use]
+    pub fn cdn(&self) -> &Cdn {
+        &self.inner.cdn
+    }
+
+    /// The URL of a guild's [widget image](https://docs.discord.com/developers/resources/guild#get-guild-widget-image)
+    /// (a public PNG; the widget must be enabled), in `style` or Discord's default (`shield`)
+    /// (D-116).
+    ///
+    /// discord.js counterpart: `Guild#widgetImageURL`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use djs_model::{guild::WidgetStyle, id::GuildId};
+    ///
+    /// let rest = djs_rest::Rest::new("my-token");
+    /// assert_eq!(
+    ///     rest.guild_widget_image_url(GuildId::new(1), Some(WidgetStyle::Banner2)),
+    ///     "https://discord.com/api/v10/guilds/1/widget.png?style=banner2"
+    /// );
+    /// ```
+    #[must_use]
+    pub fn guild_widget_image_url(&self, guild_id: GuildId, style: Option<WidgetStyle>) -> String {
+        let mut url = format!("{}/guilds/{guild_id}/widget.png", self.inner.base);
+        if let Some(style) = style {
+            url.push_str("?style=");
+            route::write_text(&mut url, style.as_str());
+        }
+        url
     }
 
     /// Returns a builder to configure a client.
@@ -623,6 +674,8 @@ pub struct RestBuilder {
     offset: Duration,
     user_agent_appendix: Option<String>,
     invalid_request_limit: u32,
+    cdn: String,
+    media_proxy: String,
 }
 
 /// How the token authenticates: a bot token or an `OAuth2` access token (D-108).
@@ -664,6 +717,8 @@ impl fmt::Debug for RestBuilder {
             .field("offset", &self.offset)
             .field("user_agent_appendix", &self.user_agent_appendix)
             .field("invalid_request_limit", &self.invalid_request_limit)
+            .field("cdn", &self.cdn)
+            .field("media_proxy", &self.media_proxy)
             .finish()
     }
 }
@@ -680,6 +735,8 @@ impl Default for RestBuilder {
             offset: Duration::from_millis(50),
             user_agent_appendix: None,
             invalid_request_limit: 0,
+            cdn: cdn::DEFAULT_CDN.to_owned(),
+            media_proxy: cdn::DEFAULT_MEDIA_PROXY.to_owned(),
         }
     }
 }
@@ -714,6 +771,18 @@ impl RestBuilder {
     /// ```
     pub fn bearer_token(mut self, token: impl Into<String>) -> Self {
         self.token = Some((AuthScheme::Bearer, token.into()));
+        self
+    }
+
+    /// Sets the CDN base URL of [`Rest::cdn`] (default `https://cdn.discordapp.com`, D-137).
+    pub fn cdn(mut self, cdn: impl Into<String>) -> Self {
+        self.cdn = cdn.into();
+        self
+    }
+
+    /// Sets the media proxy base URL of [`Rest::cdn`] (default `https://media.discordapp.net`).
+    pub fn media_proxy(mut self, media_proxy: impl Into<String>) -> Self {
+        self.media_proxy = media_proxy.into();
         self
     }
 
@@ -835,6 +904,7 @@ impl RestBuilder {
                 ratelimiter: RateLimiter::new(self.global_requests_per_second, self.offset),
                 invalid: InvalidRequests::new(),
                 invalid_request_limit: self.invalid_request_limit,
+                cdn: Cdn::new(self.cdn, self.media_proxy),
             }),
         }
     }

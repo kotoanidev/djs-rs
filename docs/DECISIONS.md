@@ -1862,6 +1862,20 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - `scripts/route_coverage.py` compares the `<Route>` tags of the docs with `route.rs` by
   method and parameter positions.
 
+### C-066 — CDN URL builder details
+- An explicit `Webp` with an animated hash also adds `?animated=true`; `Png`/`Jpeg` give a
+  still image, `Gif` an animated GIF (for animated hashes). Query order: `animated`, `size`.
+- Emojis have no hash, so `Cdn::emoji` takes `animated: bool`; stickers take their
+  `StickerFormatType` and pick PNG / Lottie JSON / GIF (media proxy) from it; endpoints of
+  a fixed format (default avatars, avatar decorations, stickers) take no `ImageOptions`.
+- Methods do not reject formats an endpoint does not list (e.g. GIF for splashes); their docs
+  list the supported ones, like discord.js.
+- Added beyond Discord's table, as discord.js has them: group DM `channel_icon`,
+  `soundboard_sound` (from the soundboard page). Achievement icons and store page assets,
+  which discord.js lacks, are included.
+- `ImageFormat` and `ImageSize` are `#[non_exhaustive]`; `ImageSize::from_pixels` converts a
+  number.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

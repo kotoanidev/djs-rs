@@ -65,7 +65,7 @@ just with narrow scope.
 - [x] Every v10 REST endpoint as a typed method (order: D-102; tri-state `Patch<T>`, D-101;
       query structs, D-092) — `scripts/route_coverage.py` lists only the routes left out on
       purpose (D-105, D-116, D-120, disabled batch command permissions)
-- [ ] CDN URL builder
+- [x] CDN URL builder (`djs_rest::cdn`, D-137–D-139)
 - [ ] Mock-server tests; benchmarks
 
 ## Phase 4 — `djs-gateway` full coverage (≈ @discordjs/ws)

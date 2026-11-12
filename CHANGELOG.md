@@ -8,6 +8,12 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs_rest::cdn` (D-137–D-139): `Cdn` builds the URLs of every CDN endpoint (avatars,
+  banners, icons, splashes, emojis, stickers, avatar decorations, app assets, role icons,
+  event covers, server tag badges, group DM icons, soundboard sounds), with `ImageOptions`
+  (`ImageFormat`, `ImageSize`, `force_static`); animated images default to animated WebP.
+  `Rest::cdn()`, `RestBuilder::{cdn, media_proxy}`, `default_avatar_index` and
+  `Rest::guild_widget_image_url` (D-116).
 - Application identity profile endpoints (game stats): update (returns the profile on the
   first write, D-135) and get a profile, list identities by user or external ID, delete an
   identity. Bodies `UpdateApplicationIdentityProfile`, `DeleteApplicationIdentity`, query

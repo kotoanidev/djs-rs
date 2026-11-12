@@ -221,9 +221,12 @@ D-041).
   (`tests/identity_profiles.rs`, D-135, D-136, C-065). **Endpoint coverage is complete:**
   `python3 -I scripts/route_coverage.py` lists only the 8 routes left out on purpose
   (D-105, D-116, D-120, disabled Batch Edit Application Command Permissions).
-- **Next:** the CDN URL builder (ROADMAP Phase 3; includes the widget image URL, D-116) —
-  its API shape needs the owner's decisions first; then the Phase 3 benches and
-  extreme-load tests (D-041).
+- **CDN URL builder ✅** (`djs_rest::cdn::Cdn`, `Rest::cdn()`,
+  `Rest::guild_widget_image_url`, D-137–D-139, C-066).
+- **Next:** Phase 3 benches and extreme-load tests (D-041, the last Phase 3 item): multipart
+  with large files, `ImageData`/`SoundData` base64, request building (routes, queries,
+  forms), REST future size, `Timestamp` formatting, CDN URL building; record them in
+  `docs/PERFORMANCE.md`, then tick Phase 3 in ROADMAP.
 - Local gate script: `scratchpad/gate.sh` style (`set -euo pipefail`, no pipes hiding errors) —
   a piped gate let one clippy failure through (fixed in `cda06db`).
 - Perf note: after the user change, MESSAGE_CREATE/READY decode looked ~8-13 % slower relative
