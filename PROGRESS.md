@@ -387,7 +387,8 @@ Decided 2026-11-12: D-208 (order: `djs-formatters`, then `djs-collection`; `djs-
 as needed), D-209 (`Collection` on `indexmap`, insertion order), D-210 (`Collection` API:
 discord.js names where they fit + Rust traits; no `each`/`reduce`/`some`/`every`), D-211
 (formatters return `Display` types, mentions take `djs-model` IDs, escaping returns
-`Cow<str>`). Steps:
+`Cow<str>`), D-212 (escaping: own clear rules, discord.js' options and defaults), D-213
+(optional parts are methods on the `Display` types). Steps:
 1. **Next:** `djs-formatters` — mentions (user, channel, role, linked role, slash command),
    emoji, timestamps with `TimestampStyle`, markdown (bold, italic, underline,
    strikethrough, spoiler, inline code, code blocks, quotes, headings, lists, subtext, links,

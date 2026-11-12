@@ -1888,6 +1888,30 @@ and why.
 - **Alternatives:** functions returning `String` like discord.js; `Display` types taking any
   `impl Display` as an ID (no `djs-model` dependency, less type safety).
 
+### D-212 — Markdown escaping: own clear rules with discord.js' options
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `escape_markdown` takes the same options with the same defaults as
+  discord.js, and the single escapers escape the same sequences (`**`, `*`, `__`, `_`, `~~`,
+  `||`, backticks, `\`; headings, lists and masked links on request), so ordinary text gives
+  the same result. Links (`http://`, `https://`) and `<…>` tokens (mentions, emoji,
+  timestamps) are left untouched by one clear rule instead of discord.js' regex lookbehinds.
+  One pass without regular expressions, returning `Cow<str>` (no allocation when nothing is
+  escaped). Differences from discord.js in unusual input are documented.
+- **Alternatives:** reproduce discord.js' regex results exactly, quirks included; escape
+  every special character.
+
+### D-213 — Optional parts of formatters are methods on the `Display` types
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** a formatter function takes what is required; optional parts are set with
+  methods on the returned type, like the builders: `code_block(src).language("rust")`,
+  `hyperlink(text, url).title(…)`, `time(ts).style(TimestampStyle::RelativeTime)`,
+  `channel_link(channel).guild(guild)`, `message_link(channel, message).guild(guild)`,
+  `slash_command_mention(name, id).subcommand(…)` / `.group(group, subcommand)`,
+  `emoji(id).name(…).animated(true)`, `heading(text).level(HeadingLevel::Two)`,
+  `ordered_list(items).start(3)`.
+- **Alternatives:** one function per variant (`code_block_with_language`, …); `Option`
+  parameters like discord.js' overloads.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
