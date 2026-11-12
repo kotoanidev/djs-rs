@@ -3031,6 +3031,16 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   and starts with `@`, `#` or `+` or contains `:` or `@`.
 - **`djs_rs::formatters`** re-exports the crate, like the other layers.
 
+### C-088 — Formatter benchmarks and the escaping scanner (Phase 7 step 1b)
+- **Layout:** `crates/djs-formatters/benches/formatters.rs` (divan with the allocation
+  profiler and byte counters; `divan` added as a dev-dependency, already a workspace
+  dependency) and `tests/stress.rs` (two quick randomized invariant tests with an in-test
+  xorshift generator, and ignored load tests).
+- **Scanner:** skips to the next interesting byte with a static 256-entry table (a second
+  table adds `\n`, `#`, `-`, `.` when a line option is on); a link is recognized at its `:`
+  by looking back for `http` / `https` (ASCII case-insensitive) and forward for `://` plus a
+  non-space byte. Line starts are only tracked when a line option is on.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

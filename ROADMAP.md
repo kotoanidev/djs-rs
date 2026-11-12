@@ -101,7 +101,7 @@ just with narrow scope.
 
 ## Phase 7 — Small standalone crates
 - [ ] `djs-collection` — `Collection<K, V>` with the discord.js `Collection` API surface
-- [ ] `djs-formatters` — mentions, markdown, timestamps, escaping
+- [x] `djs-formatters` — mentions, markdown, timestamps, escaping (D-211–D-213; benchmarked)
 - [ ] `djs-util` — shared helpers (filled as other crates need them)
 
 ## Phase 8 — `djs-rs` full high-level client (≈ discord.js)

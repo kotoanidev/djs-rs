@@ -16,6 +16,13 @@ publish = false
 [dependencies]
 djs-model.workspace = true
 
+[dev-dependencies]
+divan.workspace = true
+
+[[bench]]
+name = "formatters"
+harness = false
+
 [lints]
 workspace = true
 

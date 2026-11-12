@@ -8,6 +8,11 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-formatters` benchmarks (`benches/formatters.rs`) and extreme-load tests
+  (`tests/stress.rs`: randomized invariants, adversarial megabytes, all cores), results in
+  `docs/PERFORMANCE.md` (Phase 7 step 1b, C-088). Escaping plain text is 3.9× faster
+  (2.4 GB/s), and a long run of backticks with code content skipped no longer takes
+  quadratic time.
 - `djs-formatters` (Phase 7 step 1, D-211–D-213, C-087): mentions (user, channel, role,
   linked role, slash command with subcommand or group), custom emoji, guild navigation,
   timestamps with every `TimestampStyle`, markdown (bold, italic, underline,

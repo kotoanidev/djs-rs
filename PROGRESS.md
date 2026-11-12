@@ -21,8 +21,8 @@ a lock-free backend (D-176), resolved roles/messages of interactions (open quest
 components incl. Components V2, and modals, with rules measured on the live API where Discord
 allows it; benchmarks + extreme-load tests in `docs/PERFORMANCE.md`). Left open: removing
 parts with the builders (open question), a container walked twice by `validate_components`.
-**Phase 7 — small standalone crates: in progress** (D-208–D-211 decided; `djs-formatters` next,
-see "Next step").
+**Phase 7 — small standalone crates: in progress** (D-208–D-213 decided; `djs-formatters` ✅,
+`djs-collection` next, see "Next step").
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-075 in `docs/DECISIONS.md`; Claude defaults C-001 …
@@ -396,13 +396,13 @@ discord.js names where they fit + Rust traits; no `each`/`reduce`/`some`/`every`
       lists with the sealed ListEntry, Face), link.rs (channel / message / App Directory,
       email, phone_number), escape.rs (EscapeOptions, escape_markdown, single escapers — one
       byte scanner, lazy Cow)}`; tests `tests/{escape.rs, format.rs}`; `djs_rs::formatters`.
-   b. **Next:** benchmarks + extreme-load tests (D-041): `benches/formatters.rs` (divan:
-      formatting into a reused `String`, `to_string()`, `escape_markdown` on plain / heavy /
-      link-rich text of several sizes, borrowed vs owned), `tests/stress.rs` (megabytes of
-      adversarial text — runs of `*`, `[`, `<`, backticks — escaped in linear time, all
-      cores); results in `docs/PERFORMANCE.md`; then tick `djs-formatters` in ROADMAP.
-2. `djs-collection` (D-209, D-210): ask before deciding anything not covered (for example
-   whether `djs-cache` returns it).
+   b. ✅ Benchmarks + extreme-load tests (D-041, C-088): `benches/formatters.rs`,
+      `tests/stress.rs` (randomized invariants, adversarial megabytes, all cores); results
+      in `docs/PERFORMANCE.md` ("Phase 7 — djs-formatters"). Fixed on the way: plain text
+      scanned byte by byte (now a lookup-table skip, 3.9× faster) and a quadratic case for
+      long backtick runs with code content skipped.
+2. **Next:** `djs-collection` (D-209, D-210): ask before deciding anything not covered
+   (for example whether `djs-cache` returns it, and the exact method list).
 3. `djs-util`: only what other crates need.
 
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON

@@ -846,3 +846,63 @@ and 8 slower E-cores.
   at startup, so the rest was left as is.
 - **Open, small:** `validate_components` walks a container twice — once for the
   container's own `custom_id`s, once for the message's — about a tenth of a V2 check.
+
+---
+
+## Phase 7 — `djs-formatters` (2026-11-12)
+
+Step 1b of Phase 7 (D-041). Unpinned, as Phase 6; two runs of the micro-benchmarks, the
+second after the optimization below.
+
+### Escaping and formatting (`benches/formatters.rs`)
+
+| Text (`escape_markdown`, defaults) | 64 B | 2 KB | 64 KB | Result |
+|---|---:|---:|---:|---|
+| Plain English, nothing to escape | 30 ns (2.1 GB/s) | 0.87 µs (2.35 GB/s) | 27 µs (2.39 GB/s) | borrowed, no allocation |
+| Polish with a little markdown | 70 ns (0.92 GB/s) | 1.8 µs (1.15 GB/s) | 59 µs (1.11 GB/s) | one allocation |
+| Links, mentions and emoji (copied as they are) | 50 ns (1.29 GB/s) | 1.7 µs (1.23 GB/s) | 52 µs (1.26 GB/s) | |
+| Markdown on every few bytes | 250 ns (256 MB/s) | 6.3 µs (324 MB/s) | 200 µs (328 MB/s) | |
+| The same, code content skipped | 275 ns (233 MB/s) | 6.1 µs (336 MB/s) | 202 µs (324 MB/s) | |
+| Headings, lists and masked links on (`LINES`) | 208 ns (308 MB/s) | 4.5 µs (450 MB/s) | 130 µs (506 MB/s) | |
+| A display name, `xX_Gamer_Xx` | 29 ns | | | one allocation (27 B) |
+
+| Formatter | Time | Allocations |
+|---|---:|---:|
+| A giveaway message (bold, mention, timestamp, command mention, link) written into a reused `String` | 130–150 ns | 0 |
+| `user_mention(id).to_string()` | 55–60 ns | 1 |
+| `format!("<@{}>", id)` by hand, for comparison | 54–56 ns | 1 |
+| `time(t).style(RelativeTime).to_string()` | 40–42 ns | 1 + growth |
+| `code_block(1 KB).language("rust").to_string()` | 92–95 ns | 1 + 2 growths |
+| `ordered_list(25 items).to_string()` | 545–576 ns | 1 + 6 growths |
+
+- **A formatter costs what the equivalent `format!` costs** (the mention: 60 vs 56 ns, both
+  dominated by the `String` and the number); written into a buffer, nothing is allocated.
+  `to_string()` grows its `String` as it goes (the standard `ToString` has no size hint);
+  writing into a buffer avoids that.
+
+### Extreme load (`tests/stress.rs`)
+
+| Test | Result |
+|---|---|
+| 20 000 random texts (markdown characters, link and token starts, line breaks, multi-byte characters) × 5 option sets | the output is always the input with backslashes inserted, borrowed exactly when none is; escaping twice only inserts more |
+| 4 MB of plain ASCII | 1.8 ms (2.35 GB/s) |
+| 4 MB of adversarial text: one run of `*` / `*a` / `[` / `[a](b` / `<` / `<a` / `</a b` / `#` / `https://` / empty lines | 3.5–22 ms each (190–1200 MB/s) |
+| 4 MB of backticks with code content skipped: one run / `` `a `` / ```` ```a ```` | 15–23 ms (184–272 MB/s; was quadratic, see below) |
+| 3 MB of random pieces, each option set | 11–19 ms (169–286 MB/s) |
+| `escape_markdown` of 2 KB of chat text, all cores | 0.41 M/s on 1 thread, 1.99 M/s on 12 (4.9×) |
+| A giveaway message formatted into a new `String`, all cores | 7.4 M/s on 1 thread, 40.8 M/s on 12 (5.5×) |
+
+### Findings and optimization candidates (Phase 7, formatters)
+
+- **Fixed: plain text was scanned byte by byte at 0.6 GB/s.** Every byte went through the
+  `match`, and every `h` started a link check. The scanner now skips to the next byte in a
+  256-entry table (markdown characters, `<`, `:`), finds links at their `://` (the scheme
+  before it never needs escaping), and tracks line starts only when a line option is on:
+  plain text 0.61 → 2.39 GB/s (3.9×), Polish text 0.54 → 1.11 GB/s, a display name 46 →
+  29 ns, markdown-heavy text +15 % (C-088).
+- **Fixed: a long run of backticks with code content skipped took quadratic time.** Each
+  code block measured the whole remaining run before taking three backticks of it; 4 MB ran
+  for minutes. The block now only checks for three backticks: 23 ms.
+- **Open, small:** markdown-heavy text (≈ 330 MB/s) is bound by inserting one backslash at
+  a time; a message is at most 4000 characters (≈ 12 µs), so it was left as is. Skipping
+  plain text faster still would take SIMD (`memchr`, a new dependency) or `unsafe`.

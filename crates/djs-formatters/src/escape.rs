@@ -190,7 +190,7 @@ impl EscapeOptions {
             text,
             out: None,
             copied: 0,
-            line: Line::default(),
+            line: Line::NONE,
         };
         scanner.run();
         scanner.finish()
@@ -266,7 +266,7 @@ escapers! {
 const NONE: usize = usize::MAX;
 
 /// What the line being scanned needs escaped apart from single characters.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug)]
 struct Line {
     /// The index after the line's `\n` (or the text's end).
     end: usize,
@@ -276,6 +276,15 @@ struct Line {
     /// The last `](` of the line followed by a URL and `)`: a `[` at least two bytes before
     /// it starts a masked link.
     link_middle: usize,
+}
+
+impl Line {
+    /// No line loaded yet: nothing marked.
+    const NONE: Self = Self {
+        end: 0,
+        marks: [NONE; 3],
+        link_middle: NONE,
+    };
 }
 
 /// One pass over the text, copying it lazily into `out` from the first escape on.
@@ -292,6 +301,23 @@ struct Scanner<'a> {
 const fn is_space(byte: u8) -> bool {
     matches!(byte, b' ' | b'\t' | b'\n' | b'\r' | 0x0B | 0x0C)
 }
+
+/// A lookup table of the bytes in `bytes`.
+const fn table(bytes: &[u8]) -> [bool; 256] {
+    let mut table = [false; 256];
+    let mut index = 0;
+    while index < bytes.len() {
+        table[bytes[index] as usize] = true;
+        index += 1;
+    }
+    table
+}
+
+/// The bytes the scanner stops at: markdown characters, `<` (tokens) and `:` (links); every
+/// other byte is copied without a look.
+static STOPS: [bool; 256] = table(b"<\\*_~|`[:");
+/// [`STOPS`] plus what line starts need: line breaks and the characters of the marks.
+static LINE_STOPS: [bool; 256] = table(b"<\\*_~|`[:\n#-.");
 
 impl<'a> Scanner<'a> {
     /// Puts a backslash before the byte at `index` (an ASCII character, so a char boundary);
@@ -328,14 +354,27 @@ impl<'a> Scanner<'a> {
     }
 
     fn run(&mut self) {
+        let options = self.options;
+        let lines = options.heading
+            || options.bulleted_list
+            || options.numbered_list
+            || options.masked_link;
+        let stops = if lines { &LINE_STOPS } else { &STOPS };
         let len = self.bytes.len();
         let mut index = 0;
         while index < len {
-            if index >= self.line.end {
+            match self.bytes[index..]
+                .iter()
+                .position(|&byte| stops[usize::from(byte)])
+            {
+                Some(offset) => index += offset,
+                None => break,
+            }
+            if lines && index >= self.line.end {
                 self.load_line(index);
             }
             index = match self.bytes[index] {
-                b'h' | b'H' => self.link(index),
+                b':' => self.link(index),
                 b'<' => self.token(index),
                 b'\\' => {
                     if self.options.backslash {
@@ -439,25 +478,27 @@ impl<'a> Scanner<'a> {
         };
     }
 
-    /// Copies a link (`http://` or `https://` up to the next whitespace) as it is.
+    /// Copies a link (`http://` or `https://` up to the next whitespace) as it is, found at
+    /// its `:`; the scheme before it holds nothing to escape.
     fn link(&self, index: usize) -> usize {
-        let rest = &self.bytes[index..];
-        let scheme = if rest.len() > 8 && rest[..8].eq_ignore_ascii_case(b"https://") {
-            8
-        } else if rest.len() > 7 && rest[..7].eq_ignore_ascii_case(b"http://") {
-            7
-        } else {
+        let bytes = self.bytes;
+        let is_link = bytes[index..].starts_with(b"://")
+            && bytes.get(index + 3).is_some_and(|&byte| !is_space(byte))
+            && ((index >= 5 && bytes[index - 5..index].eq_ignore_ascii_case(b"https"))
+                || (index >= 4 && bytes[index - 4..index].eq_ignore_ascii_case(b"http")));
+        if !is_link {
             return index + 1;
-        };
+        }
+        let rest = &bytes[index + 3..];
         index
-            + scheme
-            + rest[scheme..]
+            + 3
+            + rest
                 .iter()
                 .position(|&byte| is_space(byte))
-                .unwrap_or(rest.len() - scheme)
+                .unwrap_or(rest.len())
     }
 
-    /// Copies a `<…>` token (see the module docs) as it is.
+    /// Copies a `<…>` token (see the type docs) as it is.
     fn token(&self, index: usize) -> usize {
         let rest = &self.bytes[index + 1..];
         let Some(close) = rest
@@ -529,9 +570,10 @@ impl<'a> Scanner<'a> {
 
     /// Handles a run of backticks: code delimiters, possibly skipping the code between two.
     fn backticks(&mut self, index: usize) -> usize {
-        let length = self.run_length(index, b'`');
         let options = self.options;
-        if length >= 3 && !options.code_block_content {
+        // Checked before measuring the run: a block may use only the start of a long run, and
+        // measuring all of it at every block would take quadratic time.
+        if !options.code_block_content && self.bytes[index..].starts_with(b"```") {
             let after = index + 3;
             let close = self.bytes[after..]
                 .windows(3)
@@ -548,6 +590,7 @@ impl<'a> Scanner<'a> {
             }
             return close + 3;
         }
+        let length = self.run_length(index, b'`');
         if length == 1 && !options.inline_code_content {
             let close = self.single_backtick(index + 1);
             if options.inline_code {
