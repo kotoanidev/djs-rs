@@ -453,3 +453,81 @@ fn a_range_past_the_total_is_rejected() {
         total: 4,
     });
 }
+
+#[tokio::test]
+async fn presence_is_sent_when_identifying_and_on_request() {
+    use djs_rs::model::gateway::{Activity, Status, payload::UpdatePresence};
+
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let gateway_url = format!("ws://{}", listener.local_addr().unwrap());
+    let gateway = tokio::spawn(async move {
+        let (stream, _) = timeout(STEP, listener.accept()).await.unwrap().unwrap();
+        let (_, mut ws) = ServerBuilder::new().accept(stream).await.unwrap();
+        let send = |payload: Value| Message::text(payload.to_string());
+        ws.send(send(json!({"op": 10, "d": {"heartbeat_interval": 45_000}})))
+            .await
+            .unwrap();
+        let identify = next_op(&mut ws, 2).await;
+        ws.send(send(json!({"t": "READY", "s": 1, "op": 0, "d": {
+            "v": 10,
+            "user": {"id": "1", "username": "test-bot", "discriminator": "0",
+                     "global_name": null, "avatar": null, "bot": true},
+            "guilds": [], "session_id": "s", "resume_gateway_url": "ws://127.0.0.1:9",
+            "application": {"id": "1"}
+        }})))
+        .await
+        .unwrap();
+        let update = next_op(&mut ws, 3).await;
+        (identify, update)
+    });
+
+    let client = Client::builder("test-token")
+        .gateway_url(gateway_url)
+        .shards(Shards::Count(1))
+        .compression(Compression::None)
+        .presence(UpdatePresence::new(
+            Status::Online,
+            [Activity::playing("with Rust")],
+        ))
+        .build();
+    let busy = UpdatePresence::new(Status::DoNotDisturb, [Activity::custom("Busy")]);
+    // Not running yet: nothing to update.
+    client.set_presence(&busy).unwrap();
+
+    let mut events = client.events();
+    let running = {
+        let client = client.clone();
+        tokio::spawn(async move { client.login().await })
+    };
+    let ready = timeout(STEP, events.next()).await.unwrap().unwrap();
+    assert_eq!(ready.event.name(), "READY");
+    client.set_presence(&busy).unwrap();
+
+    let (identify, update) = timeout(STEP, gateway).await.unwrap().unwrap();
+    assert_eq!(
+        identify["d"]["presence"],
+        json!({"since": null, "activities": [{"name": "with Rust", "type": 0}],
+               "status": "online", "afk": false})
+    );
+    assert_eq!(
+        update["d"],
+        json!({"since": null,
+               "activities": [{"name": "Custom Status", "type": 4, "state": "Busy"}],
+               "status": "dnd", "afk": false})
+    );
+    client.shutdown();
+    let _ = timeout(STEP, running).await;
+}
+
+/// Receives client payloads until one has the given opcode.
+async fn next_op(ws: &mut tokio_websockets::WebSocketStream<TcpStream>, op: u64) -> Value {
+    loop {
+        let message = timeout(STEP, ws.next()).await.unwrap().unwrap().unwrap();
+        if let Some(text) = message.as_text() {
+            let payload: Value = serde_json::from_str(text).unwrap();
+            if payload["op"] == op {
+                return payload;
+            }
+        }
+    }
+}

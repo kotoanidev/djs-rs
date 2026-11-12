@@ -7,8 +7,8 @@ use djs_gateway::{
 };
 use djs_model::{
     gateway::{
-        CloseCode, DispatchEvent, GatewayEvent, Intents, ShardId,
-        payload::{Heartbeat, RequestGuildMembers},
+        Activity, CloseCode, DispatchEvent, GatewayEvent, Intents, ShardId, Status,
+        payload::{Heartbeat, RequestGuildMembers, UpdatePresence},
     },
     id::GuildId,
 };
@@ -518,6 +518,64 @@ async fn shards_share_the_identify_queue() {
     for connection in server.await.unwrap() {
         connection.abort();
     }
+}
+
+#[tokio::test]
+async fn a_new_session_keeps_the_last_presence() {
+    let (listener, url) = listener().await;
+    let resume_url = url.clone();
+    let server = tokio::spawn(async move {
+        let (mut first, _) = accept(&listener).await;
+        send(&mut first, hello(45_000)).await;
+        let identify = recv_op(&mut first, 2).await;
+        send(&mut first, ready(1, &resume_url)).await;
+        let update = recv_op(&mut first, 3).await;
+        // A timed-out session cannot be resumed: the shard identifies again.
+        let code = tokio_websockets::CloseCode::try_from(4009).unwrap();
+        first.send(Message::close(Some(code), "")).await.unwrap();
+
+        let (mut second, _) = accept(&listener).await;
+        send(&mut second, hello(45_000)).await;
+        // Longer than `recv`'s timeout: the second identify waits for its 5 s turn.
+        let again = loop {
+            let payload = recv_within(&mut second, Duration::from_secs(10)).await;
+            if payload["op"] == 2 {
+                break payload;
+            }
+        };
+        (identify, update, again)
+    });
+
+    let config = Config::builder(TOKEN, INTENTS)
+        .gateway_url(&url)
+        .compression(Compression::None)
+        .presence(UpdatePresence::new(
+            Status::Online,
+            [Activity::watching("you")],
+        ))
+        .build();
+    let mut shard = Shard::with_config(ShardId::ONE, config);
+    collect_until(&mut shard, |event| {
+        matches!(event, GatewayEvent::Dispatch(_, DispatchEvent::Ready(_)))
+    })
+    .await;
+    shard
+        .sender()
+        .update_presence(&UpdatePresence::new(
+            Status::Idle,
+            [Activity::custom("Resting")],
+        ))
+        .unwrap();
+    let (identify, update, again) = drive_until(&mut shard, server).await;
+
+    let initial = json!({"since": null, "activities": [{"name": "you", "type": 3}],
+                         "status": "online", "afk": false});
+    let updated = json!({"since": null,
+                         "activities": [{"name": "Custom Status", "type": 4, "state": "Resting"}],
+                         "status": "idle", "afk": false});
+    assert_eq!(identify["d"]["presence"], initial);
+    assert_eq!(update["d"], updated);
+    assert_eq!(again["d"]["presence"], updated);
 }
 
 #[tokio::test]

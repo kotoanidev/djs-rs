@@ -74,8 +74,8 @@ just with narrow scope.
 - [x] Identify concurrency (`max_concurrency`; D-144)
 - [x] In-process sharding: `create_shards`, auto shard count in `Client` (D-145, D-146)
 - [ ] Resharding while running (open question)
-- [ ] Gateway commands: presence update, request guild members, voice state update,
-      soundboard sounds
+- [x] Gateway commands: any command through `MessageSender::command`; presence kept across
+      sessions (D-148). Member/soundboard collectors and voice state helpers in Phase 6 (D-149)
 - [ ] Mock gateway tests, benchmarks
 
 ## Phase 5 — `djs-cache`

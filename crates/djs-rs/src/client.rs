@@ -12,8 +12,10 @@ use std::{
     sync::{Arc, Mutex, MutexGuard, PoisonError, RwLock},
 };
 
-use djs_gateway::{Compression, Config, LocalIdentifyQueue, Shard, create_shards};
-use djs_model::gateway::{DispatchEvent, GatewayEvent, Intents};
+use djs_gateway::{
+    Compression, Config, LocalIdentifyQueue, MessageSender, SendError, Shard, create_shards,
+};
+use djs_model::gateway::{DispatchEvent, GatewayEvent, Intents, payload::UpdatePresence};
 use djs_rest::Rest;
 use futures_core::Stream;
 use tokio::{
@@ -121,7 +123,10 @@ struct Inner {
     compression: Compression,
     gateway_url: Option<Box<str>>,
     shards: Shards,
+    presence: Option<UpdatePresence>,
     mode: HandlerMode,
+    /// The senders of the running shards (empty while not running).
+    senders: Mutex<Vec<MessageSender>>,
     registry: RwLock<Arc<Registry>>,
     subscribers: Mutex<Vec<mpsc::UnboundedSender<ShardEvent>>>,
     has_subscribers: AtomicBool,
@@ -149,6 +154,7 @@ impl Client {
             compression: Compression::default(),
             gateway_url: None,
             shards: Shards::default(),
+            presence: None,
             mode: HandlerMode::default(),
         }
     }
@@ -265,6 +271,50 @@ impl Client {
         result
     }
 
+    /// Updates the bot's presence (status and activities) on every running shard. Each shard
+    /// also keeps it for its later sessions (D-148).
+    ///
+    /// Has no effect if the client is not running; set the presence to start with through
+    /// [`ClientBuilder::presence`].
+    ///
+    /// discord.js counterpart: `ClientUser#setPresence`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SendError::Closed`] if a shard has stopped (the client is shutting down);
+    /// the other shards are still updated.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use djs_rs::{
+    ///     model::gateway::{Activity, Status, payload::UpdatePresence},
+    ///     prelude::*,
+    /// };
+    ///
+    /// # let client = Client::builder("token").build();
+    /// let handle = client.clone();
+    /// client.on(Events::MessageCreate, move |_ctx, msg| {
+    ///     let client = handle.clone();
+    ///     async move {
+    ///         if msg.content == "!busy" {
+    ///             let busy = UpdatePresence::new(Status::DoNotDisturb, [Activity::custom("Busy")]);
+    ///             client.set_presence(&busy)?;
+    ///         }
+    ///         Ok(())
+    ///     }
+    /// });
+    /// ```
+    pub fn set_presence(&self, presence: &UpdatePresence) -> Result<(), SendError> {
+        let mut result = Ok(());
+        for sender in lock(&self.inner.senders).iter() {
+            if let Err(error) = sender.update_presence(presence) {
+                result = result.and(Err(error));
+            }
+        }
+        result
+    }
+
     /// Asks a running client to disconnect; [`login`](Self::login) then returns `Ok(())`.
     ///
     /// The session is invalidated (the bot appears offline). Has no effect if the client is not
@@ -288,14 +338,18 @@ impl Client {
             max_concurrency = plan.max_concurrency,
             "starting shards"
         );
-        let config = Config::builder(&*inner.token, inner.intents)
+        let mut config = Config::builder(&*inner.token, inner.intents)
             .gateway_url(plan.url)
             .compression(inner.compression)
-            .identify_queue(Arc::new(LocalIdentifyQueue::new(plan.max_concurrency)))
-            .build();
+            .identify_queue(Arc::new(LocalIdentifyQueue::new(plan.max_concurrency)));
+        if let Some(presence) = &inner.presence {
+            config = config.presence(presence.clone());
+        }
+        let config = config.build();
 
         let mut tasks = JoinSet::new();
         for shard in create_shards(plan.range, plan.total, config) {
+            lock(&inner.senders).push(shard.sender());
             let (client, shutdown) = (self.clone(), shutdown.clone());
             tasks.spawn(async move { client.run_shard(shard, shutdown).await });
         }
@@ -319,6 +373,7 @@ impl Client {
                 }
             }
         }
+        lock(&inner.senders).clear();
         result
     }
 
@@ -467,6 +522,7 @@ pub struct ClientBuilder {
     compression: Compression,
     gateway_url: Option<Box<str>>,
     shards: Shards,
+    presence: Option<UpdatePresence>,
     mode: HandlerMode,
 }
 
@@ -534,6 +590,28 @@ impl ClientBuilder {
         self
     }
 
+    /// Sets the presence (status and activities) every shard starts with (default: none, the
+    /// bot appears online without an activity). Change it later with [`Client::set_presence`].
+    ///
+    /// discord.js counterpart: the `presence` client option.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use djs_rs::{
+    ///     Client,
+    ///     model::gateway::{Activity, Status, payload::UpdatePresence},
+    /// };
+    ///
+    /// let client = Client::builder("my-token")
+    ///     .presence(UpdatePresence::new(Status::Online, [Activity::playing("with Rust")]))
+    ///     .build();
+    /// ```
+    pub fn presence(mut self, presence: UpdatePresence) -> Self {
+        self.presence = Some(presence);
+        self
+    }
+
     /// Sets how handlers are executed (default [`HandlerMode::Concurrent`]).
     pub const fn handler_mode(mut self, mode: HandlerMode) -> Self {
         self.mode = mode;
@@ -552,7 +630,9 @@ impl ClientBuilder {
                 compression: self.compression,
                 gateway_url: self.gateway_url,
                 shards: self.shards,
+                presence: self.presence,
                 mode: self.mode,
+                senders: Mutex::new(Vec::new()),
                 registry: RwLock::new(Arc::new(Registry::default())),
                 subscribers: Mutex::new(Vec::new()),
                 has_subscribers: AtomicBool::new(false),

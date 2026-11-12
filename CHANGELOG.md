@@ -8,6 +8,10 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Presence (D-148, D-149): `ConfigBuilder::presence` (sent in every IDENTIFY),
+  `MessageSender::update_presence` (also kept for later sessions), `ClientBuilder::presence`,
+  `Client::set_presence` (every shard), and `Activity::{playing, streaming, listening,
+  watching, competing, custom}`.
 - Sharding (D-141, D-144–D-147): `djs_gateway::IdentifyQueue` (trait) and
   `LocalIdentifyQueue` (one IDENTIFY per `max_concurrency` bucket every 5 s), shared through
   `ConfigBuilder::identify_queue`; `djs_gateway::create_shards(range, total, config)`. The

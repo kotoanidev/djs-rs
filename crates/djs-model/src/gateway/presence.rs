@@ -207,6 +207,80 @@ impl Activity {
             buttons: Vec::new(),
         }
     }
+
+    /// "Playing {name}".
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use djs_model::gateway::{Activity, ActivityType};
+    ///
+    /// let activity = Activity::playing("with Rust");
+    /// assert_eq!((activity.kind, activity.name.as_str()), (ActivityType::Playing, "with Rust"));
+    /// ```
+    #[must_use]
+    pub fn playing(name: impl Into<CompactString>) -> Self {
+        Self::new(ActivityType::Playing, name)
+    }
+
+    /// "Streaming {name}", linking to `url`. Discord only accepts `https://twitch.tv/` and
+    /// `https://youtube.com/` URLs.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use djs_model::gateway::Activity;
+    ///
+    /// let activity = Activity::streaming("Rust live", "https://twitch.tv/example");
+    /// assert_eq!(
+    ///     serde_json::to_string(&activity).unwrap(),
+    ///     r#"{"name":"Rust live","type":1,"url":"https://twitch.tv/example"}"#
+    /// );
+    /// ```
+    #[must_use]
+    pub fn streaming(name: impl Into<CompactString>, url: impl Into<CompactString>) -> Self {
+        Self {
+            url: Some(url.into()),
+            ..Self::new(ActivityType::Streaming, name)
+        }
+    }
+
+    /// "Listening to {name}".
+    #[must_use]
+    pub fn listening(name: impl Into<CompactString>) -> Self {
+        Self::new(ActivityType::Listening, name)
+    }
+
+    /// "Watching {name}".
+    #[must_use]
+    pub fn watching(name: impl Into<CompactString>) -> Self {
+        Self::new(ActivityType::Watching, name)
+    }
+
+    /// "Competing in {name}".
+    #[must_use]
+    pub fn competing(name: impl Into<CompactString>) -> Self {
+        Self::new(ActivityType::Competing, name)
+    }
+
+    /// A custom status showing `text` (stored in [`state`](Self::state); the name is
+    /// `"Custom Status"`, as Discord's clients send).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use djs_model::gateway::Activity;
+    ///
+    /// let activity = Activity::custom("Fixing bugs");
+    /// assert_eq!(activity.state.as_deref(), Some("Fixing bugs"));
+    /// ```
+    #[must_use]
+    pub fn custom(text: impl Into<CompactString>) -> Self {
+        Self {
+            state: Some(text.into()),
+            ..Self::new(ActivityType::Custom, "Custom Status")
+        }
+    }
 }
 
 int_enum! {

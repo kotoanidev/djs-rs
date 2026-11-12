@@ -1994,6 +1994,17 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - One tokio task per shard (in a `JoinSet`); the first fatal error shuts the other shards down
   and is returned; a panicking shard task is re-raised by `login`.
 
+### C-069 — Presence details (D-148, D-149)
+- `Activity::{playing, streaming, listening, watching, competing, custom}` were added because
+  the approved D-148/D-149 examples use them; `custom(text)` sets `state` and the name
+  `"Custom Status"` (what Discord's clients send for type 4).
+- `MessageSender::update_presence` stores the presence as soon as the command is queued, so
+  an IDENTIFY that happens before the queued update goes out already carries it.
+- `Client::set_presence` updates every shard even if one fails and returns the first error;
+  it does nothing while the client is not running (the initial presence is
+  `ClientBuilder::presence`). The running shards' senders live in `Inner::senders`, cleared
+  when `login` returns.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

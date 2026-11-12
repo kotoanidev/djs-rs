@@ -9,9 +9,9 @@ D-041).
 **Phase 2 — full `djs-model` coverage: ✅ done** (D-039; benchmarks + stress tests done).
 **Phase 3 — full `djs-rest` coverage: ✅ done 2026-11-12** (every documented REST route, OAuth2,
 CDN URLs; benchmarks + extreme-load tests in `docs/PERFORMANCE.md`).
-**Phase 4 — full `djs-gateway` coverage: in progress** — steps 1 (send limit) and 2
-(IDENTIFY queue + sharding) done; next is step 3, the gateway commands (see "Next step"
-below).
+**Phase 4 — full `djs-gateway` coverage: in progress** — steps 1 (send limit), 2 (IDENTIFY
+queue + sharding) and 3 (gateway commands / presence) done; next is step 4, zlib-stream (see
+"Next step" below).
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-075 in `docs/DECISIONS.md`; Claude defaults C-001 …
@@ -254,8 +254,10 @@ reserved), D-143 (order below). One commit per step:
    `Shards` + one task per shard + `Error::SessionStartLimit`. Tests: queue unit tests (paused
    clock, no sockets), mock-gateway `shards_share_the_identify_queue`, djs-rs end-to-end auto
    sharding / session limit / range.
-3. **Gateway commands**: presence update, request guild members, voice state update, request
-   soundboard sounds (models exist in `djs_model::gateway`).
+3. ✅ **Gateway commands** (D-148, D-149, C-069): presence in `Config` / IDENTIFY,
+   `MessageSender::update_presence` (kept for new sessions), `ClientBuilder::presence`,
+   `Client::set_presence`, `Activity` constructors. Collectors (members, soundboard) and
+   voice state helpers are Phase 6; any command already goes through `command()`.
 4. **zlib-stream** (D-140) — ask before adding `flate2` to `[workspace.dependencies]` only if
    its features differ from D-140.
 5. **simd-json** (D-013), kept only with a measured gain.

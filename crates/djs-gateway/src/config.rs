@@ -3,7 +3,10 @@
 use core::{fmt, time::Duration};
 use std::sync::Arc;
 
-use djs_model::gateway::{Intents, payload::IdentifyProperties};
+use djs_model::gateway::{
+    Intents,
+    payload::{IdentifyProperties, UpdatePresence},
+};
 use tokio_websockets::Connector;
 
 use crate::{Compression, IdentifyQueue, LocalIdentifyQueue};
@@ -32,6 +35,7 @@ pub struct Config {
     pub(crate) hello_timeout: Duration,
     pub(crate) tls: Arc<Connector>,
     pub(crate) identify_queue: Arc<dyn IdentifyQueue>,
+    pub(crate) presence: Option<UpdatePresence>,
 }
 
 impl Config {
@@ -71,6 +75,7 @@ impl Config {
                 hello_timeout: Duration::from_secs(60),
                 tls: Arc::new(crate::tls::connector()),
                 identify_queue: Arc::new(LocalIdentifyQueue::default()),
+                presence: None,
             },
         }
     }
@@ -93,6 +98,12 @@ impl Config {
         self.compression
     }
 
+    /// Returns the presence shards using this configuration start with.
+    #[must_use]
+    pub const fn presence(&self) -> Option<&UpdatePresence> {
+        self.presence.as_ref()
+    }
+
     /// Returns the queue shards using this configuration wait in before identifying.
     #[must_use]
     pub fn identify_queue(&self) -> &Arc<dyn IdentifyQueue> {
@@ -112,6 +123,7 @@ impl fmt::Debug for Config {
             .field("connect_timeout", &self.connect_timeout)
             .field("hello_timeout", &self.hello_timeout)
             .field("identify_queue", &self.identify_queue)
+            .field("presence", &self.presence)
             .finish_non_exhaustive()
     }
 }
@@ -164,6 +176,30 @@ impl ConfigBuilder {
     /// (default 60 s).
     pub const fn hello_timeout(mut self, timeout: Duration) -> Self {
         self.config.hello_timeout = timeout;
+        self
+    }
+
+    /// Sets the presence (status and activities) sent when identifying (default: none, the bot
+    /// appears online without an activity).
+    ///
+    /// A shard uses it until [`MessageSender::update_presence`](crate::MessageSender::update_presence)
+    /// replaces it; that presence is then also kept for later sessions.
+    ///
+    /// discord.js counterpart: the `presence` client option.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use djs_gateway::Config;
+    /// use djs_model::gateway::{Activity, Intents, Status, payload::UpdatePresence};
+    ///
+    /// let config = Config::builder("my-token", Intents::GUILDS)
+    ///     .presence(UpdatePresence::new(Status::Online, [Activity::watching("you")]))
+    ///     .build();
+    /// assert!(config.presence().is_some());
+    /// ```
+    pub fn presence(mut self, presence: UpdatePresence) -> Self {
+        self.config.presence = Some(presence);
         self
     }
 

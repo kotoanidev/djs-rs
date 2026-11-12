@@ -1,11 +1,14 @@
 //! The [`Shard`]: one gateway connection.
 
 use core::{fmt::Write as _, future::Future, pin::Pin, time::Duration};
-use std::sync::{Mutex, PoisonError};
+use std::sync::{Arc, Mutex, PoisonError};
 
 use djs_model::gateway::{
     API_VERSION, CloseCode, DispatchEvent, GatewayEvent, GatewayEventDeserializer, OpCode, ShardId,
-    payload::{CommandPayload, GatewayCapabilities, GatewayCommand, Heartbeat, Identify, Resume},
+    payload::{
+        CommandPayload, GatewayCapabilities, GatewayCommand, Heartbeat, Identify, Resume,
+        UpdatePresence,
+    },
 };
 use futures_util::{SinkExt, StreamExt};
 use serde::de::DeserializeSeed;
@@ -122,7 +125,13 @@ pub struct Shard {
     commands_rx: mpsc::UnboundedReceiver<String>,
     send_limit: SendLimit,
     held: Option<HeldCommand>,
+    /// The presence to identify with, shared with every [`MessageSender`].
+    presence: SharedPresence,
 }
+
+/// The presence a shard identifies with: the configured one until
+/// [`MessageSender::update_presence`] replaces it.
+type SharedPresence = Arc<Mutex<Option<UpdatePresence>>>;
 
 struct Session {
     id: Box<str>,
@@ -186,6 +195,7 @@ impl Shard {
     #[must_use]
     pub fn with_config(id: ShardId, config: Config) -> Self {
         let (commands_tx, commands_rx) = mpsc::unbounded_channel();
+        let presence = Arc::new(Mutex::new(config.presence.clone()));
         Self {
             id,
             config,
@@ -204,6 +214,7 @@ impl Shard {
             commands_rx,
             send_limit: SendLimit::default(),
             held: None,
+            presence,
         }
     }
 
@@ -253,6 +264,7 @@ impl Shard {
     pub fn sender(&self) -> MessageSender {
         MessageSender {
             tx: self.commands_tx.clone(),
+            presence: Arc::clone(&self.presence),
         }
     }
 
@@ -576,7 +588,11 @@ impl Shard {
             large_threshold: self.config.large_threshold,
             shard: Some(self.id),
             intents: self.config.intents,
-            presence: None,
+            presence: self
+                .presence
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .clone(),
             capabilities: GatewayCapabilities::empty(),
         };
         self.state = ShardState::Identifying;
@@ -742,6 +758,7 @@ fn parse(json: &str) -> (Option<u64>, Result<GatewayEvent, ReceiveError>) {
 #[derive(Clone, Debug)]
 pub struct MessageSender {
     tx: mpsc::UnboundedSender<String>,
+    presence: SharedPresence,
 }
 
 impl MessageSender {
@@ -755,6 +772,39 @@ impl MessageSender {
         let json =
             serde_json::to_string(&CommandPayload::new(command)).map_err(SendError::Serialize)?;
         self.tx.send(json).map_err(|_| SendError::Closed)
+    }
+
+    /// Updates the bot's presence on this shard, and makes it the presence the shard identifies
+    /// with from now on, so a new session keeps it (D-148).
+    ///
+    /// Prefer this over [`command`](Self::command) with an [`UpdatePresence`], which only sends
+    /// the update: after a new session the shard would show its configured
+    /// [presence](crate::ConfigBuilder::presence) again.
+    ///
+    /// discord.js counterpart: `ClientUser#setPresence` (which, unlike this method, is
+    /// forgotten when a new session starts).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SendError::Closed`] if the shard has been dropped, or
+    /// [`SendError::Serialize`] if the presence cannot be serialized.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use djs_gateway::Shard;
+    /// use djs_model::gateway::{Activity, Intents, ShardId, Status, payload::UpdatePresence};
+    ///
+    /// let shard = Shard::new(ShardId::ONE, "my-token", Intents::GUILDS);
+    /// shard
+    ///     .sender()
+    ///     .update_presence(&UpdatePresence::new(Status::Idle, [Activity::custom("Resting")]))
+    ///     .unwrap();
+    /// ```
+    pub fn update_presence(&self, presence: &UpdatePresence) -> Result<(), SendError> {
+        self.command(presence)?;
+        *self.presence.lock().unwrap_or_else(PoisonError::into_inner) = Some(presence.clone());
+        Ok(())
     }
 
     /// Returns `true` if the shard has been dropped.
