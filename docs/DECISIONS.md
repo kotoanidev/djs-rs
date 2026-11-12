@@ -1719,6 +1719,41 @@ and why.
   accepted both (D-195). Everything else follows what Discord rejected in D-195.
 - **Alternatives:** reject only choices with autocomplete; accept both, exactly like Discord.
 
+### D-197 — Buttons: one constructor per style
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `ButtonBuilder::primary(custom_id)`, `::secondary`, `::success`, `::danger`,
+  `::link(url)` and `::premium(sku_id)`, then `.label()`, `.emoji()`, `.disabled()`; a link
+  button cannot get a `custom_id` and no required field can be forgotten. `build()` returns a
+  `Component`.
+- **Alternatives:** discord.js-like `ButtonBuilder::new().style(…).custom_id(…)` with
+  `Missing` errors; `ButtonBuilder::new(style, custom_id)` plus `link` / `premium`.
+
+### D-198 — What a row or container may hold is checked in `build()`
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** like D-193, one `ActionRowBuilder` (and container / section builder) takes
+  `.component(impl Into<Component>)`; a wrong mix (six buttons, a button with a select menu,
+  a text display in a row) is a `ValidationError` from `build()`.
+- **Alternatives:** typed constructors and marker traits (`ActionRowBuilder::buttons`,
+  `::select`), compile-time errors.
+
+### D-199 — Message-wide component limits: a function for the list
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** like D-189, a public `validate_components(&[Component], …)` checks what only
+  the whole list shows — at most 5 action rows for a legacy message; at most 40 components and
+  4000 characters of text for a Components V2 message; unique `custom_id`s — for the Phase 8
+  message options. Each builder checks only itself.
+- **Alternatives:** no list check (Discord reports those limits).
+
+### D-200 — Unclear component rules are checked on the live API with messages
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** about 20 messages with components sent by the test bot to the test channel
+  and deleted at once, like D-188: how `custom_id`s and labels are counted (code points?
+  trimmed?), blank labels, a button without label and emoji, repeated `custom_id`s,
+  `min_values` above `max_values`, link URL schemes, how the 40 components and 4000 characters
+  of Components V2 are counted. Modals cannot be sent without a user's interaction, so their
+  rules come from the docs only. The token stays in `.env`.
+- **Alternatives:** the docs only, unclear cases documented as such.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
