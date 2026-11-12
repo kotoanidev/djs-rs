@@ -8,6 +8,10 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- The gateway send limit (D-142): a shard sends at most 115 queued commands in any 61 s
+  (Discord allows 120 per 60 s and disconnects clients that send more); the rest wait in the
+  queue, in order, and heartbeats, identify and resume keep the remaining room. A new
+  connection starts with a fresh limit.
 - Phase 3 benchmarks and extreme-load tests (D-041): `djs-model/benches/encode.rs` (request
   bodies, base64 images and sounds, target users CSV), `djs-rest/benches/request.rs` (routes,
   requests, CDN and authorization URLs) and multipart upload stress tests; results in

@@ -4,6 +4,7 @@
 mod compression;
 mod config;
 mod error;
+mod send_limit;
 mod shard;
 mod tls;
 

@@ -3,8 +3,12 @@
 use std::time::Duration;
 
 use djs_gateway::{Compression, Config, ReceiveErrorKind, Shard, ShardState};
-use djs_model::gateway::{
-    CloseCode, DispatchEvent, GatewayEvent, Intents, ShardId, payload::Heartbeat,
+use djs_model::{
+    gateway::{
+        CloseCode, DispatchEvent, GatewayEvent, Intents, ShardId,
+        payload::{Heartbeat, RequestGuildMembers},
+    },
+    id::GuildId,
 };
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
@@ -340,6 +344,114 @@ async fn commands_wait_for_an_active_session() {
     // Keep driving the shard so it flushes the queued command.
     let _ = timeout(Duration::from_millis(500), shard.next_event()).await;
     server.await.unwrap();
+}
+
+/// Discord's limit minus the room the shard keeps for heartbeats, identify and resume.
+const COMMANDS_PER_WINDOW: usize = 115;
+/// How long the server waits to be sure no more commands are coming.
+const QUIET: Duration = Duration::from_secs(1);
+
+/// Queues `count` member requests, numbered by their `limit` field from 1.
+fn queue_member_requests(shard: &Shard, count: u32) {
+    let sender = shard.sender();
+    for n in 1..=count {
+        sender
+            .command(&RequestGuildMembers::query(GuildId::new(2), "", n))
+            .unwrap();
+    }
+}
+
+/// Receives member requests (opcode 8) until nothing arrives for [`QUIET`], answering
+/// heartbeats on the way. Returns the requests' numbers.
+async fn recv_member_requests(server: &mut Server) -> Vec<u64> {
+    let mut requests = Vec::new();
+    while let Ok(message) = timeout(QUIET, server.next()).await {
+        let message = message.expect("connection ended").unwrap();
+        let Some(text) = message.as_text() else {
+            continue;
+        };
+        let payload: Value = serde_json::from_str(text).unwrap();
+        match payload["op"].as_u64() {
+            Some(8) => requests.push(payload["d"]["limit"].as_u64().unwrap()),
+            Some(1) => send(server, json!({"op": 11})).await,
+            _ => panic!("unexpected payload {payload}"),
+        }
+    }
+    requests
+}
+
+/// Drives the shard until the server task finishes.
+async fn drive_until<T>(shard: &mut Shard, server: tokio::task::JoinHandle<T>) -> T {
+    let driven = async {
+        tokio::pin!(server);
+        loop {
+            tokio::select! {
+                result = &mut server => break result.unwrap(),
+                _ = shard.next_event() => {}
+            }
+        }
+    };
+    timeout(Duration::from_secs(30), driven)
+        .await
+        .expect("the mock server did not finish")
+}
+
+// The window itself (115 commands per 61 s, refilling one by one) is unit-tested in
+// `src/send_limit.rs`; waiting a whole minute here would slow the suite down.
+#[tokio::test]
+async fn commands_over_the_send_limit_are_held() {
+    let (listener, url) = listener().await;
+    let resume_url = url.clone();
+    let server = tokio::spawn(async move {
+        let (mut connection, _) = accept(&listener).await;
+        send(&mut connection, hello(45_000)).await;
+        recv_op(&mut connection, 2).await;
+        send(&mut connection, ready(1, &resume_url)).await;
+        recv_member_requests(&mut connection).await
+    });
+
+    let mut shard = shard(&url);
+    queue_member_requests(&shard, 200);
+    let requests = drive_until(&mut shard, server).await;
+
+    // The first window's worth goes out at once, in order; the rest is held.
+    let expected: Vec<u64> = (1..=115).collect();
+    assert_eq!(requests, expected);
+}
+
+#[tokio::test]
+async fn a_new_connection_starts_with_a_fresh_send_limit() {
+    let (listener, url) = listener().await;
+    let resume_url = url.clone();
+    let server = tokio::spawn(async move {
+        let (mut first, _) = accept(&listener).await;
+        send(&mut first, hello(45_000)).await;
+        recv_op(&mut first, 2).await;
+        send(&mut first, ready(1, &resume_url)).await;
+        let before = recv_member_requests(&mut first).await;
+        // The window is full; ask the shard to reconnect.
+        send(&mut first, json!({"op": 7, "d": null})).await;
+        let _ = timeout(STEP, first.next()).await;
+
+        let (mut second, _) = accept(&listener).await;
+        send(&mut second, hello(45_000)).await;
+        recv_op(&mut second, 6).await;
+        send(
+            &mut second,
+            json!({"t": "RESUMED", "s": 2, "op": 0, "d": {}}),
+        )
+        .await;
+        let after = recv_member_requests(&mut second).await;
+        (before, after)
+    });
+
+    let mut shard = shard(&url);
+    queue_member_requests(&shard, 120);
+    let (before, after) = drive_until(&mut shard, server).await;
+
+    assert_eq!(before.len(), COMMANDS_PER_WINDOW);
+    // The held commands go out right after resuming instead of a window later.
+    assert_eq!(after, [116, 117, 118, 119, 120]);
 }
 
 #[tokio::test]

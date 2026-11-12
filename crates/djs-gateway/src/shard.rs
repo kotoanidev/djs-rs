@@ -19,6 +19,7 @@ use crate::{
     Config,
     compression::Decompressor,
     error::{ReceiveError, ReceiveErrorKind, SendError},
+    send_limit::SendLimit,
 };
 
 type Connection = WebSocketStream<MaybeTlsStream<TcpStream>>;
@@ -61,7 +62,8 @@ pub enum ShardState {
 /// one is polling, and there are no background tasks or internal event channels.
 ///
 /// Commands (presence updates, member requests, …) can be sent from other tasks through a
-/// [`MessageSender`]; they are delivered once the session is active.
+/// [`MessageSender`]; they are delivered once the session is active, paced to stay under
+/// Discord's send limit.
 ///
 /// discord.js counterpart: `WebSocketShard` from `@discordjs/ws`.
 ///
@@ -107,6 +109,8 @@ pub struct Shard {
     last_identify: Option<Instant>,
     commands_tx: mpsc::UnboundedSender<String>,
     commands_rx: mpsc::UnboundedReceiver<String>,
+    send_limit: SendLimit,
+    held: Option<HeldCommand>,
 }
 
 struct Session {
@@ -121,12 +125,20 @@ struct Heartbeater {
     acked: bool,
 }
 
+/// A command taken from the queue but held back by the send limit.
+struct HeldCommand {
+    json: String,
+    /// Fires once the send limit has room for it.
+    until: Pin<Box<Sleep>>,
+}
+
 /// What woke the shard up.
 enum Wake {
     Heartbeat,
     HelloTimeout,
     Identify,
     Command(String),
+    HeldCommandAllowed,
     Message(Option<Result<Message, tokio_websockets::Error>>),
 }
 
@@ -180,6 +192,8 @@ impl Shard {
             last_identify: None,
             commands_tx,
             commands_rx,
+            send_limit: SendLimit::default(),
+            held: None,
         }
     }
 
@@ -223,7 +237,8 @@ impl Shard {
 
     /// Returns a handle to send commands to this shard from anywhere.
     ///
-    /// Commands are queued and sent once the session is [active](ShardState::Active).
+    /// Commands are queued and sent once the session is [active](ShardState::Active), in
+    /// order, paced to stay under Discord's send limit (see [`MessageSender`]).
     #[must_use]
     pub fn sender(&self) -> MessageSender {
         MessageSender {
@@ -284,6 +299,8 @@ impl Shard {
     /// Waits for one wake-up source and handles it. Returns an item for the caller, if any.
     async fn step(&mut self) -> Option<Result<GatewayEvent, ReceiveError>> {
         let active = self.state == ShardState::Active;
+        // A held command goes out first; the queue waits behind it.
+        let receive_commands = active && self.held.is_none();
         let connection = self.connection.as_mut()?;
         let heartbeat = self
             .heartbeat
@@ -291,13 +308,19 @@ impl Shard {
             .map(|heartbeat| heartbeat.sleep.as_mut());
         let hello = self.hello_deadline.as_mut().map(Pin::as_mut);
         let identify = self.identify_at.as_mut().map(Pin::as_mut);
+        let held = self
+            .held
+            .as_mut()
+            .filter(|_| active)
+            .map(|held| held.until.as_mut());
 
         let wake = tokio::select! {
             biased;
             () = optional_sleep(heartbeat) => Wake::Heartbeat,
             () = optional_sleep(hello) => Wake::HelloTimeout,
             () = optional_sleep(identify) => Wake::Identify,
-            Some(command) = self.commands_rx.recv(), if active => Wake::Command(command),
+            () = optional_sleep(held) => Wake::HeldCommandAllowed,
+            Some(command) = self.commands_rx.recv(), if receive_commands => Wake::Command(command),
             message = connection.next() => Wake::Message(message),
         };
 
@@ -312,7 +335,11 @@ impl Shard {
                 self.identify_at = None;
                 self.identify().await.err().map(Err)
             }
-            Wake::Command(json) => self.send(json).await.err().map(Err),
+            Wake::Command(json) => self.send_limited(json).await.err().map(Err),
+            Wake::HeldCommandAllowed => match self.held.take() {
+                Some(held) => self.send_limited(held.json).await.err().map(Err),
+                None => None,
+            },
             Wake::Message(None) => {
                 tracing::info!(shard = %self.id, "connection ended without a close frame, reconnecting");
                 self.disconnect(true).await;
@@ -591,6 +618,23 @@ impl Shard {
         self.send(json).await
     }
 
+    /// Sends a queued command if the send limit allows it, or holds it until it does.
+    async fn send_limited(&mut self, json: String) -> Result<(), ReceiveError> {
+        match self.send_limit.try_acquire(Instant::now()) {
+            Ok(()) => self.send(json).await,
+            Err(at) => {
+                tracing::debug!(shard = %self.id, "gateway send limit reached, holding queued commands");
+                self.held = Some(HeldCommand {
+                    json,
+                    until: Box::pin(sleep_until(at)),
+                });
+                Ok(())
+            }
+        }
+    }
+
+    /// Writes a payload, bypassing the send limit (used directly only for heartbeats, identify
+    /// and resume, which the limit leaves room for).
     async fn send(&mut self, json: String) -> Result<(), ReceiveError> {
         let Some(connection) = self.connection.as_mut() else {
             return Ok(());
@@ -628,6 +672,12 @@ impl Shard {
         self.hello_deadline = None;
         self.identify_at = None;
         self.state = ShardState::Disconnected;
+        // The send limit is per connection: a held command may go out as soon as the next
+        // session is active.
+        self.send_limit.clear();
+        if let Some(held) = self.held.as_mut() {
+            held.until.as_mut().reset(Instant::now());
+        }
     }
 }
 
@@ -663,11 +713,21 @@ fn parse(json: &str) -> (Option<u64>, Result<GatewayEvent, ReceiveError>) {
 
 /// Sends commands to a [`Shard`] from any task. Cheap to clone.
 ///
-/// Commands are queued and written by the shard once its session is active.
+/// Commands are queued and written by the shard, in order, once its session is active.
 ///
-/// **Note:** Phase 1 does not yet enforce the gateway send limit (120 commands per 60 s);
-/// sending faster gets the connection closed with `RateLimited` (it then resumes). This
-/// arrives in Phase 4.
+/// # Send limit
+///
+/// Discord accepts [120 payloads per connection every 60 seconds][limit] and disconnects a
+/// client that sends more. The shard therefore sends at most **115** queued commands in any
+/// 61-second span (one second of margin for network jitter); the rest wait in the queue and
+/// go out as soon as the limit allows, so [`command`](Self::command) never blocks or fails
+/// because of it. The remaining room is kept for heartbeats, identify and resume, which are
+/// never held back. A new connection starts with a fresh limit.
+///
+/// discord.js counterpart: `WebSocketShard#send` from `@discordjs/ws`, which paces payloads
+/// the same way.
+///
+/// [limit]: https://docs.discord.com/developers/events/gateway#rate-limiting
 #[derive(Clone, Debug)]
 pub struct MessageSender {
     tx: mpsc::UnboundedSender<String>,

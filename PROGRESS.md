@@ -9,8 +9,8 @@ D-041).
 **Phase 2 — full `djs-model` coverage: ✅ done** (D-039; benchmarks + stress tests done).
 **Phase 3 — full `djs-rest` coverage: ✅ done 2026-11-12** (every documented REST route, OAuth2,
 CDN URLs; benchmarks + extreme-load tests in `docs/PERFORMANCE.md`).
-**Next: Phase 4 — full `djs-gateway` coverage** (see "Next step" below; starts with owner
-decisions).
+**Phase 4 — full `djs-gateway` coverage: in progress** — step 1 (send limit) done; next is
+step 2, the IDENTIFY queue and sharding (see "Next step" below).
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-075 in `docs/DECISIONS.md`; Claude defaults C-001 …
@@ -244,8 +244,10 @@ decisions).
 Decisions taken 2026-11-12: D-140 (zlib-stream = `flate2` + `zlib-rs`), D-141 (shard factory
 + shared IDENTIFY queue, no djs-rest dependency), D-142 (commands over 120/60 s wait; heartbeats
 reserved), D-143 (order below). One commit per step:
-1. **Command send limit** (D-142) — in `crates/djs-gateway/src/shard.rs`: a 120-per-60 s window
-   per connection, with room reserved for heartbeats; queued commands go out when it allows.
+1. ✅ **Command send limit** (D-142, C-067) — `crates/djs-gateway/src/send_limit.rs`: sliding
+   window, 115 commands per 61 s per connection, held command in `Shard::held`; unit tests +
+   two mock-gateway tests. A real-time test over several windows (≈ 2–3 min, `#[ignore]`)
+   belongs to step 6.
 2. **IDENTIFY queue + sharding** (D-141).
 3. **Gateway commands**: presence update, request guild members, voice state update, request
    soundboard sounds (models exist in `djs_model::gateway`).

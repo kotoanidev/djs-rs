@@ -1907,6 +1907,21 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - `ImageFormat` and `ImageSize` are `#[non_exhaustive]`; `ImageSize::from_pixels` converts a
   number.
 
+### C-067 — Gateway send limit details (D-142)
+- A **sliding** window over the send times of the last commands (`send_limit.rs`), not a
+  counter reset every minute like @discordjs/ws: it never allows more than the limit in any
+  span, however Discord aligns its own window.
+- **115 commands per 61 s**: Discord's 120 per 60 s minus 5 payloads of room for heartbeats
+  (≤ 2 per minute at the usual 41.25 s interval), heartbeats Discord asks for and identify or
+  resume, which bypass the limit; plus one second of margin for network jitter.
+- One command at a time is taken from the queue and held while the window is full; the
+  queue waits behind it, so order is kept. A new connection clears the window and releases
+  a held command as soon as its session is active.
+- The mock-gateway tests use real time and check the hold and the reset; the window's
+  refilling is unit-tested. Tokio's paused clock cannot be used with real sockets: an I/O
+  wake-up during its zero-timeout park does not stop the clock from jumping ahead (tokio
+  1.54), which fired heartbeats and timeouts too early.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

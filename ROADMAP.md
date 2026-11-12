@@ -70,7 +70,8 @@ just with narrow scope.
 
 ## Phase 4 — `djs-gateway` full coverage (≈ @discordjs/ws)
 - [ ] zlib-stream feature, simd-json feature, zero-copy parsing where measurable
-- [ ] Gateway send rate limiting (120 / 60 s), identify concurrency (`max_concurrency`)
+- [x] Gateway send rate limiting (120 / 60 s; D-142, C-067)
+- [ ] Identify concurrency (`max_concurrency`)
 - [ ] In-process sharding manager (auto shard count, resharding)
 - [ ] Gateway commands: presence update, request guild members, voice state update,
       soundboard sounds
