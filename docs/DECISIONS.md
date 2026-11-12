@@ -1575,6 +1575,43 @@ and why.
 - **Alternatives:** the same names, the most common ones also in the prelude; Rust-style entry
   points on the model types (`Embed::builder()`).
 
+### D-186 — `EmbedBuilder` API: piece builders with shortcuts
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `EmbedBuilder::new()` with `title`, `url`, `description`, `color(u32)`,
+  `color_rgb(r, g, b)`, `author(…)`, `footer(…)`, `field(name, value)`,
+  `inline_field(name, value)`, `fields(iter)`, `image(url)`, `thumbnail(url)`,
+  `timestamp(ts)`, `timestamp_now()`, `build()` / `build_unchecked()`. The author and the
+  footer are either a plain text (`.author("Bot")`) or a small builder
+  (`EmbedAuthorBuilder::new("Bot").icon_url(…).url(…)`, `EmbedFooterBuilder::new(…)
+  .icon_url(…)`). `EmbedBuilder::from(embed)` starts from an existing (received) embed.
+- **Alternatives:** flat methods (`author_icon_url`, `footer_icon_url`, `field(n, v, inline)`);
+  the model types with `with_*` constructors as the pieces.
+
+### D-187 — Embed URLs: the scheme is checked, nothing more
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `build()` requires `http://` or `https://` for the title and author URLs and
+  also allows `attachment://` for images, the thumbnail and icons (the protocols discord.js
+  allows). The rest of the address is not parsed (no new dependency); Discord rejects a
+  malformed one with `50035`.
+- **Alternatives:** full parsing with the `url` crate; no URL checks.
+
+### D-188 — Empty texts and empty embeds: checked on the live API first
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** a one-off test with the owner's test bot, like D-184, sends embeds with an
+  empty or whitespace-only title, description, footer, author name, field name and field
+  value, an embed with no content and URLs with a wrong scheme; accepted messages are deleted
+  at once and the token stays in `.env`. `build()` then rejects exactly what Discord rejects.
+- **Alternatives:** follow discord.js (empty title / description / footer / author rejected,
+  empty field names and values allowed); no checks for empty texts.
+
+### D-189 — Message-wide embed limits: a function for the list
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `EmbedBuilder::build()` checks the 6000-character total of its own embed; the
+  crate also offers `embed_length(&Embed)` (discord.js: `embedLength`) and
+  `validate_embeds(&[Embed])` (total ≤ 6000, at most 10 embeds) for a whole message, to be
+  used by the Phase 8 message options.
+- **Alternatives:** only the per-embed check; a message builder now (scope change).
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
