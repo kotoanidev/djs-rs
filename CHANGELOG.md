@@ -8,6 +8,12 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- djs-rs `Client` cache (Phase 5 step 5, D-170–D-172): `ClientBuilder::cache(CacheConfig)`
+  (no cache by default), `Client::cache()` / `Context::cache()` → `Option<&Cache<B>>`, every
+  event applied to the cache before its handlers run, the configured sweeps run while logged
+  in, and `ClientBuilder::cache_backend` for a custom storage backend
+  (`Client<B = DashMapBackend>`, `Context<B>`). `djs_cache` is re-exported as
+  `djs_rs::cache`.
 - `djs-cache` sweeping (Phase 5 step 4, D-167–D-169): a `Cache::sweep_*` method with a
   filter for every resource, the presets `sweep_messages_older_than` and
   `sweep_archived_threads`, and `SweepConfig` / `Sweep` in `CacheConfig` (default: threads

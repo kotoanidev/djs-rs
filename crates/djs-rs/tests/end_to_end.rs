@@ -1,15 +1,32 @@
 //! End-to-end test of the vertical slice: `Client::login` fetches the gateway URL from a mock
 //! REST API, connects to a mock gateway, receives `!ping` and replies through REST.
 
+#[expect(
+    dead_code,
+    reason = "shared with the djs-model tests, which use other helpers"
+)]
+#[path = "../../djs-model/tests/common/payloads.rs"]
+mod payloads;
+
 use std::{
     convert::Infallible,
-    sync::{Arc, Mutex},
+    hash::Hash,
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicUsize, Ordering},
+    },
     time::Duration,
 };
 
 use bytes::Bytes;
 use djs_rs::{
-    Error, HandlerMode, Shards, event::Dispatch, gateway::Compression, prelude::*, rest::Rest,
+    Error, HandlerMode, Shards,
+    cache::{Backend, CacheConfig, DashMapStore, Limit, Resource, Sweep},
+    event::Dispatch,
+    gateway::Compression,
+    model::id::{ChannelId, GuildId, UserId},
+    prelude::*,
+    rest::Rest,
 };
 use futures_util::{SinkExt, StreamExt};
 use http_body_util::{BodyExt, Full};
@@ -303,13 +320,13 @@ async fn handler_errors_do_not_stop_the_client() {
         .compression(Compression::None)
         .build();
     let (ok_tx, mut ok_rx) = mpsc::unbounded_channel();
-    client.on(Events::MessageCreate, move |_ctx, msg| {
+    client.on(Events::MessageCreate, move |ctx, msg| {
         let ok_tx = ok_tx.clone();
         async move {
             if msg.content == "fail" {
                 return Err("handler failed on purpose".into());
             }
-            ok_tx.send(msg.id)?;
+            ok_tx.send((msg.id, ctx.cache().is_none()))?;
             Ok(())
         }
     });
@@ -318,8 +335,9 @@ async fn handler_errors_do_not_stop_the_client() {
         let client = client.clone();
         tokio::spawn(async move { client.login().await })
     };
-    let id = timeout(STEP, ok_rx.recv()).await.unwrap().unwrap();
+    let (id, no_cache) = timeout(STEP, ok_rx.recv()).await.unwrap().unwrap();
     assert_eq!(id.get(), 11);
+    assert!(no_cache, "a client has no cache unless configured (D-170)");
     client.shutdown();
     timeout(STEP, running).await.unwrap().unwrap().unwrap();
     gateway.await.unwrap();
@@ -530,4 +548,215 @@ async fn next_op(ws: &mut tokio_websockets::WebSocketStream<TcpStream>, op: u64)
             }
         }
     }
+}
+
+/// The mock `GUILD_CREATE` of [`payloads::GUILD`]: 3 members, 2 channels and 2 roles.
+fn guild_create(sequence: u64) -> Value {
+    serde_json::from_str(&payloads::guild_create(sequence, 3, 0, 2, 2)).unwrap()
+}
+
+const GUILD: GuildId = GuildId::new(payloads::GUILD);
+
+#[tokio::test]
+async fn the_cache_is_filled_before_handlers_run() {
+    let gateway = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let gateway_url = format!("ws://{}", gateway.local_addr().unwrap());
+    let gateway = tokio::spawn(mock_gateway(
+        gateway,
+        vec![guild_create(2), message_create(3, "11", "hello")],
+    ));
+
+    let config = CacheConfig::builder()
+        .members(Limit::Unlimited)
+        .messages(Limit::Max(10))
+        .build();
+    let client = Client::builder("test-token")
+        .intents(Intents::GUILDS | Intents::GUILD_MEMBERS | Intents::GUILD_MESSAGES)
+        .gateway_url(gateway_url)
+        .shards(Shards::Count(1))
+        .compression(Compression::None)
+        .cache(config)
+        .build();
+    assert_eq!(client.cache().unwrap().guilds().len(), 0);
+
+    let (seen_tx, mut seen_rx) = mpsc::unbounded_channel();
+    client.on(Events::MessageCreate, move |ctx, msg| {
+        let seen_tx = seen_tx.clone();
+        async move {
+            let cache = ctx.cache().ok_or("no cache")?;
+            seen_tx.send((
+                cache.current_user().map(|user| user.id),
+                cache
+                    .guilds()
+                    .get(GUILD)
+                    .map(|guild| guild.name.to_string()),
+                cache.members(GUILD).len(),
+                cache
+                    .messages(ChannelId::new(20))
+                    .get(msg.id)
+                    .map(|message| message.content.to_string()),
+            ))?;
+            Ok(())
+        }
+    });
+
+    let running = {
+        let client = client.clone();
+        tokio::spawn(async move { client.login().await })
+    };
+    let seen = timeout(STEP, seen_rx.recv()).await.unwrap().unwrap();
+    assert_eq!(
+        seen,
+        (
+            Some(UserId::new(1)),
+            Some("Big Guild".to_owned()),
+            3,
+            Some("hello".to_owned()),
+        )
+    );
+
+    // The client and every context share one cache.
+    let cache = client.cache().unwrap();
+    assert_eq!(cache.channels().in_guild(GUILD).len(), 2);
+    assert_eq!(cache.roles(GUILD).len(), 2);
+
+    client.shutdown();
+    timeout(STEP, running).await.unwrap().unwrap().unwrap();
+    gateway.await.unwrap();
+    // The cache outlives the session.
+    assert_eq!(client.cache().unwrap().guilds().len(), 1);
+}
+
+/// The default stores, counting how many the cache creates.
+#[derive(Debug, Default)]
+struct CountingBackend {
+    stores: AtomicUsize,
+}
+
+impl Backend for CountingBackend {
+    type Store<K, V>
+        = DashMapStore<K, V>
+    where
+        K: Eq + Hash + Copy + Send + Sync + 'static,
+        V: Send + Sync + 'static;
+
+    fn store<K, V>(&self, _resource: Resource, _limit: Limit) -> DashMapStore<K, V>
+    where
+        K: Eq + Hash + Copy + Send + Sync + 'static,
+        V: Send + Sync + 'static,
+    {
+        self.stores.fetch_add(1, Ordering::Relaxed);
+        DashMapStore::new()
+    }
+}
+
+#[tokio::test]
+async fn a_custom_backend_works_through_the_client() {
+    let gateway = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let gateway_url = format!("ws://{}", gateway.local_addr().unwrap());
+    let gateway = tokio::spawn(mock_gateway(
+        gateway,
+        vec![guild_create(2), message_create(3, "11", "hello")],
+    ));
+
+    // Choosing a backend enables the cache, with the default configuration.
+    let client: Client<CountingBackend> = Client::builder("test-token")
+        .intents(Intents::GUILDS | Intents::GUILD_MESSAGES)
+        .gateway_url(gateway_url)
+        .shards(Shards::Count(1))
+        .compression(Compression::None)
+        .cache_backend(CountingBackend::default())
+        .build();
+    let cache = client.cache().unwrap();
+    assert_eq!(cache.config(), &CacheConfig::default());
+    // Guilds, channels and roles.
+    assert_eq!(cache.backend().stores.load(Ordering::Relaxed), 3);
+
+    let (seen_tx, mut seen_rx) = mpsc::unbounded_channel();
+    client.on(
+        Events::MessageCreate,
+        move |ctx: Context<CountingBackend>, msg| {
+            let seen_tx = seen_tx.clone();
+            async move {
+                let cache = ctx.cache().ok_or("no cache")?;
+                seen_tx.send((
+                    cache.guilds().contains(GUILD),
+                    cache.messages(msg.channel_id).len(),
+                ))?;
+                Ok(())
+            }
+        },
+    );
+    let running = {
+        let client = client.clone();
+        tokio::spawn(async move { client.login().await })
+    };
+    // The guild is cached; messages are not by default.
+    assert_eq!(
+        timeout(STEP, seen_rx.recv()).await.unwrap().unwrap(),
+        (true, 0)
+    );
+    client.shutdown();
+    timeout(STEP, running).await.unwrap().unwrap().unwrap();
+    gateway.await.unwrap();
+}
+
+#[tokio::test]
+async fn the_client_runs_the_configured_sweeps() {
+    let gateway = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let gateway_url = format!("ws://{}", gateway.local_addr().unwrap());
+    let mut old = message_create(2, "11", "old");
+    old["d"]["timestamp"] = json!("2015-05-15T00:00:00.000000+00:00");
+    let gateway = tokio::spawn(mock_gateway(gateway, vec![old]));
+
+    let config = CacheConfig::builder()
+        .messages(Limit::Unlimited)
+        .sweep_messages(Some(Sweep::new(
+            Duration::from_millis(20),
+            Duration::from_secs(3_600),
+        )))
+        .build();
+    let client = Client::builder("test-token")
+        .intents(Intents::GUILD_MESSAGES)
+        .gateway_url(gateway_url)
+        .shards(Shards::Count(1))
+        .compression(Compression::None)
+        .cache(config)
+        .build();
+    let mut events = client.events();
+    let running = {
+        let client = client.clone();
+        tokio::spawn(async move { client.login().await })
+    };
+
+    // Subscribers get an event after the cache has it; the sweep then removes the message.
+    for name in ["READY", "MESSAGE_CREATE"] {
+        let event = timeout(STEP, events.next()).await.unwrap().unwrap();
+        assert_eq!(event.event.name(), name);
+    }
+    let messages = || client.cache().unwrap().messages(ChannelId::new(20)).len();
+    timeout(STEP, async {
+        while messages() != 0 {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .expect("the message sweep never ran");
+
+    // Shutting down stops the sweeps along with the shards.
+    client.shutdown();
+    timeout(STEP, running).await.unwrap().unwrap().unwrap();
+    gateway.await.unwrap();
+}
+
+#[test]
+fn a_client_has_no_cache_unless_configured() {
+    assert!(Client::builder("test-token").build().cache().is_none());
+    let client = Client::builder("test-token")
+        .cache(CacheConfig::discord_js())
+        .build();
+    assert_eq!(
+        client.cache().unwrap().config().limit(Resource::Message),
+        Limit::Max(200)
+    );
 }

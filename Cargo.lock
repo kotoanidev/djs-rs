@@ -261,6 +261,7 @@ name = "djs-rs"
 version = "0.0.0"
 dependencies = [
  "bytes",
+ "djs-cache",
  "djs-gateway",
  "djs-model",
  "djs-rest",

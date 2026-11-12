@@ -25,6 +25,10 @@ pub use djs_rest as rest;
 /// The gateway client — re-export of [`djs_gateway`].
 pub use djs_gateway as gateway;
 
+/// The in-memory cache — re-export of [`djs_cache`]. Enable it with
+/// [`ClientBuilder::cache`].
+pub use djs_cache as cache;
+
 /// The most commonly used items, for a single glob import:
 ///
 /// ```

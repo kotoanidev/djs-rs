@@ -86,6 +86,8 @@ just with narrow scope.
 - [x] Sweepers (≈ `sweepers` option; D-167–D-169). Partials are a Phase 8 (`djs-rs`) concern
 - [x] Event → cache update logic for every dispatch event that carries cacheable state
       (D-160–D-166, C-074, C-075)
+- [x] djs-rs `Client` integration: opt-in cache, filled before handlers, sweeps run by the
+      client, custom backends (D-170–D-172, C-077)
 - [ ] Memory/size tests, benchmarks
 
 ## Phase 6 — `djs-builders` (≈ @discordjs/builders)

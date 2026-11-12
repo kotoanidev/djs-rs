@@ -14,6 +14,8 @@ use djs_model::{
     rest::CreateMessage,
 };
 
+use djs_cache::Backend;
+
 use crate::Context;
 
 /// Actions on a [`Message`].
@@ -45,17 +47,17 @@ pub trait MessageExt: sealed::Sealed {
     ///     Ok(())
     /// });
     /// ```
-    fn reply(
+    fn reply<B: Backend>(
         &self,
-        ctx: &Context,
+        ctx: &Context<B>,
         body: impl Into<CreateMessage>,
     ) -> impl Future<Output = Result<Message, djs_rest::Error>> + Send;
 }
 
 impl MessageExt for Message {
-    fn reply(
+    fn reply<B: Backend>(
         &self,
-        ctx: &Context,
+        ctx: &Context<B>,
         body: impl Into<CreateMessage>,
     ) -> impl Future<Output = Result<Message, djs_rest::Error>> + Send {
         let mut body = body.into();

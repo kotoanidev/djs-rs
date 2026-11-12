@@ -2,10 +2,11 @@
 
 Configurable, pluggable in-memory cache for Discord entities.
 
-> **Status:** pre-alpha, Phase 5 step 3 — every resource is cached from its gateway events
+> **Status:** pre-alpha, Phase 5 step 5 — every resource is cached from its gateway events
 > (guilds, channels, threads, roles, emojis, stickers, members, users, messages with their
 > reactions, presences, voice states, scheduled events, stage instances, soundboard sounds and
-> the current user), and can be swept.
+> the current user) and can be swept; the djs-rs `Client` keeps one when configured with
+> `ClientBuilder::cache`.
 > Track progress in the [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
 
 **discord.js counterpart:** the caching layer inside `discord.js` (the managers' `cache`

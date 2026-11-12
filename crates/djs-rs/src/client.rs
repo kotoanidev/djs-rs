@@ -12,6 +12,7 @@ use std::{
     sync::{Arc, Mutex, MutexGuard, PoisonError, RwLock},
 };
 
+use djs_cache::{Backend, Cache, CacheConfig, DashMapBackend};
 use djs_gateway::{
     Compression, Config, LocalIdentifyQueue, MessageSender, SendError, Shard, create_shards,
 };
@@ -21,6 +22,7 @@ use futures_core::Stream;
 use tokio::{
     sync::{mpsc, watch},
     task::JoinSet,
+    time::{Instant, MissedTickBehavior},
 };
 
 use crate::{
@@ -81,7 +83,12 @@ pub enum Shards {
 /// A Discord bot client: connects to the gateway, keeps the session alive and dispatches events
 /// to registered handlers.
 ///
-/// Cheap to [`Clone`]; clones share the same handlers and connection.
+/// Cheap to [`Clone`]; clones share the same handlers, connection and cache.
+///
+/// The client keeps a [`Cache`] only when one is configured with [`ClientBuilder::cache`]
+/// (D-170); unlike discord.js, a bot that does not need one pays nothing for it. `B` is the
+/// cache's storage [`Backend`] (D-172): code that does not name it gets [`DashMapBackend`],
+/// and [`ClientBuilder::cache_backend`] picks another.
 ///
 /// discord.js counterpart: `Client`.
 ///
@@ -111,12 +118,11 @@ pub enum Shards {
 ///     client.login().await
 /// }
 /// ```
-#[derive(Clone)]
-pub struct Client {
-    inner: Arc<Inner>,
+pub struct Client<B: Backend = DashMapBackend> {
+    inner: Arc<Inner<B>>,
 }
 
-struct Inner {
+struct Inner<B: Backend> {
     token: Box<str>,
     intents: Intents,
     rest: Rest,
@@ -125,20 +131,30 @@ struct Inner {
     shards: Shards,
     presence: Option<UpdatePresence>,
     mode: HandlerMode,
+    cache: Option<Arc<Cache<B>>>,
     /// The senders of the running shards (empty while not running).
     senders: Mutex<Vec<MessageSender>>,
-    registry: RwLock<Arc<Registry>>,
+    registry: RwLock<Arc<Registry<B>>>,
     subscribers: Mutex<Vec<mpsc::UnboundedSender<ShardEvent>>>,
     has_subscribers: AtomicBool,
     running: AtomicBool,
     shutdown: watch::Sender<bool>,
 }
 
-impl core::fmt::Debug for Client {
+impl<B: Backend> Clone for Client<B> {
+    fn clone(&self) -> Self {
+        Self {
+            inner: Arc::clone(&self.inner),
+        }
+    }
+}
+
+impl<B: Backend> core::fmt::Debug for Client<B> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("Client")
             .field("intents", &self.inner.intents)
             .field("mode", &self.inner.mode)
+            .field("cache", &self.inner.cache)
             .field("running", &self.inner.running.load(Ordering::Relaxed))
             .finish_non_exhaustive()
     }
@@ -156,9 +172,13 @@ impl Client {
             shards: Shards::default(),
             presence: None,
             mode: HandlerMode::default(),
+            cache: None,
+            backend: DashMapBackend::new(),
         }
     }
+}
 
+impl<B: Backend> Client<B> {
     /// Registers a handler for an event.
     ///
     /// The handler receives a [`Context`] and the event payload behind an [`Arc`] (shared by all
@@ -183,11 +203,11 @@ impl Client {
     pub fn on<E, F, Fut>(&self, event: E, handler: F) -> &Self
     where
         E: Event,
-        F: Fn(Context, Arc<E::Payload>) -> Fut + Send + Sync + 'static,
+        F: Fn(Context<B>, Arc<E::Payload>) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = Result<(), HandlerError>> + Send + 'static,
     {
         let _ = event;
-        let handler: Arc<dyn ErasedHandler> = Arc::new(Handler::<E, F>::new(handler));
+        let handler: Arc<dyn ErasedHandler<B>> = Arc::new(Handler::<E, F>::new(handler));
         let mut registry = self
             .inner
             .registry
@@ -233,6 +253,37 @@ impl Client {
     #[must_use]
     pub fn rest(&self) -> &Rest {
         &self.inner.rest
+    }
+
+    /// Returns the cache, or `None` if the client was built without one (the default, D-170).
+    ///
+    /// Every event is applied to the cache before its handlers run (D-171), so a handler sees
+    /// the state after its event. Handlers reach the cache through [`Context::cache`] too.
+    ///
+    /// discord.js counterpart: the managers' `cache` collections (`client.guilds.cache`,
+    /// `client.users.cache`, …), which always exist there.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use djs_rs::{cache::CacheConfig, prelude::*};
+    ///
+    /// let client = Client::builder("token")
+    ///     .intents(Intents::GUILDS)
+    ///     .cache(CacheConfig::default())
+    ///     .build();
+    ///
+    /// client.on(Events::MessageCreate, |ctx, msg| async move {
+    ///     let cache = ctx.cache().expect("the client has a cache");
+    ///     if let Some(guild) = msg.guild_id.and_then(|id| cache.guilds().get(id)) {
+    ///         println!("a message in {}", guild.name);
+    ///     }
+    ///     Ok(())
+    /// });
+    /// ```
+    #[must_use]
+    pub fn cache(&self) -> Option<&Cache<B>> {
+        self.inner.cache.as_deref()
     }
 
     /// Connects to Discord and processes events until [`shutdown`](Self::shutdown) is called or
@@ -347,6 +398,7 @@ impl Client {
         }
         let config = config.build();
 
+        let mut sweepers = self.spawn_sweepers();
         let mut tasks = JoinSet::new();
         for shard in create_shards(plan.range, plan.total, config) {
             lock(&inner.senders).push(shard.sender());
@@ -374,7 +426,31 @@ impl Client {
             }
         }
         lock(&inner.senders).clear();
+        sweepers.shutdown().await;
         result
+    }
+
+    /// Spawns one task for each periodic sweep of the cache's [`SweepConfig`](djs_cache::SweepConfig)
+    /// (D-167). The tasks run until the returned set is shut down or dropped.
+    fn spawn_sweepers(&self) -> JoinSet<()> {
+        let mut tasks = JoinSet::new();
+        let Some(cache) = &self.inner.cache else {
+            return tasks;
+        };
+        let sweepers = cache.config().sweepers();
+        if let Some(sweep) = sweepers.messages {
+            let cache = Arc::clone(cache);
+            tasks.spawn(every(sweep.interval, "messages", move || {
+                cache.sweep_messages_older_than(sweep.lifetime)
+            }));
+        }
+        if let Some(sweep) = sweepers.threads {
+            let cache = Arc::clone(cache);
+            tasks.spawn(every(sweep.interval, "threads", move || {
+                cache.sweep_archived_threads(sweep.lifetime)
+            }));
+        }
+        tasks
     }
 
     /// Drives one shard until shutdown or a fatal error.
@@ -383,7 +459,12 @@ impl Client {
         mut shard: Shard,
         mut shutdown: watch::Receiver<bool>,
     ) -> Result<(), Error> {
-        let ctx = Context::new(self.inner.rest.clone(), shard.id(), shard.sender());
+        let ctx = Context::new(
+            self.inner.rest.clone(),
+            shard.id(),
+            shard.sender(),
+            self.inner.cache.clone(),
+        );
         loop {
             tokio::select! {
                 biased;
@@ -450,8 +531,13 @@ impl Client {
         })
     }
 
-    async fn dispatch(&self, ctx: &Context, event: DispatchEvent) {
+    async fn dispatch(&self, ctx: &Context<B>, event: DispatchEvent) {
         let inner = &*self.inner;
+        // Handlers see the state after their event (D-171); the previous state reaches them
+        // in Phase 8.
+        if let Some(cache) = &inner.cache {
+            drop(cache.update_dispatch(&event));
+        }
         let dispatch = match event {
             DispatchEvent::MessageCreate(message) => Dispatch::MessageCreate(Arc::from(message)),
             DispatchEvent::Ready(ready) => Dispatch::Ready(Arc::from(ready)),
@@ -502,6 +588,27 @@ impl Client {
     }
 }
 
+/// Runs `sweep` every `period`, first after one `period`, logging what it swept as `resource`.
+///
+/// A zero period disables the sweep (it would run without pause); a period too long to
+/// schedule never runs.
+async fn every(period: Duration, resource: &'static str, sweep: impl Fn() -> usize) {
+    if period.is_zero() {
+        tracing::warn!(resource, "a cache sweep with a zero interval is disabled");
+        return;
+    }
+    let Some(start) = Instant::now().checked_add(period) else {
+        return;
+    };
+    let mut interval = tokio::time::interval_at(start, period);
+    interval.set_missed_tick_behavior(MissedTickBehavior::Delay);
+    loop {
+        interval.tick().await;
+        let swept = sweep();
+        tracing::debug!(resource, swept, "swept the cache");
+    }
+}
+
 /// What [`Client::login`] starts: the gateway URL, the shards and the identify concurrency.
 struct Plan {
     url: String,
@@ -512,10 +619,12 @@ struct Plan {
 
 /// Configures and builds a [`Client`]. Created by [`Client::builder`].
 ///
+/// `B` is the cache backend (D-172), switched with [`cache_backend`](Self::cache_backend).
+///
 /// discord.js counterpart: `ClientOptions`.
 #[derive(Debug)]
 #[must_use = "a builder does nothing until `build` is called"]
-pub struct ClientBuilder {
+pub struct ClientBuilder<B: Backend = DashMapBackend> {
     token: String,
     intents: Intents,
     rest: Option<Rest>,
@@ -524,9 +633,11 @@ pub struct ClientBuilder {
     shards: Shards,
     presence: Option<UpdatePresence>,
     mode: HandlerMode,
+    cache: Option<CacheConfig>,
+    backend: B,
 }
 
-impl ClientBuilder {
+impl<B: Backend> ClientBuilder<B> {
     /// Sets the gateway intents — the groups of events to receive (default: none).
     ///
     /// Only request what the bot needs. Privileged intents
@@ -618,10 +729,82 @@ impl ClientBuilder {
         self
     }
 
+    /// Gives the client a [`Cache`] configured by `config` (default: no cache, D-170).
+    ///
+    /// The client applies every event to the cache before running its handlers (D-171), and
+    /// runs the periodic sweeps of [`CacheConfig::sweepers`] while it is logged in. Read it
+    /// with [`Client::cache`] and [`Context::cache`]. What the cache can fill depends on the
+    /// [intents](Self::intents): members need [`Intents::GUILD_MEMBERS`], presences
+    /// [`Intents::GUILD_PRESENCES`], messages [`Intents::GUILD_MESSAGES`] or
+    /// [`Intents::DIRECT_MESSAGES`], and so on.
+    ///
+    /// discord.js counterpart: the `makeCache` and `sweepers` client options. discord.js
+    /// always caches; [`CacheConfig::discord_js`] caches what it caches by default.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use djs_rs::{
+    ///     Client,
+    ///     cache::{CacheConfig, Limit, Resource},
+    ///     model::gateway::Intents,
+    /// };
+    ///
+    /// let config = CacheConfig::builder()
+    ///     .members(Limit::Unlimited)
+    ///     .messages(Limit::Max(50))
+    ///     .build();
+    /// let client = Client::builder("my-token")
+    ///     .intents(Intents::GUILDS | Intents::GUILD_MEMBERS | Intents::GUILD_MESSAGES)
+    ///     .cache(config)
+    ///     .build();
+    /// let cache = client.cache().unwrap();
+    /// assert!(cache.config().is_enabled(Resource::Member));
+    /// assert!(!cache.config().is_enabled(Resource::Presence));
+    /// ```
+    pub fn cache(mut self, config: CacheConfig) -> Self {
+        self.cache = Some(config);
+        self
+    }
+
+    /// Keeps the cache in stores created by `backend` instead of the default
+    /// [`DashMapBackend`] (D-172), and enables the cache: with
+    /// [`CacheConfig::default`] unless [`cache`](Self::cache) is called too (in any order).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use djs_rs::{Client, cache::DashMapBackend};
+    ///
+    /// // Any `djs_cache::Backend` works; this is the default one, named explicitly.
+    /// let client: Client<DashMapBackend> = Client::builder("my-token")
+    ///     .cache_backend(DashMapBackend::new())
+    ///     .build();
+    /// assert!(client.cache().is_some());
+    /// ```
+    pub fn cache_backend<C: Backend>(self, backend: C) -> ClientBuilder<C> {
+        ClientBuilder {
+            token: self.token,
+            intents: self.intents,
+            rest: self.rest,
+            compression: self.compression,
+            gateway_url: self.gateway_url,
+            shards: self.shards,
+            presence: self.presence,
+            mode: self.mode,
+            cache: Some(self.cache.unwrap_or_default()),
+            backend,
+        }
+    }
+
     /// Builds the client. It does not connect until [`Client::login`] is called.
     #[must_use]
-    pub fn build(self) -> Client {
+    pub fn build(self) -> Client<B> {
         let rest = self.rest.unwrap_or_else(|| Rest::new(self.token.clone()));
+        let backend = self.backend;
+        let cache = self
+            .cache
+            .map(|config| Arc::new(Cache::with_backend(config, backend)));
         Client {
             inner: Arc::new(Inner {
                 token: self.token.into_boxed_str(),
@@ -632,6 +815,7 @@ impl ClientBuilder {
                 shards: self.shards,
                 presence: self.presence,
                 mode: self.mode,
+                cache,
                 senders: Mutex::new(Vec::new()),
                 registry: RwLock::new(Arc::new(Registry::default())),
                 subscribers: Mutex::new(Vec::new()),
@@ -663,5 +847,22 @@ impl Stream for EventStream {
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut TaskContext<'_>) -> Poll<Option<ShardEvent>> {
         self.rx.poll_recv(cx)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use core::time::Duration;
+
+    use super::every;
+
+    #[tokio::test]
+    async fn sweeps_that_cannot_be_scheduled_return_at_once() {
+        for period in [Duration::ZERO, Duration::MAX] {
+            let sweep = every(period, "test", || unreachable!("must not sweep"));
+            tokio::time::timeout(Duration::from_secs(5), sweep)
+                .await
+                .unwrap();
+        }
     }
 }

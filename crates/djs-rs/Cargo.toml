@@ -24,12 +24,13 @@ zlib-stream = ["djs-gateway/zlib-stream"]
 native-roots = ["djs-gateway/native-roots", "djs-rest/native-roots"]
 
 [dependencies]
+djs-cache.workspace = true
 djs-gateway.workspace = true
 djs-model.workspace = true
 djs-rest.workspace = true
 futures-core.workspace = true
 thiserror.workspace = true
-tokio = { workspace = true, features = ["rt", "sync", "macros"] }
+tokio = { workspace = true, features = ["rt", "sync", "macros", "time"] }
 tracing = { workspace = true, features = ["std"] }
 
 [dev-dependencies]

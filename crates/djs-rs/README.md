@@ -2,9 +2,9 @@
 
 A high-performance, discord.js-style framework for building Discord bots in Rust.
 
-> **Status:** pre-alpha. Phase 1 (vertical slice) delivers a working end-to-end bot: client,
-> typed events, replies. The full discord.js surface arrives in later phases — see the
-> [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
+> **Status:** pre-alpha. A working end-to-end bot: client with automatic sharding, typed
+> events, replies, presence and an optional cache. The full discord.js surface arrives in
+> later phases — see the [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
 
 **discord.js counterpart:** `discord.js`
 
@@ -46,6 +46,7 @@ A runnable version lives in [`examples/ping.rs`](https://github.com/kotoanidev/d
 | Discord API types | `djs-model` | `djs_rs::model` |
 | REST client | `djs-rest` | `djs_rs::rest` |
 | Gateway | `djs-gateway` | `djs_rs::gateway` |
+| Cache | `djs-cache` | `djs_rs::cache` |
 
 Handlers run concurrently in their own tokio tasks by default (like discord.js); switch to
 `HandlerMode::Sequential` for strictly ordered processing. If you prefer an explicit loop,
@@ -54,6 +55,43 @@ Handlers run concurrently in their own tokio tasks by default (like discord.js);
 Structures stay plain data; behaviour such as `msg.reply(&ctx, …)` comes from extension traits
 in the prelude that take the handler `Context` explicitly — no client reference is stored in
 every structure.
+
+## The cache
+
+Unlike discord.js, the client keeps a cache only when asked to: a bot that does not read it
+pays nothing for it. `ClientBuilder::cache` takes a `CacheConfig` choosing what to keep
+(by default guilds, channels and roles; `CacheConfig::discord_js()` keeps what discord.js
+keeps). Every event is applied to the cache before its handlers run, and the client runs the
+configured periodic sweeps while it is logged in.
+
+```rust,no_run
+use djs_rs::{
+    cache::{CacheConfig, Limit},
+    prelude::*,
+};
+
+#[tokio::main]
+async fn main() -> Result<(), djs_rs::Error> {
+    let client = Client::builder(std::env::var("DISCORD_TOKEN").unwrap())
+        .intents(Intents::GUILDS | Intents::GUILD_MEMBERS | Intents::GUILD_MESSAGES)
+        .cache(CacheConfig::builder().members(Limit::Unlimited).build())
+        .build();
+
+    client.on(Events::MessageCreate, |ctx, msg| async move {
+        let cache = ctx.cache().expect("the client has a cache");
+        if let Some(member) = msg.guild_id.and_then(|id| cache.members(id).get(msg.author.id)) {
+            println!("{} wrote a message", member.display_name());
+        }
+        Ok(())
+    });
+
+    client.login().await
+}
+```
+
+The cache's storage is pluggable: `ClientBuilder::cache_backend` takes any
+`djs_rs::cache::Backend`, and the client's type follows it (`Client<MyBackend>`); code that
+does not name a backend uses the default `DashMapBackend`.
 
 ## Performance: the global allocator
 

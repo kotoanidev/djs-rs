@@ -13,7 +13,8 @@ CDN URLs; benchmarks + extreme-load tests in `docs/PERFORMANCE.md`).
 sharding, presence, zlib-stream, JSON parsers measured; benchmarks + extreme-load tests and a
 `perf`-profiled A/B in `docs/PERFORMANCE.md`). Left open on purpose: zero-copy parsing (no
 measured need after D-150) and resharding while running (open question).
-**Next: Phase 5 — `djs-cache`** (needs the owner's decisions first, see "Next step").
+**Phase 5 — `djs-cache`: in progress** — steps 1–5 done (cache, resources, sweeps, `Client`
+integration); next: step 6, benchmarks + extreme-load tests (see "Next step").
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-075 in `docs/DECISIONS.md`; Claude defaults C-001 …
@@ -297,12 +298,19 @@ user), D-153 (updates return the previous state), D-154 (order below), D-155–D
 4. ✅ Sweepers (D-167–D-169, C-076): `Sweep` / `SweepConfig` in `config.rs`, `Global::sweep`
    / `Scoped::sweep` in `limits.rs`, `Cache::sweep_*` (+ `sweep_per_guild!`) in `cache.rs`;
    tests `crates/djs-cache/tests/sweep.rs`.
-5. **Next: the djs-rs `Client` integration.** Decided: D-170 (cache only on request,
-   `ClientBuilder::cache(CacheConfig)`, `client.cache()` / `ctx.cache()` →
-   `Option<&Cache<B>>`), D-171 (cache updated before handlers; old/new for handlers in Phase
-   8), D-172 (`Client<B = DashMapBackend>`, `ClientBuilder::cache_backend`). Sweeps: one tokio
-   task per configured sweep, stopped on shutdown.
-6. Benchmarks + extreme-load tests (D-041), re-run `docs/VS_NODE.md`.
+5. ✅ djs-rs `Client` integration (D-170–D-172, C-077): `Client<B = DashMapBackend>`,
+   `ClientBuilder<B>` (`cache`, `cache_backend`), `Context<B>` (`cache()`), generic
+   `ErasedHandler<B>` / `Registry<B>` (`handler.rs`), `MessageExt::reply<B>`; `Client::dispatch`
+   calls `cache.update_dispatch` first; `Client::spawn_sweepers` + `every` (one task per
+   sweep, shut down when `login` returns); `djs_rs::cache` re-export. Tests in
+   `crates/djs-rs/tests/end_to_end.rs` (cache filled before handlers, custom
+   `CountingBackend`, sweeps run, no cache by default) and a unit test in `client.rs`.
+6. **Next: benchmarks + extreme-load tests (D-041)** for djs-cache: event → cache update
+   throughput per resource (benches in `crates/djs-cache/benches/`), concurrent readers +
+   writers, memory per cached guild/member/message (size tests), the foldhash vs SipHash claim
+   (D-158), the cost of copying events into the cache (D-161), the djs-rs `Client` with and
+   without a cache (stress test like `crates/djs-rs/tests/stress.rs`), and a re-run of
+   `docs/VS_NODE.md` (discord.js caches by default). Then mark Phase 5 done.
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON
   body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").
 

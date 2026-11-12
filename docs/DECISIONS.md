@@ -2346,6 +2346,26 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   `Cache::{sweep_archived_threads, sweep_messages_older_than}`. `CacheConfig`'s `Debug` now
   prints `CacheConfig { limits: {…}, sweepers: … }`.
 
+### C-077 — Client cache details (Phase 5, step 5)
+- `ClientBuilder::cache_backend(backend)` also enables the cache, with
+  `CacheConfig::default()` unless `ClientBuilder::cache` is called too (in either order):
+  choosing a backend is a request for a cache, and a silently unused backend would be a trap.
+- The previous state returned by `Cache::update_dispatch` is dropped until Phase 8 (D-171).
+  The update runs on the shard's task, before subscribers (`client.events()`) and handlers
+  see the event.
+- Sweeps: `login` spawns one tokio task per configured `Sweep` after planning the shards; the
+  first run is one interval after the start, missed ticks are delayed
+  (`MissedTickBehavior::Delay`), and the sweep runs on a runtime worker (no `spawn_blocking`;
+  discord.js sweeps on its only thread). The tasks are stopped and awaited before `login`
+  returns. A zero interval disables the sweep with a `warn` log (it would loop without
+  pause); an interval too long to schedule never runs. Swept counts are logged at `debug`.
+- The cache belongs to the client, not to a session: `shutdown` does not clear it, and a
+  later `login` refills it from `READY` / `GUILD_CREATE` (entries removed while offline stay
+  until swept or deleted).
+- `djs_cache` is re-exported as `djs_rs::cache` (like `model`, `rest`, `gateway`); the prelude
+  is unchanged. `Client`'s `Debug` shows the cache. djs-rs enables tokio's `time` feature for
+  the sweep intervals (already used by djs-gateway).
+
 ---
 
 ## Open questions (to ask the owner when relevant)
