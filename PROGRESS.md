@@ -21,8 +21,8 @@ a lock-free backend (D-176), resolved roles/messages of interactions (open quest
 components incl. Components V2, and modals, with rules measured on the live API where Discord
 allows it; benchmarks + extreme-load tests in `docs/PERFORMANCE.md`). Left open: removing
 parts with the builders (open question), a container walked twice by `validate_components`.
-**Phase 7 — small standalone crates: not started** — the owner's decisions come first (see
-"Next step").
+**Phase 7 — small standalone crates: in progress** (D-208–D-211 decided; `djs-formatters` next,
+see "Next step").
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-075 in `docs/DECISIONS.md`; Claude defaults C-001 …
@@ -383,18 +383,21 @@ labels only; rows of text inputs rejected). Steps:
    fingerprinted stack set (−35–43 %, no allocation).
 
 ## Next step — Phase 7 (small standalone crates, ROADMAP)
-Nothing decided yet. **Ask the owner first** (AskUserQuestion, in Polish, with a recommended
-option), at least:
-- the order of the three crates (`djs-collection`, `djs-formatters`, `djs-util`);
-- `Collection<K, V>`: discord.js' `Collection` extends the insertion-ordered JS `Map` — keep
-  insertion order (needs `indexmap`, a new dependency, or an own ordered map) or not; which
-  of its ~40 methods to offer and under which names (Rust iterator conventions vs discord.js
-  names); whether `djs-cache` should return it;
-- `djs-formatters`: free functions returning `String` vs `Display` types that format without
-  allocating; which formatters (mentions, timestamps, markdown, escaping, links);
-- `djs-util`: what goes there (only helpers other crates need, per the ROADMAP).
-Record the answers as D-208+, then implement crate by crate, each with tests, docs,
-benchmarks + extreme-load tests (D-041).
+Decided 2026-11-12: D-208 (order: `djs-formatters`, then `djs-collection`; `djs-util` only
+as needed), D-209 (`Collection` on `indexmap`, insertion order), D-210 (`Collection` API:
+discord.js names where they fit + Rust traits; no `each`/`reduce`/`some`/`every`), D-211
+(formatters return `Display` types, mentions take `djs-model` IDs, escaping returns
+`Cow<str>`). Steps:
+1. **Next:** `djs-formatters` — mentions (user, channel, role, linked role, slash command),
+   emoji, timestamps with `TimestampStyle`, markdown (bold, italic, underline,
+   strikethrough, spoiler, inline code, code blocks, quotes, headings, lists, subtext, links,
+   hyperlinks, hidden embeds), channel / message links, escaping (`escape_markdown` with
+   options, and the single escapers) — compare with
+   `.reference/discord.js-v14/packages/formatters/src/` for behaviour (D-004: write from
+   scratch). Tests, README, then benchmarks + extreme-load tests (D-041).
+2. `djs-collection` (D-209, D-210): ask before deciding anything not covered (for example
+   whether `djs-cache` returns it).
+3. `djs-util`: only what other crates need.
 
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON
   body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").

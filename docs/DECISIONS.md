@@ -1851,6 +1851,43 @@ and why.
   `build_unchecked()` and the model types.
 - **Alternatives:** support both, like discord.js v14.
 
+### D-208 — Phase 7 order: formatters, then collection; util only as needed
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `djs-formatters` first (mentions, timestamps, markdown, escaping), then
+  `djs-collection`. `djs-util` only receives what other crates need (for example the shard
+  ID calculation), as the ROADMAP says.
+- **Alternatives:** the ROADMAP order (collection, formatters, util); collection first.
+
+### D-209 — `Collection<K, V>` keeps insertion order with `indexmap`
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `Collection` is built on `indexmap::IndexMap`, so `first`, `last`, `at` and
+  `key_at` follow insertion order like discord.js' `Collection` (a JS `Map`). `indexmap` is a
+  new direct dependency of `djs-collection`; it is already compiled in a full djs-rs build
+  (through `hyper` → `h2`).
+- **Alternatives:** an own ordered map (`Vec` + `HashMap` of indexes); a `BTreeMap` ordered
+  by key (creation order for snowflakes); a `HashMap` without order.
+
+### D-210 — `Collection` API: discord.js names where they fit Rust, plus Rust traits
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** discord.js' methods in snake_case where they make sense in Rust (`first`,
+  `last`, `at`, `key_at`, `find`, `find_key`, `filter` → `Collection`, `partition`, `sweep`,
+  `ensure`, `has_all`, `has_any`, `map_values`, `sort`, `union`, `intersection`,
+  `difference`, `random`, …) and the standard traits (`IntoIterator`, `FromIterator`,
+  `Extend`, `Index`). `random` needs no dependency (randomness from std's `RandomState`).
+  Methods that only repeat iterator adapters (`each`, `reduce`, `some`, `every`) are left
+  out, with docs pointing to `.iter()`.
+- **Alternatives:** full parity with all ~40 methods; a minimal `Deref` to the map plus a
+  few extras.
+
+### D-211 — Formatters return `Display` types and take typed IDs
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** each formatter returns a small type implementing `Display`, so nothing is
+  allocated until the caller writes it (`format!`, `write!`, `.to_string()`). Mentions take
+  the typed IDs of `djs-model` (`UserId`, `ChannelId`, …), so `djs-formatters` depends on
+  `djs-model`. Escaping returns `Cow<str>`, borrowing when there is nothing to escape.
+- **Alternatives:** functions returning `String` like discord.js; `Display` types taking any
+  `impl Display` as an ID (no `djs-model` dependency, less type safety).
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
