@@ -1689,6 +1689,26 @@ and why.
   open: how the 8000-character total and descriptions are counted (code points? trimmed?),
   edge-case names, repeated option names, `min` above `max`, empty values. The token stays in
   `.env`.
+- **Live result, 2026-11-12** (20 guild commands in the test guild, which had none; the 10
+  accepted ones deleted at once, none left):
+  - **descriptions** count code points after trimming: 100 × 🔥 accepted, 101 rejected
+    (`BASE_TYPE_MAX_LENGTH`); 100 letters padded with spaces accepted; a whitespace-only
+    description rejected as `BASE_TYPE_REQUIRED`;
+  - **names:** an upper-case `Ż` rejected (`APPLICATION_COMMAND_INVALID_NAME`), an ASCII
+    apostrophe rejected (`STRING_TYPE_REGEX`), `ʼ` (U+02BC), Devanagari with vowel signs and
+    32 code points of two-byte letters accepted; a user command named with spaces and 🔥
+    accepted;
+  - **options:** a repeated option name rejected (`APPLICATION_COMMAND_OPTIONS_NAME_INVALID`),
+    a required option after an optional one rejected (`APPLICATION_COMMAND_OPTIONS_REQUIRED_INVALID`),
+    `min_length` 10 with `max_length` 5 rejected (`max_length` must be at least `min_length`),
+    a whitespace-only choice name rejected (`BASE_TYPE_BAD_LENGTH`, 1-100); **accepted although
+    the docs forbid or it cannot work:** `min_value` 10 with `max_value` 5, and choices together
+    with `autocomplete: true`;
+  - **the 8000 total** counts code points of the command, option and choice names,
+    descriptions and string choice values: exactly 8000 ASCII accepted, 8001 rejected
+    (`APPLICATION_COMMAND_TOO_LARGE`), 8000 code points with 🔥 (15 452 UTF-16 units) accepted,
+    and a localized name one longer than the default pushed 8000 to a rejected 8001 (the longest
+    localization of a field counts).
 - **Alternatives:** the documentation and discord.js only, unclear cases documented as such.
 
 ---
