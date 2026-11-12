@@ -148,6 +148,124 @@ fn guild() -> Value {
     guild
 }
 
+fn command(id: &str, name: &Value) -> Value {
+    json!({"id": id, "type": 1, "application_id": "1", "name": name, "description": "d",
+           "version": "1"})
+}
+
+fn command_permissions(id: &str) -> Value {
+    json!({"id": id, "application_id": "1", "guild_id": GUILD.to_string(),
+           "permissions": [{"id": "5", "type": 1, "permission": true}]})
+}
+
+fn rule(id: &str, name: &Value) -> Value {
+    json!({"id": id, "guild_id": GUILD.to_string(), "name": name, "creator_id": "1",
+           "event_type": 1, "trigger_type": 1,
+           "trigger_metadata": {"keyword_filter": ["spam"]},
+           "actions": [{"type": 1}], "enabled": true, "exempt_roles": [], "exempt_channels": []})
+}
+
+/// The mock API's application, auto moderation, audit log, integration and sticker routes.
+fn respond_application(method: &str, segments: &[&str], body: &Value) -> Option<(u16, Value)> {
+    let named = |id: &str| command(id, body.get("name").unwrap_or(&json!("named")));
+    let response = match (method, segments) {
+        // Global and guild commands: the guild's routes have `guilds/{id}` in between.
+        ("GET", ["applications", _, "guilds", _, "commands", "permissions"]) => (
+            200,
+            json!([command_permissions("80"), command_permissions("1")]),
+        ),
+        (
+            "GET",
+            [
+                "applications",
+                _,
+                "guilds",
+                _,
+                "commands",
+                id,
+                "permissions",
+            ],
+        ) => (200, command_permissions(id)),
+        ("GET", ["applications", _, "commands"] | ["applications", _, "guilds", _, "commands"]) => {
+            (
+                200,
+                json!([command("80", &json!("ping")), command("81", &json!("help"))]),
+            )
+        }
+        (
+            "POST",
+            ["applications", _, "commands"] | ["applications", _, "guilds", _, "commands"],
+        ) => (200, named("82")),
+        ("PUT", ["applications", _, "commands"] | ["applications", _, "guilds", _, "commands"]) => {
+            let commands: Vec<Value> = body
+                .as_array()
+                .unwrap()
+                .iter()
+                .enumerate()
+                .map(|(index, command_body)| {
+                    command(&(90 + index).to_string(), &command_body["name"])
+                })
+                .collect();
+            (200, Value::Array(commands))
+        }
+        (
+            "GET",
+            ["applications", _, "commands", id] | ["applications", _, "guilds", _, "commands", id],
+        ) => (200, command(id, &json!("ping"))),
+        (
+            "PATCH",
+            ["applications", _, "commands", id] | ["applications", _, "guilds", _, "commands", id],
+        ) => (200, named(id)),
+        // Application emojis.
+        ("GET", ["applications", _, "emojis"]) => (200, json!({"items": [emoji("46")]})),
+        ("GET", ["applications", _, "emojis", id]) => (200, emoji(id)),
+        ("POST", ["applications", _, "emojis"]) => (200, emoji("47")),
+        ("PATCH", ["applications", _, "emojis", id]) => {
+            let mut emoji = emoji(id);
+            emoji["name"] = body["name"].clone();
+            (200, emoji)
+        }
+        // Auto moderation.
+        ("GET", ["guilds", _, "auto-moderation", "rules"]) => {
+            (200, json!([rule("60", &json!("no spam"))]))
+        }
+        ("GET", ["guilds", _, "auto-moderation", "rules", id]) => {
+            (200, rule(id, &json!("no spam")))
+        }
+        ("POST", ["guilds", _, "auto-moderation", "rules"]) => (200, rule("61", &body["name"])),
+        ("PATCH", ["guilds", _, "auto-moderation", "rules", id]) => (200, rule(id, &body["name"])),
+        // Audit log, integrations, standard stickers.
+        ("GET", ["guilds", _, "audit-logs"]) => {
+            (200, json!({"audit_log_entries": [], "users": [user("7")]}))
+        }
+        ("GET", ["guilds", _, "integrations"]) => (
+            200,
+            json!([{"id": "70", "name": "a bot", "type": "discord", "enabled": true,
+                    "account": {"id": "5", "name": "a bot"}}]),
+        ),
+        ("GET", ["stickers", id]) => (200, sticker(id)),
+        ("GET", ["sticker-packs"]) => (
+            200,
+            json!({"sticker_packs": [{"id": "71", "stickers": [sticker("72")], "name": "Wumpus",
+                                      "sku_id": "73", "description": "Beyond"}]}),
+        ),
+        ("GET", ["sticker-packs", id]) => (
+            200,
+            json!({"id": id, "stickers": [], "name": "Wumpus", "sku_id": "73",
+                   "description": "Beyond"}),
+        ),
+        (
+            "DELETE",
+            ["applications", _, "commands" | "emojis", _]
+            | ["applications", _, "guilds", _, "commands", _]
+            | ["guilds", _, "auto-moderation", "rules", _]
+            | ["guilds", _, "integrations", _],
+        ) => (204, Value::Null),
+        _ => return None,
+    };
+    Some(response)
+}
+
 /// The mock API's expression, invite and webhook routes.
 fn respond_extra(method: &str, segments: &[&str], body: &Value) -> Option<(u16, Value)> {
     let named = |mut value: Value| {
@@ -255,6 +373,13 @@ fn respond_extra(method: &str, segments: &[&str], body: &Value) -> Option<(u16, 
 /// The mock API: what Discord would answer, by method and path.
 fn respond(method: &str, path: &str, body: &Value) -> (u16, Value) {
     let segments: Vec<&str> = path.trim_start_matches('/').split('/').collect();
+    respond_extra(method, &segments, body)
+        .or_else(|| respond_application(method, &segments, body))
+        .unwrap_or_else(|| respond_core(method, &segments, body))
+}
+
+/// The routes of the first managers.
+fn respond_core(method: &str, segments: &[&str], body: &Value) -> (u16, Value) {
     let unknown = UNKNOWN.to_string();
     let not_found = (404, json!({"message": "Unknown", "code": 10_000}));
     // The name a create or edit request asked for.
@@ -264,10 +389,7 @@ fn respond(method: &str, path: &str, body: &Value) -> (u16, Value) {
         }
         value
     };
-    if let Some(response) = respond_extra(method, &segments, body) {
-        return response;
-    }
-    match (method, segments.as_slice()) {
+    match (method, segments) {
         ("GET", ["guilds", _, "members", id] | ["users", id]) if *id == unknown => not_found,
         // Routes whose last segment would otherwise be read as an ID.
         ("GET", ["guilds", _, "members", "search"]) => (200, json!([member("7", &Value::Null)])),
@@ -1867,6 +1989,254 @@ async fn soundboard_sounds() {
             "GET /channels/52".to_owned(),
             "POST /channels/52/send-soundboard-sound".to_owned(),
         ]
+    );
+    session.finish().await;
+}
+
+#[tokio::test]
+async fn the_application_id_comes_from_ready() {
+    use djs_rs::model::id::ApplicationId;
+
+    let session = Session::start(None).await;
+    assert_eq!(session.ctx.application_id(), Some(ApplicationId::new(1)));
+    assert_eq!(
+        session.ctx.commands().application_id(),
+        ApplicationId::new(1)
+    );
+    session.finish().await;
+}
+
+#[tokio::test]
+async fn global_and_guild_commands() {
+    use djs_rs::{
+        builders::SlashCommandBuilder,
+        model::{
+            id::{CommandId, GenericId},
+            rest::{CreateApplicationCommand, EditApplicationCommand, GetApplicationCommands},
+        },
+    };
+
+    let session = Session::start(None).await;
+    let ctx = &session.ctx;
+    let ping: CreateApplicationCommand = SlashCommandBuilder::new("ping", "Replies with Pong!")
+        .build()
+        .unwrap();
+
+    let commands = ctx.commands();
+    let listed = commands
+        .list(&GetApplicationCommands::default())
+        .await
+        .unwrap();
+    assert_eq!(
+        listed.keys().map(|id| id.get()).collect::<Vec<_>>(),
+        [80, 81]
+    );
+    let fetch = commands.fetch(CommandId::new(80));
+    assert!(!fetch.is_cached());
+    assert_eq!(fetch.await.unwrap().name, "ping");
+    assert_eq!(commands.create(&ping).await.unwrap().name, "ping");
+    let mut edit = EditApplicationCommand::default();
+    edit.name = Some("pong".into());
+    assert_eq!(
+        commands.edit(CommandId::new(82), &edit).await.unwrap().name,
+        "pong"
+    );
+    commands.delete(CommandId::new(82)).await.unwrap();
+    let set = commands.set(std::slice::from_ref(&ping)).await.unwrap();
+    assert_eq!(set.get(&CommandId::new(90)).unwrap().name, "ping");
+    let seen: Vec<String> = session
+        .take()
+        .into_iter()
+        .map(|seen| format!("{} {}", seen.method, seen.path))
+        .collect();
+    assert_eq!(
+        seen,
+        [
+            "GET /applications/1/commands",
+            "GET /applications/1/commands/80",
+            "POST /applications/1/commands",
+            "PATCH /applications/1/commands/82",
+            "DELETE /applications/1/commands/82",
+            "PUT /applications/1/commands",
+        ]
+    );
+
+    let guild = ctx.guilds().fetch(GUILD).await.unwrap();
+    session.take();
+    let guild_commands = guild.commands(ctx);
+    guild_commands.set(&[ping]).await.unwrap();
+    guild_commands.delete(CommandId::new(90)).await.unwrap();
+    let permissions = guild_commands.permissions().await.unwrap();
+    assert!(
+        permissions.get(&GenericId::new(1)).is_some(),
+        "application-wide"
+    );
+    let one = guild_commands
+        .command_permissions(CommandId::new(80))
+        .await
+        .unwrap();
+    assert_eq!(one.permissions.len(), 1);
+    let base = format!("/applications/1/guilds/{GUILD}/commands");
+    let seen: Vec<String> = session
+        .take()
+        .into_iter()
+        .map(|seen| format!("{} {}", seen.method, seen.path))
+        .collect();
+    assert_eq!(
+        seen,
+        [
+            format!("PUT {base}"),
+            format!("DELETE {base}/90"),
+            format!("GET {base}/permissions"),
+            format!("GET {base}/80/permissions"),
+        ]
+    );
+    session.finish().await;
+}
+
+#[tokio::test]
+async fn auto_moderation_audit_log_and_integrations() {
+    use djs_rs::model::{
+        id::{AutoModerationRuleId, IntegrationId},
+        rest::{GetGuildAuditLog, ModifyAutoModerationRule},
+    };
+
+    let session = Session::start(None).await;
+    let ctx = &session.ctx;
+    let guild = ctx.guilds().fetch(GUILD).await.unwrap();
+    session.take();
+    let base = format!("/guilds/{GUILD}");
+
+    let rules = guild.auto_moderation_rules(ctx);
+    let listed = rules.list().await.unwrap();
+    assert!(listed.get(&AutoModerationRuleId::new(60)).is_some());
+    assert_eq!(
+        rules
+            .fetch(AutoModerationRuleId::new(60))
+            .await
+            .unwrap()
+            .name,
+        "no spam"
+    );
+    let mut edit = ModifyAutoModerationRule::default();
+    edit.name = Some("no links".into());
+    let edited = rules
+        .edit(AutoModerationRuleId::new(60), &edit, Some("tighter"))
+        .await
+        .unwrap();
+    assert_eq!(edited.name, "no links");
+    rules
+        .delete(AutoModerationRuleId::new(60), None)
+        .await
+        .unwrap();
+    let seen: Vec<String> = session
+        .take()
+        .into_iter()
+        .map(|seen| format!("{} {}", seen.method, seen.path))
+        .collect();
+    let rule_path = format!("{base}/auto-moderation/rules");
+    assert_eq!(
+        seen,
+        [
+            format!("GET {rule_path}"),
+            format!("GET {rule_path}/60"),
+            format!("PATCH {rule_path}/60"),
+            format!("DELETE {rule_path}/60"),
+        ]
+    );
+
+    let mut query = GetGuildAuditLog::default();
+    query.limit = Some(10);
+    let log = guild.audit_log(ctx, &query).await.unwrap();
+    assert_eq!(log.users.len(), 1);
+    let seen = session.one();
+    assert_eq!(
+        (seen.path.clone(), seen.query.as_str()),
+        (format!("{base}/audit-logs"), "limit=10")
+    );
+
+    let integrations = guild.integrations(ctx).await.unwrap();
+    assert_eq!(
+        integrations.get(&IntegrationId::new(70)).unwrap().name,
+        "a bot"
+    );
+    ctx.guilds()
+        .delete_integration(GUILD, IntegrationId::new(70), Some("unused"))
+        .await
+        .unwrap();
+    let seen = session.take().pop().unwrap();
+    assert_eq!(
+        (
+            seen.method.as_str(),
+            seen.path.clone(),
+            seen.reason.as_deref()
+        ),
+        ("DELETE", format!("{base}/integrations/70"), Some("unused"))
+    );
+    session.finish().await;
+}
+
+#[tokio::test]
+async fn application_emojis_and_standard_stickers() {
+    use djs_rs::model::{
+        id::{EmojiId, StickerId, StickerPackId},
+        rest::{CreateApplicationEmoji, ModifyApplicationEmoji},
+        util::ImageData,
+    };
+
+    let session = Session::start(None).await;
+    let ctx = &session.ctx;
+    let emojis = ctx.application_emojis();
+    assert!(
+        emojis
+            .list()
+            .await
+            .unwrap()
+            .get(&EmojiId::new(46))
+            .is_some()
+    );
+    assert_eq!(
+        emojis.fetch(EmojiId::new(46)).await.unwrap().id,
+        EmojiId::new(46)
+    );
+    let image = ImageData::with_content_type(&b"\x89PNG"[..], "image/png");
+    let created = emojis
+        .create(&CreateApplicationEmoji::new("logo", image))
+        .await
+        .unwrap();
+    let mut rename = ModifyApplicationEmoji::default();
+    rename.name = Some("brand".into());
+    let edited = emojis.edit(created.id, &rename).await.unwrap();
+    assert_eq!(edited.name, "brand");
+    emojis.delete(created.id).await.unwrap();
+    let seen: Vec<String> = session
+        .take()
+        .into_iter()
+        .map(|seen| format!("{} {}", seen.method, seen.path))
+        .collect();
+    assert_eq!(
+        seen,
+        [
+            "GET /applications/1/emojis",
+            "GET /applications/1/emojis/46",
+            "POST /applications/1/emojis",
+            "PATCH /applications/1/emojis/47",
+            "DELETE /applications/1/emojis/47",
+        ]
+    );
+
+    assert_eq!(
+        ctx.sticker(StickerId::new(72)).await.unwrap().id,
+        StickerId::new(72)
+    );
+    let packs = ctx.sticker_packs().await.unwrap();
+    assert_eq!(
+        packs.get(&StickerPackId::new(71)).unwrap().stickers.len(),
+        1
+    );
+    assert_eq!(
+        ctx.sticker_pack(StickerPackId::new(71)).await.unwrap().name,
+        "Wumpus"
     );
     session.finish().await;
 }

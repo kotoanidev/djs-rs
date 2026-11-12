@@ -25,17 +25,18 @@ use std::{future::Future, sync::Arc};
 use djs_cache::{Backend, CachedGuild, CachedMember, CachedMessage, CachedUser};
 use djs_collection::Collection;
 use djs_model::{
+    audit_log::AuditLog,
     channel::Channel,
     gateway::payload::{GuildMemberAdd, GuildMemberUpdate},
-    guild::Guild,
-    id::{ChannelId, GuildId, MessageId, RoleId, UserId, WebhookId},
+    guild::{Guild, Integration},
+    id::{ChannelId, GuildId, IntegrationId, MessageId, RoleId, UserId, WebhookId},
     invite::InviteWithMetadata,
     message::{Message, MessageReference},
     permissions::Permissions,
     rest::{
         CreateChannelInvite, CreateGuildBan, CreateMessage, CreateWebhook, EditMessage,
-        ExecuteWebhook, ModifyGuild, ModifyGuildChannel, ModifyGuildMember, ModifyWebhook,
-        SendSoundboardSound, StartThreadFromMessage,
+        ExecuteWebhook, GetGuildAuditLog, ModifyGuild, ModifyGuildChannel, ModifyGuildMember,
+        ModifyWebhook, SendSoundboardSound, StartThreadFromMessage,
     },
     user::User,
     util::Timestamp,
@@ -46,9 +47,10 @@ use djs_rest::{Error, ReactionEmoji};
 use crate::{
     Context,
     manager::{
-        BanManager, EmojiManager, GuildChannelManager, MemberManager, MessageManager,
-        OverwriteTarget, RoleManager, ScheduledEventManager, SoundboardSoundManager,
-        StageInstanceManager, StickerManager, ThreadManager, ThreadMemberManager,
+        AutoModerationRuleManager, BanManager, EmojiManager, GuildChannelManager,
+        GuildCommandManager, MemberManager, MessageManager, OverwriteTarget, RoleManager,
+        ScheduledEventManager, SoundboardSoundManager, StageInstanceManager, StickerManager,
+        ThreadManager, ThreadMemberManager,
     },
     webhook::WebhookError,
 };
@@ -809,6 +811,57 @@ pub trait GuildExt: sealed::Guild {
         ctx: &'a Context<B>,
     ) -> SoundboardSoundManager<'a, B> {
         ctx.soundboard_sounds(self.guild_id())
+    }
+
+    /// The manager of the bot's application commands in this guild (D-244).
+    ///
+    /// discord.js counterpart: `Guild#commands`.
+    ///
+    /// # Panics
+    ///
+    /// Panics before the first `READY` (D-247), like [`Context::commands`].
+    #[track_caller]
+    fn commands<'a, B: Backend>(&self, ctx: &'a Context<B>) -> GuildCommandManager<'a, B> {
+        ctx.guild_commands(self.guild_id())
+    }
+
+    /// The manager of this guild's auto moderation rules.
+    ///
+    /// discord.js counterpart: `Guild#autoModerationRules`.
+    fn auto_moderation_rules<'a, B: Backend>(
+        &self,
+        ctx: &'a Context<B>,
+    ) -> AutoModerationRuleManager<'a, B> {
+        ctx.auto_moderation_rules(self.guild_id())
+    }
+
+    /// A page of this guild's audit log ([`GuildManager::audit_log`](crate::manager::GuildManager::audit_log)).
+    ///
+    /// discord.js counterpart: `Guild#fetchAuditLogs`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    fn audit_log<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+        query: &GetGuildAuditLog,
+    ) -> impl Future<Output = Result<AuditLog, Error>> + Send {
+        ctx.guilds().audit_log(self.guild_id(), query)
+    }
+
+    /// This guild's integrations ([`GuildManager::integrations`](crate::manager::GuildManager::integrations)).
+    ///
+    /// discord.js counterpart: `Guild#fetchIntegrations`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    fn integrations<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+    ) -> impl Future<Output = Result<Collection<IntegrationId, Integration>, Error>> + Send {
+        ctx.guilds().integrations(self.guild_id())
     }
 }
 

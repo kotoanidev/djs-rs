@@ -16,7 +16,7 @@ use djs_model::{
         DispatchEvent,
         payload::{GuildCreate, Ready},
     },
-    id::GuildId,
+    id::{ApplicationId, GuildId},
 };
 
 use crate::event::{Dispatch, EventKind, payload};
@@ -33,7 +33,11 @@ pub(crate) struct ShardTracker {
 
 /// A `READY` was received, with its payload if `ShardReady` or `ClientReady` was wanted.
 #[derive(Debug)]
-pub(crate) struct ReadySeen(pub(crate) Option<Arc<Ready>>);
+pub(crate) struct ReadySeen {
+    pub(crate) ready: Option<Arc<Ready>>,
+    /// The bot's application (D-245).
+    pub(crate) application_id: ApplicationId,
+}
 
 impl ShardTracker {
     /// Returns the `READY` of the last dispatch, if it was one.
@@ -90,13 +94,17 @@ pub(crate) fn convert<B: Backend>(
     match event {
         DispatchEvent::Ready(ready) => {
             tracker.unavailable = ready.guilds.iter().map(|guild| guild.id).collect();
+            let application_id = ready.application.id;
             let built =
                 (wants(EventKind::ShardReady) || wants(EventKind::ClientReady)).then(|| {
                     let ready: Arc<Ready> = Arc::from(ready);
                     emit!(ShardReady, Arc::clone(&ready));
                     ready
                 });
-            tracker.ready = Some(ReadySeen(built));
+            tracker.ready = Some(ReadySeen {
+                ready: built,
+                application_id,
+            });
         }
         // `ShardResume` is emitted by the client, which counts the replayed events.
         DispatchEvent::Resumed => {}

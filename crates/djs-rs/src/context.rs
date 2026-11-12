@@ -1,10 +1,10 @@
 //! The [`Context`] passed to event handlers.
 
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use djs_cache::{Backend, Cache, DashMapBackend};
 use djs_gateway::MessageSender;
-use djs_model::gateway::ShardId;
+use djs_model::{gateway::ShardId, id::ApplicationId};
 use djs_rest::Rest;
 
 /// Everything an event handler needs to act: the REST client, the cache and the shard that
@@ -25,6 +25,8 @@ struct Inner<B: Backend> {
     shard: ShardId,
     sender: MessageSender,
     cache: Option<Arc<Cache<B>>>,
+    /// Set by the client at the first `READY` (D-245), shared by every shard.
+    application_id: Arc<OnceLock<ApplicationId>>,
 }
 
 impl<B: Backend> Clone for Context<B> {
@@ -41,6 +43,7 @@ impl<B: Backend> Context<B> {
         shard: ShardId,
         sender: MessageSender,
         cache: Option<Arc<Cache<B>>>,
+        application_id: Arc<OnceLock<ApplicationId>>,
     ) -> Self {
         Self {
             inner: Arc::new(Inner {
@@ -48,8 +51,26 @@ impl<B: Backend> Context<B> {
                 shard,
                 sender,
                 cache,
+                application_id,
             }),
         }
+    }
+
+    /// Returns the bot's application ID, known from the first `READY` (D-245); `None` only in
+    /// handlers that run before it (`ShardError`, `Invalidated`, `ShardDisconnect` while
+    /// logging in).
+    ///
+    /// discord.js counterpart: `client.application.id`.
+    #[must_use]
+    pub fn application_id(&self) -> Option<ApplicationId> {
+        self.inner.application_id.get().copied()
+    }
+
+    /// The application ID for the application managers (D-247).
+    #[track_caller]
+    pub(crate) fn expect_application_id(&self) -> ApplicationId {
+        self.application_id()
+            .expect("the application ID is known from the first READY; this handler ran before it")
     }
 
     /// Returns the REST client.

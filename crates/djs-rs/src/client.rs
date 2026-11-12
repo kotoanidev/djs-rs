@@ -9,7 +9,7 @@ use core::{
 };
 use std::{
     future::Future,
-    sync::{Arc, Mutex, MutexGuard, PoisonError, RwLock},
+    sync::{Arc, Mutex, MutexGuard, OnceLock, PoisonError, RwLock},
 };
 
 use djs_cache::{Backend, Cache, CacheConfig, DashMapBackend};
@@ -17,7 +17,10 @@ use djs_gateway::{
     Compression, Config, LocalIdentifyQueue, MessageSender, ReceiveErrorKind, SendError, Shard,
     ShardState, create_shards,
 };
-use djs_model::gateway::{DispatchEvent, GatewayEvent, Intents, payload::UpdatePresence};
+use djs_model::{
+    gateway::{DispatchEvent, GatewayEvent, Intents, payload::UpdatePresence},
+    id::ApplicationId,
+};
 use djs_rest::Rest;
 use futures_core::Stream;
 use tokio::{
@@ -144,6 +147,8 @@ struct Inner<B: Backend> {
     /// The shards of the current `login` and how many of them have been ready (D-224).
     shard_count: AtomicU32,
     ready_shards: AtomicU32,
+    /// The bot's application, from the first `READY` (D-245).
+    application_id: Arc<OnceLock<ApplicationId>>,
 }
 
 impl<B: Backend> Clone for Client<B> {
@@ -463,6 +468,30 @@ impl<B: Backend> Client<B> {
         tasks
     }
 
+    /// A shard's `READY`: keeps the application ID (D-245) and, at the last shard's first
+    /// `READY`, emits `ClientReady` (D-224).
+    fn on_ready(
+        &self,
+        seen: ReadySeen,
+        counted_ready: &mut bool,
+        registry: &Registry<B>,
+        out: &mut Vec<Dispatch>,
+    ) {
+        // The same application on every shard and every login.
+        let _ = self.inner.application_id.set(seen.application_id);
+        if *counted_ready {
+            return;
+        }
+        *counted_ready = true;
+        let ready_shards = self.inner.ready_shards.fetch_add(1, Ordering::AcqRel) + 1;
+        if ready_shards == self.inner.shard_count.load(Ordering::Acquire)
+            && let Some(ready) = seen.ready
+            && self.wants(registry, EventKind::ClientReady)
+        {
+            out.push(Dispatch::ClientReady(ready));
+        }
+    }
+
     /// Drives one shard until shutdown or a fatal error, emitting its events and its lifecycle
     /// events (D-226).
     async fn run_shard(
@@ -475,6 +504,7 @@ impl<B: Backend> Client<B> {
             shard.id(),
             shard.sender(),
             self.inner.cache.clone(),
+            Arc::clone(&self.inner.application_id),
         );
         let mut tracker = ShardTracker::default();
         let mut out = Vec::new();
@@ -518,19 +548,8 @@ impl<B: Backend> Client<B> {
                             })));
                         }
                     }
-                    if let Some(ReadySeen(ready)) = tracker.take_ready()
-                        && !counted_ready
-                    {
-                        // `ClientReady` once, at the last shard's first `READY` (D-224).
-                        counted_ready = true;
-                        let ready_shards =
-                            self.inner.ready_shards.fetch_add(1, Ordering::AcqRel) + 1;
-                        if ready_shards == self.inner.shard_count.load(Ordering::Acquire)
-                            && let Some(ready) = ready
-                            && self.wants(&registry, EventKind::ClientReady)
-                        {
-                            out.push(Dispatch::ClientReady(ready));
-                        }
+                    if let Some(seen) = tracker.take_ready() {
+                        self.on_ready(seen, &mut counted_ready, &registry, &mut out);
                     }
                 }
                 Some(Ok(GatewayEvent::InvalidSession(false))) => {
@@ -911,6 +930,7 @@ impl<B: Backend> ClientBuilder<B> {
                 shutdown: watch::channel(false).0,
                 shard_count: AtomicU32::new(0),
                 ready_shards: AtomicU32::new(0),
+                application_id: Arc::default(),
             }),
         }
     }

@@ -5,9 +5,10 @@ A high-performance, discord.js-style framework for building Discord bots in Rust
 > **Status:** pre-alpha. A working end-to-end bot: client with automatic sharding, every
 > discord.js event (with the previous state from the cache), managers for guilds, channels,
 > users, members, messages, reactions, roles, bans, threads, emojis, stickers, events,
-> stages, soundboard sounds, invites and webhooks with methods on the structures, a
-> `WebhookClient`, presence and an optional cache. The full discord.js surface arrives in
-> later phases — see the [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
+> stages, soundboard sounds, invites, webhooks, application commands and auto moderation
+> with methods on the structures, a `WebhookClient`, presence and an optional cache. The
+> full discord.js surface arrives in later phases — see the
+> [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
 
 **discord.js counterpart:** `discord.js`
 
@@ -94,8 +95,10 @@ The operations of a resource live on a manager reached from the handler `Context
 `ctx.members(guild)`, `ctx.messages(channel)`, `ctx.roles(guild)`, `ctx.bans(guild)`,
 `ctx.emojis(guild)`, `ctx.stickers(guild)`, `ctx.scheduled_events(guild)`,
 `ctx.stage_instances(guild)`, `ctx.soundboard_sounds(guild)`, `ctx.threads(channel)`,
-`ctx.thread_members(thread)`, `ctx.invites()` and `ctx.webhooks()` (discord.js'
-`client.guilds`, `guild.channels`, `guild.members`, `channel.threads`, …).
+`ctx.thread_members(thread)`, `ctx.auto_moderation_rules(guild)`, `ctx.commands()`,
+`ctx.guild_commands(guild)`, `ctx.application_emojis()`, `ctx.invites()` and
+`ctx.webhooks()` (discord.js' `client.guilds`, `guild.channels`, `guild.members`,
+`channel.threads`, `client.application.commands`, …).
 
 - `fetch(id)` returns the cached value without a request, and asks Discord otherwise; the
   answer is cached. `.force()` always asks Discord; `.is_cached()` tells beforehand.

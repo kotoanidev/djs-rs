@@ -3531,6 +3531,28 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   `store_soundboard_sound`. Shortcuts: `ChannelExt::threads` / `thread_members`,
   `GuildExt::scheduled_events` / `stage_instances` / `soundboard_sounds`.
 
+### C-097 — Phase 8 step 2c batch 4: commands, auto moderation, audit log (D-244–D-247)
+- **The application ID** (D-245): the client and every shard's `Context` share an
+  `Arc<OnceLock<ApplicationId>>`, set at each shard's `READY` (the first one wins; the bot
+  is the same application on every shard and login). The `READY` handling moved into
+  `Client::on_ready`.
+- **`CommandManager`** (`ctx.commands()`) and **`GuildCommandManager`**
+  (`ctx.guild_commands(guild)`, `GuildExt::commands`): `fetch` (an uncached `Fetch`),
+  `list(&GetApplicationCommands)`, `create`, `edit`, `delete`, `set` (bulk overwrite; lists
+  are keyed by command ID). The guild manager also reads `permissions()` (keyed by the
+  command ID, or the application's ID for application-wide permissions) and
+  `command_permissions(command)`; editing them needs a user's `OAuth2` token, so it stays on
+  `Rest`. The accessors are `#[track_caller]` and panic before `READY` (D-247).
+- **`ApplicationEmojiManager`** (`ctx.application_emojis()`, panics before `READY`):
+  `fetch`, `list`, `create`, `edit`, `delete`; not cached.
+- **`AutoModerationRuleManager`** (`ctx.auto_moderation_rules(guild)`,
+  `GuildExt::auto_moderation_rules`): `fetch`, `list`, `create`, `edit`, `delete`; not
+  cached.
+- **`GuildManager`** (D-246): `audit_log(guild, &GetGuildAuditLog)` returns the model
+  `AuditLog`; `integrations(guild)` a `Collection` by integration ID; `delete_integration`.
+- **Standard stickers** follow D-243: `ctx.sticker(id)`, `ctx.sticker_packs()`,
+  `ctx.sticker_pack(id)`, not cached.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

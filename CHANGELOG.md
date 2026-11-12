@@ -8,6 +8,13 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-rs` application commands, auto moderation and the audit log (Phase 8 step 2c batch 4,
+  D-244–D-247, C-097): `ctx.application_id()` from `READY`; `ctx.commands()` and
+  `ctx.guild_commands(guild)` (fetch, list, create, edit, delete, set; command permissions in
+  a guild); `ctx.application_emojis()`; `ctx.auto_moderation_rules(guild)`;
+  `ctx.guilds().audit_log(guild, …)`, `integrations` and `delete_integration`;
+  `ctx.sticker(id)`, `ctx.sticker_packs()` and `ctx.sticker_pack(id)`. `GuildExt` gained
+  `commands`, `auto_moderation_rules`, `audit_log` and `integrations`.
 - `djs-rs` threads, scheduled events, stages and the soundboard (Phase 8 step 2c batch 3,
   D-242, D-243, C-096): `ctx.threads(parent)` (create, create in a forum, archived lists),
   `ctx.thread_members(thread)` (fetch, list, add, remove, join, leave),

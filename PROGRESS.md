@@ -454,7 +454,7 @@ fields with `Deref` to `new`). Steps:
       `MemberExt`, `GuildExt` over sealed ID traits, for model + cached types); tests
       `tests/managers.rs` (routing mock REST API, `Context` from the `ClientReady` handler).
       `reply` now returns `Arc<CachedMessage>` (breaking, CHANGELOG).
-   c. The other resources, one batch per commit, the most used first (D-232):
+   c. ✅ The other resources, one batch per commit, the most used first (D-232):
       (1) ✅ writes on the existing resources (D-234 guild channel manager, D-235 typed
       overwrites, D-236 deletions leave the cache to the gateway; C-094) — channels
       edit / delete / overwrites, `ctx.guild_channels(guild)` list / create / positions,
@@ -467,12 +467,15 @@ fields with `Deref` to `new`). Steps:
       (3) ✅ threads and thread members (D-242), scheduled events, stage instances,
       soundboard (D-243 default sounds on the `Context`; C-096):
       `manager/{thread,scheduled_event,stage_instance,soundboard}.rs`.
-      (4) **Next:** audit log, auto moderation, integrations, application commands (and
-      application emojis, standard stickers and sticker packs, which need the application
-      ID or no guild). Each with methods
-      on the structures where discord.js has them, and tests in `tests/managers.rs`.
-   d. Benchmarks + extreme-load tests (D-041): `fetch` hit vs miss, the REST write-back, a
-      flood of handler `reply`s through the mock API.
+      (4) ✅ application commands (D-244, global + guild managers), the application ID
+      from `READY` (D-245; the managers panic before it, D-247), audit log and integrations
+      on `GuildManager` (D-246), auto moderation, application emojis, standard stickers
+      (C-097): `manager/{command,auto_moderation,application_emoji}.rs`. Each with methods
+      on the structures where discord.js has them; 25 tests in `tests/managers.rs`.
+   d. **Next:** benchmarks + extreme-load tests (D-041): `fetch` hit vs miss (the cached
+      path should allocate nothing), the REST write-back (`store_*`), a flood of handler
+      `reply`s through the mock REST API, and many concurrent managers; results in
+      `docs/PERFORMANCE.md` ("Phase 8 — managers").
 3. Interactions. 4. Collectors and `await_*`. 5. Partials and intents guidance. 6. Examples.
 
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON

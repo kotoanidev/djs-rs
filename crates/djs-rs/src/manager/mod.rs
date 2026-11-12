@@ -34,8 +34,11 @@
 //!
 //! discord.js counterpart: the `*Manager` classes (`GuildMemberManager`, `MessageManager`, …).
 
+mod application_emoji;
+mod auto_moderation;
 mod ban;
 mod channel;
+mod command;
 mod emoji;
 mod guild;
 mod guild_channel;
@@ -68,18 +71,21 @@ use djs_model::{
     emoji::Emoji,
     guild::{Guild, Member, Role},
     guild_scheduled_event::GuildScheduledEvent,
-    id::{ChannelId, GuildId, SoundboardSoundId},
+    id::{ChannelId, GuildId, SoundboardSoundId, StickerId, StickerPackId},
     message::Message,
     soundboard::SoundboardSound,
     stage_instance::StageInstance,
-    sticker::Sticker,
+    sticker::{Sticker, StickerPack},
     user::User,
 };
 use djs_rest::Error;
 
 pub use self::{
+    application_emoji::ApplicationEmojiManager,
+    auto_moderation::AutoModerationRuleManager,
     ban::BanManager,
     channel::{ChannelManager, OverwriteTarget},
+    command::{CommandManager, GuildCommandManager},
     emoji::EmojiManager,
     guild::GuildManager,
     guild_channel::GuildChannelManager,
@@ -426,6 +432,95 @@ impl<B: Backend> Context<B> {
             .into_iter()
             .map(|sound| (sound.sound_id, sound))
             .collect())
+    }
+
+    /// Returns the manager of the bot's global application commands (D-244).
+    ///
+    /// discord.js counterpart: `client.application.commands`.
+    ///
+    /// # Panics
+    ///
+    /// Panics before the first `READY`, while the application ID is unknown (D-247): only in
+    /// `ShardError`, `Invalidated` or `ShardDisconnect` handlers running while logging in.
+    #[must_use]
+    #[track_caller]
+    pub fn commands(&self) -> CommandManager<'_, B> {
+        CommandManager::new(self, self.expect_application_id())
+    }
+
+    /// Returns the manager of the bot's application commands in a guild, and their
+    /// permissions there (D-244).
+    ///
+    /// discord.js counterpart: `Guild#commands`.
+    ///
+    /// # Panics
+    ///
+    /// Panics before the first `READY` (D-247), like [`commands`](Self::commands).
+    #[must_use]
+    #[track_caller]
+    pub fn guild_commands(&self, guild_id: GuildId) -> GuildCommandManager<'_, B> {
+        GuildCommandManager::new(self, self.expect_application_id(), guild_id)
+    }
+
+    /// Returns the manager of the application's own emojis.
+    ///
+    /// discord.js counterpart: `client.application.emojis`.
+    ///
+    /// # Panics
+    ///
+    /// Panics before the first `READY` (D-247), like [`commands`](Self::commands).
+    #[must_use]
+    #[track_caller]
+    pub fn application_emojis(&self) -> ApplicationEmojiManager<'_, B> {
+        ApplicationEmojiManager::new(self, self.expect_application_id())
+    }
+
+    /// Returns the manager of a guild's auto moderation rules.
+    ///
+    /// discord.js counterpart: `Guild#autoModerationRules`.
+    #[must_use]
+    pub const fn auto_moderation_rules(
+        &self,
+        guild_id: GuildId,
+    ) -> AutoModerationRuleManager<'_, B> {
+        AutoModerationRuleManager::new(self, guild_id)
+    }
+
+    /// A sticker by its ID, standard or from a guild ([Get Sticker](djs_rest::Rest::get_sticker)).
+    /// Not cached.
+    ///
+    /// discord.js counterpart: `Client#fetchSticker`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    pub async fn sticker(&self, sticker_id: StickerId) -> Result<Sticker, Error> {
+        self.rest().get_sticker(sticker_id).await
+    }
+
+    /// Discord's standard sticker packs ([List Sticker
+    /// Packs](djs_rest::Rest::list_sticker_packs)). Not cached.
+    ///
+    /// discord.js counterpart: `Client#fetchStickerPacks`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    pub async fn sticker_packs(&self) -> Result<Collection<StickerPackId, StickerPack>, Error> {
+        let packs = self.rest().list_sticker_packs().await?;
+        Ok(packs.into_iter().map(|pack| (pack.id, pack)).collect())
+    }
+
+    /// One standard sticker pack ([Get Sticker Pack](djs_rest::Rest::get_sticker_pack)). Not
+    /// cached.
+    ///
+    /// discord.js counterpart: `Client#fetchStickerPacks({ packId })`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    pub async fn sticker_pack(&self, pack_id: StickerPackId) -> Result<StickerPack, Error> {
+        self.rest().get_sticker_pack(pack_id).await
     }
 
     /// Returns the invite manager (D-239).

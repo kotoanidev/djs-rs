@@ -3,9 +3,12 @@
 use std::{future::Future, sync::Arc};
 
 use djs_cache::{Backend, CacheView, CachedGuild};
+use djs_collection::Collection;
 use djs_model::{
-    id::GuildId,
-    rest::{GetGuild, ModifyGuild},
+    audit_log::AuditLog,
+    guild::Integration,
+    id::{GuildId, IntegrationId},
+    rest::{GetGuild, GetGuildAuditLog, ModifyGuild},
 };
 use djs_rest::Error;
 
@@ -92,5 +95,60 @@ impl<'a, B: Backend> GuildManager<'a, B> {
     /// Returns the REST error if the request failed (an owner cannot leave its guild).
     pub async fn leave(self, guild_id: GuildId) -> Result<(), Error> {
         self.ctx.rest().leave_guild(guild_id).await
+    }
+    /// A page of the guild's audit log, newest first ([Get Guild Audit
+    /// Log](djs_rest::Rest::get_guild_audit_log)), with the users, webhooks, threads, … its
+    /// entries mention.
+    ///
+    /// discord.js counterpart: `Guild#fetchAuditLogs`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed (it needs `VIEW_AUDIT_LOG`).
+    pub async fn audit_log(
+        self,
+        guild_id: GuildId,
+        query: &GetGuildAuditLog,
+    ) -> Result<AuditLog, Error> {
+        self.ctx.rest().get_guild_audit_log(guild_id, query).await
+    }
+
+    /// The guild's integrations: bots, Twitch, YouTube, … ([Get Guild
+    /// Integrations](djs_rest::Rest::get_guild_integrations)).
+    ///
+    /// discord.js counterpart: `Guild#fetchIntegrations`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed (it needs `MANAGE_GUILD`).
+    pub async fn integrations(
+        self,
+        guild_id: GuildId,
+    ) -> Result<Collection<IntegrationId, Integration>, Error> {
+        let integrations = self.ctx.rest().get_guild_integrations(guild_id).await?;
+        Ok(integrations
+            .into_iter()
+            .map(|integration| (integration.id, integration))
+            .collect())
+    }
+
+    /// Removes an integration, kicking its bot if it has one ([Delete Guild
+    /// Integration](djs_rest::Rest::delete_guild_integration)).
+    ///
+    /// discord.js counterpart: `Integration#delete`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed (it needs `MANAGE_GUILD`).
+    pub async fn delete_integration(
+        self,
+        guild_id: GuildId,
+        integration_id: IntegrationId,
+        reason: Option<&str>,
+    ) -> Result<(), Error> {
+        self.ctx
+            .rest()
+            .delete_guild_integration(guild_id, integration_id, reason)
+            .await
     }
 }
