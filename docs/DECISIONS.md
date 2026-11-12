@@ -1483,9 +1483,24 @@ and why.
 ### D-175 — Cache memory is optimized now, internally
 - **Date:** 2026-11-12 · **Decided by:** Owner
 - **Decision:** before Phase 5 closes, the cache's memory per entry (424 B per member with
-  discord.js' defaults) is reduced with measured internal changes only. A change that needs
-  a new public type (e.g. a compact cached user) is asked separately.
+  discord.js' defaults — corrected to 546 B when measured in a fresh process, see D-177) is
+  reduced with measured internal changes only. A change that needs a new public type (e.g. a
+  compact cached user) is asked separately.
 - **Alternatives:** also allow new public types now; leave it for later.
+
+### D-177 — Compact cached user and member types
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** measured in a fresh process, the cache needs 546 B per member (discord.js'
+  defaults; the earlier 424 B reused memory freed by earlier tests). Internal changes cannot
+  reduce it much: ~416 B are the `Arc<CachedMember>` (208 B), `Arc<User>` (176 B) and role
+  list (32 B) blocks. So the cache gets a compact public `CachedUser` (held by
+  `cache.users()`, `CachedMember::user` and, to share it, `CachedMessage::author`) and a
+  compact `CachedMember`: rarely set fields (banner, decorations, collectibles, primary
+  guild, boost and timeout times, …) move into one `Option<Box<…>>` read through accessor
+  methods, and roles become a `Box<[RoleId]>`. A breaking change, acceptable before the first
+  release. Every step is measured; a change that does not save about 20 % is reverted and
+  reported.
+- **Alternatives:** a compact `CachedMember` only (keep `djs-model`'s `User`); keep 546 B.
 
 ### D-176 — A lock-free cache backend stays open
 - **Date:** 2026-11-12 · **Decided by:** Owner
@@ -2433,9 +2448,8 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   reader-preferring `RwLock` and lock-holder preemption starve writers (2 writers + 8 readers
   on 4 CPUs: 0.04–0.11 M updates/s, `docs/PERFORMANCE.md` Phase 5). A second `Backend` on a
   lock-free map (e.g. `papaya` or `scc`) would avoid it; it needs a new dependency.
-- **Cache memory per member** (424 B with discord.js' defaults): internal reductions are
-  being made now (D-175); a compact cached `User` would be a new public type and is to be
-  asked separately.
+- **Cache memory per member**: 546 B with discord.js' defaults (fresh process); being
+  reduced with compact cached types (D-177).
 
 - **Identify coordination across processes in `Client`**: with `Shards::Range`, every process
   has its own `LocalIdentifyQueue`. A `ClientBuilder::identify_queue(Arc<dyn IdentifyQueue>)`

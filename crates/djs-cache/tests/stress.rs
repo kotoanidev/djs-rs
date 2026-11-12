@@ -239,26 +239,40 @@ fn startup(name: &str, config: CacheConfig, guilds: u64, members: u64) {
     }
 }
 
-#[test]
-#[ignore = "extreme load: run with --ignored in release mode"]
-fn startup_500_guilds_discord_js_config() {
-    startup("discord.js config", CacheConfig::discord_js(), 500, 1_000);
-}
+/// The environment variable telling a child process which startup configuration to measure.
+const STARTUP_CHILD: &str = "DJS_CACHE_STRESS_STARTUP";
 
+/// The startup memory, measured for each configuration in a child process of this test
+/// binary: a fresh heap, which memory freed by earlier tests in the same process would
+/// otherwise fill first (and make the cache look smaller).
 #[test]
 #[ignore = "extreme load: run with --ignored in release mode"]
-fn startup_500_guilds_default_config() {
-    startup("default config", CacheConfig::default(), 500, 1_000);
-}
-
-#[test]
-#[ignore = "extreme load: run with --ignored in release mode"]
-fn startup_500_guilds_members_only() {
-    let config = CacheConfig::builder()
-        .members(djs_cache::Limit::Unlimited)
-        .users(djs_cache::Limit::Unlimited)
-        .build();
-    startup("members + users", config, 500, 1_000);
+fn startup_500_guilds() {
+    if let Ok(name) = std::env::var(STARTUP_CHILD) {
+        let config = match name.as_str() {
+            "discord.js config" => CacheConfig::discord_js(),
+            "members + users" => CacheConfig::builder()
+                .members(djs_cache::Limit::Unlimited)
+                .users(djs_cache::Limit::Unlimited)
+                .build(),
+            "default config" => CacheConfig::default(),
+            other => panic!("unknown configuration {other}"),
+        };
+        startup(&name, config, 500, 1_000);
+        return;
+    }
+    for name in ["discord.js config", "members + users", "default config"] {
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--ignored", "--exact", "startup_500_guilds", "--nocapture"])
+            .env(STARTUP_CHILD, name)
+            .output()
+            .unwrap();
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(output.status.success(), "{name}: {stdout}");
+        for line in stdout.lines().filter(|line| line.contains("[stress]")) {
+            println!("{}", line.trim_start_matches(|c| c != '['));
+        }
+    }
 }
 
 /// Writers apply member and presence updates while readers look members and presences up,

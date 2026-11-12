@@ -629,6 +629,11 @@ Step 6 of Phase 5 (D-041). The micro-benchmarks ran pinned to one P-core (`tasks
 stress tests to CPU 0–3 (2 P-cores with hyperthreading) unless marked "unpinned" (all 12
 CPUs). Each micro-benchmark was run two or three times; ranges are the medians of the runs.
 
+**Correction:** the first version of this section gave 424 B per member. That run measured
+the startup after other tests in the same process, whose freed memory the allocator handed
+to the cache, so the RSS grew less than the cache's size. `startup_500_guilds` now measures
+each configuration in a child process (a fresh heap): 546 B.
+
 ### Applying events (`benches/cache.rs`, `update`)
 
 A cache configured like discord.js (`CacheConfig::discord_js()`: everything, 200 messages per
@@ -693,10 +698,10 @@ nothing here (D-158).
 
 | Test | Result |
 |---|---|
-| Startup: 500 guilds × 1000 members (unique users), discord.js config | applied in 166–172 ms (2.9–3.0 M members/s, 0.34 ms per guild); **+202 MiB RSS, 424 B per member** (member, user, presence-free, channels, roles, emojis, voice states, indexes) |
-| Same, members + users only | 159–182 ms; +191 MiB, **400 B per member** |
-| Same, default config | 3 ms; +0 MiB (members not kept) |
-| Message churn: 2 M `MESSAGE_CREATE`s over 1000 channels, 200 per channel | 1.7–2.1 M messages/s on 1 thread, 3.0–3.8 M/s on 4 (including cloning each event); always 200 000 cached; RSS flat from the first round (+153–155 MiB, ≈ 780 B per message with embeds and mentions) |
+| Startup: 500 guilds × 1000 members (unique users), discord.js config, own process | applied in 166–199 ms (2.5–3.0 M members/s, 0.34–0.40 ms per guild); **+260 MiB RSS, 546 B per member** (member, user, channels, roles, emojis, voice states, indexes; no presences) |
+| Same, members + users only | 176–182 ms; +255 MiB, **534 B per member** |
+| Same, default config | 4 ms; +5 MiB (11 B per member: guilds, channels, roles only) |
+| Message churn: 2 M `MESSAGE_CREATE`s over 1000 channels, 200 per channel | 1.7–2.1 M messages/s on 1 thread, 3.0–3.8 M/s on 4 (including cloning each event); always 200 000 cached; RSS flat from the first round |
 | Sweeping under load: 4 writers + a sweep every millisecond, 2 s | 2.0–2.4 M inserts/s, 606–852 sweeps, nothing left after the last; no deadlock |
 | Guild churn: 300 × join + leave of a 1000-member guild | 218–226 ms; RSS flat (65.8–65.9 MiB every 50 rounds); nothing left in any resource |
 | Type sizes (x86_64) | `CachedGuild` 440 B, `CachedMember` 176 B, `CachedMessage` 512 B, `CachedPresence` 152 B, `User` 144 B, `Channel` 200 B, `Role` 128 B, `VoiceState` 80 B, `Cache` 1 696 B (guarded by `type_sizes`) |
@@ -732,12 +737,12 @@ presence updates, readers look members and presences up; millions per second):
   with lock-free reads would. A tokio bot runs one worker per CPU and reads far less than
   64 M times per second, so this needs oversubscription and synthetic read rates — but it
   is recorded as an open question (a lock-free `Backend`, which needs a new dependency).
-- **Open: 424 B per member** is more than the 373 B the `VS_NODE.md` stand-in (decoded
-  guilds in a `HashMap`) needed. Where it goes: `CachedMember` 176 B + `Arc` 16 B, the
-  shared `User` 144 B + `Arc` 16 B, the member's `(guild, user)` key and pointer in its
-  store, the user's in theirs, the guild → members index, and the role list's heap block.
-  Candidates: a smaller `User` (most of its 144 B are rarely set `Option`s), keeping the
-  roles inline, and the per-guild index for unlimited resources.
+- **Being fixed: 546 B per member** is more than the 373 B the `VS_NODE.md` stand-in
+  (decoded guilds in a `HashMap`) needed. Where it goes (allocation profiler, one guild):
+  the `Arc<CachedMember>` block (192 B requested, 208 B from malloc), the shared
+  `Arc<User>` (160 B, 176 B), the role list (16 B, 32 B), and ≈ 60–90 B of hash tables (the
+  member's `(guild, user)` key and pointer, the user's, the guild → members index). Internal
+  changes cannot shrink the blocks; compact cached types will (D-177).
 - **`CachedPresence` is 152 B** for two IDs, a status and a box of activities:
   `ClientStatus` holds four `Option<Status>`, and `Status` can carry an unknown status as
   text. A compact cached form (one byte per platform) would halve it.
