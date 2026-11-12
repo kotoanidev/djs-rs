@@ -477,11 +477,20 @@ fields with `Deref` to `new`). Steps:
       future), `djs-cache` `store` benches (0.02–0.3 µs), `tests/stress_managers.rs` (hits
       42 → 117 M/s on 1 → 48 tasks; REST floods within noise of the bare `Rest`; 354 B per
       member stored from REST); results in `docs/PERFORMANCE.md` ("Phase 8 — managers").
-3. **Next: interactions** (ROADMAP Phase 8): replying to slash commands, buttons, selects,
-   modals and autocomplete (`reply`, `defer_reply`, `edit_reply`, `follow_up`,
-   `defer_update`, `update`, `show_modal`, `respond` with choices), typed access to command
-   options and component values, and interaction structures for the model and cached
-   types. Ask the owner the shape questions first (D-219 put interactions third).
+3. **Interactions** (ROADMAP Phase 8). Decided 2026-11-12: D-248 (stateless
+   `InteractionExt`, one-to-one with Discord's callbacks), D-249 (one `InteractionCreate`
+   event; `interaction.command()` / `component()` / `modal()` / `autocomplete()`
+   accessors), D-250 (typed getters as `djs-model` methods), D-251 (a command router on the
+   client, shape to be asked). Steps:
+   a. **Next:** the getters in `djs-model` (D-250): `CommandData` options by name and type
+      (`get_string`, `get_integer`, `get_number`, `get_boolean`, `get_user` / `get_member`
+      / `get_role` / `get_channel` / `get_attachment` / `get_mentionable` with the resolved
+      data, `subcommand`, `subcommand_group`, the focused autocomplete option),
+      `ComponentData` values (and resolved users / roles / channels of selects),
+      `ModalSubmitData` field values; the `Interaction` accessors (D-249).
+   b. `InteractionExt` (D-248) in `djs-rs` with tests against the mock REST API.
+   c. The router (D-251): ask its shape first.
+   d. Benchmarks + extreme-load tests (D-041).
 4. Collectors and `await_*`. 5. Partials and intents guidance. 6. Examples.
 
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON

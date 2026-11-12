@@ -2218,6 +2218,42 @@ and why.
 - **Alternatives:** `Option<CommandManager>`; reading the bot's ID from the token as a
   fallback before `READY`.
 
+### D-248 — Interaction responses: a stateless extension trait
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `InteractionExt` on `Interaction` (and the `InteractionCreate` payload):
+  `interaction.reply(&ctx, …)`, `defer_reply`, `edit_reply`, `follow_up`, `defer_update`,
+  `update`, `show_modal`, `respond` (autocomplete), …, one-to-one with Discord's callbacks
+  (as D-220). The rules of their order (for example `defer_reply` then `edit_reply`) are
+  documented; Discord rejects a wrong order.
+- **Alternatives:** a stateful responder tracking `replied` / `deferred` like discord.js and
+  failing locally (a `reply` after a deferral becoming an edit).
+
+### D-249 — One interaction event with typed accessors
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** like discord.js, one `Events::InteractionCreate`; `Interaction` gets
+  accessors — `command()`, `component()`, `modal()`, `autocomplete()` — returning the typed
+  data when the interaction is of that kind (discord.js: `isChatInputCommand()`, …).
+- **Alternatives:** extra events per kind (`CommandInteraction`, `ComponentInteraction`, …),
+  which discord.js does not have.
+
+### D-250 — Option and value getters are `djs-model` methods
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** the typed getters (`get_string("name")`, `get_user` with the resolved data,
+  `subcommand()`, modal field values, component values) are inherent methods of
+  `CommandData`, `ComponentData` and `ModalSubmitData` in `djs-model`, usable without
+  `djs-rs` (for example by an HTTP interactions server). discord.js:
+  `CommandInteractionOptionResolver`.
+- **Alternatives:** extension traits in `djs-rs`, keeping `djs-model` data only.
+
+### D-251 — A command router in Phase 8 step 3
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** beyond discord.js, a simple router registered on the client dispatches
+  interactions by command name (and component `custom_id`) — `client.command("ping",
+  handler)` — next to `Events::InteractionCreate`. Its exact shape is asked when it is
+  built.
+- **Alternatives:** none now (a `match` on the name, as with discord.js), maybe after
+  Phase 8.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
