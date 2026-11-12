@@ -2,8 +2,8 @@
 
 Validated builders for Discord embeds, application commands, components and modals.
 
-> **Status:** pre-alpha. The embed, command and message component builders (buttons, select
-> menus, action rows) are done; Components V2 and modal builders follow. Track progress in the [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
+> **Status:** pre-alpha. The embed, command, message component and Components V2 builders
+> are done; modal builders follow. Track progress in the [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
 
 **discord.js counterpart:** `@discordjs/builders`
 
@@ -83,7 +83,9 @@ The rules follow Discord's documentation and were checked on the live API with a
   buttons take `http`, `https` or `discord` URLs; an action row holds 1-5 buttons or one select
   menu; a select menu offers at least `max_values` options with unique values. A Components V2
   message has at most 40 components, nested ones included, and 4000 characters of text; check
-  a whole message with [`validate_components`].
+  a whole message with [`validate_components`]. A container holds 1-40 components, a section
+  1-3 texts and a button or thumbnail, a gallery 1-10 items; file components need
+  `attachment://`.
 - Limits that span a whole message — at most 10 embeds and 6000 characters across them —
   are checked by [`validate_embeds`]; [`embed_length`] measures one embed.
 
@@ -102,6 +104,9 @@ The rules follow Discord's documentation and were checked on the live API with a
 | [`ButtonBuilder`], [`PremiumButtonBuilder`] | `Component` | `ButtonBuilder` |
 | [`StringSelectMenuBuilder`], [`StringSelectMenuOptionBuilder`] | `Component`, `SelectOption` | the same names |
 | [`UserSelectMenuBuilder`], [`RoleSelectMenuBuilder`], [`MentionableSelectMenuBuilder`], [`ChannelSelectMenuBuilder`] | `Component` | the same names |
+| [`ContainerBuilder`], [`SectionBuilder`], [`SeparatorBuilder`] | `Component` | the same names |
+| [`TextDisplayBuilder`], [`ThumbnailBuilder`], [`FileBuilder`] | `Component` | the same names |
+| [`MediaGalleryBuilder`], [`MediaGalleryItemBuilder`] | `Component`, `MediaGalleryItem` | the same names |
 
 ## Part of djs-rs
 

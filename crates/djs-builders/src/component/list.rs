@@ -2,7 +2,7 @@
 
 use djs_model::component::Component;
 
-use super::validate;
+use super::validate::{self, Totals};
 use crate::{
     ValidationError,
     check::{self, Path},
@@ -115,37 +115,4 @@ pub fn validate_components(
         }
     }
     Ok(())
-}
-
-/// What a walk over the component tree has seen.
-#[derive(Default)]
-struct Totals<'a> {
-    components: usize,
-    text: usize,
-    custom_ids: Vec<&'a str>,
-}
-
-impl<'a> Totals<'a> {
-    fn walk(&mut self, path: &Path<'_>, component: &'a Component) -> Result<(), ValidationError> {
-        self.components += 1;
-        if let Some(custom_id) = component.custom_id() {
-            if self.custom_ids.contains(&custom_id) {
-                return Err(ValidationError::Invalid {
-                    field: path.field("custom_id"),
-                    reason: "another component of the message has the same custom_id",
-                });
-            }
-            self.custom_ids.push(custom_id);
-        }
-        if let Component::TextDisplay(text) = component {
-            self.text += check::length(&text.content);
-        }
-        for (index, child) in component.children().iter().enumerate() {
-            self.walk(&path.item("components", index), child)?;
-        }
-        if let Component::Section(section) = component {
-            self.walk(&path.child("accessory"), &section.accessory)?;
-        }
-        Ok(())
-    }
 }

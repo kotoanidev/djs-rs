@@ -8,6 +8,12 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-builders` Components V2 builders (Phase 6 step 3b, D-204, D-205, C-084):
+  `ContainerBuilder`, `SectionBuilder::new(accessory)`, `TextDisplayBuilder`,
+  `ThumbnailBuilder`, `MediaGalleryBuilder` with `MediaGalleryItemBuilder`, `FileBuilder` and
+  `SeparatorBuilder`, with `.text("…")` shortcuts on containers and sections. The rules were
+  measured on the live API: 1-40 components in a container, 1-3 texts in a section, 1-10
+  gallery items, descriptions of 1-1024 code points, `attachment://` for files.
 - `djs-builders` message component builders (Phase 6 step 3a, D-197–D-203, C-083):
   `ButtonBuilder::{primary, secondary, success, danger, link}` and `PremiumButtonBuilder`,
   `StringSelectMenuBuilder` with `StringSelectMenuOptionBuilder`, the user, role,

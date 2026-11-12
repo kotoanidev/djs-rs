@@ -17,9 +17,10 @@ pub use self::{
     },
     component::{
         ActionRowBuilder, ButtonBuilder, ChannelSelectMenuBuilder, ComponentsVersion,
-        MentionableSelectMenuBuilder, PremiumButtonBuilder, RoleSelectMenuBuilder,
-        StringSelectMenuBuilder, StringSelectMenuOptionBuilder, UserSelectMenuBuilder,
-        validate_components,
+        ContainerBuilder, FileBuilder, MediaGalleryBuilder, MediaGalleryItemBuilder,
+        MentionableSelectMenuBuilder, PremiumButtonBuilder, RoleSelectMenuBuilder, SectionBuilder,
+        SeparatorBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder,
+        TextDisplayBuilder, ThumbnailBuilder, UserSelectMenuBuilder, validate_components,
     },
     embed::{EmbedAuthorBuilder, EmbedBuilder, EmbedFooterBuilder, embed_length, validate_embeds},
     error::ValidationError,

@@ -2857,6 +2857,26 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   `PremiumButtonBuilder::build` returns `Result` for uniformity although it cannot fail.
 - **Row children:** a text input alone in a row is accepted (legacy modals).
 
+### C-084 — Components V2 builder details (D-204, D-205)
+- **Thumbnails and gallery items** follow D-190 by analogy: `http://`, `https://` or
+  `attachment://` (any case), although Discord accepted an `ftp://` thumbnail (D-205) — the
+  owner may want to revisit this; file components accept `attachment://` only, as Discord
+  requires.
+- **Texts:** a text display has 1-4000 code points after trimming; a media description, when
+  set, 1-1024 (blank is `Missing`, by analogy with Discord's 1-1024 range).
+- **Sections** hold text displays only (the docs list no other child yet), 1-3 of them; the
+  accessory must be a button or a thumbnail. `SectionBuilder` has `text` and `component`
+  (no `components(iter)` for at most three children).
+- **Containers** hold action rows, text displays, sections, media galleries, separators and
+  files, 1-40 of them, with an accent color up to `0xFFFFFF`; their `build()` also checks
+  that `custom_id`s inside are unique (the walk shared with `validate_components`,
+  `component::validate::Totals`). No `accent_color_rgb` (not asked for; embeds have
+  `color_rgb`).
+- **Paths** of media URLs are written like Discord's: `media.url`, `items[1].media.url`,
+  `file.url`, `accessory.label`.
+- **Shared macro:** `component_builder!` gives every V2 builder `id`, `build`,
+  `build_unchecked` and `From<…> for Component`.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

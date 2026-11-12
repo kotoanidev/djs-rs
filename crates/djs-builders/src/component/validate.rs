@@ -4,14 +4,18 @@
 use std::borrow::Cow;
 
 use djs_model::component::{
-    ActionRow, AutoPopulatedSelect, Button, ButtonStyle, ChannelSelect, Component,
-    SelectDefaultValue, SelectDefaultValueType, StringSelect,
+    ActionRow, AutoPopulatedSelect, Button, ButtonStyle, ChannelSelect, Component, Container, File,
+    MediaGallery, Section, SelectDefaultValue, SelectDefaultValueType, StringSelect, TextDisplay,
+    Thumbnail,
 };
 
 use crate::{
     ValidationError,
-    check::{self, Path, WEB_OR_DISCORD},
+    check::{self, Path, WEB_OR_ATTACHMENT, WEB_OR_DISCORD},
 };
+
+/// The only scheme a file component accepts (D-205).
+const ATTACHMENT: &[&str] = &["attachment://"];
 
 /// Discord's [component limits](https://docs.discord.com/developers/components/reference), as
 /// checked on the live API (D-200, D-201).
@@ -24,6 +28,13 @@ pub(super) mod limits {
     pub(crate) const OPTION_TEXT: usize = 100;
     pub(crate) const PLACEHOLDER: usize = 150;
     pub(crate) const SELECT_VALUES: u8 = 25;
+    /// A text display, and all text displays of a message together.
+    pub(crate) const TEXT: usize = 4000;
+    pub(crate) const MEDIA_DESCRIPTION: usize = 1024;
+    pub(crate) const GALLERY_ITEMS: usize = 10;
+    pub(crate) const SECTION_TEXTS: usize = 3;
+    pub(crate) const CONTAINER: usize = 40;
+    pub(crate) const COLOR: u32 = 0xFF_FFFF;
 }
 
 /// Checks a `custom_id` (or a select option value): 1-100 code points, counted without
@@ -57,8 +68,189 @@ pub(super) fn component(path: &Path<'_>, component: &Component) -> Result<(), Va
         Component::RoleSelect(select) => auto_select(path, select, &[Role]),
         Component::MentionableSelect(select) => auto_select(path, select, &[User, Role]),
         Component::ChannelSelect(select) => channel_select(path, select, &[Channel]),
+        Component::TextDisplay(text) => text_display(path, text),
+        Component::Thumbnail(thumbnail) => self::thumbnail(path, thumbnail),
+        Component::MediaGallery(gallery) => media_gallery(path, gallery),
+        Component::File(file) => self::file(path, file),
+        Component::Section(section) => self::section(path, section),
+        Component::Container(container) => self::container(path, container),
         _ => Ok(()),
     }
+}
+
+/// What a walk over a component tree has seen: the components (nested ones and section
+/// accessories included), the characters of the text displays, and the `custom_id`s, which
+/// must be unique (D-200).
+#[derive(Default)]
+pub(super) struct Totals<'a> {
+    pub(super) components: usize,
+    pub(super) text: usize,
+    custom_ids: Vec<&'a str>,
+}
+
+impl<'a> Totals<'a> {
+    /// Adds `component` and everything in it, failing on a repeated `custom_id`.
+    pub(super) fn walk(
+        &mut self,
+        path: &Path<'_>,
+        component: &'a Component,
+    ) -> Result<(), ValidationError> {
+        self.components += 1;
+        if let Some(custom_id) = component.custom_id() {
+            if self.custom_ids.contains(&custom_id) {
+                return Err(ValidationError::Invalid {
+                    field: path.field("custom_id"),
+                    reason: "another component of the message has the same custom_id",
+                });
+            }
+            self.custom_ids.push(custom_id);
+        }
+        if let Component::TextDisplay(text) = component {
+            self.text += check::length(&text.content);
+        }
+        for (index, child) in component.children().iter().enumerate() {
+            self.walk(&path.item("components", index), child)?;
+        }
+        if let Component::Section(section) = component {
+            self.walk(&path.child("accessory"), &section.accessory)?;
+        }
+        Ok(())
+    }
+}
+
+/// A text display has 1-4000 characters after trimming (D-200).
+fn text_display(path: &Path<'_>, text: &TextDisplay) -> Result<(), ValidationError> {
+    check::required_text(|| path.field("content"), &text.content, limits::TEXT).map(drop)
+}
+
+/// A media description (alt text) has 1-1024 characters when set (D-205).
+fn media_description(path: &Path<'_>, description: Option<&str>) -> Result<(), ValidationError> {
+    if let Some(description) = description {
+        check::required_text(
+            || path.field("description"),
+            description,
+            limits::MEDIA_DESCRIPTION,
+        )?;
+    }
+    Ok(())
+}
+
+/// A thumbnail shows a link or an uploaded file (the D-190 rule, although Discord accepts any
+/// scheme, D-205).
+fn thumbnail(path: &Path<'_>, thumbnail: &Thumbnail) -> Result<(), ValidationError> {
+    check::url(
+        || path.child("media").field("url"),
+        &thumbnail.media.url,
+        WEB_OR_ATTACHMENT,
+    )?;
+    media_description(path, thumbnail.description.as_deref())
+}
+
+/// A gallery has 1-10 items, each a link or an uploaded file (D-205).
+fn media_gallery(path: &Path<'_>, gallery: &MediaGallery) -> Result<(), ValidationError> {
+    check::at_least(|| path.field("items"), gallery.items.len(), 1)?;
+    check::count(
+        || path.field("items"),
+        gallery.items.len(),
+        limits::GALLERY_ITEMS,
+    )?;
+    for (index, item) in gallery.items.iter().enumerate() {
+        let here = path.item("items", index);
+        check::url(
+            || here.child("media").field("url"),
+            &item.media.url,
+            WEB_OR_ATTACHMENT,
+        )?;
+        media_description(&here, item.description.as_deref())?;
+    }
+    Ok(())
+}
+
+/// A file component only shows a file uploaded with the message (D-205).
+fn file(path: &Path<'_>, file: &File) -> Result<(), ValidationError> {
+    check::url(
+        || path.child("file").field("url"),
+        &file.file.url,
+        ATTACHMENT,
+    )
+}
+
+/// A section has 1-3 text displays and a button or thumbnail as its accessory (D-205).
+fn section(path: &Path<'_>, section: &Section) -> Result<(), ValidationError> {
+    let children = &section.components;
+    check::at_least(|| path.field("components"), children.len(), 1)?;
+    check::count(
+        || path.field("components"),
+        children.len(),
+        limits::SECTION_TEXTS,
+    )?;
+    for (index, child) in children.iter().enumerate() {
+        let here = path.item("components", index);
+        if !matches!(child, Component::TextDisplay(_)) {
+            return Err(ValidationError::Invalid {
+                field: here.this(),
+                reason: "a section can only hold text displays",
+            });
+        }
+        component(&here, child)?;
+    }
+    let accessory = path.child("accessory");
+    if !matches!(
+        *section.accessory,
+        Component::Button(_) | Component::Thumbnail(_)
+    ) {
+        return Err(ValidationError::Invalid {
+            field: accessory.this(),
+            reason: "a section accessory must be a button or a thumbnail",
+        });
+    }
+    component(&accessory, &section.accessory)
+}
+
+/// A container has 1-40 layout and content components, an accent color up to `0xFFFFFF` and
+/// unique `custom_id`s inside (D-205).
+fn container(path: &Path<'_>, container: &Container) -> Result<(), ValidationError> {
+    let children = &container.components;
+    check::at_least(|| path.field("components"), children.len(), 1)?;
+    check::count(
+        || path.field("components"),
+        children.len(),
+        limits::CONTAINER,
+    )?;
+    if let Some(color) = container.accent_color
+        && color > limits::COLOR
+    {
+        return Err(ValidationError::OutOfRange {
+            field: path.field("accent_color"),
+            min: 0,
+            max: limits::COLOR.into(),
+            actual: color.into(),
+        });
+    }
+    for (index, child) in children.iter().enumerate() {
+        let here = path.item("components", index);
+        if !matches!(
+            child,
+            Component::ActionRow(_)
+                | Component::TextDisplay(_)
+                | Component::Section(_)
+                | Component::MediaGallery(_)
+                | Component::Separator(_)
+                | Component::File(_)
+        ) {
+            return Err(ValidationError::Invalid {
+                field: here.this(),
+                reason: "a container can only hold action rows, text displays, sections, media \
+                         galleries, separators and files",
+            });
+        }
+        component(&here, child)?;
+    }
+    let mut totals = Totals::default();
+    for (index, child) in children.iter().enumerate() {
+        totals.walk(&path.item("components", index), child)?;
+    }
+    Ok(())
 }
 
 /// Whether a component takes a whole action row on its own.
