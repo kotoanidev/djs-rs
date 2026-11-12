@@ -1801,6 +1801,19 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - The fixture of the bot authorization token response gets role `colors` and string
   `permissions` (the docs' example predates both).
 
+### C-064 — Lobby endpoint details
+- Member and join metadata are `Option<LobbyMetadata>` (`Some` of an empty map clears),
+  while `CreateLobby::metadata` and `SendLobbyMessage::metadata` are plain maps skipped when
+  empty (nothing to keep there). `LobbyMetadata` is an alias of
+  `BTreeMap<CompactString, CompactString>`, like the model's metadata fields.
+- Link and Unlink Channel share one path and method (`PATCH …/channel-linking`) but are two
+  routes and two methods; unlinking sends `{}`. The body type is private.
+- `BulkLobbyMember` flattens `LobbyMemberData` and adds `remove_member` (skipped when
+  `false`).
+- The lobby routes have no major parameter. Methods that need a player's access token say so
+  in their docs; the client does not check the token kind.
+- `CreateOrJoinLobby` redacts its `secret` in `Debug` (anyone who knows it can join).
+
 ---
 
 ## Open questions (to ask the owner when relevant)

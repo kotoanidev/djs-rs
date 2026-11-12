@@ -215,7 +215,9 @@ D-041).
 - **OAuth2 ✅** (6 methods, `oauth2::{OAuth2Credentials, AuthorizeUrl}`, `tests/oauth2.rs`
   in djs-rest and djs-model, D-131–D-133, C-063). `Request`'s `Debug` no longer prints the
   body.
-- **Next:** lobbies (`resources/lobby.mdx`), then voice (`resources/voice.mdx`) (D-102).
+- **Lobbies ✅** (16 methods, `tests/lobbies.rs`, D-134, C-064).
+- **Next:** voice (`resources/voice.mdx`, D-102) — the last resource; then the CDN URL
+  builder (D-116), then the Phase 3 benches and extreme-load tests (D-041).
 - Local gate script: `scratchpad/gate.sh` style (`set -euo pipefail`, no pipes hiding errors) —
   a piped gate let one clippy failure through (fixed in `cda06db`).
 - Perf note: after the user change, MESSAGE_CREATE/READY decode looked ~8-13 % slower relative

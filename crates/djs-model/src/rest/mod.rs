@@ -29,6 +29,7 @@ mod guild_scheduled_event;
 mod guild_template;
 mod interaction;
 mod invite;
+mod lobby;
 mod message;
 mod poll;
 mod soundboard;
@@ -71,6 +72,10 @@ pub use self::{
     guild_template::{CreateGuildTemplate, ModifyGuildTemplate},
     interaction::CreateFollowupMessage,
     invite::{BulkTargetUsers, GetInvite},
+    lobby::{
+        AddLobbyMember, BulkLobbyMember, CreateLobby, CreateOrJoinLobby, GetLobbyMessages,
+        LobbyMemberData, LobbyMetadata, ModifyLobby, SendLobbyMessage,
+    },
     message::{
         BulkDeleteMessages, ChannelPins, CreateMessage, EditMessage, GetChannelMessages,
         GetChannelPins, GetReactions, MessageSearchResults, SearchAuthorType, SearchEmbedType,

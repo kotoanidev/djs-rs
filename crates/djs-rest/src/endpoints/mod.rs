@@ -13,6 +13,7 @@ mod guild_scheduled_event;
 mod guild_template;
 mod interaction;
 mod invite;
+mod lobby;
 mod message;
 mod oauth2;
 mod poll;

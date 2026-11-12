@@ -11,10 +11,10 @@ use djs_model::{
         GetAnswerVoters, GetApplicationCommands, GetChannelMessages, GetChannelPermissions,
         GetChannelPins, GetCurrentUserGuilds, GetGuild, GetGuildAuditLog, GetGuildBans,
         GetGuildPruneCount, GetGuildScheduledEvent, GetGuildScheduledEventUsers, GetInvite,
-        GetReactions, GetThreadMember, ListArchivedThreads, ListEntitlements, ListGuildMembers,
-        ListJoinedPrivateArchivedThreads, ListScheduledEventsForGuild, ListSkuSubscriptions,
-        ListThreadMembers, SearchAuthorType, SearchEmbedType, SearchFilter, SearchGuildMembers,
-        SearchGuildMessages, SearchHasType, SearchSortMode, SearchSortOrder,
+        GetLobbyMessages, GetReactions, GetThreadMember, ListArchivedThreads, ListEntitlements,
+        ListGuildMembers, ListJoinedPrivateArchivedThreads, ListScheduledEventsForGuild,
+        ListSkuSubscriptions, ListThreadMembers, SearchAuthorType, SearchEmbedType, SearchFilter,
+        SearchGuildMembers, SearchGuildMessages, SearchHasType, SearchSortMode, SearchSortOrder,
     },
     util::Timestamp,
 };
@@ -216,6 +216,12 @@ impl Query for ListSkuSubscriptions {
         query.optional("after", self.after.as_ref());
         query.optional("limit", self.limit.as_ref());
         query.optional("user_id", self.user_id.as_ref());
+    }
+}
+
+impl Query for GetLobbyMessages {
+    fn write(&self, query: &mut QueryWriter<'_>) {
+        query.optional("limit", self.limit.as_ref());
     }
 }
 

@@ -7,8 +7,9 @@ use djs_model::{
     emoji::{Emoji, PartialEmoji},
     id::{
         ApplicationId, AutoModerationRuleId, ChannelId, CommandId, EmojiId, EntitlementId,
-        GenericId, GuildId, Id, IntegrationId, InteractionId, MessageId, RoleId, ScheduledEventId,
-        SkuId, SoundboardSoundId, StickerId, StickerPackId, SubscriptionId, UserId, WebhookId,
+        GenericId, GuildId, Id, IntegrationId, InteractionId, LobbyId, MessageId, RoleId,
+        ScheduledEventId, SkuId, SoundboardSoundId, StickerId, StickerPackId, SubscriptionId,
+        UserId, WebhookId,
     },
 };
 use http::Method;
@@ -1289,6 +1290,91 @@ routes! {
         /// The message with the poll.
         message_id: MessageId,
     } => POST "/channels/{channel_id}/polls/{message_id}/expire", major: channel_id;
+
+    // Lobbies (Discord Social SDK).
+
+    /// [Create Lobby](https://docs.discord.com/developers/resources/lobby#create-lobby).
+    CreateLobby => POST "/lobbies";
+    /// [Create or Join Lobby](https://docs.discord.com/developers/resources/lobby#create-or-join-lobby).
+    CreateOrJoinLobby => PUT "/lobbies";
+    /// [Get Lobby](https://docs.discord.com/developers/resources/lobby#get-lobby).
+    GetLobby {
+        /// The lobby.
+        lobby_id: LobbyId,
+    } => GET "/lobbies/{lobby_id}";
+    /// [Modify Lobby](https://docs.discord.com/developers/resources/lobby#modify-lobby).
+    ModifyLobby {
+        /// The lobby.
+        lobby_id: LobbyId,
+    } => PATCH "/lobbies/{lobby_id}";
+    /// [Delete Lobby](https://docs.discord.com/developers/resources/lobby#delete-lobby).
+    DeleteLobby {
+        /// The lobby.
+        lobby_id: LobbyId,
+    } => DELETE "/lobbies/{lobby_id}";
+    /// [Add a Member to a Lobby](https://docs.discord.com/developers/resources/lobby#add-a-member-to-a-lobby).
+    AddLobbyMember {
+        /// The lobby.
+        lobby_id: LobbyId,
+        /// The user.
+        user_id: UserId,
+    } => PUT "/lobbies/{lobby_id}/members/{user_id}";
+    /// [Bulk Update Lobby Members](https://docs.discord.com/developers/resources/lobby#bulk-update-lobby-members).
+    BulkUpdateLobbyMembers {
+        /// The lobby.
+        lobby_id: LobbyId,
+    } => POST "/lobbies/{lobby_id}/members/bulk";
+    /// [Remove a Member from a Lobby](https://docs.discord.com/developers/resources/lobby#remove-a-member-from-a-lobby).
+    RemoveLobbyMember {
+        /// The lobby.
+        lobby_id: LobbyId,
+        /// The user.
+        user_id: UserId,
+    } => DELETE "/lobbies/{lobby_id}/members/{user_id}";
+    /// [Leave Lobby](https://docs.discord.com/developers/resources/lobby#leave-lobby).
+    LeaveLobby {
+        /// The lobby.
+        lobby_id: LobbyId,
+    } => DELETE "/lobbies/{lobby_id}/members/@me";
+    /// [Link Channel to Lobby](https://docs.discord.com/developers/resources/lobby#link-channel-to-lobby).
+    LinkChannelToLobby {
+        /// The lobby.
+        lobby_id: LobbyId,
+    } => PATCH "/lobbies/{lobby_id}/channel-linking";
+    /// [Unlink Channel from Lobby](https://docs.discord.com/developers/resources/lobby#unlink-channel-from-lobby).
+    UnlinkChannelFromLobby {
+        /// The lobby.
+        lobby_id: LobbyId,
+    } => PATCH "/lobbies/{lobby_id}/channel-linking";
+    /// [Send Lobby Message](https://docs.discord.com/developers/resources/lobby#send-lobby-message).
+    SendLobbyMessage {
+        /// The lobby.
+        lobby_id: LobbyId,
+    } => POST "/lobbies/{lobby_id}/messages";
+    /// [Get Lobby Messages](https://docs.discord.com/developers/resources/lobby#get-lobby-messages).
+    GetLobbyMessages {
+        /// The lobby.
+        lobby_id: LobbyId,
+    } => GET "/lobbies/{lobby_id}/messages";
+    /// [Update Lobby Message Moderation Metadata](https://docs.discord.com/developers/resources/lobby#update-lobby-message-moderation-metadata).
+    UpdateLobbyMessageModerationMetadata {
+        /// The lobby.
+        lobby_id: LobbyId,
+        /// The lobby message.
+        message_id: MessageId,
+    } => PUT "/lobbies/{lobby_id}/messages/{message_id}/moderation-metadata";
+    /// [Create Lobby Channel Invite for Self](https://docs.discord.com/developers/resources/lobby#create-lobby-channel-invite-for-self).
+    CreateLobbyChannelInviteForSelf {
+        /// The lobby.
+        lobby_id: LobbyId,
+    } => POST "/lobbies/{lobby_id}/members/@me/invites";
+    /// [Create Lobby Channel Invite for User](https://docs.discord.com/developers/resources/lobby#create-lobby-channel-invite-for-user).
+    CreateLobbyChannelInviteForUser {
+        /// The lobby.
+        lobby_id: LobbyId,
+        /// The user.
+        user_id: UserId,
+    } => POST "/lobbies/{lobby_id}/members/{user_id}/invites";
 
     // OAuth2.
 

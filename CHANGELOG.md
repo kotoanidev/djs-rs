@@ -8,6 +8,12 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Lobby endpoints (16 methods, Discord Social SDK): create, create-or-join, get, modify and
+  delete lobbies; add, bulk-update, remove members and leave; link and unlink a channel;
+  channel invites for oneself or a member; send and read messages and set their moderation
+  metadata. Bodies `CreateLobby`, `CreateOrJoinLobby` (secret redacted in `Debug`),
+  `ModifyLobby`, `LobbyMemberData`, `AddLobbyMember`, `BulkLobbyMember` (D-134),
+  `SendLobbyMessage`, query `GetLobbyMessages`, alias `LobbyMetadata`.
 - `OAuth2` (D-131–D-133): `get_current_bot_application_information`,
   `get_current_authorization_information`, and the token endpoints `exchange_code`,
   `refresh_access_token`, `client_credentials_grant` and `revoke_token`, which take
