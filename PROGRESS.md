@@ -6,7 +6,11 @@
 ## Current phase
 **Phase 1 — Vertical slice: ✅ done** (live test passed, benchmarks + extreme-load tests done,
 D-041).
-**Current: Phase 2 — full `djs-model` coverage** (D-039; permissions = `u64`, D-040).
+**Phase 2 — full `djs-model` coverage: ✅ done** (D-039; benchmarks + stress tests done).
+**Phase 3 — full `djs-rest` coverage: ✅ done 2026-11-12** (every documented REST route, OAuth2,
+CDN URLs; benchmarks + extreme-load tests in `docs/PERFORMANCE.md`).
+**Next: Phase 4 — full `djs-gateway` coverage** (see "Next step" below; starts with owner
+decisions).
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-075 in `docs/DECISIONS.md`; Claude defaults C-001 …
@@ -223,10 +227,12 @@ D-041).
   (D-105, D-116, D-120, disabled Batch Edit Application Command Permissions).
 - **CDN URL builder ✅** (`djs_rest::cdn::Cdn`, `Rest::cdn()`,
   `Rest::guild_widget_image_url`, D-137–D-139, C-066).
-- **Next:** Phase 3 benches and extreme-load tests (D-041, the last Phase 3 item): multipart
-  with large files, `ImageData`/`SoundData` base64, request building (routes, queries,
-  forms), REST future size, `Timestamp` formatting, CDN URL building; record them in
-  `docs/PERFORMANCE.md`, then tick Phase 3 in ROADMAP.
+- **Phase 3 benchmarks + extreme-load tests ✅** (`djs-model/benches/encode.rs`,
+  `djs-rest/benches/request.rs`, multipart stress tests; `docs/PERFORMANCE.md` "Phase 3"):
+  base64 bodies 1.45 GB/s, `Route::path` 45–180 ns, 512 MiB of 8 MiB uploads at
+  3.3–4.0 GiB/s with +5 MiB peak (zero-copy), 236k req/s, all rate-limit guarantees hold.
+  Candidates recorded there: request future 1 448 B (was 1 024 B), JSON body buffer growth.
+  **Phase 3 is done** (ROADMAP ticked).
 - Local gate script: `scratchpad/gate.sh` style (`set -euo pipefail`, no pipes hiding errors) —
   a piped gate let one clippy failure through (fixed in `cda06db`).
 - Perf note: after the user change, MESSAGE_CREATE/READY decode looked ~8-13 % slower relative
@@ -234,16 +240,19 @@ D-041).
   end of Phase 2, run the decode benches back-to-back against the Phase 1 commit `65210f8`
   (git worktree) and record the comparison in `docs/PERFORMANCE.md`.
 
-## Next step — Phase 3 (`djs-rest` full coverage)
-1. Finish the infrastructure in the order listed under "In progress" (D-084), one commit each.
-2. Then the endpoints, resource by resource: a `Route` variant per endpoint (`routes!` in
-   `djs-rest/src/route.rs`, names from the Discord docs, D-091), body/query structs in
-   `djs_model::rest` (D-082, D-092), a `Rest` method per endpoint with full rustdoc (docs link +
-   discord.js counterpart), mock-server tests per resource.
-3. Then the CDN URL builder.
-4. When Phase 3 is done: REST benches + extreme-load tests (D-041) in `docs/PERFORMANCE.md`;
-   optimization candidates already noted there: REST future size (≈ 1 KiB), `Timestamp`
-   formatting.
+## Next step — Phase 4 (`djs-gateway` full coverage, ROADMAP)
+1. Ask the owner first (significant decisions): zlib-stream support (new dependency, e.g.
+   `flate2` with a zlib backend, behind a feature), simd-json (new dependency, feature) and
+   whether zero-copy/borrowed decoding is pursued; the sharding manager's API (auto shard
+   count, `max_concurrency` buckets, resharding); the gateway send rate limiter's behaviour
+   when full (wait vs error).
+2. Then, one commit each: send rate limiting (120 per 60 s), identify concurrency, the
+   sharding manager, the gateway commands (presence update, request guild members, voice
+   state update, request soundboard sounds), mock-gateway tests.
+3. When Phase 4 is done: gateway benches + extreme-load tests (D-041) in
+   `docs/PERFORMANCE.md`.
+- Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON
+  body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").
 
 ## Blocked on the owner
 - Nothing.

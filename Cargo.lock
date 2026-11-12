@@ -208,6 +208,7 @@ name = "djs-rest"
 version = "0.0.0"
 dependencies = [
  "bytes",
+ "divan",
  "djs-model",
  "http",
  "http-body-util",

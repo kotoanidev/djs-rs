@@ -8,6 +8,10 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Phase 3 benchmarks and extreme-load tests (D-041): `djs-model/benches/encode.rs` (request
+  bodies, base64 images and sounds, target users CSV), `djs-rest/benches/request.rs` (routes,
+  requests, CDN and authorization URLs) and multipart upload stress tests; results in
+  `docs/PERFORMANCE.md`.
 - `djs_rest::cdn` (D-137–D-139): `Cdn` builds the URLs of every CDN endpoint (avatars,
   banners, icons, splashes, emojis, stickers, avatar decorations, app assets, role icons,
   event covers, server tag badges, group DM icons, soundboard sounds), with `ImageOptions`

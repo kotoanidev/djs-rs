@@ -12,7 +12,8 @@ The side-by-side comparison with discord.js on Node.js (D-123) is a separate pag
 
 ```bash
 # Micro-benchmarks (timings + allocations per operation)
-cargo bench -p djs-model
+cargo bench -p djs-model   # gateway decoding (decode) and REST bodies (encode)
+cargo bench -p djs-rest    # routes, requests, CDN and OAuth2 URLs
 
 # Extreme-load tests: ignored by default, run in release mode, print `[stress]` lines
 cargo test -p djs-model   --release --test stress -- --ignored --nocapture --test-threads 1
@@ -303,7 +304,90 @@ not depend on it.
 
 ---
 
-## Phase 3 — full `djs-rest` (in progress)
+## Phase 3 — full `djs-rest` (2026-11-12)
+
+Same machine as above, now on Linux 7.3.3 (rustc 1.99.1, platform profile `performance`).
+Every documented REST route has a typed method (`scripts/route_coverage.py`), plus OAuth2
+token exchange, the CDN URL builder and lobbies. New benches: `djs-model/benches/encode.rs`
+(request bodies) and `djs-rest/benches/request.rs` (routes, requests, URLs); new stress tests:
+multipart uploads.
+
+```bash
+cargo bench -p djs-model --bench encode
+cargo bench -p djs-rest
+```
+
+### `djs-model` — request bodies (`benches/encode.rs`)
+
+Medians; allocations per operation from divan's `AllocProfiler`.
+
+| Benchmark | Median | Throughput | Allocations |
+|---|---:|---:|---|
+| `CreateMessage::from("Pong!")` → JSON | 38.6 ns | | 1 (128 B) |
+| `CreateMessage` with 3 embeds (≈ 800-character descriptions) → JSON | 1.19 µs | | 1 + growth |
+| `CreateGuildScheduledEvent` with a weekly recurrence → JSON | 416 ns | | 1 + growth |
+| `ModifyGuildScheduledEvent` with `Patch::Clear` and two fields → JSON | 171 ns | | 1 |
+| `ImageData` 256 KiB → base64 data URI in JSON | 179 µs | **1.46 GB/s** | 1 + 10 grows |
+| `ImageData` 10 MiB → JSON | 7.2 ms | 1.45 GB/s | 1 + 15 grows |
+| `SoundData` 512 KiB → JSON | 360 µs | 1.46 GB/s | 1 + 11 grows |
+| `FileUpload::target_users` with 10 000 user IDs (CSV) | 93 µs | | 2 + growth |
+
+### `djs-rest` — building requests and URLs (`benches/request.rs`)
+
+| Benchmark | Median | Allocations |
+|---|---:|---|
+| `Route::path`, one ID (`/channels/{id}/messages`) | 44.9 ns | 1 (64 B) |
+| `Route::path`, two IDs (scheduled event users) | 101 ns | 1 |
+| `Route::path`, percent-encoded Unicode reaction | 129 ns | 1 |
+| `Route::path`, 68-character webhook token | 179 ns | 1 |
+| `Request::new(..).json(&CreateMessage).reason(..)` | 31.6 ns | 2 (152 B) |
+| `Cdn::user_avatar`, animated hash, `size=256` | 75.3 ns | 1 (122 B) |
+| `AuthorizeUrl::code(..)` with 3 scopes, permissions and state | 194 ns | 5 (478 B) |
+
+Building a request is well under a microsecond; it is noise next to the network round trip
+(≈ 40 µs to a local server, tens of milliseconds to Discord).
+
+### `djs-rest` — extreme load (`tests/stress.rs`), A/B against Phases 1 and 2
+
+Three runs (ranges). The mock server now counts request bodies while they stream in instead of
+buffering them, so the peak memory of the upload tests is the client's.
+
+| Scenario | Phase 1 | Phase 2 | Phase 3 |
+|---|---:|---:|---:|
+| Throughput: 200 000 requests, 10 000 buckets, 256 in flight | 246 000 /s | 227 000 /s | 236 000–238 000 /s |
+| Peak memory of that run (200 000 queued tasks) | 298 MiB | — | 381–385 MiB |
+| Sequential round trip, 1 channel | 42.5 µs | 44.4 µs | 39.7–42.3 µs |
+| Bucket limits: 10 000 queued, 10 per 100 ms | 0 rejected | 0 rejected | **0 rejected**, 986–990 ms |
+| 429 storm, 1 000 channels | exactly 1 000 | exactly 1 000 | **exactly 1 000**, 15 000–20 000 /s |
+| Global limit 50/s, 250 queued | ≤ 50 per s | ≤ 50 per s | **≤ 50 per s**, 4.21 s |
+| **New:** 64 uploads of an 8 MiB file, 8 in flight (512 MiB) | | | **3 300–4 000 MiB/s**, peak **+4–5 MiB** |
+| **New:** 50 000 uploads of a 1 KiB file, 256 in flight | | | **203 000–206 000 /s** |
+| `create_message` future size | 1 024 B | — | 1 448 B |
+
+Other futures: `get_gateway_bot` 1 432 B, `exchange_code` 1 472 B, `update_target_users`
+1 656 B, `search_guild_messages` 1 248 B, `create_lobby` 1 440 B.
+
+- **Uploads are zero-copy.** 64 × 8 MiB went through with 4–5 MiB of extra peak memory: file
+  data is shared `Bytes` from the `FileUpload` to the socket, never copied per request or per
+  retry attempt.
+- The multipart path costs about as much as a JSON body (≈ 205 000 vs ≈ 237 000 requests/s, with
+  bigger bodies). The 50 000-upload run's +86 MiB peak is its 50 000 tasks spawned up front.
+- The rate-limit guarantees are unchanged under load: no 429 got through, every 429 is retried
+  exactly once, and the global limit holds in every sliding second.
+
+### Findings and optimization candidates (Phase 3)
+
+1. **The request future grew from 1 024 B to 1 448 B** (+41 % since Phase 1; retries, invalid
+   request limit, multipart bodies, query strings), which is why 200 000 queued requests peak
+   at ≈ 383 MiB instead of 298 MiB. Requests are rarely queued by the hundred thousand, but a
+   smaller state machine (e.g. keeping the retry loop's locals in one struct, or boxing the
+   rarely-used error paths) would cut it. Candidate for a measured change.
+2. **JSON bodies grow from 128 bytes.** `serde_json::to_vec` starts small, so a 10 MiB image
+   is copied through 15 reallocations (1.2–1.5× the output in extra copies). Base64 still runs at
+   1.45 GB/s; reserving the encoded size first could save part of that for image and sound
+   uploads only. Low priority: those uploads are rare and network-bound.
+3. Request building allocates only its output, except `AuthorizeUrl` (5 allocations: its
+   scopes, state and redirect URI, then the URL); it is not on a hot path.
 
 ### Strict global limiter (D-089)
 

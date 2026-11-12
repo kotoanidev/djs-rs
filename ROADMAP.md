@@ -66,7 +66,7 @@ just with narrow scope.
       query structs, D-092) — `scripts/route_coverage.py` lists only the routes left out on
       purpose (D-105, D-116, D-120, disabled batch command permissions)
 - [x] CDN URL builder (`djs_rest::cdn`, D-137–D-139)
-- [ ] Mock-server tests; benchmarks
+- [x] Mock-server tests; benchmarks and extreme-load tests (`docs/PERFORMANCE.md`, Phase 3)
 
 ## Phase 4 — `djs-gateway` full coverage (≈ @discordjs/ws)
 - [ ] zlib-stream feature, simd-json feature, zero-copy parsing where measurable

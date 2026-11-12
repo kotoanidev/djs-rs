@@ -27,6 +27,10 @@ serde_json.workspace = true
 name = "decode"
 harness = false
 
+[[bench]]
+name = "encode"
+harness = false
+
 [lints]
 workspace = true
 

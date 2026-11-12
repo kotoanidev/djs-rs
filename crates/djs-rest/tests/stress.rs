@@ -27,7 +27,10 @@ use std::{
 };
 
 use bytes::Bytes;
-use djs_model::{id::ChannelId, rest::CreateMessage};
+use djs_model::{
+    id::{ApplicationId, ChannelId, GuildId},
+    rest::{CreateMessage, FileUpload},
+};
 use djs_rest::Rest;
 use http::{Request, Response, StatusCode};
 use http_body_util::{BodyExt, Full};
@@ -58,6 +61,8 @@ struct Server {
     windows: Mutex<HashMap<u64, Window>>,
     requests: AtomicU64,
     rejected: AtomicU64,
+    /// Request body bytes received.
+    received: AtomicU64,
     arrivals: Mutex<Vec<Instant>>,
 }
 
@@ -77,6 +82,7 @@ async fn start(
         windows: Mutex::default(),
         requests: AtomicU64::new(0),
         rejected: AtomicU64::new(0),
+        received: AtomicU64::new(0),
         arrivals: Mutex::default(),
     });
     let state = Arc::clone(&server);
@@ -114,7 +120,16 @@ async fn handle(server: &Server, request: Request<Incoming>) -> Response<Full<By
         .nth(4)
         .and_then(|id| id.parse().ok())
         .unwrap_or(0);
-    let _ = request.into_body().collect().await;
+    // Count the body while it streams in, without buffering it, so that the peak memory of
+    // the upload tests is the client's.
+    let mut body = request.into_body();
+    while let Some(Ok(frame)) = body.frame().await {
+        if let Some(data) = frame.data_ref() {
+            server
+                .received
+                .fetch_add(data.len() as u64, Ordering::Relaxed);
+        }
+    }
     server.arrivals.lock().unwrap().push(now);
 
     let mut response = Response::builder().header("content-type", "application/json");
@@ -355,6 +370,85 @@ async fn sequential_latency() {
     );
 }
 
+/// Sends `count` messages with `body` (and its files) to 64 channels, with at most
+/// `concurrency` in flight, returning the elapsed time.
+async fn upload(rest: &Rest, count: u64, concurrency: usize, body: CreateMessage) -> Duration {
+    let permits = Arc::new(Semaphore::new(concurrency));
+    let body = Arc::new(body);
+    let started = Instant::now();
+    let mut tasks = JoinSet::new();
+    for index in 0..count {
+        let (rest, body, permits) = (rest.clone(), Arc::clone(&body), Arc::clone(&permits));
+        tasks.spawn(async move {
+            let _permit = permits.acquire_owned().await.unwrap();
+            rest.create_message(ChannelId::new(index % 64 + 1), &body)
+                .await
+                .unwrap_or_else(|error| panic!("upload {index}: {error:?}"))
+        });
+    }
+    while let Some(result) = tasks.join_next().await {
+        result.unwrap();
+    }
+    started.elapsed()
+}
+
+/// A message with one attachment of `len` bytes. Every request shares the same `Bytes`.
+fn with_file(len: usize) -> CreateMessage {
+    let mut body = CreateMessage::from("upload");
+    body.files = vec![FileUpload::new("data.bin", vec![0x5a_u8; len])];
+    body
+}
+
+/// Prints the peak memory above `baseline_kib` and the received megabytes per second.
+fn report_upload(name: &str, count: u64, elapsed: Duration, server: &Server, baseline_kib: u64) {
+    let received = server.received.load(Ordering::Relaxed);
+    let peak = memory_kib().map_or_else(
+        || "n/a".to_owned(),
+        |(_, peak)| format!("{} MiB", peak.saturating_sub(baseline_kib) / 1024),
+    );
+    println!(
+        "[stress] {name}: {count} uploads, {} MiB in {elapsed:.2?} = {:.0} MiB/s, {:.0} req/s; \
+         peak above baseline {peak}",
+        received / (1024 * 1024),
+        received as f64 / (1024.0 * 1024.0) / elapsed.as_secs_f64(),
+        count as f64 / elapsed.as_secs_f64(),
+    );
+}
+
+/// 64 uploads of an 8 MiB file (512 MiB in total), 8 at a time. The file is shared, so the
+/// peak memory shows whether the client copies file data per request or attempt.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "stress test; run with --release --ignored"]
+async fn multipart_large_files() {
+    const SIZE: usize = 8 * 1024 * 1024;
+    let (rest, server) = start(Mode::Unlimited, |builder| {
+        builder.global_requests_per_second(0).build()
+    })
+    .await;
+    let body = with_file(SIZE);
+    reset_peak_memory();
+    let baseline = memory_kib().map_or(0, |(rss, _)| rss);
+    let elapsed = upload(&rest, 64, 8, body).await;
+    report_upload("multipart 8 MiB", 64, elapsed, &server, baseline);
+    assert!(server.received.load(Ordering::Relaxed) >= 64 * SIZE as u64);
+}
+
+/// 50 000 uploads of a 1 KiB file, 256 at a time: the cost of the multipart path itself.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "stress test; run with --release --ignored"]
+async fn multipart_small_files_throughput() {
+    let (rest, server) = start(Mode::Unlimited, |builder| {
+        builder.global_requests_per_second(0).build()
+    })
+    .await;
+    upload(&rest, 256, 256, with_file(1024)).await;
+    server.received.store(0, Ordering::Relaxed);
+    reset_peak_memory();
+    let baseline = memory_kib().map_or(0, |(rss, _)| rss);
+    let elapsed = upload(&rest, 50_000, 256, with_file(1024)).await;
+    report_upload("multipart 1 KiB", 50_000, elapsed, &server, baseline);
+}
+
 /// Prints the size of the futures returned by the client; every queued request holds one.
 #[test]
 #[ignore = "stress test; run with --release --ignored"]
@@ -363,9 +457,22 @@ fn future_sizes() {
     let body = CreateMessage::from("x");
     let create = rest.create_message(ChannelId::new(1), &body);
     let gateway = rest.get_gateway_bot();
+    let credentials = djs_rest::oauth2::OAuth2Credentials::new(ApplicationId::new(1), "secret");
+    let exchange = rest.exchange_code(&credentials, "code", "https://example.com");
+    let file = FileUpload::new("users.csv", "1");
+    let targets = rest.update_target_users("code", &file);
+    let query = djs_model::rest::SearchGuildMessages::default();
+    let search = rest.search_guild_messages(GuildId::new(1), &query);
+    let lobby_body = djs_model::rest::CreateLobby::default();
+    let lobby = rest.create_lobby(&lobby_body);
     println!(
-        "[stress] future sizes: create_message {} B, get_gateway_bot {} B",
+        "[stress] future sizes: create_message {} B, get_gateway_bot {} B, exchange_code {} B, \
+         update_target_users {} B, search_guild_messages {} B, create_lobby {} B",
         size_of_val(&create),
-        size_of_val(&gateway)
+        size_of_val(&gateway),
+        size_of_val(&exchange),
+        size_of_val(&targets),
+        size_of_val(&search),
+        size_of_val(&lobby),
     );
 }

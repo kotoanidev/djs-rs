@@ -36,8 +36,13 @@ tracing = { workspace = true, features = ["std"] }
 webpki-roots.workspace = true
 
 [dev-dependencies]
+divan.workspace = true
 hyper = { workspace = true, features = ["server", "http1"] }
 tokio = { workspace = true, features = ["macros", "net", "rt-multi-thread", "test-util"] }
+
+[[bench]]
+name = "request"
+harness = false
 
 [lints]
 workspace = true
