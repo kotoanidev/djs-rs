@@ -2097,6 +2097,34 @@ and why.
 - **Alternatives:** always the model type (a cache hit converted back, allocating); an enum of
   the cached and the REST value.
 
+### D-234 — Guild-wide channel operations get their own manager
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** operations on one channel by its ID (fetch, edit, delete, permission
+  overwrites, typing) stay on `ctx.channels()`; operations on a guild's channels (create,
+  list, positions) go to a guild-scoped manager, `ctx.guild_channels(guild_id)` /
+  `guild.channels(&ctx)`, like discord.js' `GuildChannelManager` and consistent with
+  `ctx.roles(guild)` and `ctx.members(guild)`.
+- **Alternatives:** everything on `ctx.channels()`, with the guild ID as a parameter.
+
+### D-235 — Permission overwrites: a typed target, Discord's semantics
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `set_permissions(channel, target, allow, deny, reason)` and
+  `delete_permissions(channel, target, reason)`, where the target is a role or a member told
+  apart by the ID type (`RoleId` / `UserId`). Setting replaces the whole overwrite, as
+  Discord's PUT does.
+- **Alternatives:** the REST shape (`GenericId` + `EditChannelPermissions`, the caller casts
+  the ID and picks the type); discord.js' `edit` merging with the cached overwrite and
+  `create` replacing it.
+
+### D-236 — REST deletions leave the cache to the gateway event
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** when the bot deletes a channel, role, message, … through a manager, the
+  manager only sends the request. The cache changes when the gateway event (`CHANNEL_DELETE`,
+  …) arrives, and the delete event fires once, from it, with the previous state (`old`).
+- **Alternatives:** like discord.js, remove from the cache at once and emit the delete event
+  from the REST call (the gateway event then finds nothing); managers would need the client's
+  event emitter.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
