@@ -2186,6 +2186,29 @@ and why.
   `ctx.soundboard_sounds(guild)`.
 - **Alternatives:** `ctx.soundboard_sounds(guild).list_default()`.
 
+### D-244 — Application commands: a global and a guild manager
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** like discord.js, `ctx.commands()` manages the global commands (`fetch`,
+  `list`, `create`, `edit`, `delete`, `set` overwriting all of them) and
+  `ctx.guild_commands(guild)` a guild's, with reading the command permissions. Shortcut:
+  `guild.commands(&ctx)`. Commands are not cached: the `djs-model` types are returned.
+- **Alternatives:** one `ctx.commands()` taking an `Option<GuildId>` scope in every method.
+
+### D-245 — The application ID comes from `READY`
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** the client keeps `application.id` from the first `READY`;
+  `ctx.application_id()` is available to every handler without an extra request.
+- **Alternatives:** `ClientBuilder::application_id(id)`, otherwise Get Current Application
+  at login (one more request).
+
+### D-246 — The audit log and integrations are on `GuildManager`
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `ctx.guilds().audit_log(guild, &query)`, `ctx.guilds().integrations(guild)`
+  and `ctx.guilds().delete_integration(guild, id, reason)`, with the shortcuts
+  `guild.audit_log(&ctx, …)` and `guild.integrations(&ctx)` (discord.js:
+  `Guild#fetchAuditLogs`, `Guild#fetchIntegrations`).
+- **Alternatives:** separate `ctx.audit_log(guild)` and `ctx.integrations(guild)` managers.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
