@@ -1384,6 +1384,33 @@ and why.
   whole dispatch enum and returns an enum.
 - **Alternatives:** only `cache.update(&DispatchEvent)` returning one enum to match on.
 
+### D-164 — Presences are cached as `CachedPresence`
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** a cached presence holds its user's ID instead of the `PresenceUser` (user data
+  goes to the user resource), the model's `Status` and `ClientStatus`, and the activities as a
+  `Box<[Activity]>` of the model type, complete. About half the size of `Presence` (296 B),
+  without duplicating the user. This is the compact presence type D-081 announced.
+- **Alternatives:** also an own `CachedActivity` with the common fields and one-byte statuses
+  (smallest, loses rare activity fields); the model `Presence` unchanged.
+
+### D-165 — Messages are cached as `CachedMessage`
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** a cached message has the fields of `Message`, with the author as an
+  `Arc<User>` shared with the user resource (like `CachedMember`, D-160) and without the
+  `member` field (members have their own resource), so an author of many messages is stored
+  once.
+- **Alternatives:** the model `Message` unchanged (author and member copied into every
+  message).
+
+### D-166 — Reaction events update cached messages
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `MESSAGE_REACTION_ADD`, `MESSAGE_REACTION_REMOVE`,
+  `MESSAGE_REACTION_REMOVE_ALL` and `MESSAGE_REACTION_REMOVE_EMOJI` update the reactions of a
+  cached message (copy-on-write through its `Arc`, only when the message is cached) and return
+  the message before the change, like discord.js.
+- **Alternatives:** leave a cached message's reactions as `MESSAGE_CREATE` / `MESSAGE_UPDATE`
+  sent them.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)

@@ -293,8 +293,10 @@ user), D-153 (updates return the previous state), D-154 (order below), D-155–D
 3. **Next:** messages (per channel, `MESSAGE_*`, also authors → users; `CHANNEL_DELETE`
    drops a channel's messages), presences (compact type, D-081), voice states, threads
    (`THREAD_*`, `GUILD_CREATE.threads`), scheduled events, stage instances, soundboard.
-   Cached types for these are public API → ask the owner first (e.g. a compact
-   `CachedPresence`, `CachedMessage` or the model `Message`).
+   Decided: D-164 (`CachedPresence`: user ID, model statuses, `Box<[Activity]>`), D-165
+   (`CachedMessage`: author `Arc<User>`, no `member`), D-166 (reaction events update cached
+   messages). Voice states, threads (model `Channel`), scheduled events, stage instances and
+   soundboard sounds use the model types (D-160 pattern; voice states without `member`).
 4. Sweepers.
 5. djs-rs `Client` integration.
 6. Benchmarks + extreme-load tests (D-041), re-run `docs/VS_NODE.md`.
