@@ -1776,6 +1776,15 @@ and why.
     still open.
 - **Alternatives:** the docs only, unclear cases documented as such.
 
+### D-201 — A four-message live test settles the unit of the 4000-character V2 limit
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** four Components V2 messages with one text display each, sent by the test bot
+  and deleted at once if accepted: 4000 letters, 2000 × 🔥, 2001 × 🔥 (2001 code points, 4002
+  UTF-16 units, 8004 bytes) and 3000 × € (3000 code points and UTF-16 units, 9000 bytes) —
+  which separates code points, UTF-16 units and bytes.
+- **Alternatives:** count code points without a test (D-183) and document the 413; count
+  UTF-16 units for this limit to be safe.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
