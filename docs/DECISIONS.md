@@ -1247,6 +1247,17 @@ and why.
 - **Alternatives:** also `request_guild_members`, `request_soundboard_sounds` and
   `update_voice_state` on `Client` now (like @discordjs/core); nothing in djs-rs until Phase 6.
 
+### D-150 — simd-json: investigate further, then try `sonic-rs` in the benchmark
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** After the first simd-json measurements the owner chose to keep investigating;
+  after the careful re-measurement (≤ 15 % gain on message events only, losses elsewhere,
+  `docs/PERFORMANCE.md`) the owner chose to try `sonic-rs` 0.5.10 the same way, as a
+  bench-only dev-dependency. If it clearly wins, adding a feature is a separate decision; if
+  not, both experiments (benches and dev-dependencies) are removed and the D-013 feature is
+  closed as measured, not added.
+- **Alternatives:** dropping simd-json without further tries; adding simd-json as an opt-in
+  feature anyway.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
