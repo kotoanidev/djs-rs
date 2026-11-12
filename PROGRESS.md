@@ -389,13 +389,18 @@ discord.js names where they fit + Rust traits; no `each`/`reduce`/`some`/`every`
 (formatters return `Display` types, mentions take `djs-model` IDs, escaping returns
 `Cow<str>`), D-212 (escaping: own clear rules, discord.js' options and defaults), D-213
 (optional parts are methods on the `Display` types). Steps:
-1. **Next:** `djs-formatters` — mentions (user, channel, role, linked role, slash command),
-   emoji, timestamps with `TimestampStyle`, markdown (bold, italic, underline,
-   strikethrough, spoiler, inline code, code blocks, quotes, headings, lists, subtext, links,
-   hyperlinks, hidden embeds), channel / message links, escaping (`escape_markdown` with
-   options, and the single escapers) — compare with
-   `.reference/discord.js-v14/packages/formatters/src/` for behaviour (D-004: write from
-   scratch). Tests, README, then benchmarks + extreme-load tests (D-041).
+1. `djs-formatters` (D-211–D-213, C-087):
+   a. ✅ The crate: `crates/djs-formatters/src/{mention.rs (mentions, emoji,
+      GuildNavigation), timestamp.rs (time, TimestampStyle, UnixSeconds), markdown.rs
+      (wrapper! macro for the emphasis / quote formatters, code blocks, headings, hyperlinks,
+      lists with the sealed ListEntry, Face), link.rs (channel / message / App Directory,
+      email, phone_number), escape.rs (EscapeOptions, escape_markdown, single escapers — one
+      byte scanner, lazy Cow)}`; tests `tests/{escape.rs, format.rs}`; `djs_rs::formatters`.
+   b. **Next:** benchmarks + extreme-load tests (D-041): `benches/formatters.rs` (divan:
+      formatting into a reused `String`, `to_string()`, `escape_markdown` on plain / heavy /
+      link-rich text of several sizes, borrowed vs owned), `tests/stress.rs` (megabytes of
+      adversarial text — runs of `*`, `[`, `<`, backticks — escaped in linear time, all
+      cores); results in `docs/PERFORMANCE.md`; then tick `djs-formatters` in ROADMAP.
 2. `djs-collection` (D-209, D-210): ask before deciding anything not covered (for example
    whether `djs-cache` returns it).
 3. `djs-util`: only what other crates need.

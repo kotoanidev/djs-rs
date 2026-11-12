@@ -32,6 +32,10 @@ pub use djs_cache as cache;
 /// Validated builders for embeds, commands and components — re-export of [`djs_builders`].
 pub use djs_builders as builders;
 
+/// Mentions, timestamps, markdown and escaping for message text — re-export of
+/// [`djs_formatters`].
+pub use djs_formatters as formatters;
+
 /// The most commonly used items, for a single glob import:
 ///
 /// ```

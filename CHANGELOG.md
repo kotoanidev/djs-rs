@@ -8,6 +8,15 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-formatters` (Phase 7 step 1, D-211–D-213, C-087): mentions (user, channel, role,
+  linked role, slash command with subcommand or group), custom emoji, guild navigation,
+  timestamps with every `TimestampStyle`, markdown (bold, italic, underline,
+  strikethrough, spoiler, inline code, code blocks with a language, quotes, headings, subtext,
+  nested lists, hyperlinks with titles, hidden embeds), channel / message / App Directory
+  links, e-mail and phone links, faces, and `escape_markdown` with discord.js' options plus
+  every single escaper. Formatters return `Display` values (no allocation until written)
+  and take `djs-model` IDs; escaping is one pass returning `Cow<str>`, leaving links and
+  mentions intact. Re-exported as `djs_rs::formatters`.
 - `djs-builders` benchmarks (`benches/builders.rs`) and extreme-load tests
   (`tests/stress.rs`), results in `docs/PERFORMANCE.md` (Phase 6 step 4, C-086). Checking a
   message's components no longer allocates and finds repeated `custom_id`s and option values

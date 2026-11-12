@@ -3004,6 +3004,33 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - **Command names:** an ASCII shortcut in the name check, with a unit test that it agrees
   with the full check on all 128 ASCII characters.
 
+### C-087 — Formatter details (D-211–D-213)
+- **Names:** discord.js' names in snake_case, except `slash_command_mention`
+  (`chatInputApplicationCommandMention`) and `emoji` (`formatEmoji`), as in the D-213
+  preview; `underscore` (deprecated alias of `underline`) is left out. Timestamp styles are
+  named after Discord's docs (`MediumTime`, `LongDateShortTime`, `FullDateShortTime`, …),
+  without discord.js' deprecated aliases. The game-profile mention `<@$GAME_ID>` from
+  Discord's docs is not offered (no game ID type in `djs-model`, not in discord.js).
+- **Time input:** a public trait `UnixSeconds` (implemented for `i64` seconds,
+  `djs_model::util::Timestamp`, `SystemTime` and references), so other crates' time types can
+  be passed; fractions round down, also before 1970.
+- **`Display` output ignores width and fill flags** (`{:>10}`): the parts are written with
+  `write!`, so a flag never pads an ID inside a mention.
+- **Lists:** flat lists take any `Display` items; nesting uses `ListItem::{Text, Nested}`. The
+  bound is a sealed trait `ListEntry`. Ordered lists number each line (discord.js repeats the
+  first number; Discord shows both alike), nested ordered lists count from 1, `start(0)` is 1.
+- **`phone_number` returns `Option`** (`None` without a leading `+`; discord.js throws).
+- **`email` headers** are `&[(&str, &str)]`; names are lower-cased (ASCII) and both parts
+  encoded like `URLSearchParams` (`application/x-www-form-urlencoded`).
+- **Escaping:** the discord.js option `escape` is `EscapeOptions::backslash` (`escape` is the
+  method that escapes text); the single escaper keeps the name `escape_escape`.
+  `EscapeOptions::none()` is added as a start for a few kinds; the single escapers use the
+  same link and token rules as `escape_markdown`. A link runs to the next ASCII whitespace;
+  a `<…>` token is protected when it is on one line without another `<`, and either starts
+  with `/` and ends with `:` + digits (command mention, spaces allowed) or has no whitespace
+  and starts with `@`, `#` or `+` or contains `:` or `@`.
+- **`djs_rs::formatters`** re-exports the crate, like the other layers.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

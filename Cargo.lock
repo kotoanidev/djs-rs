@@ -205,6 +205,9 @@ version = "0.0.0"
 [[package]]
 name = "djs-formatters"
 version = "0.0.0"
+dependencies = [
+ "djs-model",
+]
 
 [[package]]
 name = "djs-gateway"
@@ -270,6 +273,7 @@ dependencies = [
  "bytes",
  "djs-builders",
  "djs-cache",
+ "djs-formatters",
  "djs-gateway",
  "djs-model",
  "djs-rest",
