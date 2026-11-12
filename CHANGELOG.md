@@ -8,6 +8,15 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-builders` message component builders (Phase 6 step 3a, D-197–D-203, C-083):
+  `ButtonBuilder::{primary, secondary, success, danger, link}` and `PremiumButtonBuilder`,
+  `StringSelectMenuBuilder` with `StringSelectMenuOptionBuilder`, the user, role,
+  mentionable and channel select menus, `ActionRowBuilder`, and
+  `validate_components(&[Component], ComponentsVersion)` for a whole message. The rules follow
+  what Discord accepted and rejected on the live API (code points, untrimmed `custom_id`s,
+  label or emoji, `http`/`https`/`discord` links, unique `custom_id`s and option values,
+  `min_values` ≤ `max_values` ≤ options, 40 components and 4000 characters for Components V2).
+  `ValidationError` gained `TooFew`.
 - `djs-builders` command builders (Phase 6 step 2, D-192–D-196, C-082):
   `SlashCommandBuilder`, `SlashCommandSubcommandBuilder`,
   `SlashCommandSubcommandGroupBuilder`, nine `SlashCommand…Option` types passed to one

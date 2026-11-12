@@ -2801,6 +2801,35 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - **Not offered:** a builder for `PRIMARY_ENTRY_POINT` commands (discord.js has none either),
   and starting a builder from a received `ApplicationCommand`.
 
+### C-083 — Message component builder details (D-197–D-203)
+- **Step 3 is split in three commits** following D-181's order: message components (buttons,
+  select menus, action rows, `validate_components`), then Components V2, then modals.
+- **Builders hold model values:** every component builder converts into `djs-model`'s
+  `Component` (`From` impls), rows take `impl Into<Component>`, and the rules are checked on
+  the model values (`component/validate.rs`), so builders and raw model components mix and a
+  raw value gets the same checks. `check::Path` gained `Child` for single children
+  (`components[1].accessory`).
+- **`validate_components(&[Component], ComponentsVersion)`:** the second argument is a new
+  enum `ComponentsVersion { Legacy, V2 }` (`#[non_exhaustive]`). Legacy: at most 5 top-level
+  components, all action rows. V2: only action rows, text displays, sections, media
+  galleries, files, separators and containers at the top level; 40 components counting
+  nested ones (section accessories too); 4000 code points across text displays (trimmed);
+  unique `custom_id`s in both. The V2 total counts only text display content — whether
+  Discord also counts labels or placeholders as "displayable text" was not tried.
+- **New error variant:** `ValidationError::TooFew { field, min, actual }` (an empty row,
+  fewer options than `max_values`, fewer default values than `min_values`).
+- **Select menus:** `min_values` / `max_values` default to 1 as on Discord; `min_values`
+  above `max_values` is `OutOfRange` on `min_values` (as Discord reports it); default values
+  must number within `min_values..=max_values` (the docs) and match the menu's type; option
+  values follow the `custom_id` rule (1-100, not trimmed) — not tried live; `default_users`,
+  `default_roles`, `default_channels` add; `channel_types` replaces; `required` (modals) is
+  offered on every menu, as in discord.js.
+- **Buttons:** an interactive button whose style is link or premium (only possible with a raw
+  model value) is `Invalid`; a blank label with an emoji is accepted (not tried live); a link
+  URL is checked for at most 512 characters after trimming and its scheme (any case).
+  `PremiumButtonBuilder::build` returns `Result` for uniformity although it cannot fail.
+- **Row children:** a text input alone in a row is accepted (legacy modals).
+
 ---
 
 ## Open questions (to ask the owner when relevant)

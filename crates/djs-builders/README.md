@@ -2,8 +2,8 @@
 
 Validated builders for Discord embeds, application commands, components and modals.
 
-> **Status:** pre-alpha. The embed and command builders are done; component and modal
-> builders follow. Track progress in the [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
+> **Status:** pre-alpha. The embed, command and message component builders (buttons, select
+> menus, action rows) are done; Components V2 and modal builders follow. Track progress in the [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
 
 **discord.js counterpart:** `@discordjs/builders`
 
@@ -78,6 +78,12 @@ The rules follow Discord's documentation and were checked on the live API with a
   translation of each text.
 - Two things Discord accepts are still rejected because they cannot work: `max_value` below
   `min_value`, and choices together with autocomplete.
+- **Components:** `custom_id`s have 1-100 characters counted as given (Discord accepts a
+  whitespace-only one) and are unique in a message; a button needs a label or an emoji; link
+  buttons take `http`, `https` or `discord` URLs; an action row holds 1-5 buttons or one select
+  menu; a select menu offers at least `max_values` options with unique values. A Components V2
+  message has at most 40 components, nested ones included, and 4000 characters of text; check
+  a whole message with [`validate_components`].
 - Limits that span a whole message — at most 10 embeds and 6000 characters across them —
   are checked by [`validate_embeds`]; [`embed_length`] measures one embed.
 
@@ -92,6 +98,10 @@ The rules follow Discord's documentation and were checked on the live API with a
 | [`SlashCommandSubcommandBuilder`], [`SlashCommandSubcommandGroupBuilder`] | `CommandOption` | the same names |
 | [`SlashCommandStringOption`], [`SlashCommandIntegerOption`], [`SlashCommandNumberOption`], [`SlashCommandBooleanOption`], [`SlashCommandUserOption`], [`SlashCommandChannelOption`], [`SlashCommandRoleOption`], [`SlashCommandMentionableOption`], [`SlashCommandAttachmentOption`] | `CommandOption` | the same names |
 | [`ContextMenuCommandBuilder`] | `CreateApplicationCommand` | `ContextMenuCommandBuilder` |
+| [`ActionRowBuilder`] | `Component` | `ActionRowBuilder` |
+| [`ButtonBuilder`], [`PremiumButtonBuilder`] | `Component` | `ButtonBuilder` |
+| [`StringSelectMenuBuilder`], [`StringSelectMenuOptionBuilder`] | `Component`, `SelectOption` | the same names |
+| [`UserSelectMenuBuilder`], [`RoleSelectMenuBuilder`], [`MentionableSelectMenuBuilder`], [`ChannelSelectMenuBuilder`] | `Component` | the same names |
 
 ## Part of djs-rs
 

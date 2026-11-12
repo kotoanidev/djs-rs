@@ -19,6 +19,11 @@ pub(crate) enum Path<'a> {
         list: &'static str,
         index: usize,
     },
+    /// The single child value `name` of `parent`, e.g. a section's `accessory`.
+    Child {
+        parent: &'a Path<'a>,
+        name: &'static str,
+    },
 }
 
 impl<'a> Path<'a> {
@@ -31,11 +36,16 @@ impl<'a> Path<'a> {
         }
     }
 
+    /// The path of the single child value `name` here, e.g. `components[0].accessory`.
+    pub(crate) const fn child(&'a self, name: &'static str) -> Self {
+        Self::Child { parent: self, name }
+    }
+
     /// The path of the field `name` here (borrowed when here is the root).
     pub(crate) fn field(&self, name: &'static str) -> Cow<'static, str> {
         match self {
             Self::Root => name.into(),
-            Self::Item { .. } => format!("{self}.{name}").into(),
+            _ => format!("{self}.{name}").into(),
         }
     }
 
@@ -43,7 +53,7 @@ impl<'a> Path<'a> {
     pub(crate) fn entry(&self, map: &'static str, key: &str) -> Cow<'static, str> {
         match self {
             Self::Root => format!("{map}.{key}").into(),
-            Self::Item { .. } => format!("{self}.{map}.{key}").into(),
+            _ => format!("{self}.{map}.{key}").into(),
         }
     }
 
@@ -67,12 +77,20 @@ impl fmt::Display for Path<'_> {
                 list,
                 index,
             } => write!(f, "{parent}.{list}[{index}]"),
+            Self::Child {
+                parent: Self::Root,
+                name,
+            } => f.write_str(name),
+            Self::Child { parent, name } => write!(f, "{parent}.{name}"),
         }
     }
 }
 
 /// The schemes Discord allows for links: the title and author URLs (D-187).
 pub(crate) const WEB: &[&str] = &["http://", "https://"];
+
+/// The schemes Discord allows for link buttons (D-200).
+pub(crate) const WEB_OR_DISCORD: &[&str] = &["http://", "https://", "discord://"];
 
 /// The schemes allowed for images and icons: links or files uploaded with the message
 /// (D-187, D-190).
@@ -147,10 +165,26 @@ pub(crate) fn count(
     Ok(())
 }
 
+/// Returns [`ValidationError::TooFew`] if a list of `actual` items is below `min`.
+pub(crate) fn at_least(
+    field: impl FnOnce() -> Cow<'static, str>,
+    actual: usize,
+    min: usize,
+) -> Result<(), ValidationError> {
+    if actual < min {
+        return Err(ValidationError::TooFew {
+            field: field(),
+            min,
+            actual,
+        });
+    }
+    Ok(())
+}
+
 /// Returns [`ValidationError::InvalidUrl`] unless `url` starts with one of `allowed`,
 /// ignoring ASCII case (Discord accepts `HTTPS://`, D-190).
 pub(crate) fn url(
-    field: &'static str,
+    field: impl FnOnce() -> Cow<'static, str>,
     url: &str,
     allowed: &'static [&'static str],
 ) -> Result<(), ValidationError> {
@@ -163,7 +197,7 @@ pub(crate) fn url(
         Ok(())
     } else {
         Err(ValidationError::InvalidUrl {
-            field: field.into(),
+            field: field(),
             allowed,
         })
     }
@@ -214,6 +248,13 @@ mod tests {
         let option = root.item("options", 2);
         let choice = option.item("choices", 0);
         assert_eq!(option.this(), "options[2]");
+        let accessory = root.item("components", 1);
+        let accessory = accessory.child("accessory");
+        assert_eq!(
+            accessory.field("custom_id"),
+            "components[1].accessory.custom_id"
+        );
+        assert_eq!(root.child("component").this(), "component");
         assert_eq!(choice.field("name"), "options[2].choices[0].name");
         assert_eq!(
             choice.entry("name_localizations", "de"),
@@ -238,14 +279,14 @@ mod tests {
 
     #[test]
     fn url_checks_the_scheme_without_regard_to_case() {
-        assert!(url("url", "https://example.com", WEB).is_ok());
-        assert!(url("url", "HTTP://example.com", WEB).is_ok());
-        assert!(url("url", "attachment://a.png", WEB).is_err());
-        assert!(url("url", "attachment://a.png", WEB_OR_ATTACHMENT).is_ok());
-        assert!(url("url", "ftp://example.com", WEB_OR_ATTACHMENT).is_err());
-        assert!(url("url", "http:/", WEB).is_err());
-        assert!(url("url", "", WEB).is_err());
+        assert!(url(|| "url".into(), "https://example.com", WEB).is_ok());
+        assert!(url(|| "url".into(), "HTTP://example.com", WEB).is_ok());
+        assert!(url(|| "url".into(), "attachment://a.png", WEB).is_err());
+        assert!(url(|| "url".into(), "attachment://a.png", WEB_OR_ATTACHMENT).is_ok());
+        assert!(url(|| "url".into(), "ftp://example.com", WEB_OR_ATTACHMENT).is_err());
+        assert!(url(|| "url".into(), "http:/", WEB).is_err());
+        assert!(url(|| "url".into(), "", WEB).is_err());
         // Multi-byte text where the scheme would end must not panic.
-        assert!(url("url", "ħttps://", WEB).is_err());
+        assert!(url(|| "url".into(), "ħttps://", WEB).is_err());
     }
 }

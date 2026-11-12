@@ -17,7 +17,7 @@ measured need after D-150) and resharding while running (open question).
 limits, sweeps, opt-in `Client` cache; benchmarks + extreme-load tests in
 `docs/PERFORMANCE.md`, `docs/VS_NODE.md` re-measured with equal caches). Left open on purpose:
 a lock-free backend (D-176), resolved roles/messages of interactions (open question).
-**Phase 6 — `djs-builders`: in progress** (decisions D-178–D-196 taken, steps 1-2 done, see "Next step").
+**Phase 6 — `djs-builders`: in progress** (decisions D-178–D-203 taken, steps 1-2 and 3a done, see "Next step").
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-075 in `docs/DECISIONS.md`; Claude defaults C-001 …
@@ -337,7 +337,10 @@ names, `djs_rs::builders` re-export), D-186 (`EmbedBuilder` API), D-187 / D-190 
 schemes), D-188 / D-191 (empty texts and empty embeds, measured live), D-189 (message-wide
 `validate_embeds`), D-192 (command API: values passed to `.option()`), D-193 (mixing
 checked in `build()`), D-194 (dependency-free name check), D-195 (command rules measured
-live), D-196 (reject options that cannot work). Steps:
+live), D-196 (reject options that cannot work), D-197 (a button constructor per style),
+D-198 (row/container children checked in `build()`), D-199 (`validate_components`), D-200 /
+D-201 (component rules measured live), D-202 (`PremiumButtonBuilder`), D-203 (select option
+shortcut + builder). Steps:
 0. ✅ The live counting test (D-184): code points after trimming, recorded under D-183.
 1. ✅ `EmbedBuilder` (C-081): `crates/djs-builders/src/{error.rs (ValidationError),
    check.rs (shared length / count / URL checks), embed.rs (EmbedBuilder,
@@ -350,8 +353,18 @@ live), D-196 (reject options that cannot work). Steps:
    context_menu.rs}`; `check::Path` for nested error paths; `ValidationError::{InvalidName,
    Invalid}`; option constructors in `djs-model/src/application_command.rs`; tests
    `crates/djs-builders/tests/command.rs` (live results of D-195 as cases).
-3. **Next:** components (buttons, select menus, action rows), Components V2, modals. Ask the
-   owner about their API first (as for D-186 / D-192); a live test only with approval.
+3. Components, decided D-197–D-203 (live results under D-200 / D-201), in three commits (C-083):
+   a. ✅ Message components: `crates/djs-builders/src/component/{mod.rs, validate.rs (all
+      rules), button.rs (ButtonBuilder, PremiumButtonBuilder), select.rs (string, user,
+      role, mentionable, channel menus; StringSelectMenuOptionBuilder), action_row.rs,
+      list.rs (validate_components, ComponentsVersion)}`; `ValidationError::TooFew`;
+      `check::Path::Child`; tests `crates/djs-builders/tests/component.rs`.
+   b. **Next:** Components V2 builders (container, section, text display, thumbnail, media
+      gallery + item, file, separator) — per-component rules in `component/validate.rs`
+      (`validate_components` already counts V2 totals). Ask the owner about anything D-197–
+      D-203 does not cover (e.g. how a section takes its accessory).
+   c. Modals: `ModalBuilder`, label, text input, file upload, radio group, checkbox group,
+      checkbox (rules from the docs only, D-200).
 4. Benchmarks + extreme-load tests (D-041).
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON
   body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").

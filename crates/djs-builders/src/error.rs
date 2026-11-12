@@ -50,6 +50,15 @@ pub enum ValidationError {
         /// The items the list has.
         actual: usize,
     },
+    /// A list has fewer items than Discord requires — for example an empty action row.
+    TooFew {
+        /// The path of the list, e.g. `components`.
+        field: Cow<'static, str>,
+        /// The fewest items Discord allows.
+        min: usize,
+        /// The items the list has.
+        actual: usize,
+    },
     /// A value that Discord requires is not set.
     Missing {
         /// The path of the value.
@@ -120,6 +129,7 @@ impl ValidationError {
         match self {
             Self::TooLong { field, .. }
             | Self::TooMany { field, .. }
+            | Self::TooFew { field, .. }
             | Self::Missing { field }
             | Self::OutOfRange { field, .. }
             | Self::InvalidUrl { field, .. }
@@ -140,6 +150,10 @@ impl fmt::Display for ValidationError {
             Self::TooMany { field, max, actual } => write!(
                 f,
                 "{field} has too many items: {actual}, at most {max} allowed"
+            ),
+            Self::TooFew { field, min, actual } => write!(
+                f,
+                "{field} has too few items: {actual}, at least {min} required"
             ),
             Self::Missing { field } => write!(f, "{field} is required"),
             Self::OutOfRange {
@@ -199,6 +213,14 @@ mod tests {
                     actual: 26,
                 },
                 "fields has too many items: 26, at most 25 allowed",
+            ),
+            (
+                ValidationError::TooFew {
+                    field: "components".into(),
+                    min: 1,
+                    actual: 0,
+                },
+                "components has too few items: 0, at least 1 required",
             ),
             (
                 ValidationError::Missing {

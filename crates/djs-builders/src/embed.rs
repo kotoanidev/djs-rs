@@ -399,7 +399,7 @@ fn validate(embed: &Embed) -> Result<(), ValidationError> {
         total += check::text(|| "description".into(), description, limits::DESCRIPTION)?;
     }
     if let Some(url) = &embed.url {
-        check::url("url", url, WEB)?;
+        check::url(|| "url".into(), url, WEB)?;
     }
     if let Some(color) = embed.color
         && color > limits::COLOR
@@ -428,10 +428,10 @@ fn validate(embed: &Embed) -> Result<(), ValidationError> {
         total += validate_footer(footer, &IN_EMBED_FOOTER)?;
     }
     if let Some(image) = &embed.image {
-        check::url("image.url", &image.url, WEB_OR_ATTACHMENT)?;
+        check::url(|| "image.url".into(), &image.url, WEB_OR_ATTACHMENT)?;
     }
     if let Some(thumbnail) = &embed.thumbnail {
-        check::url("thumbnail.url", &thumbnail.url, WEB_OR_ATTACHMENT)?;
+        check::url(|| "thumbnail.url".into(), &thumbnail.url, WEB_OR_ATTACHMENT)?;
     }
     if let Some(author) = &embed.author {
         total += validate_author(author, &IN_EMBED_AUTHOR)?;
@@ -559,10 +559,10 @@ const ALONE_AUTHOR: AuthorPaths = AuthorPaths {
 fn validate_author(author: &EmbedAuthor, paths: &AuthorPaths) -> Result<usize, ValidationError> {
     let length = check::text(|| paths.name.into(), &author.name, limits::AUTHOR_NAME)?;
     if let Some(url) = &author.url {
-        check::url(paths.url, url, WEB)?;
+        check::url(|| paths.url.into(), url, WEB)?;
     }
     if let Some(icon_url) = &author.icon_url {
-        check::url(paths.icon_url, icon_url, WEB_OR_ATTACHMENT)?;
+        check::url(|| paths.icon_url.into(), icon_url, WEB_OR_ATTACHMENT)?;
     }
     Ok(length)
 }
@@ -587,7 +587,7 @@ const ALONE_FOOTER: FooterPaths = FooterPaths {
 fn validate_footer(footer: &EmbedFooter, paths: &FooterPaths) -> Result<usize, ValidationError> {
     let length = check::text(|| paths.text.into(), &footer.text, limits::FOOTER_TEXT)?;
     if let Some(icon_url) = &footer.icon_url {
-        check::url(paths.icon_url, icon_url, WEB_OR_ATTACHMENT)?;
+        check::url(|| paths.icon_url.into(), icon_url, WEB_OR_ATTACHMENT)?;
     }
     Ok(length)
 }

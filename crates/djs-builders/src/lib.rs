@@ -3,6 +3,7 @@
 
 mod check;
 mod command;
+mod component;
 mod embed;
 mod error;
 
@@ -13,6 +14,12 @@ pub use self::{
         SlashCommandMentionableOption, SlashCommandNumberOption, SlashCommandRoleOption,
         SlashCommandStringOption, SlashCommandSubcommandBuilder,
         SlashCommandSubcommandGroupBuilder, SlashCommandUserOption,
+    },
+    component::{
+        ActionRowBuilder, ButtonBuilder, ChannelSelectMenuBuilder, ComponentsVersion,
+        MentionableSelectMenuBuilder, PremiumButtonBuilder, RoleSelectMenuBuilder,
+        StringSelectMenuBuilder, StringSelectMenuOptionBuilder, UserSelectMenuBuilder,
+        validate_components,
     },
     embed::{EmbedAuthorBuilder, EmbedBuilder, EmbedFooterBuilder, embed_length, validate_embeds},
     error::ValidationError,
