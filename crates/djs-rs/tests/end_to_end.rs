@@ -254,7 +254,15 @@ async fn ping_pong() {
     while let Ok(Some(event)) = timeout(Duration::from_millis(100), events.next()).await {
         names.push(event.event.name().to_owned());
     }
-    assert_eq!(names, ["READY", "MESSAGE_CREATE", "MESSAGE_CREATE"]);
+    assert_eq!(
+        names,
+        [
+            "shardReady",
+            "clientReady",
+            "messageCreate",
+            "messageCreate"
+        ]
+    );
 }
 
 #[tokio::test]
@@ -341,7 +349,8 @@ async fn handler_errors_do_not_stop_the_client() {
     client.shutdown();
     timeout(STEP, running).await.unwrap().unwrap().unwrap();
     gateway.await.unwrap();
-    let _ = Dispatch::Resumed; // the stream event type is public API
+    // The stream event type is public API.
+    let _: fn(Arc<djs_rs::event::payload::ShardResume>) -> Dispatch = Dispatch::ShardResume;
 }
 
 #[tokio::test]
@@ -375,21 +384,34 @@ async fn auto_sharding_runs_every_recommended_shard() {
         tokio::spawn(async move { client.login().await })
     };
 
-    // Each shard delivers its READY and its message, tagged with its shard ID.
+    // Each shard delivers its READY and its message, tagged with its shard ID; `ClientReady`
+    // comes once, from the last shard to become ready (D-224).
     let mut received = Vec::new();
-    for _ in 0..4 {
+    for _ in 0..5 {
         let event = timeout(STEP, events.next()).await.unwrap().unwrap();
         received.push((event.shard.to_string(), event.event.name().to_owned()));
     }
+    let ready: Vec<_> = received
+        .iter()
+        .filter(|(_, name)| name == "clientReady")
+        .collect();
+    assert_eq!(ready.len(), 1, "{received:?}");
+    received.retain(|(_, name)| name != "clientReady");
     received.sort();
     let expected = [
-        ("[0, 2]", "MESSAGE_CREATE"),
-        ("[0, 2]", "READY"),
-        ("[1, 2]", "MESSAGE_CREATE"),
-        ("[1, 2]", "READY"),
+        ("[0, 2]", "messageCreate"),
+        ("[0, 2]", "shardReady"),
+        ("[1, 2]", "messageCreate"),
+        ("[1, 2]", "shardReady"),
     ]
     .map(|(shard, name)| (shard.to_owned(), name.to_owned()));
     assert_eq!(received, expected);
+    assert!(
+        timeout(Duration::from_millis(100), events.next())
+            .await
+            .is_err(),
+        "no second clientReady"
+    );
 
     client.shutdown();
     timeout(STEP, running).await.unwrap().unwrap().unwrap();
@@ -518,7 +540,7 @@ async fn presence_is_sent_when_identifying_and_on_request() {
         tokio::spawn(async move { client.login().await })
     };
     let ready = timeout(STEP, events.next()).await.unwrap().unwrap();
-    assert_eq!(ready.event.name(), "READY");
+    assert_eq!(ready.event.name(), "shardReady");
     client.set_presence(&busy).unwrap();
 
     let (identify, update) = timeout(STEP, gateway).await.unwrap().unwrap();
@@ -730,7 +752,7 @@ async fn the_client_runs_the_configured_sweeps() {
     };
 
     // Subscribers get an event after the cache has it; the sweep then removes the message.
-    for name in ["READY", "MESSAGE_CREATE"] {
+    for name in ["shardReady", "clientReady", "messageCreate"] {
         let event = timeout(STEP, events.next()).await.unwrap().unwrap();
         assert_eq!(event.event.name(), name);
     }

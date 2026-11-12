@@ -3,7 +3,7 @@
 use core::{
     ops::Range,
     pin::Pin,
-    sync::atomic::{AtomicBool, Ordering},
+    sync::atomic::{AtomicBool, AtomicU32, Ordering},
     task::{Context as TaskContext, Poll},
     time::Duration,
 };
@@ -14,7 +14,8 @@ use std::{
 
 use djs_cache::{Backend, Cache, CacheConfig, DashMapBackend};
 use djs_gateway::{
-    Compression, Config, LocalIdentifyQueue, MessageSender, SendError, Shard, create_shards,
+    Compression, Config, LocalIdentifyQueue, MessageSender, ReceiveErrorKind, SendError, Shard,
+    ShardState, create_shards,
 };
 use djs_model::gateway::{DispatchEvent, GatewayEvent, Intents, payload::UpdatePresence};
 use djs_rest::Rest;
@@ -27,7 +28,8 @@ use tokio::{
 
 use crate::{
     Context, Error,
-    event::{Dispatch, Event, ShardEvent},
+    dispatch::{ReadySeen, ShardTracker, convert},
+    event::{Dispatch, Event, EventKind, ShardEvent, payload},
     handler::{ErasedHandler, Handler, HandlerError, Registry},
 };
 
@@ -139,6 +141,9 @@ struct Inner<B: Backend> {
     has_subscribers: AtomicBool,
     running: AtomicBool,
     shutdown: watch::Sender<bool>,
+    /// The shards of the current `login` and how many of them have been ready (D-224).
+    shard_count: AtomicU32,
+    ready_shards: AtomicU32,
 }
 
 impl<B: Backend> Clone for Client<B> {
@@ -398,6 +403,11 @@ impl<B: Backend> Client<B> {
         }
         let config = config.build();
 
+        inner
+            .shard_count
+            .store(plan.range.end - plan.range.start, Ordering::Release);
+        inner.ready_shards.store(0, Ordering::Release);
+
         let mut sweepers = self.spawn_sweepers();
         let mut tasks = JoinSet::new();
         for shard in create_shards(plan.range, plan.total, config) {
@@ -453,7 +463,8 @@ impl<B: Backend> Client<B> {
         tasks
     }
 
-    /// Drives one shard until shutdown or a fatal error.
+    /// Drives one shard until shutdown or a fatal error, emitting its events and its lifecycle
+    /// events (D-226).
     async fn run_shard(
         &self,
         mut shard: Shard,
@@ -465,24 +476,100 @@ impl<B: Backend> Client<B> {
             shard.sender(),
             self.inner.cache.clone(),
         );
+        let mut tracker = ShardTracker::default();
+        let mut out = Vec::new();
+        // Whether the session was established and not lost since (for `ShardReconnecting`).
+        let mut active = false;
+        // The dispatches received while resuming: Discord's replay (for `ShardResume`).
+        let mut replayed = 0;
+        // Whether this shard already counted towards `ClientReady`.
+        let mut counted_ready = false;
         loop {
-            tokio::select! {
+            let event = tokio::select! {
                 biased;
                 changed = shutdown.changed() => {
                     if changed.is_err() || *shutdown.borrow() {
                         shard.close().await;
                         return Ok(());
                     }
+                    continue;
                 }
-                event = shard.next_event() => match event {
-                    Some(Ok(GatewayEvent::Dispatch(_, event))) => self.dispatch(&ctx, event).await,
-                    Some(Ok(_)) => {}
-                    Some(Err(error)) if error.is_fatal() => return Err(error.into()),
-                    Some(Err(error)) => {
-                        tracing::warn!(shard = %shard.id(), %error, "gateway error, recovering");
+                event = shard.next_event() => event,
+            };
+            let registry = self.registry();
+            match event {
+                Some(Ok(GatewayEvent::Dispatch(_, event))) => {
+                    if shard.state() == ShardState::Resuming {
+                        replayed += 1;
                     }
-                    None => return Ok(()),
-                },
+                    let resumed = matches!(event, DispatchEvent::Resumed);
+                    convert(
+                        event,
+                        self.inner.cache.as_deref(),
+                        &mut tracker,
+                        |kind| self.wants(&registry, kind),
+                        &mut out,
+                    );
+                    if resumed {
+                        let replay = core::mem::take(&mut replayed);
+                        if self.wants(&registry, EventKind::ShardResume) {
+                            out.push(Dispatch::ShardResume(Arc::new(payload::ShardResume {
+                                replayed: replay,
+                            })));
+                        }
+                    }
+                    if let Some(ReadySeen(ready)) = tracker.take_ready()
+                        && !counted_ready
+                    {
+                        // `ClientReady` once, at the last shard's first `READY` (D-224).
+                        counted_ready = true;
+                        let ready_shards =
+                            self.inner.ready_shards.fetch_add(1, Ordering::AcqRel) + 1;
+                        if ready_shards == self.inner.shard_count.load(Ordering::Acquire)
+                            && let Some(ready) = ready
+                            && self.wants(&registry, EventKind::ClientReady)
+                        {
+                            out.push(Dispatch::ClientReady(ready));
+                        }
+                    }
+                }
+                Some(Ok(GatewayEvent::InvalidSession(false))) => {
+                    if self.wants(&registry, EventKind::Invalidated) {
+                        out.push(Dispatch::Invalidated(Arc::new(payload::Invalidated)));
+                    }
+                }
+                Some(Ok(_)) => {}
+                Some(Err(error)) if error.is_fatal() => {
+                    if let ReceiveErrorKind::FatallyClosed { code } = error.kind() {
+                        let disconnect = Dispatch::ShardDisconnect(Arc::new(*code));
+                        self.emit(&ctx, &registry, disconnect).await;
+                    }
+                    return Err(error.into());
+                }
+                Some(Err(error)) => {
+                    tracing::warn!(shard = %shard.id(), %error, "gateway error, recovering");
+                    if self.wants(&registry, EventKind::ShardError) {
+                        out.push(Dispatch::ShardError(Arc::new(error)));
+                    }
+                }
+                None => return Ok(()),
+            }
+            // A lost connection shows as the shard leaving `Active`; it reconnects by itself.
+            let state = shard.state();
+            if active
+                && !matches!(
+                    state,
+                    ShardState::Active | ShardState::Closed | ShardState::FatallyClosed(_)
+                )
+                && self.wants(&registry, EventKind::ShardReconnecting)
+            {
+                out.push(Dispatch::ShardReconnecting(Arc::new(
+                    payload::ShardReconnecting,
+                )));
+            }
+            active = state == ShardState::Active;
+            for dispatch in out.drain(..) {
+                self.emit(&ctx, &registry, dispatch).await;
             }
         }
     }
@@ -531,22 +618,28 @@ impl<B: Backend> Client<B> {
         })
     }
 
-    async fn dispatch(&self, ctx: &Context<B>, event: DispatchEvent) {
-        let inner = &*self.inner;
-        // Handlers see the state after their event (D-171); the previous state reaches them
-        // in Phase 8.
-        if let Some(cache) = &inner.cache {
-            drop(cache.update_dispatch(&event));
-        }
-        let dispatch = match event {
-            DispatchEvent::MessageCreate(message) => Dispatch::MessageCreate(Arc::from(message)),
-            DispatchEvent::Ready(ready) => Dispatch::Ready(Arc::from(ready)),
-            DispatchEvent::Resumed => Dispatch::Resumed,
-            DispatchEvent::Unknown(name) => Dispatch::Unknown(Arc::from(name.as_str())),
-            other => Dispatch::Unknown(Arc::from(other.name())),
-        };
+    /// The current handlers (registration replaces the table, so this is a snapshot).
+    fn registry(&self) -> Arc<Registry<B>> {
+        Arc::clone(
+            &self
+                .inner
+                .registry
+                .read()
+                .unwrap_or_else(PoisonError::into_inner),
+        )
+    }
 
-        if inner.has_subscribers.load(Ordering::Acquire) {
+    /// Whether anyone listens to `kind`: a handler, or an event stream (which never receives
+    /// [`Raw`](crate::event::Raw)).
+    fn wants(&self, registry: &Registry<B>, kind: EventKind) -> bool {
+        !registry.get(kind).is_empty()
+            || (kind != EventKind::Raw && self.inner.has_subscribers.load(Ordering::Acquire))
+    }
+
+    /// Delivers one event to the event streams and to its handlers (D-028).
+    async fn emit(&self, ctx: &Context<B>, registry: &Registry<B>, dispatch: Dispatch) {
+        let inner = &*self.inner;
+        if !matches!(dispatch, Dispatch::Raw(_)) && inner.has_subscribers.load(Ordering::Acquire) {
             let mut subscribers = lock(&inner.subscribers);
             subscribers.retain(|subscriber| {
                 subscriber
@@ -564,12 +657,6 @@ impl<B: Backend> Client<B> {
         let Some(kind) = dispatch.kind() else {
             return;
         };
-        let registry = Arc::clone(
-            &inner
-                .registry
-                .read()
-                .unwrap_or_else(PoisonError::into_inner),
-        );
         let handlers = registry.get(kind);
         match inner.mode {
             HandlerMode::Concurrent => {
@@ -822,6 +909,8 @@ impl<B: Backend> ClientBuilder<B> {
                 has_subscribers: AtomicBool::new(false),
                 running: AtomicBool::new(false),
                 shutdown: watch::channel(false).0,
+                shard_count: AtomicU32::new(0),
+                ready_shards: AtomicU32::new(0),
             }),
         }
     }

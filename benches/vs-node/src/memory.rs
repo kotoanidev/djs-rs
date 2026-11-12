@@ -28,14 +28,15 @@ pub(crate) async fn run(options: &Options, allocator: &str) {
     let mut connected_rss = 0;
     let mut received = 0;
     while let Some(event) = events.next().await {
+        // Guilds listed in READY arrive as `guildAvailable`, others as `guildCreate` (D-223).
         match event.event.name() {
-            "READY" => {
+            "shardReady" => {
                 connected_rss = status_kib("VmRSS");
                 if expected == 0 {
                     break;
                 }
             }
-            "GUILD_CREATE" => {
+            "guildAvailable" | "guildCreate" => {
                 received += 1;
                 if received == expected {
                     break;

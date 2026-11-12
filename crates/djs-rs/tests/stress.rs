@@ -192,7 +192,7 @@ async fn run(
         let streamed = streamed.clone();
         tokio::spawn(async move {
             while let Some(event) = events.next().await {
-                if event.event.name() == "MESSAGE_CREATE" {
+                if event.event.name() == "messageCreate" {
                     streamed.hit();
                 }
             }

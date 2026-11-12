@@ -8,6 +8,19 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-rs` events (Phase 8 step 1, D-219–D-228, C-091): `Events` covers every discord.js
+  event and every other gateway dispatch, the shard lifecycle (`ShardReady`,
+  `ShardReconnecting`, `ShardResume` with the replayed count, `Invalidated`, `ShardError`,
+  `ShardDisconnect`) and `Raw`. Updates and removals carry the cached state before the event
+  (`old`) next to Discord's data (`new`), dereferencing to `new`; `GuildCreate` /
+  `GuildAvailable` / `GuildUnavailable` / `GuildDelete` are told apart with or without a
+  cache; emoji and sticker lists are diffed into per-item events when cached. `ClientReady`
+  fires once per login. Payloads are only built for events someone listens to.
+
+### Changed
+- `djs-rs`: `Dispatch` has one variant per event (replacing `Ready` / `MessageCreate` /
+  `Resumed`), `Dispatch::name` returns discord.js' event name (`"messageCreate"`), and
+  `ClientReady` fires once instead of at every shard's `READY` (`ShardReady` does that).
 - `djs-collection` benchmarks (`benches/collection.rs`) and extreme-load tests
   (`tests/stress.rs`: a model check of random operations, fairness of random picks,
   10 000 000 entries, adversarial removal patterns, all cores), results in

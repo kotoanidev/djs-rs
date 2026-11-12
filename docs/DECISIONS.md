@@ -3223,6 +3223,38 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   after the stress test showed 1 000 front removals of a million taking seconds (D-215 keeps
   `remove` order-preserving).
 
+### C-091 — Phase 8 events: details of D-221–D-228
+- **Names:** the keys of discord.js' `Events` object (`GuildRoleUpdate`, `GuildEmojiCreate`,
+  `MessageBulkDelete`), with its string values as `Event::NAME` (`"roleUpdate"`,
+  `"emojiCreate"`, `"messageDeleteBulk"`). Gateway dispatches without a discord.js event get an
+  event named after the dispatch: `ChannelInfo`, `IntegrationCreate` / `Update` / `Delete`,
+  `VoiceChannelStatusUpdate`, `VoiceChannelStartTimeUpdate`, `RateLimited`, and the whole-list
+  `GuildEmojisUpdate` / `GuildStickersUpdate` (D-223), so every dispatch is typed.
+- **No `old` where the cache keeps nothing:** `AutoModerationRuleUpdate`,
+  `EntitlementUpdate`, `SubscriptionUpdate` and `ThreadMemberUpdate` keep their model payload
+  (an `old` would always be `None`); reactions keep theirs (D-227).
+- **Removals:** `ChannelDelete`, `StageInstanceDelete`, `GuildScheduledEventDelete` and
+  `GuildSoundboardSoundDelete` also carry `old` (discord.js hands the removed object).
+  `MessageBulkDelete::old` is a `Vec` (empty without a message cache). `GuildUnavailable::old`
+  is the guild the cache still holds (it keeps unavailable guilds).
+- **Derived items:** `GuildEmojiCreate` / `Delete` hold `guild_id` + `emoji` (the new one, or
+  the cached `Arc`), `GuildEmojiUpdate` holds `guild_id`, `old: Arc<Emoji>` and `new`; the
+  sticker ones likewise. Order: the list event, then each new item in order (created or
+  updated), then the deleted ones (discord.js' order).
+- **Not emitted:** `GuildMemberAvailable` (discord.js emits it when its member cache lacked a
+  member, an artefact of its caching), `Debug`, `Warn`, `Error`, `CacheSweep` (D-226).
+- **Lifecycle payloads:** `ShardDisconnect` hands the `CloseCode`, `ShardError` the
+  `ReceiveError`, `ShardResume` the number of replayed events (dispatches received while
+  resuming); `ShardReconnecting` and `Invalidated` are unit structs. `ShardReconnecting` fires
+  at the first event after the connection was lost (at the latest the new hello), as the
+  shard reconnects inside `next_event`. `Invalidated` marks an `INVALID_SESSION` that cannot
+  be resumed (discord.js v14 lists the event but no longer emits it).
+- **`ClientReady`'s payload** is the `READY` of the last shard to become ready, once per
+  `login`; later re-identifies only emit `ShardReady`.
+- **`Raw`** is built (a clone of the dispatch) only when a `Raw` handler is registered, and is
+  never sent to `events()` streams; unknown dispatches reach streams as `Dispatch::Unknown`.
+  No payload is built for an event nobody listens to.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

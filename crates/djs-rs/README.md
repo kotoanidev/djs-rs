@@ -2,8 +2,9 @@
 
 A high-performance, discord.js-style framework for building Discord bots in Rust.
 
-> **Status:** pre-alpha. A working end-to-end bot: client with automatic sharding, typed
-> events, replies, presence and an optional cache. The full discord.js surface arrives in
+> **Status:** pre-alpha. A working end-to-end bot: client with automatic sharding, every
+> discord.js event (with the previous state from the cache), replies, presence and an
+> optional cache. The full discord.js surface arrives in
 > later phases — see the [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
 
 **discord.js counterpart:** `discord.js`
@@ -51,9 +52,38 @@ A runnable version lives in [`examples/ping.rs`](https://github.com/kotoanidev/d
 | Formatters (mentions, timestamps, markdown, escaping) | `djs-formatters` | `djs_rs::formatters` |
 | `Collection` (insertion-ordered map with discord.js' helpers) | `djs-collection` | `djs_rs::collection` |
 
+## Events
+
+`Events` has discord.js' events by their names (`Events::GuildMemberAdd`,
+`Events::MessageUpdate`, …), the gateway dispatches discord.js has no event for, the shard
+lifecycle (`ShardReady`, `ShardReconnecting`, `ShardResume`, `Invalidated`, `ShardError`,
+`ShardDisconnect`) and `Raw`, which hands every dispatch as it was decoded.
+
+- Most handlers receive the `djs-model` payload unchanged (behind an `Arc`).
+- Where discord.js hands an old or a removed object, the payload has `old` — what the cache
+  held before the event, `None` without a cache — and `new`, and reads like `new`:
+  `update.old` and `update.content` in a `MessageUpdate` handler.
+- `GuildCreate` (joined) and `GuildAvailable` (back from `READY` or an outage) are told apart
+  with or without a cache; the per-emoji and per-sticker events need those in the cache.
+- `ClientReady` fires once, at the `READY` of the last shard, without waiting for the guilds
+  (unlike discord.js, the cache may still be filling).
+
+```rust,no_run
+use djs_rs::prelude::*;
+
+fn log_edits(client: &Client) {
+    client.on(Events::MessageUpdate, |_ctx, update| async move {
+        if let Some(old) = &update.old {
+            println!("edited: {:?} -> {:?}", old.content, update.content);
+        }
+        Ok(())
+    });
+}
+```
+
 Handlers run concurrently in their own tokio tasks by default (like discord.js); switch to
 `HandlerMode::Sequential` for strictly ordered processing. If you prefer an explicit loop,
-`client.events()` returns a stream of every event.
+`client.events()` returns a stream of every event (all but `Raw`).
 
 Structures stay plain data; behaviour such as `msg.reply(&ctx, …)` comes from extension traits
 in the prelude that take the handler `Context` explicitly — no client reference is stored in

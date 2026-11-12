@@ -3,6 +3,7 @@
 
 mod client;
 mod context;
+mod dispatch;
 mod error;
 pub mod event;
 pub mod ext;

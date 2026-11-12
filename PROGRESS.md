@@ -427,11 +427,17 @@ waiting), D-225 (`djs-model` payload where it suffices, own types in
 `djs_rs::event::payload`), D-226 (shard lifecycle events; diagnostics in `tracing`), D-227
 (previous state only where discord.js hands an old or removed object), D-228 (`old` + `new`
 fields with `Deref` to `new`). Steps:
-1. **Next:** every event (D-221–D-228): event markers and `Event` impls for all discord.js
-   events and the remaining gateway dispatches, `Raw`, previous-state payloads, derived
-   events (guild availability, emoji / sticker / soundboard diffs), shard lifecycle events,
-   `ClientReady` once; tests with the mock gateway; then benchmarks + extreme-load tests of
-   the dispatch path (D-041).
+1. Every event (D-221–D-228, C-091):
+   a. ✅ `crates/djs-rs/src/event/{mod.rs (events! macro: Events, one marker type + Event impl
+      per event, EventKind, Dispatch), payload.rs (previous-state payloads with old/new +
+      Deref, derived emoji/sticker payloads, lifecycle payloads)}`, `src/dispatch.rs` (convert:
+      cache update, Raw, previous state, guild availability tracking, list diffs; payloads only
+      for wanted events), `client.rs` (shard loop: lifecycle events, replay count,
+      `ClientReady` once; `emit`); tests `tests/events.rs` (scripted mock gateway).
+   b. **Next:** benchmarks + extreme-load tests of the dispatch path (D-041): the cost per
+      `MESSAGE_CREATE` / `MESSAGE_UPDATE` with and without handlers and a cache, `Raw`, the
+      emoji diff of a large list, against the Phase 5 numbers in `docs/PERFORMANCE.md`
+      (`Client` flood); results in `docs/PERFORMANCE.md`.
 2. Structures with methods (extension traits) and managers (fetch / cache semantics; ask the
    open question "`Collection` in the cache and the client" first).
 3. Interactions. 4. Collectors and `await_*`. 5. Partials and intents guidance. 6. Examples.
