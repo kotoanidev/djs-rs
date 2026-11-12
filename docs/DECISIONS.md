@@ -1163,6 +1163,37 @@ and why.
 - **Alternatives:** `size: u16` validated at runtime (`Result` or panic), like discord.js'
   `RangeError`.
 
+### D-140 — zlib-stream uses `flate2` with the `zlib-rs` backend
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** The optional `zlib-stream` feature (D-015) adds `flate2` with the `zlib-rs`
+  backend (pure Rust, about as fast as zlib-ng, no C compiler). zstd stays the default.
+- **Alternatives:** `flate2` with `miniz_oxide` (pure Rust, slower); `flate2` with `zlib-ng`
+  (C, needs cmake).
+
+### D-141 — In-process sharding: a shard factory and a shared IDENTIFY queue
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** djs-gateway creates the shards of a range or a total count and gives them a
+  shared IDENTIFY queue that honours `max_concurrency` (bucket `shard_id % max_concurrency`,
+  one IDENTIFY per bucket every 5 s). Each shard stays poll-driven (D-037) and runs in its own
+  task (djs-rs does that). The recommended shard count comes from `get_gateway_bot` in djs-rs,
+  so djs-gateway does not depend on djs-rest.
+- **Alternatives:** a `ShardManager` owning every shard behind one merged event stream; both.
+
+### D-142 — Gateway commands over the send limit wait in a queue
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** Commands beyond Discord's 120 per 60 s per connection wait in the shard and
+  are sent when the window allows; heartbeats have reserved room and always go out (like
+  @discordjs/ws). `MessageSender::command` keeps not blocking.
+- **Alternatives:** returning `SendError::RateLimited` when the window is full.
+
+### D-143 — Phase 4 order
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** 1) the command send limit (D-142), 2) the IDENTIFY queue and sharding
+  (D-141), 3) the gateway commands (presence update, request guild members, voice state
+  update, request soundboard sounds), 4) zlib-stream (D-140), 5) simd-json (D-013), kept only
+  if benchmarks show a gain, 6) mock-gateway tests, benchmarks and extreme-load tests (D-041).
+- **Alternatives:** compression and simd-json first.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)

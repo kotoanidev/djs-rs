@@ -241,16 +241,18 @@ decisions).
   (git worktree) and record the comparison in `docs/PERFORMANCE.md`.
 
 ## Next step — Phase 4 (`djs-gateway` full coverage, ROADMAP)
-1. Ask the owner first (significant decisions): zlib-stream support (new dependency, e.g.
-   `flate2` with a zlib backend, behind a feature), simd-json (new dependency, feature) and
-   whether zero-copy/borrowed decoding is pursued; the sharding manager's API (auto shard
-   count, `max_concurrency` buckets, resharding); the gateway send rate limiter's behaviour
-   when full (wait vs error).
-2. Then, one commit each: send rate limiting (120 per 60 s), identify concurrency, the
-   sharding manager, the gateway commands (presence update, request guild members, voice
-   state update, request soundboard sounds), mock-gateway tests.
-3. When Phase 4 is done: gateway benches + extreme-load tests (D-041) in
-   `docs/PERFORMANCE.md`.
+Decisions taken 2026-11-12: D-140 (zlib-stream = `flate2` + `zlib-rs`), D-141 (shard factory
++ shared IDENTIFY queue, no djs-rest dependency), D-142 (commands over 120/60 s wait; heartbeats
+reserved), D-143 (order below). One commit per step:
+1. **Command send limit** (D-142) — in `crates/djs-gateway/src/shard.rs`: a 120-per-60 s window
+   per connection, with room reserved for heartbeats; queued commands go out when it allows.
+2. **IDENTIFY queue + sharding** (D-141).
+3. **Gateway commands**: presence update, request guild members, voice state update, request
+   soundboard sounds (models exist in `djs_model::gateway`).
+4. **zlib-stream** (D-140) — ask before adding `flate2` to `[workspace.dependencies]` only if
+   its features differ from D-140.
+5. **simd-json** (D-013), kept only with a measured gain.
+6. Mock-gateway tests, benches and extreme-load tests (D-041) in `docs/PERFORMANCE.md`.
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON
   body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").
 
