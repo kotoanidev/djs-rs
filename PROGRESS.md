@@ -277,17 +277,17 @@ reserved), D-143 (order below). One commit per step:
 ## Next step — Phase 5 (`djs-cache`, ROADMAP)
 Decided 2026-11-12: D-016 (pluggable, DashMap default), D-081 (own compact cached types),
 D-151 (reads return `Arc<T>`), D-152 (minimal defaults: guilds, channels, roles, current
-user), D-153 (updates return the previous state), D-154 (order below), D-155–D-159 (step 1 API). One commit per step:
+user), D-153 (updates return the previous state), D-154 (order below), D-155–D-159 (step 1 API), D-160–D-163 (step 2 API). One commit per step:
 1. ✅ Backend trait + DashMap backend + configuration (D-155–D-159, C-073):
    `crates/djs-cache/src/{backend.rs (Store, Backend), dashmap_store.rs (DashMapBackend,
    DashMapStore, foldhash Hasher), config.rs (Resource, Limit, CacheConfig, builder,
    pub(crate) Scope), limits.rs (pub(crate) Global / Scoped / Order: FIFO limits over the
    whole cache or per parent, with the parent → keys index), cache.rs (Cache skeleton)}`.
    `limits.rs` and `Resource::scope` carry `expect(dead_code)` until step 2 uses them.
-2. **Next:** guilds, channels, roles, emojis, stickers, members, users — cached types
-   (compact, D-081; their shape and names are public API → ask the owner first), the
-   `Cache` fields (`Option<Global/Scoped<…>>` per enabled resource), `Cache::update(&event)`
-   returning the previous state (D-153), read methods.
+2. **Next:** guilds, channels, roles, emojis, stickers, members, users. Decided: D-160
+   (model types + `CachedGuild` / `CachedMember` with `Arc<User>`), D-161 (`update(&event)`
+   by reference), D-162 (views: `cache.guilds().get(id)`, `cache.members(guild).get(user)`),
+   D-163 (`UpdateCache` trait with a typed `Previous`, plus `update_dispatch`).
 3. Messages, presences, voice states, threads, scheduled events, stage instances, soundboard.
 4. Sweepers.
 5. djs-rs `Client` integration.

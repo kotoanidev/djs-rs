@@ -1349,6 +1349,41 @@ and why.
 - **Alternatives:** every limit over the whole cache (simpler, but large guilds push out
   small ones, unlike discord.js).
 
+### D-160 — Cached types: djs-model types plus `CachedGuild` and `CachedMember`
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** roles, emojis, stickers, users and channels are cached as their djs-model
+  types (already compact). Guilds and members get their own types: `CachedGuild` is a guild
+  without the role, emoji and sticker lists (those live in their own stores), plus the
+  `GUILD_CREATE` extras (`joined_at`, `large`, `member_count`); `CachedMember` holds its user
+  as an `Arc<User>`, shared with the user store when users are cached.
+- **Alternatives:** an own type for every resource (smaller, but seven parallel types to
+  maintain); only model types, guilds with their lists (duplicated data).
+
+### D-161 — The cache reads events by reference
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `cache.update(&event)` borrows the event and copies what it keeps, so the
+  cache does not depend on how the djs-rs `Client` hands payloads to handlers. The cost of the
+  copies is measured in step 6.
+- **Alternatives:** take events by value and move their data into `Arc`s (no copies, but the
+  handler payloads of Phase 8 would follow the cached types).
+
+### D-162 — Reads go through per-resource views, like discord.js managers
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** each resource is read through a borrowed view with a uniform API, like a
+  discord.js manager's `cache`: `cache.guilds().get(id)`, `cache.guilds().len()`,
+  `cache.channels().get(id)`, `cache.roles(guild_id).get(id)` / `.values()`,
+  `cache.members(guild_id).get(user_id)` / `.keys()`, plus `cache.current_user()`.
+- **Alternatives:** a method on `Cache` per operation, like twilight's `InMemoryCache`.
+
+### D-163 — The previous state is typed per event
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** an `UpdateCache` trait, implemented by every event payload the cache
+  handles, has an associated `Previous` type (e.g. `Option<Arc<CachedMember>>` for a member
+  update, `Option<Arc<CachedGuild>>` for a guild delete), so `cache.update(&payload)` returns
+  a statically typed previous state. `cache.update_dispatch(&DispatchEvent)` handles the
+  whole dispatch enum and returns an enum.
+- **Alternatives:** only `cache.update(&DispatchEvent)` returning one enum to match on.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
