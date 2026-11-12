@@ -2151,6 +2151,23 @@ and why.
 - **Alternatives:** like discord.js, a guild-scoped `ctx.invites(guild)` plus
   `ctx.fetch_invite(code)` for other guilds' invites.
 
+### D-240 — A webhook without a token is a `WebhookError::MissingToken`
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** the structure methods that need a webhook's token (sending, its messages)
+  return `Result<_, WebhookError>`, where `WebhookError` is `MissingToken` (channel-follower
+  and application webhooks have none) or `Rest(djs_rest::Error)`; like discord.js'
+  `WebhookTokenUnavailable`. The other methods keep `djs_rest::Error`.
+- **Alternatives:** `webhook.with_token() -> Option<…>` giving access to the token methods;
+  a documented panic.
+
+### D-241 — `WebhookClient::from_url` returns `Result<_, InvalidWebhookUrl>`
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `WebhookClient::from_url(url)` parses `https://discord.com/api/webhooks/{id}/{token}`
+  (also `discordapp.com`, the `canary.` / `ptb.` hosts and a versioned `/api/v10/` path) and
+  fails with an `InvalidWebhookUrl` error; `WebhookClient::new(id, token)` takes the parts
+  without parsing.
+- **Alternatives:** `Option<WebhookClient>`.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
