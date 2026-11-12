@@ -1623,6 +1623,25 @@ and why.
   used by the Phase 8 message options.
 - **Alternatives:** only the per-embed check; a message builder now (scope change).
 
+### D-190 — Image and icon URLs keep the D-187 scheme check
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** although Discord accepts an image URL with any scheme (it just does not show
+  it, D-188), `build()` still rejects images, the thumbnail and icons whose URL is not
+  `http://`, `https://` or `attachment://`, like discord.js. The title and author URLs allow
+  `http://` and `https://` only, as Discord does. Schemes are compared without regard to case
+  (Discord accepted `HTTPS://`).
+- **Alternatives:** exactly like Discord: check the title and author URLs only.
+
+### D-191 — A second short live test finds what counts as embed content
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** about a dozen messages, each with an embed holding a single part (an empty or
+  whitespace-only title, an empty description, an image, a thumbnail, a footer, an author, a
+  field, a URL, a timestamp, an empty footer, an empty field) and no message content, sent by
+  the test bot like D-184 / D-188, accepted ones deleted at once. `build()` then rejects
+  exactly the embeds Discord rejects as empty.
+- **Alternatives:** a cautious rule without a test (reject only an embed with nothing but a
+  color); no empty-embed check.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
