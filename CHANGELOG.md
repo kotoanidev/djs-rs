@@ -8,6 +8,13 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-cache` resources (Phase 5 step 2, D-160–D-163): guilds (`CachedGuild`), channels,
+  roles, emojis, stickers, members (`CachedMember`, sharing its `Arc<User>`), users and the
+  current user, kept up to date by `Cache::update(&payload)` for `READY`, `USER_UPDATE`, the
+  guild, channel, pins, role, emoji, sticker and member events (each returning the previous
+  state, typed per event through `UpdateCache`) and by `Cache::update_dispatch`. Read through
+  views: `cache.guilds().get(id)`, `cache.channels().in_guild(id)`,
+  `cache.members(guild).values()`, ….
 - `djs-cache` core (Phase 5, D-151–D-159): `CacheConfig` with one `Limit` per `Resource`
   (`Disabled`, `Max(n)`, `Unlimited`; minimal default of guilds, channels and roles;
   `CacheConfig::discord_js()` preset), the pluggable `Store` / `Backend` traits with the

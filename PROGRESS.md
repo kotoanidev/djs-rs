@@ -284,11 +284,17 @@ user), D-153 (updates return the previous state), D-154 (order below), D-155–D
    pub(crate) Scope), limits.rs (pub(crate) Global / Scoped / Order: FIFO limits over the
    whole cache or per parent, with the parent → keys index), cache.rs (Cache skeleton)}`.
    `limits.rs` and `Resource::scope` carry `expect(dead_code)` until step 2 uses them.
-2. **Next:** guilds, channels, roles, emojis, stickers, members, users. Decided: D-160
-   (model types + `CachedGuild` / `CachedMember` with `Arc<User>`), D-161 (`update(&event)`
-   by reference), D-162 (views: `cache.guilds().get(id)`, `cache.members(guild).get(user)`),
-   D-163 (`UpdateCache` trait with a typed `Previous`, plus `update_dispatch`).
-3. Messages, presences, voice states, threads, scheduled events, stage instances, soundboard.
+2. ✅ Guilds, channels, roles, emojis, stickers, members, users (D-160–D-163, C-074):
+   `model.rs` (`CachedGuild`, `CachedMember`), `view.rs` (`CacheView`, `GuildView`),
+   `update.rs` (`UpdateCache` sealed + macro impls, `Previous`, `dispatch`), `cache.rs`
+   (fields per resource, change helpers, views), `limits.rs` (`Scoped` keyed `(parent, id)`,
+   `Index`, `GlobalOf` / `ScopedOf`); tests `crates/djs-cache/tests/events.rs` (payloads
+   from `djs-model/tests/common/payloads.rs`).
+3. **Next:** messages (per channel, `MESSAGE_*`, also authors → users; `CHANNEL_DELETE`
+   drops a channel's messages), presences (compact type, D-081), voice states, threads
+   (`THREAD_*`, `GUILD_CREATE.threads`), scheduled events, stage instances, soundboard.
+   Cached types for these are public API → ask the owner first (e.g. a compact
+   `CachedPresence`, `CachedMessage` or the model `Message`).
 4. Sweepers.
 5. djs-rs `Client` integration.
 6. Benchmarks + extreme-load tests (D-041), re-run `docs/VS_NODE.md`.

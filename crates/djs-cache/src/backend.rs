@@ -54,6 +54,9 @@ use crate::{Limit, Resource};
 ///     fn values(&self) -> Vec<Arc<V>> {
 ///         self.0.lock().unwrap().values().cloned().collect()
 ///     }
+///     fn keys(&self) -> Vec<K> {
+///         self.0.lock().unwrap().keys().copied().collect()
+///     }
 /// }
 ///
 /// let store = MutexStore::default();
@@ -94,6 +97,10 @@ pub trait Store<K, V>: Send + Sync {
     ///
     /// Entries changed while this runs may appear in their old or new state, or not at all.
     fn values(&self) -> Vec<Arc<V>>;
+
+    /// Returns a snapshot of every key, in no particular order, with the same consistency as
+    /// [`values`](Self::values).
+    fn keys(&self) -> Vec<K>;
 }
 
 /// Creates the [`Store`] of each [`Resource`].
@@ -119,6 +126,7 @@ pub trait Store<K, V>: Send + Sync {
 /// #     fn len(&self) -> usize { self.0.lock().unwrap().len() }
 /// #     fn retain(&self, keep: &mut dyn FnMut(&K, &V) -> bool) { self.0.lock().unwrap().retain(|k, v| keep(k, v)); }
 /// #     fn values(&self) -> Vec<Arc<V>> { self.0.lock().unwrap().values().cloned().collect() }
+/// #     fn keys(&self) -> Vec<K> { self.0.lock().unwrap().keys().copied().collect() }
 /// # }
 /// use djs_cache::{Backend, Cache, CacheConfig, Limit, Resource};
 ///

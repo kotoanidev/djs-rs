@@ -14,8 +14,14 @@ readme = "README.md"
 publish = false
 
 [dependencies]
+compact_str = { workspace = true, features = ["std"] }
 dashmap.workspace = true
+djs-model.workspace = true
 foldhash.workspace = true
+
+[dev-dependencies]
+serde.workspace = true
+serde_json.workspace = true
 
 [lints]
 workspace = true

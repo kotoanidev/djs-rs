@@ -2195,6 +2195,34 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   CacheConfigBuilder`, `Cache::{new, with_config, with_backend, config, backend}`,
   `DashMapBackend::new` (a non-exhaustive unit struct, so fields can be added later).
 
+### C-074 — Cache event semantics (Phase 5, step 2)
+- `GUILD_CREATE` replaces the guild's roles, emojis and stickers and adds its channels and
+  members (Discord sends only some members). `GUILD_UPDATE` replaces roles, emojis and
+  stickers only when its list is non-empty: the model cannot tell an omitted list from an
+  empty one, and the resources' own events cover removals.
+- `GUILD_DELETE` with `unavailable` (an outage) keeps the cached data and lists the guild in
+  `Cache::unavailable_guilds`, returning no previous state; otherwise the guild, its channels,
+  roles, emojis, stickers and members are removed (users stay, like in discord.js). A guild
+  evicted by a guild limit takes its parts along too. `READY` lists all guilds as unavailable
+  until their `GUILD_CREATE`.
+- `GUILD_MEMBER_UPDATE` of an uncached member adds it (discord.js does too); fields it omits
+  (`deaf`, `mute`, `pending`, `flags`, `joined_at`) are kept from the cached member or
+  default. `GUILD_MEMBER_ADD` of a new member and `GUILD_MEMBER_REMOVE` adjust the cached
+  guild's `member_count` (copy-on-write of the guild).
+- Users seen in member events are cached when users are enabled, also without members. An
+  incoming user equal to the cached one reuses its `Arc`, so members of many guilds share
+  one user; users are only removed by their limit (sweepers come in step 4).
+- Guild channels from `GUILD_CREATE` get their `guild_id` filled in. Threads in channel
+  events are skipped: they are `Resource::Thread` (step 3).
+- Guild resources are stored under `(guild_id, id)`, so `cache.roles(guild).get(id)` is one
+  exact lookup; channels count over the whole cache and have a separate guild → channels
+  index (`CacheView::in_guild`).
+- The previous state of `GUILD_CREATE` / `GUILD_DELETE` is the guild only, not its parts;
+  `GUILD_MEMBERS_CHUNK` returns the members it replaced.
+- `Store` gained a required `keys` method (for the views' `keys()`). `UpdateCache` is sealed
+  and its method hidden. Public names added: `CacheView`, `GuildView`, `CacheView::in_guild`,
+  `Cache::unavailable_guilds`, `CachedMember::{id, display_name}`, the `Previous` variants.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

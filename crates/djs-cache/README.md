@@ -2,8 +2,9 @@
 
 Configurable, pluggable in-memory cache for Discord entities.
 
-> **Status:** pre-alpha, Phase 5 step 1 — configuration and storage are in place; the cached
-> resources and the gateway event handling follow in the next steps.
+> **Status:** pre-alpha, Phase 5 step 2 — guilds, channels, roles, emojis, stickers, members,
+> users and the current user are cached from their gateway events; messages, presences, voice
+> states, threads and the other guild resources follow, then sweepers.
 > Track progress in the [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
 
 **discord.js counterpart:** the caching layer inside `discord.js` (the managers' `cache`
@@ -20,8 +21,15 @@ collections, the `makeCache` and `sweepers` client options)
 - **Limits count where discord.js counts them:** per guild for guild resources (members,
   roles, emojis, presences, …), per channel for messages, over the whole cache for guilds,
   channels and users. A full scope evicts the entry inserted first.
-- **Reads return [`Arc`](std::sync::Arc)s:** cheap to clone, holding no lock, safe to keep
-  across `.await`. Updates return the previous state, so handlers can compare old and new.
+- **Events go in by reference:** [`Cache::update`] takes any payload implementing
+  [`UpdateCache`] and returns its previous state, typed per event (a member update returns
+  the member before it); [`Cache::update_dispatch`] takes a whole `DispatchEvent`.
+- **Reads go through views**, like a discord.js manager's `cache`: `cache.guilds().get(id)`,
+  `cache.members(guild_id).values()`, … They return [`Arc`](std::sync::Arc)s: cheap to clone,
+  holding no lock, safe to keep across `.await`.
+- **Own types only where needed:** roles, emojis, stickers, users and channels are the
+  `djs-model` types; [`CachedGuild`] leaves out the lists kept elsewhere, and
+  [`CachedMember`] shares its user with the user resource.
 - **Storage is pluggable:** the cache keeps each resource in a [`Store`] created by a
   [`Backend`]. The default [`DashMapBackend`] uses sharded concurrent maps with `foldhash`.
 
@@ -37,7 +45,34 @@ collections, the `makeCache` and `sweepers` client options)
 | [`VoiceState`](Resource::VoiceState) | disabled | per guild | `VoiceStateManager` |
 | [`Thread`](Resource::Thread), [`Emoji`](Resource::Emoji), [`Sticker`](Resource::Sticker), [`ScheduledEvent`](Resource::ScheduledEvent), [`StageInstance`](Resource::StageInstance), [`SoundboardSound`](Resource::SoundboardSound) | disabled | per guild | the guild's managers |
 
-## Example
+## Examples
+
+Feeding the cache and reading it:
+
+```rust
+use djs_cache::{Cache, CacheConfig, Limit};
+use djs_model::gateway::DispatchEvent;
+
+fn on_event(cache: &Cache, event: &DispatchEvent) {
+    if let DispatchEvent::GuildMemberUpdate(update) = event {
+        // The member before the update, if it was cached.
+        let before = cache.update(&**update);
+        let after = cache.members(update.guild_id).get(update.user.id);
+        if let (Some(before), Some(after)) = (before, after) {
+            if before.nick != after.nick {
+                println!("{} is now {}", before.display_name(), after.display_name());
+            }
+        }
+    } else {
+        cache.update_dispatch(event);
+    }
+}
+
+let cache = Cache::with_config(CacheConfig::builder().members(Limit::Unlimited).build());
+on_event(&cache, &DispatchEvent::Resumed);
+```
+
+Choosing what to cache:
 
 ```rust
 use djs_cache::{Cache, CacheConfig, CacheConfigBuilder, Limit, Resource};

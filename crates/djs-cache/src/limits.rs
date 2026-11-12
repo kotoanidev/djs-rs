@@ -1,14 +1,10 @@
 //! Enforcing [`Limit`]s on top of a [`Store`] (D-157, D-159).
 //!
 //! A resource counted over the whole cache is a [`Global`]; one counted per guild or channel
-//! is a [`Scoped`], which also indexes its entries by that parent (the cache needs the index
-//! anyway, for example to drop a deleted guild's members). Only limited resources pay for the
-//! insertion order.
-
-#![cfg_attr(
-    not(test),
-    expect(dead_code, reason = "used by the cached resources (Phase 5, step 2)")
-)]
+//! is a [`Scoped`], which stores its entries under `(parent, key)` and indexes them by parent
+//! (the cache needs the index anyway, for example to drop a deleted guild's members). Only
+//! limited resources pay for the insertion order. An [`Index`] lists the children of a parent
+//! for a [`Global`] resource that belongs to one (channels of a guild).
 
 use core::{hash::Hash, marker::PhantomData};
 use std::{
@@ -19,6 +15,16 @@ use std::{
 use dashmap::DashMap;
 
 use crate::{Limit, Store, dashmap_store::Hasher};
+
+/// A resource kept over the whole cache, in backend `B`'s store.
+pub(crate) type GlobalOf<K, V, B> = Global<K, V, <B as crate::Backend>::Store<K, V>>;
+/// A resource kept per guild, in backend `B`'s store keyed by `(guild, id)`.
+pub(crate) type ScopedOf<K, V, B> = Scoped<
+    djs_model::id::GuildId,
+    K,
+    V,
+    <B as crate::Backend>::Store<(djs_model::id::GuildId, K), V>,
+>;
 
 /// The result of an insertion.
 #[derive(Debug)]
@@ -220,13 +226,25 @@ where
         }
     }
 
+    pub(crate) fn contains(&self, key: &K) -> bool {
+        self.store.contains_key(key)
+    }
+
+    pub(crate) fn keys(&self) -> Vec<K> {
+        self.store.keys()
+    }
+
+    pub(crate) fn values(&self) -> Vec<Arc<V>> {
+        self.store.values()
+    }
+
     pub(crate) fn len(&self) -> usize {
         self.store.len()
     }
 }
 
-/// A resource whose limit counts per guild or per channel (`P`, the parent's ID), with an
-/// index of each parent's keys.
+/// A resource whose limit counts per guild or per channel (`P`, the parent's ID). Entries are
+/// stored under `(parent, key)`, so a lookup is exact without consulting the index.
 pub(crate) struct Scoped<P, K, V, S> {
     store: S,
     max: Option<usize>,
@@ -242,7 +260,7 @@ impl<P, K, V, S> Scoped<P, K, V, S>
 where
     P: Eq + Hash + Copy,
     K: Eq + Hash + Copy,
-    S: Store<K, V>,
+    S: Store<(P, K), V>,
 {
     /// Wraps `store`, created for an enabled `limit`.
     pub(crate) fn new(store: S, limit: Limit) -> Self {
@@ -254,8 +272,8 @@ where
         }
     }
 
-    pub(crate) fn get(&self, key: &K) -> Option<Arc<V>> {
-        self.store.get(key)
+    pub(crate) fn get(&self, parent: P, key: K) -> Option<Arc<V>> {
+        self.store.get(&(parent, key))
     }
 
     pub(crate) fn insert(&self, parent: P, key: K, value: Arc<V>) -> Inserted<K, V> {
@@ -263,25 +281,27 @@ where
             .index
             .entry(parent)
             .or_insert_with(|| Children::new(self.max.is_some()));
-        let previous = self.store.insert(key, value);
+        let previous = self.store.insert((parent, key), value);
         children.insert(key);
         let mut evicted = None;
         if let Some(max) = self.max
             && children.len() > max
         {
-            evicted = children
-                .pop_oldest()
-                .and_then(|oldest| self.store.remove(&oldest).map(|value| (oldest, value)));
+            evicted = children.pop_oldest().and_then(|oldest| {
+                self.store
+                    .remove(&(parent, oldest))
+                    .map(|value| (oldest, value))
+            });
         }
         Inserted { previous, evicted }
     }
 
-    pub(crate) fn remove(&self, parent: P, key: &K) -> Option<Arc<V>> {
+    pub(crate) fn remove(&self, parent: P, key: K) -> Option<Arc<V>> {
         let Some(mut children) = self.index.get_mut(&parent) else {
-            return self.store.remove(key);
+            return self.store.remove(&(parent, key));
         };
-        children.remove(key);
-        let removed = self.store.remove(key);
+        children.remove(&key);
+        let removed = self.store.remove(&(parent, key));
         let now_empty = children.len() == 0;
         // The guard must go before `remove_if`, which locks the same shard.
         drop(children);
@@ -294,33 +314,87 @@ where
 
     /// Removes every entry of `parent` (for example a deleted guild's members), returning
     /// them.
-    pub(crate) fn remove_parent(&self, parent: &P) -> Vec<(K, Arc<V>)> {
-        let Some((_, children)) = self.index.remove(parent) else {
+    pub(crate) fn remove_parent(&self, parent: P) -> Vec<Arc<V>> {
+        let Some((_, children)) = self.index.remove(&parent) else {
             return Vec::new();
         };
         children
             .keys()
             .into_iter()
-            .filter_map(|key| self.store.remove(&key).map(|value| (key, value)))
+            .filter_map(|key| self.store.remove(&(parent, key)))
             .collect()
     }
 
     /// Returns the keys of `parent`'s entries, in no particular order.
-    pub(crate) fn keys_of(&self, parent: &P) -> Vec<K> {
+    pub(crate) fn keys_of(&self, parent: P) -> Vec<K> {
         self.index
-            .get(parent)
+            .get(&parent)
             .map(|children| children.keys())
             .unwrap_or_default()
     }
 
+    /// Returns the values of `parent`'s entries, in no particular order.
+    pub(crate) fn values_of(&self, parent: P) -> Vec<Arc<V>> {
+        self.keys_of(parent)
+            .into_iter()
+            .filter_map(|key| self.store.get(&(parent, key)))
+            .collect()
+    }
+
     /// Returns the number of `parent`'s entries.
-    pub(crate) fn len_of(&self, parent: &P) -> usize {
-        self.index.get(parent).map_or(0, |children| children.len())
+    pub(crate) fn len_of(&self, parent: P) -> usize {
+        self.index.get(&parent).map_or(0, |children| children.len())
     }
 
     /// Returns the number of entries over all parents.
     pub(crate) fn len(&self) -> usize {
         self.store.len()
+    }
+}
+
+/// The keys of each parent, for a [`Global`] resource whose entries belong to a parent (the
+/// channels of a guild). Only a listing: the limit counts over the whole cache.
+pub(crate) struct Index<P, K> {
+    map: DashMap<P, HashSet<K, Hasher>, Hasher>,
+}
+
+impl<P: Eq + Hash + Copy, K: Eq + Hash + Copy> Index<P, K> {
+    pub(crate) fn new() -> Self {
+        Self {
+            map: DashMap::with_hasher(Hasher::default()),
+        }
+    }
+
+    pub(crate) fn insert(&self, parent: P, key: K) {
+        self.map
+            .entry(parent)
+            .or_insert_with(|| HashSet::with_hasher(Hasher::default()))
+            .insert(key);
+    }
+
+    pub(crate) fn remove(&self, parent: P, key: K) {
+        let now_empty = self.map.get_mut(&parent).is_some_and(|mut keys| {
+            keys.remove(&key);
+            keys.is_empty()
+        });
+        if now_empty {
+            self.map.remove_if(&parent, |_, keys| keys.is_empty());
+        }
+    }
+
+    /// Removes `parent`, returning its keys.
+    pub(crate) fn remove_parent(&self, parent: P) -> Vec<K> {
+        self.map
+            .remove(&parent)
+            .map(|(_, keys)| keys.into_iter().collect())
+            .unwrap_or_default()
+    }
+
+    pub(crate) fn keys_of(&self, parent: P) -> Vec<K> {
+        self.map
+            .get(&parent)
+            .map(|keys| keys.iter().copied().collect())
+            .unwrap_or_default()
     }
 }
 
@@ -332,7 +406,7 @@ fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
 mod tests {
     use std::{sync::Arc, thread};
 
-    use super::{Global, Order, Scoped};
+    use super::{Global, Index, Order, Scoped};
     use crate::{DashMapStore, Limit, Store};
 
     fn sorted(mut keys: Vec<u64>) -> Vec<u64> {
@@ -449,10 +523,13 @@ mod tests {
         for (parent, key) in [(1, 10), (1, 11), (2, 20), (1, 12)] {
             scoped.insert(parent, key, Arc::new(key));
         }
-        assert_eq!(sorted(scoped.keys_of(&1)), [11, 12]);
-        assert_eq!(scoped.keys_of(&2), [20]);
+        assert_eq!(sorted(scoped.keys_of(1)), [11, 12]);
+        assert_eq!(scoped.keys_of(2), [20]);
         assert_eq!(scoped.len(), 3);
-        assert!(scoped.get(&10).is_none());
+        assert!(scoped.get(1, 10).is_none());
+        assert_eq!(scoped.get(1, 11).as_deref(), Some(&11));
+        // A key is found under its own parent only.
+        assert!(scoped.get(2, 11).is_none());
     }
 
     #[test]
@@ -470,34 +547,34 @@ mod tests {
         for key in 0..10_u64 {
             scoped.insert(key % 2, key, Arc::new(key));
         }
-        assert_eq!(scoped.remove(0, &4).as_deref(), Some(&4));
-        assert_eq!(scoped.len_of(&0), 4);
+        assert_eq!(scoped.remove(0, 4).as_deref(), Some(&4));
+        assert_eq!(scoped.len_of(0), 4);
+        assert_eq!(
+            sorted(scoped.values_of(0).iter().map(|value| **value).collect()),
+            [0, 2, 6, 8]
+        );
 
-        let mut removed: Vec<u64> = scoped
-            .remove_parent(&1)
+        let removed: Vec<u64> = scoped
+            .remove_parent(1)
             .into_iter()
-            .map(|(key, value)| {
-                assert_eq!(key, *value);
-                key
-            })
+            .map(|value| *value)
             .collect();
-        removed.sort_unstable();
-        assert_eq!(removed, [1, 3, 5, 7, 9]);
+        assert_eq!(sorted(removed), [1, 3, 5, 7, 9]);
         assert_eq!(scoped.len(), 4);
-        assert_eq!(scoped.len_of(&1), 0);
-        assert_eq!(scoped.remove_parent(&1).len(), 0);
+        assert_eq!(scoped.len_of(1), 0);
+        assert_eq!(scoped.remove_parent(1).len(), 0);
     }
 
     #[test]
     fn an_emptied_parent_leaves_the_index() {
         let scoped = Scoped::new(DashMapStore::new(), Limit::Max(5));
         scoped.insert(7_u64, 1_u64, Arc::new(()));
-        scoped.remove(7, &1);
+        scoped.remove(7, 1);
         assert!(scoped.index.is_empty());
-        // Removing a key of an unknown parent still removes it from the store.
+        // Removing a key of an unindexed parent still removes it from the store.
         let store_only = Scoped::new(DashMapStore::new(), Limit::Unlimited);
-        store_only.store.insert(1_u64, Arc::new(()));
-        assert!(store_only.remove(9_u64, &1).is_some());
+        store_only.store.insert((9_u64, 1_u64), Arc::new(()));
+        assert!(store_only.remove(9, 1).is_some());
     }
 
     #[test]
@@ -518,8 +595,21 @@ mod tests {
             thread.join().unwrap();
         }
         for parent in 0..4 {
-            assert_eq!(scoped.len_of(&parent), 100);
+            assert_eq!(scoped.len_of(parent), 100);
         }
         assert_eq!(scoped.len(), 400);
+    }
+
+    #[test]
+    fn index_lists_and_forgets_children() {
+        let index = Index::new();
+        index.insert(1_u64, 10_u64);
+        index.insert(1, 11);
+        index.insert(2, 20);
+        assert_eq!(sorted(index.keys_of(1)), [10, 11]);
+        index.remove(2, 20);
+        assert!(index.map.get(&2).is_none());
+        assert_eq!(sorted(index.remove_parent(1)), [10, 11]);
+        assert_eq!(index.keys_of(1).len(), 0);
     }
 }

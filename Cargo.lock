@@ -183,8 +183,12 @@ version = "0.0.0"
 name = "djs-cache"
 version = "0.0.0"
 dependencies = [
+ "compact_str",
  "dashmap",
+ "djs-model",
  "foldhash",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

@@ -85,7 +85,9 @@ just with narrow scope.
 - [ ] Per-resource enable/disable and size limits (≈ `makeCache`) — configuration and
       enforcement done (D-156, D-157, D-159); applied as the resources land
 - [ ] Sweepers (≈ `sweepers` option), partials support
-- [ ] Event → cache update logic for every dispatch event
+- [ ] Event → cache update logic for every dispatch event — guilds, channels, roles, emojis,
+      stickers, members, users done (D-160–D-163); messages, presences, voice states, threads,
+      events, stage instances, soundboard next
 - [ ] Memory/size tests, benchmarks
 
 ## Phase 6 — `djs-builders` (≈ @discordjs/builders)

@@ -137,6 +137,10 @@ where
             .map(|entry| Arc::clone(entry.value()))
             .collect()
     }
+
+    fn keys(&self) -> Vec<K> {
+        self.map.iter().map(|entry| *entry.key()).collect()
+    }
 }
 
 #[cfg(test)]
@@ -174,6 +178,9 @@ mod tests {
         }
         store.retain(&mut |key, _| key % 2 == 0);
         assert_eq!(store.len(), 50);
+        let mut keys = store.keys();
+        keys.sort_unstable();
+        assert_eq!(keys, (0..100).step_by(2).collect::<Vec<_>>());
         let mut values: Vec<u64> = store.values().iter().map(|value| **value).collect();
         values.sort_unstable();
         assert_eq!(

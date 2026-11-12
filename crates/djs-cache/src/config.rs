@@ -95,10 +95,6 @@ impl Resource {
     const COUNT: usize = Self::ALL.len();
 
     /// What a [`Limit::Max`] of this resource counts in (D-159).
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "used by the cached resources (Phase 5, step 2)")
-    )]
     pub(crate) const fn scope(self) -> Scope {
         match self {
             Self::Guild | Self::Channel | Self::User => Scope::Cache,
@@ -123,12 +119,6 @@ impl Resource {
 }
 
 /// What a [`Limit::Max`] counts in (D-159).
-// `allow`, not `expect`: older compilers (the MSRV) do not report a type used only by dead
-// code, so an expectation would be unfulfilled there.
-#[cfg_attr(
-    not(test),
-    allow(dead_code, reason = "used by the cached resources (Phase 5, step 2)")
-)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Scope {
     /// All entries of the resource.
