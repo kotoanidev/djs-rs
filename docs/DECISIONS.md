@@ -2168,6 +2168,24 @@ and why.
   without parsing.
 - **Alternatives:** `Option<WebhookClient>`.
 
+### D-242 — Threads: a thread manager and a thread member manager
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** like discord.js, `ctx.threads(parent_channel)` creates threads (`create`,
+  `create_in_forum`) and lists the archived ones (public, private, joined private), and
+  `ctx.thread_members(thread)` fetches, lists, adds and removes members, joins and leaves.
+  A guild's active threads are listed by `ctx.guild_channels(guild).list_active_threads()`.
+  Shortcuts: `channel.threads(&ctx)`, `channel.thread_members(&ctx)`. Editing and deleting a
+  thread stay on `ctx.channels()`.
+- **Alternatives:** everything on `ctx.channels()` with longer names (`start_thread`,
+  `join_thread`, `add_thread_member`, …).
+
+### D-243 — Discord's default soundboard sounds: a `Context` method
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `ctx.default_soundboard_sounds()` lists them (discord.js:
+  `Client#fetchDefaultSoundboardSounds`); a guild's sounds are on
+  `ctx.soundboard_sounds(guild)`.
+- **Alternatives:** `ctx.soundboard_sounds(guild).list_default()`.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
