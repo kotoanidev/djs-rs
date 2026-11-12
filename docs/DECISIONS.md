@@ -1601,6 +1601,17 @@ and why.
   empty or whitespace-only title, description, footer, author name, field name and field
   value, an embed with no content and URLs with a wrong scheme; accepted messages are deleted
   at once and the token stays in `.env`. `build()` then rejects exactly what Discord rejects.
+- **Live result, 2026-11-12** (19 messages; the 11 accepted ones deleted at once):
+  - **accepted:** an empty or whitespace-only title, an empty description, footer text,
+    author name, field name or field value (each next to a non-empty title or description);
+    an `ftp://` image URL; an `attachment://` image URL without an uploaded file; an
+    upper-case `HTTPS://` title URL; 256 letters padded with NBSP and newlines (so Discord
+    trims Unicode whitespace like Rust's `str::trim`);
+  - **rejected (`50035`):** an embed with no content — `{}` or only a color, with or without
+    message content — as `embeds[0].description: BASE_TYPE_REQUIRED`; an `ftp://` title URL
+    (`URL_TYPE_INVALID_SCHEME`, "must be one of ('http', 'https')"); a bare `https://`
+    (`URL_TYPE_INVALID_URL`); an `attachment://` author URL (`URL_TYPE_INVALID_SCHEME`); the
+    color `0x1000000` (`NUMBER_TYPE_MAX`, at most `16777215`).
 - **Alternatives:** follow discord.js (empty title / description / footer / author rejected,
   empty field names and values allowed); no checks for empty texts.
 
