@@ -2,6 +2,7 @@
 
 mod application;
 mod application_command;
+mod application_identity_profile;
 mod application_role_connection_metadata;
 mod audit_log;
 mod auto_moderation;
@@ -26,7 +27,10 @@ mod user;
 mod voice;
 mod webhook;
 
-use djs_model::{permissions::Permissions, rest::GatewayBot};
+use djs_model::{
+    permissions::Permissions,
+    rest::{Gateway, GatewayBot},
+};
 use serde::Deserialize;
 
 use crate::{Error, Request, Rest, Route};
@@ -45,6 +49,20 @@ struct Items<T> {
 }
 
 impl Rest {
+    /// [Get Gateway](https://docs.discord.com/developers/events/gateway#get-gateway): returns
+    /// the gateway URL. Needs no token; bots should use
+    /// [`get_gateway_bot`](Self::get_gateway_bot), which also returns the shard count and the
+    /// session start limit.
+    ///
+    /// discord.js counterpart: none.
+    ///
+    /// # Errors
+    ///
+    /// See [`Rest::request`].
+    pub async fn get_gateway(&self) -> Result<Gateway, Error> {
+        self.request(Request::new(Route::GetGateway)).await
+    }
+
     /// [Get Gateway Bot](https://docs.discord.com/developers/events/gateway#get-gateway-bot):
     /// returns the gateway URL, the recommended shard count and the session start limit.
     ///

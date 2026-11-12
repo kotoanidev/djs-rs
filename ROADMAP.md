@@ -62,8 +62,9 @@ just with narrow scope.
 - [x] Strict global limiter (D-043 → sliding log, D-089) instead of fixed one-second windows
 - [x] Multipart uploads (attachments, D-087, D-093..D-096)
 - [x] API errors with JSON error codes and field errors (D-097..D-099)
-- [ ] Every v10 REST endpoint as a typed method (order: D-102; tri-state `Patch<T>`, D-101;
-      query structs, D-092)
+- [x] Every v10 REST endpoint as a typed method (order: D-102; tri-state `Patch<T>`, D-101;
+      query structs, D-092) — `scripts/route_coverage.py` lists only the routes left out on
+      purpose (D-105, D-116, D-120, disabled batch command permissions)
 - [ ] CDN URL builder
 - [ ] Mock-server tests; benchmarks
 

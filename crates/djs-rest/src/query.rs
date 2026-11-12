@@ -8,13 +8,14 @@ use djs_model::{
     id::Id,
     message::ReactionType,
     rest::{
-        GetAnswerVoters, GetApplicationCommands, GetChannelMessages, GetChannelPermissions,
-        GetChannelPins, GetCurrentUserGuilds, GetGuild, GetGuildAuditLog, GetGuildBans,
-        GetGuildPruneCount, GetGuildScheduledEvent, GetGuildScheduledEventUsers, GetInvite,
-        GetLobbyMessages, GetReactions, GetThreadMember, ListArchivedThreads, ListEntitlements,
-        ListGuildMembers, ListJoinedPrivateArchivedThreads, ListScheduledEventsForGuild,
-        ListSkuSubscriptions, ListThreadMembers, SearchAuthorType, SearchEmbedType, SearchFilter,
-        SearchGuildMembers, SearchGuildMessages, SearchHasType, SearchSortMode, SearchSortOrder,
+        GetAnswerVoters, GetApplicationCommands, GetApplicationIdentitiesByExternalId,
+        GetChannelMessages, GetChannelPermissions, GetChannelPins, GetCurrentUserGuilds, GetGuild,
+        GetGuildAuditLog, GetGuildBans, GetGuildPruneCount, GetGuildScheduledEvent,
+        GetGuildScheduledEventUsers, GetInvite, GetLobbyMessages, GetReactions, GetThreadMember,
+        ListArchivedThreads, ListEntitlements, ListGuildMembers, ListJoinedPrivateArchivedThreads,
+        ListScheduledEventsForGuild, ListSkuSubscriptions, ListThreadMembers, SearchAuthorType,
+        SearchEmbedType, SearchFilter, SearchGuildMembers, SearchGuildMessages, SearchHasType,
+        SearchSortMode, SearchSortOrder,
     },
     util::Timestamp,
 };
@@ -222,6 +223,12 @@ impl Query for ListSkuSubscriptions {
 impl Query for GetLobbyMessages {
     fn write(&self, query: &mut QueryWriter<'_>) {
         query.optional("limit", self.limit.as_ref());
+    }
+}
+
+impl Query for GetApplicationIdentitiesByExternalId {
+    fn write(&self, query: &mut QueryWriter<'_>) {
+        query.optional("provider_id", self.provider_id.as_deref());
     }
 }
 

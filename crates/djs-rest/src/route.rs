@@ -435,6 +435,8 @@ impl Route<'_> {
 }
 
 routes! {
+    /// [Get Gateway](https://docs.discord.com/developers/events/gateway#get-gateway).
+    GetGateway => GET "/gateway";
     /// [Get Gateway Bot](https://docs.discord.com/developers/events/gateway#get-gateway-bot).
     GetGatewayBot => GET "/gateway/bot";
 
@@ -1418,6 +1420,54 @@ routes! {
     /// The [token revocation URL](https://docs.discord.com/developers/topics/oauth2#authorization-code-grant-token-revocation-example).
     /// Sent without the client's token (D-132).
     OAuth2TokenRevocation => POST "/oauth2/token/revoke";
+
+    // Application identity profiles (game stats).
+
+    /// [Update Application Identity Profile](https://docs.discord.com/developers/resources/application-identity-profile#update-application-identity-profile).
+    UpdateApplicationIdentityProfile {
+        /// The application.
+        application_id: ApplicationId,
+        /// The Discord user.
+        user_id: UserId,
+        /// The user's ID in the app's system.
+        provider_issued_user_id: &'a str,
+    } => PATCH "/applications/{application_id}/users/{user_id}/identities/{provider_issued_user_id}/profile";
+    /// [Get Application Identity Profile](https://docs.discord.com/developers/resources/application-identity-profile#get-application-identity-profile).
+    GetApplicationIdentityProfile {
+        /// The application.
+        application_id: ApplicationId,
+        /// The Discord user.
+        user_id: UserId,
+        /// The user's ID in the app's system.
+        provider_issued_user_id: &'a str,
+    } => GET "/applications/{application_id}/users/{user_id}/identities/{provider_issued_user_id}/profile";
+    /// [Get Application Identities by User ID](https://docs.discord.com/developers/resources/application-identity-profile#get-application-identities-by-user-id).
+    GetApplicationIdentitiesByUserId {
+        /// The Discord user.
+        user_id: UserId,
+        /// The application.
+        application_id: ApplicationId,
+    } => GET "/users/{user_id}/application-identities/{application_id}";
+    /// [Get Application Identities by External ID](https://docs.discord.com/developers/resources/application-identity-profile#get-application-identities-by-external-id).
+    GetApplicationIdentitiesByExternalId {
+        /// The application.
+        application_id: ApplicationId,
+        /// The external account provider type.
+        provider_type: &'a str,
+        /// The user's ID in the external system.
+        provider_issued_user_id: &'a str,
+    } => GET "/applications/{application_id}/application-identities/{provider_type}/{provider_issued_user_id}";
+    /// [Delete Application Identity](https://docs.discord.com/developers/resources/application-identity-profile#delete-application-identity).
+    DeleteApplicationIdentity {
+        /// The Discord user.
+        user_id: UserId,
+        /// The application.
+        application_id: ApplicationId,
+        /// The external account provider type.
+        provider_type: &'a str,
+        /// The user's ID in the external system.
+        provider_issued_user_id: &'a str,
+    } => POST "/users/{user_id}/application-identities/{application_id}/{provider_type}/{provider_issued_user_id}/delete";
 
     // Applications.
 

@@ -1827,6 +1827,16 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   in their docs; the client does not check the token kind.
 - `CreateOrJoinLobby` redacts its `secret` in `Debug` (anyone who knows it can join).
 
+### C-065 — Application identity profile endpoints and coverage check
+- Identity profiles were not in D-102's list but are v10 REST endpoints (ROADMAP Phase 3:
+  every endpoint) of a resource modelled since D-072, so they came last, with Get Gateway.
+- External IDs (`provider_type`, `provider_issued_user_id`) are `&str` route parameters; the
+  identity lists are unwrapped from `{"identities": [...]}` (as C-052); Delete Application
+  Identity always sends its optional body (`{}` when empty); the routes have no major
+  parameter.
+- `scripts/route_coverage.py` compares the `<Route>` tags of the docs with `route.rs` by
+  method and parameter positions.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

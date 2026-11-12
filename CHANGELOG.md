@@ -8,6 +8,12 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Application identity profile endpoints (game stats): update (returns the profile on the
+  first write, D-135) and get a profile, list identities by user or external ID, delete an
+  identity. Bodies `UpdateApplicationIdentityProfile`, `DeleteApplicationIdentity`, query
+  `GetApplicationIdentitiesByExternalId`.
+- `get_gateway` with the new `djs_model::rest::Gateway` (D-136).
+- `scripts/route_coverage.py` lists documented REST routes without a `Route`.
 - Voice endpoints: `list_voice_regions`, `get_current_user_voice_state`,
   `get_user_voice_state`, `modify_current_user_voice_state` and `modify_user_voice_state`
   (bodies `ModifyCurrentUserVoiceState`, `ModifyUserVoiceState`).

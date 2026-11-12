@@ -217,8 +217,13 @@ D-041).
   body.
 - **Lobbies ✅** (16 methods, `tests/lobbies.rs`, D-134, C-064).
 - **Voice ✅** (5 methods, `tests/voice.rs`). Every resource of D-102 is done.
-- **Next:** check endpoint coverage against every `resources/*.mdx` and `topics/*.mdx` page,
-  then the CDN URL builder (D-116), then the Phase 3 benches and extreme-load tests (D-041).
+- **Application identity profiles ✅** (5 methods) and **Get Gateway ✅**
+  (`tests/identity_profiles.rs`, D-135, D-136, C-065). **Endpoint coverage is complete:**
+  `python3 -I scripts/route_coverage.py` lists only the 8 routes left out on purpose
+  (D-105, D-116, D-120, disabled Batch Edit Application Command Permissions).
+- **Next:** the CDN URL builder (ROADMAP Phase 3; includes the widget image URL, D-116) —
+  its API shape needs the owner's decisions first; then the Phase 3 benches and
+  extreme-load tests (D-041).
 - Local gate script: `scratchpad/gate.sh` style (`set -euo pipefail`, no pipes hiding errors) —
   a piped gate let one clippy failure through (fixed in `cda06db`).
 - Perf note: after the user change, MESSAGE_CREATE/READY decode looked ~8-13 % slower relative

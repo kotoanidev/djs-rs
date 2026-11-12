@@ -18,6 +18,7 @@ use crate::{
 
 mod application;
 mod application_command;
+mod application_identity_profile;
 mod audit_log;
 mod auto_moderation;
 mod channel;
@@ -45,6 +46,10 @@ pub use self::{
     application_command::{
         CreateApplicationCommand, EditApplicationCommand, EditApplicationCommandPermissions,
         GetApplicationCommands,
+    },
+    application_identity_profile::{
+        DeleteApplicationIdentity, GetApplicationIdentitiesByExternalId,
+        UpdateApplicationIdentityProfile,
     },
     audit_log::GetGuildAuditLog,
     auto_moderation::{CreateAutoModerationRule, ModifyAutoModerationRule},
@@ -91,6 +96,18 @@ pub use self::{
     voice::{ModifyCurrentUserVoiceState, ModifyUserVoiceState},
     webhook::{CreateWebhook, EditWebhookMessage, ExecuteWebhook, ModifyWebhook},
 };
+
+/// The response of [Get Gateway](https://docs.discord.com/developers/events/gateway#get-gateway)
+/// (`GET /gateway`, D-136): where to connect to the gateway. Bots use [`GatewayBot`], which also
+/// tells the shard count and session start limit.
+///
+/// discord.js counterpart: none (discord-api-types: `RESTGetAPIGatewayResult`).
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct Gateway {
+    /// The WSS URL to connect to, e.g. `wss://gateway.discord.gg`.
+    pub url: CompactString,
+}
 
 /// The response of [Get Gateway Bot](https://docs.discord.com/developers/events/gateway#get-gateway-bot)
 /// (`GET /gateway/bot`): where and how to connect to the gateway.
