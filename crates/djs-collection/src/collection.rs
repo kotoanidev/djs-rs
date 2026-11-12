@@ -288,7 +288,7 @@ impl<K, V, S> Collection<K, V, S> {
         if self.is_empty() {
             return None;
         }
-        self.map.get_index(random::below(self.len()))
+        self.map.get_index(random::Rng::new().below(self.len()))
     }
 
     /// Up to `count` different random values, in random order — all of them, shuffled, if
@@ -496,6 +496,10 @@ where
     /// Removes `key`, returning its value; the entries after it move up, so the order is
     /// kept (O(n), D-215). [`swap_remove`](Self::swap_remove) is O(1).
     ///
+    /// To remove many entries, use one [`sweep`](Self::sweep) or [`retain`](Self::retain)
+    /// pass, which is linear however many it removes: removing 1 000 entries near the front
+    /// of a million one by one moves the rest 1 000 times (seconds instead of milliseconds).
+    ///
     /// discord.js counterpart: `delete`.
     pub fn remove<Q>(&mut self, key: &Q) -> Option<V>
     where
@@ -608,17 +612,11 @@ where
     where
         S: Clone,
     {
-        let hasher = self.map.hasher().clone();
-        let mut passed = Self::with_hasher(hasher.clone());
-        let mut failed = Self::with_hasher(hasher);
-        for (key, value) in self.map {
-            if predicate(&value, &key) {
-                passed.map.insert(key, value);
-            } else {
-                failed.map.insert(key, value);
-            }
-        }
-        (passed, failed)
+        // The passing entries move to a new map; the others stay where they are, unhashed.
+        let mut failed = self.map;
+        let mut passed = IndexMap::with_hasher(failed.hasher().clone());
+        passed.extend(failed.extract_if(.., |key, value| predicate(value, key)));
+        (Self { map: passed }, Self { map: failed })
     }
 
     /// A collection with the same keys and the values `f(value, &key)`, in order.

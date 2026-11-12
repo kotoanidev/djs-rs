@@ -906,3 +906,105 @@ second after the optimization below.
 - **Open, small:** markdown-heavy text (≈ 330 MB/s) is bound by inserting one backslash at
   a time; a message is at most 4000 characters (≈ 12 µs), so it was left as is. Skipping
   plain text faster still would take SIMD (`memchr`, a new dependency) or `unsafe`.
+
+## Phase 7 — `djs-collection` (2026-11-12)
+
+Step 2b of Phase 7 (D-041). Unpinned, as Phase 6; keys are snowflake-like `u64`s, values
+`u64`s. `Collection` (foldhash, D-216) is compared with `IndexMap` with the same hasher (the
+cost of the wrapper), `std::collections::HashMap` with the same hasher (the cost of keeping
+the order) and `HashMap` with std's SipHash (the usual default).
+
+### Map basics (`benches/collection.rs`)
+
+| Operation | 100 entries | 10 000 | 1 000 000 |
+|---|---:|---:|---:|
+| `get`, `Collection` | 2.0 ns | 2.5 ns | 2.4 ns |
+| `get`, `IndexMap` + foldhash | 2.3 ns | 2.7 ns | 2.7 ns |
+| `get`, `HashMap` + foldhash | 1.5 ns | 1.7 ns | 1.7 ns |
+| `get`, `HashMap` + SipHash | 5.5 ns | 5.4 ns | 6.7 ns |
+| build by `insert`, `Collection` | 1.4 µs | 215 µs | 48 ms |
+| build by `insert`, `Collection::with_capacity` | 0.74 µs | 48 µs | 14 ms |
+| build by `insert`, `HashMap` + foldhash | 1.2 µs | 110 µs | 26 ms |
+| iterate the values, `Collection` | 13 ns | 2.2 µs | 0.83 ms |
+| iterate the values, `HashMap` + foldhash | 51 ns | 5.8 µs | 2.2 ms |
+| remove the front tenth: `remove` (order kept, D-215) | 1.3 µs | 16.8 ms | |
+| … `swap_remove` | 0.13 µs | 7.9 µs | |
+| … one `sweep` | 0.50 µs | 32 µs | |
+
+- **The wrapper is free:** `get` costs the same as `IndexMap`'s (the difference is within
+  noise), and `size_of::<Collection>() == size_of::<IndexMap>()` is a test.
+- **Keeping the order costs ~0.7 ns per lookup** (a second memory access, into the entries)
+  and about twice the build time without a capacity (two tables grow). Iterating is 2.6–3.9×
+  faster than `HashMap`'s, because the entries are one dense array.
+- **foldhash is 2.2–2.8× faster than SipHash** on these keys, as in the cache (D-158).
+
+| Helper, 10 000 entries | Time | Allocations |
+|---|---:|---:|
+| `filter` (half kept) | 15 µs | 0 |
+| `partition` (half and half) | 77 µs | 3 + growth |
+| `map_values` (`u64` → `u8`) | 34–88 µs (see below) | 2 |
+| `sort_by` (values) | 205 µs | 0 |
+| `find`, match at the last entry | 2.0 µs | 0 |
+| `random` | 5.6 ns | 0 |
+| `random_n(1)` / `(10)` / `(1000)` / `(5000)` | 19 ns / 87 ns / 6.0 µs / 6.3 µs | 1–2 |
+| `intersection` (half shared) | 35 µs | 0 |
+| `symmetric_difference` | 77 µs | 2 |
+| `union` | 115–169 µs | growth |
+| `merge` (all three closures) | 193 µs | 2 + growth |
+
+- **`map_values` and `union` depend on glibc's allocator state, not on their code.** Their
+  new tables (≈ 390 KB) are above glibc's initial `mmap` threshold, so in a fresh process
+  each one is a new mapping whose pages fault in: 88 µs. After a larger block has been freed
+  (in a long-running bot, or later in the same benchmark run), glibc raises the threshold and
+  serves them from the heap: 34 µs (`GLIBC_TUNABLES=glibc.malloc.mmap_threshold=33554432`
+  reproduces it). This is one more reason for the `mimalloc` recommendation (D-080).
+
+### Extreme load (`tests/stress.rs`)
+
+| Test | Result |
+|---|---|
+| 50 000 random inserts, removals (`remove`, `swap_remove`), sweeps, retains, stable sorts and reversals, checked after each against a `Vec` of entries | identical order and values at every step |
+| `random_n` for every length below 64 and every count up to length + 2, and 1 to 100 000 of 100 000 | always `min(count, len)` distinct values, with both sampling methods |
+| 200 000 `random()` over 10 values; the first pick of `random_n` with shuffling (3 of 10) and with Floyd's sampling (2 of 20) | every value within 10 % of its expected count (more than 6 standard deviations) |
+| 10 000 000 entries by `insert`, `Collection` | 70 ns/entry, 33 ns/lookup, **39.1 B/entry** resident, 40.2 at the peak |
+| … `Collection::with_capacity` | 45 ns/entry, 34 ns/lookup, 39.1 B/entry, 39.1 at the peak |
+| … `HashMap` + foldhash | 41 ns/entry, 21 ns/lookup, 28.5–32.1 B/entry, **46.3 at the peak** |
+| … `HashMap` + SipHash | 58 ns/entry, 62 ns/lookup, 28.5 B/entry, 42.7 at the peak |
+| `sweep` half of 10 000 000 / `sort_by` the 5 000 000 left / iterate them / `partition` them | 166 ms / 390 ms / 5.4 ms / 215 ms |
+| Remove 1 000 000 entries from the back with `remove` / from the front with `swap_remove` / all in one `sweep` | 27 ms / 31 ms / 41 µs |
+| Remove 1 000 entries from the front of 1 000 000 with `remove` | **3.7 s** (one `sweep` of the same entries: 10.8 ms, 347× faster) |
+| Remove 1 000 entries at random positions of 1 000 000 with `remove` | **6.1 s** |
+| 1 000 000 × insert a new key, with a `sweep` of the 10 000 oldest every 10 000 | 1.2 s, the length stays at 1 000 000 |
+| `get` of a present key of 1 000 000, all cores | 18.7 M/s on 1 thread, 70.5 M/s on 12 (3.8×; memory-bound) |
+| `get` of a missing key | 101 M/s on 1 thread, 610 M/s on 12 (6.0×) |
+| `at(index)` / `random()` | 117 → 457 M/s (3.9×) / 34 → 228 M/s (6.7×) |
+| `find` in 1 000 entries / `random_n(10)` of 1 000 | 3.0 → 13.3 M/s (4.4×) / 9.7 → 57 M/s (5.9×) |
+
+- **Memory: 39 bytes per `(u64, u64)` entry**, exactly the layout: each entry stores its hash,
+  key and value (24 B), and the index table holds an 8-byte index and a control byte per
+  bucket at most 7/8 full (15 B per entry at 10 M). A `HashMap` stores the pair in its own
+  table (28.5 B), but needs **more at its peak** (42.7–46.3 B) because growing rehashes into
+  a second full table, while `Collection` only rehashes the small index table and grows the
+  entries in place.
+- **Reads scale across cores** with no locking (`Arc<Collection>` is `Sync`); the random
+  lookups into 1 000 000 entries are bound by memory latency, which the shared memory bus
+  of a laptop limits to ~4×.
+
+### Findings and optimization candidates (Phase 7, collection)
+
+- **Fixed: every random pick hashed a fresh `RandomState`.** `random_n` drew each index from
+  a new `RandomState` hasher (~20 ns each). It now takes one seed per call from
+  `RandomState` and draws from a small wyrand generator, and Floyd's sampling uses a
+  foldhash set: `random_n(10)` 260 → 87 ns, `random_n(1000)` 25.7 → 6.0 µs,
+  `random_n(5000)` 33 → 6.3 µs, `random()` 8.4 → 5.6 ns (C-090).
+- **Fixed: `partition` rehashed every entry into two new maps.** The passing entries are
+  now moved out with `IndexMap::extract_if` and the others stay where they are: 134 →
+  77 µs.
+- **By design (D-215): `remove` keeps the order, so it moves every later entry.** Removing
+  near the front of a large collection is O(n) per call (3.7 ms at 1 000 000), and slower
+  still at random positions (6.1 ms), where `indexmap` updates each moved entry's index
+  through a hash lookup instead of one pass over the table. For bulk removal use one
+  `sweep` / `retain` / `filter` (linear for any number of entries) or `swap_remove` when the
+  order does not matter; the rustdoc of `remove` says so.
+- **Open, small:** building without a capacity is ~2× `HashMap`'s; `with_capacity` (or
+  `collect`, which reserves from the size hint) removes most of it.

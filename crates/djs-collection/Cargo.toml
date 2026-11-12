@@ -18,7 +18,12 @@ foldhash.workspace = true
 indexmap.workspace = true
 
 [dev-dependencies]
+divan.workspace = true
 indexmap.workspace = true
+
+[[bench]]
+name = "collection"
+harness = false
 
 [lints]
 workspace = true

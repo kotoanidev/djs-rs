@@ -8,6 +8,11 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-collection` benchmarks (`benches/collection.rs`) and extreme-load tests
+  (`tests/stress.rs`: a model check of random operations, fairness of random picks,
+  10 000 000 entries, adversarial removal patterns, all cores), results in
+  `docs/PERFORMANCE.md` (Phase 7 step 2b, C-090). `random_n` is 3–4× faster (one seed per
+  call and a wyrand generator) and `partition` 1.7× faster (`IndexMap::extract_if`).
 - `djs-collection` (Phase 7 step 2, D-209, D-210, D-214–D-217, C-089): `Collection<K, V, S>`,
   an insertion-ordered map on `indexmap` hashing with foldhash, with the map basics
   (`remove` keeps the order, `swap_remove` is O(1)), discord.js' helpers (`first`, `last`,

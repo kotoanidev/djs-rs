@@ -202,6 +202,7 @@ dependencies = [
 name = "djs-collection"
 version = "0.0.0"
 dependencies = [
+ "divan",
  "foldhash",
  "indexmap",
 ]

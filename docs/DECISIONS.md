@@ -3089,12 +3089,34 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   missing key, like `HashMap`), `From<[(K, V); N]>`, `FromIterator`, `Extend`; own iterator
   types in `djs_collection::iter` (D-217); lookups take `&Q` where `K: Borrow<Q>` (std's
   convention, so `indexmap`'s `Equivalent` stays out of the API).
-- **Randomness:** std's `RandomState` gives 64 bits per pick, mapped with a multiply-shift;
-  `random_n` shuffles all indexes partially when it takes a quarter or more, otherwise samples
-  with Floyd's algorithm and shuffles the picks. Not for unpredictability.
+- **Randomness:** std's `RandomState` seeds each call (C-090), and the indexes are mapped
+  with a multiply-shift; `random_n` shuffles all indexes partially when it takes a quarter or
+  more, otherwise samples with Floyd's algorithm and shuffles the picks. Not for
+  unpredictability.
 - **Hashers:** transformations that build a new map (`partition`, `map_values`, `merge`)
   need `S: Clone` to reuse the hasher; `combine_entries` and `flat_map` need `S: Default`.
 - **`djs_rs::collection`** re-exports the crate, like the other layers.
+
+
+### C-090 — `djs-collection` benchmarks, stress tests and two optimizations (D-041)
+- **Benchmarks** (`benches/collection.rs`, divan with `AllocProfiler`): `get` / build /
+  iterate against `IndexMap` + foldhash, `HashMap` + foldhash and `HashMap` + SipHash at 100 /
+  10 000 / 1 000 000 entries; `remove` vs `swap_remove` vs `sweep` of the front tenth; every
+  helper on 10 000 entries. `indexmap` is also a dev-dependency (already a dependency).
+- **Stress tests** (`tests/stress.rs`): a model check of random operations against a `Vec`
+  of entries, distinctness and fairness of the random picks (both quick, run in CI), and
+  ignored load tests: 10 000 000 entries with resident memory per entry from
+  `/proc/self/status`, adversarial removal patterns, all cores reading one
+  `Arc<Collection>`.
+- **Random picks:** one seed per call from std's `RandomState`, then a wyrand generator
+  (a 64-bit add and a 128-bit multiply per number), instead of hashing a fresh
+  `RandomState` for every index; Floyd's sampling keeps its picks in a foldhash set. Still
+  no dependency (D-210) and still not for unpredictability.
+- **`partition`** moves the passing entries out with `IndexMap::extract_if` (the others stay
+  in the original table, unhashed) instead of reinserting every entry into two new maps.
+- **`remove`'s rustdoc** now points to one `sweep` / `retain` pass for removing many entries,
+  after the stress test showed 1 000 front removals of a million taking seconds (D-215 keeps
+  `remove` order-preserving).
 
 ---
 

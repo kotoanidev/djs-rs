@@ -22,7 +22,7 @@ components incl. Components V2, and modals, with rules measured on the live API 
 allows it; benchmarks + extreme-load tests in `docs/PERFORMANCE.md`). Left open: removing
 parts with the builders (open question), a container walked twice by `validate_components`.
 **Phase 7 — small standalone crates: in progress** (D-208–D-217 decided; `djs-formatters` ✅,
-`djs-collection` built, its benchmarks next, see "Next step").
+`djs-collection` ✅, `djs-util` next, see "Next step").
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-075 in `docs/DECISIONS.md`; Claude defaults C-001 …
@@ -407,14 +407,15 @@ discord.js names where they fit + Rust traits; no `each`/`reduce`/`some`/`every`
       (iterator! macro wrapping indexmap's iterators), random.rs (RandomState-based picks,
       Floyd / partial Fisher–Yates)}`; tests `tests/collection.rs`; `djs_rs::collection`.
       Whether `djs-cache` / the `Client` return it is left to Phase 8 (open question).
-   b. **Next:** benchmarks + extreme-load tests (D-041): `benches/collection.rs` (divan:
-      get / insert / remove vs `std::collections::HashMap` and `IndexMap` with the same
-      hasher, `remove` (shift) vs `swap_remove` at sizes 100 / 10 000, `filter` / `sweep` /
-      `partition` / `sort_by` / `random` / `random_n` / `merge` on 10 000 entries),
-      `tests/stress.rs` (millions of entries, memory per entry, adversarial remove patterns,
-      all cores reading shared collections); results in `docs/PERFORMANCE.md`; then tick
-      `djs-collection` in ROADMAP.
-3. `djs-util`: only what other crates need.
+   b. ✅ Benchmarks + extreme-load tests (D-041, C-090): `benches/collection.rs` (get /
+      build / iterate vs `IndexMap` and `HashMap`, removal patterns, every helper),
+      `tests/stress.rs` (model check, random-pick fairness, 10 000 000 entries with memory
+      per entry, adversarial removals, all cores); results in `docs/PERFORMANCE.md`
+      ("Phase 7 — djs-collection"). Fixed on the way: `random_n` hashed a fresh
+      `RandomState` per index (now wyrand, 3–4× faster); `partition` rehashed every entry
+      (now `extract_if`, 1.7× faster).
+3. **Next:** `djs-util` — "only what other crates need" (D-208). Ask the owner first what
+   goes there (or whether to skip it for now and close Phase 7), then implement.
 
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON
   body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").

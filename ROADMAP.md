@@ -100,7 +100,8 @@ just with narrow scope.
 - [x] Benchmarks + extreme-load tests of the builders (D-041, `docs/PERFORMANCE.md`)
 
 ## Phase 7 — Small standalone crates
-- [ ] `djs-collection` — `Collection<K, V>` with the discord.js `Collection` API surface
+- [x] `djs-collection` — `Collection<K, V>` with the discord.js `Collection` API surface
+      (D-209, D-210, D-214–D-217; benchmarked)
 - [x] `djs-formatters` — mentions, markdown, timestamps, escaping (D-211–D-213; benchmarked)
 - [ ] `djs-util` — shared helpers (filled as other crates need them)
 
