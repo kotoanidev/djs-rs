@@ -294,12 +294,14 @@ user), D-153 (updates return the previous state), D-154 (order below), D-155–D
    instances, soundboard (D-164–D-166, C-075): `CachedMessage` / `CachedPresence` in
    `model.rs`, `ChannelView` in `view.rs`, `ReactionChange` in `cache.rs`,
    `djs_model::message::Reaction::new`; tests `crates/djs-cache/tests/messages_and_more.rs`.
-4. **Next: sweepers** (≈ discord.js `sweepers`; D-154 step 4). Decided: D-167 (sync
-   `Cache::sweep_*` methods returning counts + a sweep configuration in `CacheConfig`; the
-   djs-rs `Client` schedules them, no tokio in djs-cache), D-168 (a filter sweep per
-   resource + presets: messages older than X, threads archived longer than X), D-169
-   (default: archived threads > 4 h, every hour; messages not swept).
-5. djs-rs `Client` integration.
+4. ✅ Sweepers (D-167–D-169, C-076): `Sweep` / `SweepConfig` in `config.rs`, `Global::sweep`
+   / `Scoped::sweep` in `limits.rs`, `Cache::sweep_*` (+ `sweep_per_guild!`) in `cache.rs`;
+   tests `crates/djs-cache/tests/sweep.rs`.
+5. **Next: the djs-rs `Client` integration.** Ask the owner first: how the `Client` owns
+   the cache (always vs opt-in, `ClientBuilder::cache(CacheConfig)`, `client.cache()`),
+   whether handlers get the previous state now or only in Phase 8, whether the cache is
+   updated before handlers run (discord.js order), and the sweep scheduling (one tokio task
+   per configured sweep).
 6. Benchmarks + extreme-load tests (D-041), re-run `docs/VS_NODE.md`.
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON
   body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").

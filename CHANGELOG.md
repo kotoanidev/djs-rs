@@ -8,6 +8,10 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-cache` sweeping (Phase 5 step 4, D-167–D-169): a `Cache::sweep_*` method with a
+  filter for every resource, the presets `sweep_messages_older_than` and
+  `sweep_archived_threads`, and `SweepConfig` / `Sweep` in `CacheConfig` (default: threads
+  archived over 4 h, hourly, like discord.js) for the djs-rs `Client` to run.
 - `djs-cache` messages, presences and the remaining guild resources (Phase 5 step 3,
   D-164–D-166): `CachedMessage` (per channel, `cache.messages(channel)`, author shared with
   users; reactions kept up to date by the reaction events), `CachedPresence`

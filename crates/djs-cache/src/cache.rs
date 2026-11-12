@@ -1,6 +1,6 @@
 //! The cache itself.
 
-use core::{fmt, hash::Hash};
+use core::{fmt, hash::Hash, time::Duration};
 use std::sync::{Arc, PoisonError, RwLock};
 
 use dashmap::DashMap;
@@ -334,6 +334,171 @@ impl<B: Backend> Cache<B> {
     ) -> GuildView<'_, SoundboardSoundId, SoundboardSound, B> {
         GuildView::new(self.soundboard_sounds.as_ref(), guild_id)
     }
+}
+
+/// Sweeping (D-167, D-168): each method removes the entries its filter returns `true` for and
+/// returns how many it removed. Resources kept per guild or channel pass the guild or channel
+/// to the filter. Removing a guild, channel or thread this way also drops what belongs to it,
+/// as deleting it does.
+///
+/// discord.js counterpart: `client.sweepers.sweepGuilds(filter)`, `sweepUsers(filter)`, ….
+///
+/// # Examples
+///
+/// ```
+/// use djs_cache::{Cache, CacheConfig, Limit};
+///
+/// let cache = Cache::with_config(CacheConfig::builder().users(Limit::Unlimited).build());
+/// // Forget every bot user.
+/// let swept = cache.sweep_users(|user| user.bot);
+/// assert_eq!(swept, 0);
+/// ```
+impl<B: Backend> Cache<B> {
+    /// Sweeps guilds, with everything in them.
+    pub fn sweep_guilds(&self, mut filter: impl FnMut(&CachedGuild) -> bool) -> usize {
+        let Some(guilds) = &self.guilds else { return 0 };
+        let mut swept = Vec::new();
+        let count = guilds.sweep(&mut |id, guild| {
+            let sweep = filter(guild);
+            if sweep {
+                swept.push(*id);
+            }
+            sweep
+        });
+        for id in swept {
+            self.unavailable_guilds.remove(&id);
+            self.remove_guild_children(id);
+        }
+        count
+    }
+
+    /// Sweeps channels, with their messages.
+    pub fn sweep_channels(&self, mut filter: impl FnMut(&Channel) -> bool) -> usize {
+        let Some(channels) = &self.channels else {
+            return 0;
+        };
+        let mut swept = Vec::new();
+        let count = channels.sweep(&mut |id, channel| {
+            let sweep = filter(channel);
+            if sweep {
+                swept.push((*id, channel.guild_id()));
+            }
+            sweep
+        });
+        for (id, guild_id) in swept {
+            if let Some(guild_id) = guild_id {
+                self.guild_channels.remove(guild_id, id);
+            }
+            self.remove_messages_of(guild_id, id);
+        }
+        count
+    }
+
+    /// Sweeps users. Members keep their own reference to their user.
+    pub fn sweep_users(&self, mut filter: impl FnMut(&User) -> bool) -> usize {
+        self.users
+            .as_ref()
+            .map_or(0, |users| users.sweep(&mut |_, user| filter(user)))
+    }
+
+    /// Sweeps threads, with their messages.
+    pub fn sweep_threads(&self, mut filter: impl FnMut(GuildId, &Channel) -> bool) -> usize {
+        let Some(threads) = &self.threads else {
+            return 0;
+        };
+        let mut swept = Vec::new();
+        let count = threads.sweep(&mut |guild_id, thread| {
+            let sweep = filter(guild_id, thread);
+            if sweep {
+                swept.push((guild_id, thread.id()));
+            }
+            sweep
+        });
+        for (guild_id, id) in swept {
+            self.remove_messages_of(Some(guild_id), id);
+        }
+        count
+    }
+
+    /// Sweeps threads archived more than `lifetime` ago.
+    ///
+    /// discord.js counterpart: the default `threads` sweeper
+    /// (`Sweepers.archivedThreadSweepFilter(lifetime)`).
+    pub fn sweep_archived_threads(&self, lifetime: Duration) -> usize {
+        let cutoff = cutoff(lifetime);
+        self.sweep_threads(|_, thread| {
+            thread.as_thread().is_some_and(|thread| {
+                thread.thread_metadata.archived
+                    && thread.thread_metadata.archive_timestamp.as_unix_micros() < cutoff
+            })
+        })
+    }
+
+    /// Sweeps messages.
+    pub fn sweep_messages(
+        &self,
+        mut filter: impl FnMut(ChannelId, &CachedMessage) -> bool,
+    ) -> usize {
+        self.messages.as_ref().map_or(0, |messages| {
+            messages.sweep(&mut |channel_id, message| filter(channel_id, message))
+        })
+    }
+
+    /// Sweeps messages last edited (or, if never edited, sent) more than `lifetime` ago.
+    ///
+    /// discord.js counterpart: `Sweepers.filterByLifetime` for messages, which also compares
+    /// the edit time first.
+    pub fn sweep_messages_older_than(&self, lifetime: Duration) -> usize {
+        let cutoff = cutoff(lifetime);
+        self.sweep_messages(|_, message| {
+            message
+                .edited_timestamp
+                .unwrap_or(message.timestamp)
+                .as_unix_micros()
+                < cutoff
+        })
+    }
+}
+
+/// Sweeps of the resources kept per guild.
+macro_rules! sweep_per_guild {
+    ($($(#[$doc:meta])* $method:ident: $field:ident => $value:ty;)*) => {
+        impl<B: Backend> Cache<B> {$(
+            $(#[$doc])*
+            pub fn $method(&self, mut filter: impl FnMut(GuildId, &$value) -> bool) -> usize {
+                self.$field.as_ref().map_or(0, |entries| {
+                    entries.sweep(&mut |guild_id, value| filter(guild_id, value))
+                })
+            }
+        )*}
+    };
+}
+
+sweep_per_guild! {
+    /// Sweeps roles.
+    sweep_roles: roles => Role;
+    /// Sweeps custom emojis.
+    sweep_emojis: emojis => Emoji;
+    /// Sweeps stickers.
+    sweep_stickers: stickers => Sticker;
+    /// Sweeps members.
+    sweep_members: members => CachedMember;
+    /// Sweeps presences.
+    sweep_presences: presences => CachedPresence;
+    /// Sweeps voice states.
+    sweep_voice_states: voice_states => VoiceState;
+    /// Sweeps scheduled events.
+    sweep_scheduled_events: scheduled_events => GuildScheduledEvent;
+    /// Sweeps stage instances.
+    sweep_stage_instances: stage_instances => StageInstance;
+    /// Sweeps soundboard sounds.
+    sweep_soundboard_sounds: soundboard_sounds => SoundboardSound;
+}
+
+/// The Unix time, in microseconds, `lifetime` before now.
+fn cutoff(lifetime: Duration) -> i64 {
+    let lifetime = i64::try_from(lifetime.as_micros()).unwrap_or(i64::MAX);
+    Timestamp::now().as_unix_micros().saturating_sub(lifetime)
 }
 
 /// The changes the event handlers in `update.rs` make.

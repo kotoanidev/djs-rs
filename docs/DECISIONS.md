@@ -2300,6 +2300,26 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - `GUILD_SOUNDBOARD_SOUNDS_UPDATE` updates the sounds it lists; `SOUNDBOARD_SOUNDS` (the
   answer to a request) replaces the guild's sounds.
 
+### C-076 — Cache sweeping details (Phase 5, step 4)
+- Filters return `true` for what to sweep (like discord.js). Resources kept per guild or per
+  channel pass the guild or channel to the filter (`FnMut(GuildId, &Role) -> bool`), since
+  some values (roles, emojis) do not carry it; resources over the whole cache pass the value
+  only.
+- Sweeping a guild drops its parts and its unavailable mark; sweeping a channel or thread
+  drops its messages, as deleting them does. Users are not part of a guild.
+- A limited resource holds its insertion order during the sweep and forgets the swept keys,
+  so they free their room; per-guild/channel sweeps hold each parent's index entry while
+  sweeping it.
+- Message age is the last edit, else the creation time (discord.js compares the edit time
+  first); a thread's age is its `archive_timestamp`, and only archived threads are swept by
+  the preset. "Now" is the system clock (`Timestamp::now`).
+- Public names: `Sweep { interval, lifetime }` (`Sweep::new`), `SweepConfig { messages,
+  threads }`, `CacheConfig::sweepers`, `CacheConfigBuilder::{sweep_messages, sweep_threads}`,
+  `Cache::sweep_{guilds, channels, users, threads, messages, roles, emojis, stickers, members,
+  presences, voice_states, scheduled_events, stage_instances, soundboard_sounds}`,
+  `Cache::{sweep_archived_threads, sweep_messages_older_than}`. `CacheConfig`'s `Debug` now
+  prints `CacheConfig { limits: {…}, sweepers: … }`.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

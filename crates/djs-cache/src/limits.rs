@@ -238,6 +238,26 @@ where
         self.store.contains_key(key)
     }
 
+    /// Removes every entry for which `sweep` returns `true`, returning how many it removed.
+    pub(crate) fn sweep(&self, sweep: &mut dyn FnMut(&K, &V) -> bool) -> usize {
+        let mut removed = Vec::new();
+        // A limited resource holds its order across the sweep, as inserts do.
+        let mut order = self.limited.as_ref().map(|(_, order)| lock(order));
+        self.store.retain(&mut |key, value| {
+            let sweep = sweep(key, value);
+            if sweep {
+                removed.push(*key);
+            }
+            !sweep
+        });
+        if let Some(order) = order.as_mut() {
+            for key in &removed {
+                order.remove(key);
+            }
+        }
+        removed.len()
+    }
+
     pub(crate) fn keys(&self) -> Vec<K> {
         self.store.keys()
     }
@@ -347,6 +367,34 @@ where
             .into_iter()
             .filter_map(|key| self.store.get(&(parent, key)))
             .collect()
+    }
+
+    /// Removes every entry for which `sweep(parent, value)` returns `true`, returning how
+    /// many it removed. Each parent is swept holding its index entry, as inserts do.
+    pub(crate) fn sweep(&self, sweep: &mut dyn FnMut(P, &V) -> bool) -> usize {
+        let parents: Vec<P> = self.index.iter().map(|entry| *entry.key()).collect();
+        let mut removed = 0;
+        for parent in parents {
+            let Some(mut children) = self.index.get_mut(&parent) else {
+                continue;
+            };
+            for key in children.keys() {
+                if let Some(value) = self.store.get(&(parent, key))
+                    && sweep(parent, &value)
+                {
+                    self.store.remove(&(parent, key));
+                    children.remove(&key);
+                    removed += 1;
+                }
+            }
+            let now_empty = children.len() == 0;
+            drop(children);
+            if now_empty {
+                self.index
+                    .remove_if(&parent, |_, children| children.len() == 0);
+            }
+        }
+        removed
     }
 
     /// Returns the number of `parent`'s entries.
@@ -606,6 +654,36 @@ mod tests {
             assert_eq!(scoped.len_of(parent), 100);
         }
         assert_eq!(scoped.len(), 400);
+    }
+
+    #[test]
+    fn sweeps_keep_the_order_and_index_consistent() {
+        let global = Global::new(DashMapStore::new(), Limit::Max(10));
+        for key in 0..10_u64 {
+            global.insert(key, Arc::new(key));
+        }
+        assert_eq!(global.sweep(&mut |key, _| key % 2 == 0), 5);
+        assert_eq!(global.len(), 5);
+        // The swept keys left the order: five more fit before anything is evicted.
+        for key in 10..15 {
+            assert!(global.insert(key, Arc::new(key)).evicted.is_none());
+        }
+        assert_eq!(
+            global.insert(15, Arc::new(15)).evicted.map(|(key, _)| key),
+            Some(1)
+        );
+
+        let scoped = Scoped::new(DashMapStore::new(), Limit::Unlimited);
+        for key in 0..10_u64 {
+            scoped.insert(key % 2, key, Arc::new(key));
+        }
+        assert_eq!(
+            scoped.sweep(&mut |parent, value| parent == 1 || *value == 0),
+            6
+        );
+        assert_eq!(sorted(scoped.keys_of(0)), [2, 4, 6, 8]);
+        assert_eq!(scoped.len_of(1), 0);
+        assert!(scoped.index.get(&1).is_none());
     }
 
     #[test]

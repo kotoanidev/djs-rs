@@ -1,6 +1,6 @@
 //! What the cache keeps: one [`Limit`] per [`Resource`].
 
-use core::fmt;
+use core::{fmt, time::Duration};
 
 /// A kind of Discord resource the cache can keep.
 ///
@@ -216,6 +216,7 @@ impl Limit {
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct CacheConfig {
     limits: [Limit; Resource::COUNT],
+    sweepers: SweepConfig,
 }
 
 impl CacheConfig {
@@ -259,9 +260,17 @@ impl CacheConfig {
         self.limit(resource).is_enabled()
     }
 
+    /// Returns which sweeps run periodically (D-167). The cache itself runs nothing: the
+    /// djs-rs `Client` runs them, or call the [`Cache`](crate::Cache) sweep methods yourself.
+    #[must_use]
+    pub const fn sweepers(&self) -> &SweepConfig {
+        &self.sweepers
+    }
+
     const fn uniform(limit: Limit) -> Self {
         Self {
             limits: [limit; Resource::COUNT],
+            sweepers: SweepConfig::DEFAULT,
         }
     }
 
@@ -283,12 +292,23 @@ impl Default for CacheConfig {
 
 impl fmt::Debug for CacheConfig {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_map()
-            .entries(
-                Resource::ALL
-                    .iter()
-                    .map(|&resource| (resource, self.limit(resource))),
-            )
+        struct Limits<'a>(&'a CacheConfig);
+
+        impl fmt::Debug for Limits<'_> {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                f.debug_map()
+                    .entries(
+                        Resource::ALL
+                            .iter()
+                            .map(|&resource| (resource, self.0.limit(resource))),
+                    )
+                    .finish()
+            }
+        }
+
+        f.debug_struct("CacheConfig")
+            .field("limits", &Limits(self))
+            .field("sweepers", &self.sweepers)
             .finish()
     }
 }
@@ -398,10 +418,97 @@ impl CacheConfigBuilder {
         self.limit(Resource::SoundboardSound, limit)
     }
 
+    /// Sets the periodic sweep of old messages (default none: messages are bounded by their
+    /// [limit](Self::messages)). See [`Cache::sweep_messages_older_than`](crate::Cache::sweep_messages_older_than).
+    ///
+    /// discord.js counterpart: the `messages` key of the `sweepers` client option.
+    pub const fn sweep_messages(mut self, sweep: Option<Sweep>) -> Self {
+        self.config.sweepers.messages = sweep;
+        self
+    }
+
+    /// Sets the periodic sweep of long-archived threads (default every hour, archived more
+    /// than 4 hours ago). See [`Cache::sweep_archived_threads`](crate::Cache::sweep_archived_threads).
+    ///
+    /// discord.js counterpart: the `threads` key of the `sweepers` client option.
+    pub const fn sweep_threads(mut self, sweep: Option<Sweep>) -> Self {
+        self.config.sweepers.threads = sweep;
+        self
+    }
+
     /// Builds the configuration.
     #[must_use]
     pub fn build(self) -> CacheConfig {
         self.config
+    }
+}
+
+/// A periodic sweep: every `interval`, remove the entries older than `lifetime` (D-167).
+///
+/// discord.js counterpart: `SweepOptions` with `interval` and `filter:
+/// Sweepers.filterByLifetime({ lifetime })`.
+///
+/// # Examples
+///
+/// ```
+/// use std::time::Duration;
+///
+/// use djs_cache::{CacheConfig, Sweep};
+///
+/// // Every 10 minutes, sweep messages older than 30 minutes.
+/// let config = CacheConfig::builder()
+///     .sweep_messages(Some(Sweep::new(
+///         Duration::from_secs(600),
+///         Duration::from_secs(1_800),
+///     )))
+///     .build();
+/// assert_eq!(config.sweepers().messages.unwrap().lifetime, Duration::from_secs(1_800));
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub struct Sweep {
+    /// How often the sweep runs.
+    pub interval: Duration,
+    /// How old an entry must be to be swept.
+    pub lifetime: Duration,
+}
+
+impl Sweep {
+    /// Creates a sweep running every `interval` over entries older than `lifetime`.
+    #[must_use]
+    pub const fn new(interval: Duration, lifetime: Duration) -> Self {
+        Self { interval, lifetime }
+    }
+}
+
+/// The periodic sweeps of a [`CacheConfig`] (D-167, D-169). Set them with
+/// [`CacheConfigBuilder::sweep_messages`] and [`CacheConfigBuilder::sweep_threads`].
+///
+/// discord.js counterpart: the `sweepers` client option.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub struct SweepConfig {
+    /// Sweeps messages by age (their last edit, else their creation). Default: none.
+    pub messages: Option<Sweep>,
+    /// Sweeps threads archived for longer than the lifetime. Default: every hour, archived
+    /// more than 4 hours ago, like discord.js.
+    pub threads: Option<Sweep>,
+}
+
+impl SweepConfig {
+    const DEFAULT: Self = Self {
+        messages: None,
+        threads: Some(Sweep::new(
+            Duration::from_secs(60 * 60),
+            Duration::from_secs(4 * 60 * 60),
+        )),
+    };
+}
+
+impl Default for SweepConfig {
+    /// discord.js' defaults (`Options.DefaultSweeperSettings`): archived threads only.
+    fn default() -> Self {
+        Self::DEFAULT
     }
 }
 
@@ -499,7 +606,33 @@ mod tests {
     #[test]
     fn debug_lists_every_resource() {
         let debug = format!("{:?}", CacheConfig::default());
-        assert!(debug.starts_with("{Guild: Unlimited, Channel: Unlimited, Thread: Disabled"));
-        assert!(debug.contains("SoundboardSound: Disabled}"));
+        assert!(
+            debug.starts_with(
+                "CacheConfig { limits: {Guild: Unlimited, Channel: Unlimited, Thread: Disabled"
+            ),
+            "{debug}"
+        );
+        assert!(debug.contains("SoundboardSound: Disabled}, sweepers: SweepConfig {"));
+    }
+
+    #[test]
+    fn sweeps_default_to_discord_js() {
+        use core::time::Duration;
+
+        use super::{Sweep, SweepConfig};
+
+        let sweepers = CacheConfig::default().sweepers().clone();
+        assert_eq!(sweepers, SweepConfig::default());
+        assert_eq!(sweepers.messages, None);
+        assert_eq!(
+            sweepers.threads,
+            Some(Sweep::new(
+                Duration::from_secs(3_600),
+                Duration::from_secs(14_400)
+            ))
+        );
+        assert_eq!(CacheConfig::discord_js().sweepers(), &sweepers);
+        let off = CacheConfig::builder().sweep_threads(None).build();
+        assert_eq!(off.sweepers().threads, None);
     }
 }

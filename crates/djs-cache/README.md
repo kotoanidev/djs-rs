@@ -5,7 +5,7 @@ Configurable, pluggable in-memory cache for Discord entities.
 > **Status:** pre-alpha, Phase 5 step 3 — every resource is cached from its gateway events
 > (guilds, channels, threads, roles, emojis, stickers, members, users, messages with their
 > reactions, presences, voice states, scheduled events, stage instances, soundboard sounds and
-> the current user); sweepers follow.
+> the current user), and can be swept.
 > Track progress in the [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
 
 **discord.js counterpart:** the caching layer inside `discord.js` (the managers' `cache`
@@ -33,6 +33,12 @@ collections, the `makeCache` and `sweepers` client options)
   [`CachedGuild`] leaves out the lists kept elsewhere, [`CachedMember`] and
   [`CachedMessage`] share their user with the user resource, and [`CachedPresence`] keeps
   only its user's ID.
+- **Sweeping:** every resource has a `sweep_*` method taking a filter
+  (`cache.sweep_users(|user| user.bot)`), plus two lifetime presets,
+  [`Cache::sweep_messages_older_than`] and [`Cache::sweep_archived_threads`]. The periodic
+  sweeps of [`CacheConfig::sweepers`] (by default discord.js': threads archived over 4 hours,
+  hourly) are run by the djs-rs `Client`; the cache itself spawns nothing and needs no
+  runtime.
 - **Storage is pluggable:** the cache keeps each resource in a [`Store`] created by a
   [`Backend`]. The default [`DashMapBackend`] uses sharded concurrent maps with `foldhash`.
 

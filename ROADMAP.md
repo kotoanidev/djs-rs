@@ -83,7 +83,7 @@ just with narrow scope.
 ## Phase 5 — `djs-cache`
 - [x] Cache trait (pluggable backend) + DashMap default backend (D-155, D-158)
 - [x] Per-resource enable/disable and size limits (≈ `makeCache`; D-156, D-157, D-159)
-- [ ] Sweepers (≈ `sweepers` option), partials support
+- [x] Sweepers (≈ `sweepers` option; D-167–D-169). Partials are a Phase 8 (`djs-rs`) concern
 - [x] Event → cache update logic for every dispatch event that carries cacheable state
       (D-160–D-166, C-074, C-075)
 - [ ] Memory/size tests, benchmarks
