@@ -8,6 +8,15 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Interaction getters in `djs-model` (Phase 8 step 3a, D-249, D-250, C-099):
+  `Interaction::{command, autocomplete, component, modal}`; `CommandData::{get,
+  get_string, get_integer, get_number, get_boolean, get_user, get_member, get_role,
+  get_channel, get_attachment, get_mentionable, subcommand, subcommand_group, leaf_options,
+  focused_value, target_user, target_member, target_message}`; `ComponentData::{users,
+  members, roles, channels, mentionables}`; `ModalSubmitData::{string_select_values,
+  checkbox_group_values, radio_group_value, checkbox_value, selected_users,
+  selected_members, selected_roles, selected_channels, selected_mentionables,
+  uploaded_files}`; the `Mentionable` type.
 - Manager benchmarks (Phase 8 step 2d, C-098): `djs-rs/benches/managers.rs` (a cache hit
   through a manager costs ≈ 1 ns over reading the cache and allocates nothing),
   `djs-cache` `store` benches and `djs-rs/tests/stress_managers.rs` (cache hits on every

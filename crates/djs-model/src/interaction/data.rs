@@ -69,7 +69,9 @@ impl InteractionData {
         }
     }
 
-    /// Returns the command data of command and autocomplete interactions.
+    /// Returns the command data of command and autocomplete interactions (see
+    /// [`Interaction::command`](super::Interaction::command) and
+    /// [`Interaction::autocomplete`](super::Interaction::autocomplete) for one kind).
     #[must_use]
     pub fn command(&self) -> Option<&CommandData> {
         match self {

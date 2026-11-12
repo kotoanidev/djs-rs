@@ -6,6 +6,7 @@
 //! sends back (D-068).
 
 mod data;
+mod getters;
 mod response;
 
 use core::{fmt, ops::Deref};
@@ -23,6 +24,7 @@ pub use self::{
         SubmittedEntitySelect, SubmittedFileUpload, SubmittedLabel, SubmittedRadioGroup,
         SubmittedSelect, SubmittedTextDisplay, SubmittedTextInput, UnknownSubmittedComponent,
     },
+    getters::Mentionable,
     response::{
         ActivityInstanceResource, AutocompleteCallbackData, AutocompleteChoices, CallbackResource,
         DeferredCallbackData, InteractionCallback, InteractionCallbackResponse,
@@ -111,6 +113,53 @@ impl Interaction {
             .as_ref()
             .and_then(|member| member.user.as_ref())
             .or(self.user.as_deref())
+    }
+
+    /// Returns the command data if a user ran one of the app's commands (not for
+    /// autocomplete, unlike [`InteractionData::command`]; D-249).
+    ///
+    /// discord.js counterpart: `BaseInteraction#isCommand`.
+    #[must_use]
+    pub fn command(&self) -> Option<&CommandData> {
+        match &self.data {
+            InteractionData::ApplicationCommand(data) => Some(data),
+            _ => None,
+        }
+    }
+
+    /// Returns the command data if a user is typing an option with autocomplete (D-249); the
+    /// typed option is [`CommandData::focused`].
+    ///
+    /// discord.js counterpart: `BaseInteraction#isAutocomplete`.
+    #[must_use]
+    pub fn autocomplete(&self) -> Option<&CommandData> {
+        match &self.data {
+            InteractionData::Autocomplete(data) => Some(data),
+            _ => None,
+        }
+    }
+
+    /// Returns the component data if a user clicked a button or chose in a select menu
+    /// (D-249).
+    ///
+    /// discord.js counterpart: `BaseInteraction#isMessageComponent`.
+    #[must_use]
+    pub fn component(&self) -> Option<&ComponentData> {
+        match &self.data {
+            InteractionData::MessageComponent(data) => Some(data),
+            _ => None,
+        }
+    }
+
+    /// Returns the submitted fields if a user submitted one of the app's modals (D-249).
+    ///
+    /// discord.js counterpart: `BaseInteraction#isModalSubmit`.
+    #[must_use]
+    pub fn modal(&self) -> Option<&ModalSubmitData> {
+        match &self.data {
+            InteractionData::ModalSubmit(data) => Some(data),
+            _ => None,
+        }
     }
 }
 

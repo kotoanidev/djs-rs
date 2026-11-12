@@ -482,13 +482,12 @@ fields with `Deref` to `new`). Steps:
    event; `interaction.command()` / `component()` / `modal()` / `autocomplete()`
    accessors), D-250 (typed getters as `djs-model` methods), D-251 (a command router on the
    client, shape to be asked). Steps:
-   a. **Next:** the getters in `djs-model` (D-250): `CommandData` options by name and type
-      (`get_string`, `get_integer`, `get_number`, `get_boolean`, `get_user` / `get_member`
-      / `get_role` / `get_channel` / `get_attachment` / `get_mentionable` with the resolved
-      data, `subcommand`, `subcommand_group`, the focused autocomplete option),
-      `ComponentData` values (and resolved users / roles / channels of selects),
-      `ModalSubmitData` field values; the `Interaction` accessors (D-249).
-   b. `InteractionExt` (D-248) in `djs-rs` with tests against the mock REST API.
+   a. ✅ The getters in `djs-model` (D-250, C-099): `crates/djs-model/src/interaction/getters.rs`
+      (`CommandData::get_*`, `subcommand`, `leaf_options`, `focused_value`, `target_*`;
+      `ComponentData::{users, members, roles, channels, mentionables}`; `ModalSubmitData`
+      field getters; `Mentionable`) and `Interaction::{command, autocomplete, component,
+      modal}` (D-249); tests in `crates/djs-model/tests/interaction_getters.rs`.
+   b. **Next:** `InteractionExt` (D-248) in `djs-rs` with tests against the mock REST API.
    c. The router (D-251): ask its shape first.
    d. Benchmarks + extreme-load tests (D-041).
 4. Collectors and `await_*`. 5. Partials and intents guidance. 6. Examples.

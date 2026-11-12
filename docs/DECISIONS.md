@@ -3602,6 +3602,31 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   stored from REST with the RSS per member. The mock REST API runs in-process with
   `global_requests_per_second(0)`.
 
+### C-099 — Phase 8 step 3a: interaction getters (D-249, D-250)
+- The getters live in `djs-model/src/interaction/getters.rs` as inherent impls of
+  `CommandData`, `ComponentData` and `ModalSubmitData`; every one returns `Option` (`None`
+  for a missing option or component, another type, or missing resolved data) — never a
+  panic, where discord.js throws for a wrong type or a missing required option.
+- Command getters search the options of the subcommand that was run (`leaf_options`, the
+  hoisted options of discord.js). As in discord.js, `get_user` / `get_member` accept user and
+  mentionable options and `get_role` role and mentionable options; `get_mentionable` takes
+  mentionable options only. `get_number` reads number options only (not integers).
+- A member is returned as `(&User, &InteractionMember)`: resolved members have no user, so the
+  pair saves a second lookup (like discord.js' `GuildMember#user`). `get_member` and the
+  member iterators skip users who are not members.
+- New public type `Mentionable<'a>` (`User { user, member }` or `Role`) for mentionable
+  options and selections, with `id()`.
+- Extra getters beyond the D-250 list: `get(name)` (any type), `focused_value()`,
+  `target_user()` / `target_member()` / `target_message()` of context menu commands.
+- `ComponentData::{users, members, roles, channels, mentionables}` follow the order of
+  `values`; modal getters are named after discord.js' `ModalSubmitFields`
+  (`string_select_values`, `checkbox_group_values`, `radio_group_value`, `checkbox_value`,
+  `selected_users` / `_members` / `_roles` / `_channels` / `_mentionables`,
+  `uploaded_files`) and return `Option<impl Iterator>` for selections, not tied to the
+  lifetime of the custom ID argument.
+- `Interaction::command()` returns only command interactions (D-249: one kind per accessor);
+  the older `InteractionData::command()` keeps covering autocomplete too.
+
 ---
 
 ## Open questions (to ask the owner when relevant)
