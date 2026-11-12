@@ -17,7 +17,8 @@ measured need after D-150) and resharding while running (open question).
 limits, sweeps, opt-in `Client` cache; benchmarks + extreme-load tests in
 `docs/PERFORMANCE.md`, `docs/VS_NODE.md` re-measured with equal caches). Left open on purpose:
 a lock-free backend (D-176), resolved roles/messages of interactions (open question).
-**Phase 6 — `djs-builders`: in progress** (decisions D-178–D-205 taken, steps 1-2 and 3a-3b done, see "Next step").
+**Phase 6 — `djs-builders`: in progress** (decisions D-178–D-207 taken, steps 1-3 done, step 4 —
+benchmarks + extreme-load tests — next, see "Next step").
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-075 in `docs/DECISIONS.md`; Claude defaults C-001 …
@@ -341,7 +342,8 @@ live), D-196 (reject options that cannot work), D-197 (a button constructor per 
 D-198 (row/container children checked in `build()`), D-199 (`validate_components`), D-200 /
 D-201 (component rules measured live), D-202 (`PremiumButtonBuilder`), D-203 (select option
 shortcut + builder), D-204 (V2 API: accessory in `new()`, `.text()` / `.item()` shortcuts),
-D-205 (V2 rules measured live). Steps:
+D-205 (V2 rules measured live), D-206 (modal API: shortcuts as before), D-207 (modals from
+labels only; rows of text inputs rejected). Steps:
 0. ✅ The live counting test (D-184): code points after trimming, recorded under D-183.
 1. ✅ `EmbedBuilder` (C-081): `crates/djs-builders/src/{error.rs (ValidationError),
    check.rs (shared length / count / URL checks), embed.rs (EmbedBuilder,
@@ -364,9 +366,16 @@ D-205 (V2 rules measured live). Steps:
       Thumbnail, MediaGallery + item, File builders), layout.rs (Container, Section,
       Separator builders)}`, `component_builder!` macro in `component/mod.rs`, V2 rules and the
       shared `Totals` walk in `component/validate.rs`; tests `tests/component_v2.rs`.
-   c. **Next:** modals: `ModalBuilder`, label, text input, file upload, radio group, checkbox
-      group, checkbox (rules from the docs only, D-200). Ask the owner about the API first.
-4. Benchmarks + extreme-load tests (D-041).
+   c. ✅ Modals (D-206, D-207, C-085; rules from the docs only, D-200):
+      `component/modal.rs` (ModalBuilder, LabelBuilder, TextInputBuilder, FileUploadBuilder,
+      RadioGroupBuilder, CheckboxGroupBuilder + their option builders, CheckboxBuilder),
+      modal rules in `component/validate.rs` (`modal`, `label`, `in_modal`, …); tests
+      `tests/modal.rs`.
+4. **Next:** benchmarks + extreme-load tests (D-041): `crates/djs-builders/benches/` (divan,
+   like the other crates) for `build()` of a full embed, a nested slash command, a V2 message
+   and a modal, and `build()` vs `build_unchecked()`; a `tests/stress.rs` with maximum-size
+   inputs (6000-character embeds, 25 options × 25 choices, 40-component V2 trees) built in
+   parallel threads; results in `docs/PERFORMANCE.md`. Then tick Phase 6 in ROADMAP.
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON
   body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").
 

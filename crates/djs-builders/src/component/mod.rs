@@ -1,6 +1,6 @@
 //! Builders for [components](https://docs.discord.com/developers/components/reference):
-//! buttons, select menus and action rows of messages, and the Components V2 layout and
-//! content components.
+//! buttons, select menus and action rows of messages, the Components V2 layout and content
+//! components, and modals with their fields.
 //!
 //! Every builder converts into a `djs-model` [`Component`](djs_model::component::Component),
 //! so builders and model values can be mixed; the rules are checked on the model values,
@@ -12,7 +12,7 @@ macro_rules! component_builder {
     ($builder:ident => $variant:ident) => {
         impl $builder {
             /// Sets the component's numeric identifier (Discord generates one otherwise); it
-            /// must be unique in the message.
+            /// must be unique in the message or modal.
             ///
             /// discord.js counterpart: `setId`.
             pub fn id(mut self, id: i32) -> Self {
@@ -54,6 +54,7 @@ mod button;
 mod content;
 mod layout;
 mod list;
+mod modal;
 mod select;
 mod validate;
 
@@ -66,6 +67,10 @@ pub use self::{
     },
     layout::{ContainerBuilder, SectionBuilder, SeparatorBuilder},
     list::{ComponentsVersion, validate_components},
+    modal::{
+        CheckboxBuilder, CheckboxGroupBuilder, CheckboxGroupOptionBuilder, FileUploadBuilder,
+        LabelBuilder, ModalBuilder, RadioGroupBuilder, RadioGroupOptionBuilder, TextInputBuilder,
+    },
     select::{
         ChannelSelectMenuBuilder, MentionableSelectMenuBuilder, RoleSelectMenuBuilder,
         StringSelectMenuBuilder, StringSelectMenuOptionBuilder, UserSelectMenuBuilder,

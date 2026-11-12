@@ -8,6 +8,14 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-builders` modal builders (Phase 6 step 3c, D-206, D-207, C-085):
+  `ModalBuilder::new(custom_id, title)` with `.label(text, field)`, `.text(…)` and
+  `.component(LabelBuilder…)`, `TextInputBuilder::{short, paragraph}`, `FileUploadBuilder`,
+  `RadioGroupBuilder` / `CheckboxGroupBuilder` with `.option(label, value)` and option
+  builders, and `CheckboxBuilder`. `build()` returns `ModalCallbackData` after checking the
+  documented rules (title, 1-5 labels or texts, label texts, text input lengths, 0-10 files,
+  2-10 radio and 1-10 checkbox options, enabled select menus, unique `custom_id`s).
+
 - `djs-builders` Components V2 builders (Phase 6 step 3b, D-204, D-205, C-084):
   `ContainerBuilder`, `SectionBuilder::new(accessory)`, `TextDisplayBuilder`,
   `ThumbnailBuilder`, `MediaGalleryBuilder` with `MediaGalleryItemBuilder`, `FileBuilder` and
@@ -398,6 +406,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `login`/`shutdown`, prelude; `examples/ping.rs`; end-to-end tests with mock REST + gateway.
 
 ### Changed
+- `djs-builders`: an action row holding a text input is now rejected — text inputs belong in
+  a modal's label (D-207); the deprecated format stays possible with `build_unchecked()`.
 - **Breaking (`djs-cache`, D-177):** users are cached as the new compact `CachedUser`
   (`cache.users()`, `CachedMember::user`, `CachedMessage::author`), and `CachedMember` keeps
   its rarely set fields behind one box: `avatar`, `banner`, `premium_since`,

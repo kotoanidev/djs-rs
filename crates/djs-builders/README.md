@@ -2,8 +2,8 @@
 
 Validated builders for Discord embeds, application commands, components and modals.
 
-> **Status:** pre-alpha. The embed, command, message component and Components V2 builders
-> are done; modal builders follow. Track progress in the [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
+> **Status:** pre-alpha. The embed, command, component (classic and Components V2) and modal
+> builders are done; their benchmarks follow. Track progress in the [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
 
 **discord.js counterpart:** `@discordjs/builders`
 
@@ -59,6 +59,24 @@ let report = ContextMenuCommandBuilder::message("Report message").build()?;
 # }
 ```
 
+A modal is a list of labels around its fields:
+
+```rust
+use djs_builders::{ModalBuilder, RadioGroupBuilder, TextInputBuilder};
+
+# fn main() -> Result<(), djs_builders::ValidationError> {
+let modal = ModalBuilder::new("feedback", "Your feedback")
+    .label("Topic", TextInputBuilder::short("topic").max_length(80))
+    .label(
+        "Rating",
+        RadioGroupBuilder::new("rating").option("Good", "good").option("Bad", "bad"),
+    )
+    .build()?;
+assert_eq!(modal.components.len(), 2);
+# Ok(())
+# }
+```
+
 ## What is checked
 
 The rules follow Discord's documentation and were checked on the live API with a test bot:
@@ -86,6 +104,12 @@ The rules follow Discord's documentation and were checked on the live API with a
   a whole message with [`validate_components`]. A container holds 1-40 components, a section
   1-3 texts and a button or thumbnail, a gallery 1-10 items; file components need
   `attachment://`.
+- **Modals** (from Discord's documentation — a modal can only be shown in answer to a user):
+  a title of 1-45 characters and 1-5 labels or texts; a label (1-45 characters) holds one
+  field — a text input, a select menu, a file upload, a radio group, a checkbox group or a
+  checkbox — and a select menu in it cannot be disabled. Text inputs take lengths of
+  0-4000, uploads 0-10 files, radio groups 2-10 options with one default, checkbox groups
+  1-10 options. The deprecated rows of text inputs are rejected.
 - Limits that span a whole message — at most 10 embeds and 6000 characters across them —
   are checked by [`validate_embeds`]; [`embed_length`] measures one embed.
 
@@ -107,6 +131,9 @@ The rules follow Discord's documentation and were checked on the live API with a
 | [`ContainerBuilder`], [`SectionBuilder`], [`SeparatorBuilder`] | `Component` | the same names |
 | [`TextDisplayBuilder`], [`ThumbnailBuilder`], [`FileBuilder`] | `Component` | the same names |
 | [`MediaGalleryBuilder`], [`MediaGalleryItemBuilder`] | `Component`, `MediaGalleryItem` | the same names |
+| [`ModalBuilder`] | `ModalCallbackData` | `ModalBuilder` |
+| [`LabelBuilder`], [`TextInputBuilder`], [`FileUploadBuilder`], [`CheckboxBuilder`] | `Component` | the same names |
+| [`RadioGroupBuilder`], [`RadioGroupOptionBuilder`], [`CheckboxGroupBuilder`], [`CheckboxGroupOptionBuilder`] | `Component`, `GroupOption` | the same names |
 
 ## Part of djs-rs
 

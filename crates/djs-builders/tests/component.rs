@@ -175,10 +175,7 @@ fn live_a_row_holds_one_to_five_buttons_or_one_menu() {
     let error = buttons(1).component(menu()).build().unwrap_err();
     assert_eq!(
         invalid(&error),
-        (
-            "components[1]",
-            "a select menu or text input fills a whole action row"
-        )
+        ("components[1]", "a select menu fills a whole action row")
     );
     let error = ActionRowBuilder::new()
         .component(menu())
@@ -191,7 +188,7 @@ fn live_a_row_holds_one_to_five_buttons_or_one_menu() {
         invalid(&error),
         (
             "components[0]",
-            "an action row can only hold buttons, one select menu or one text input"
+            "an action row can only hold buttons or one select menu"
         )
     );
 }

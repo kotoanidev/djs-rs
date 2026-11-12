@@ -2874,7 +2874,8 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   model value) is `Invalid`; a blank label with an emoji is accepted (not tried live); a link
   URL is checked for at most 512 characters after trimming and its scheme (any case).
   `PremiumButtonBuilder::build` returns `Result` for uniformity although it cannot fail.
-- **Row children:** a text input alone in a row is accepted (legacy modals).
+- **Row children:** a text input alone in a row was accepted (legacy modals) — superseded by
+  D-207 / C-085: a text input in a row is now `Invalid`.
 
 ### C-084 — Components V2 builder details (D-204, D-205)
 - **Thumbnails and gallery items** follow D-190 by analogy: `http://`, `https://` or
@@ -2895,6 +2896,34 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   `file.url`, `accessory.label`.
 - **Shared macro:** `component_builder!` gives every V2 builder `id`, `build`,
   `build_unchecked` and `From<…> for Component`.
+
+### C-085 — Modal builder details (D-206, D-207)
+- **Rules from the documentation only** (a modal needs a user's interaction, D-200): title
+  1-45 code points after trimming; 1-5 top-level components, labels or text displays only;
+  label 1-45, label description at most 100; a label holds a text input, a select menu, a file
+  upload, a radio group, a checkbox group or a checkbox.
+- **Fields in a modal:** a select menu cannot be `disabled`, and a required field (select menu,
+  file upload, checkbox group) with `min_values` 0 is `Invalid` — both checked only when the
+  field sits in a label, so a disabled menu still builds for a message.
+- **Text inputs:** `min_length` 0-4000, `max_length` from `max(1, min_length)` to 4000
+  (`OutOfRange` on `max_length`), value at most 4000 and placeholder at most 100 code points
+  after trimming.
+- **File uploads:** `min_values` 0-10, `max_values` 1-10 (default 1), at most 10 file types;
+  `file_types` replaces (like `channel_types`).
+- **Radio groups:** 2-10 options, at most one `default` (the second one is reported at
+  `options[i].default`). **Checkbox groups:** 1-10 options, `max_values` defaults to the
+  number of options and needs as many options. Group option labels 1-100, values follow the
+  `custom_id` rule (1-100, not trimmed) and are unique in the group, descriptions at most 100.
+- **Option builders:** `RadioGroupOptionBuilder` and `CheckboxGroupOptionBuilder` are two
+  types with the same methods (one macro), named after discord.js; `options(iter)` takes
+  either or `djs-model` `GroupOption`s.
+- **Unique `custom_id`s:** the fields' `custom_id`s are unique in the modal (the shared
+  `Totals` walk, which now descends into labels); the modal's own `custom_id` is separate.
+  The error keeps the wording "another component of the message has the same custom_id".
+- **Action rows:** text inputs no longer count as a row's single wide child, so the row
+  messages are now "a select menu fills a whole action row" and "an action row can only hold
+  buttons or one select menu".
+- `CheckboxBuilder` has no `required` (the model has none: a checkbox is never required).
 
 ---
 

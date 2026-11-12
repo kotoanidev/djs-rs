@@ -56,7 +56,7 @@ full experience, or pick individual layers.
 | [`djs-rest`](crates/djs-rest) | `@discordjs/rest` | REST client with rate limiting |
 | [`djs-gateway`](crates/djs-gateway) | `@discordjs/ws` | Gateway connection and sharding |
 | [`djs-cache`](crates/djs-cache) | *(part of discord.js)* | Configurable in-memory cache |
-| [`djs-builders`](crates/djs-builders) | `@discordjs/builders` | Embed, command and component builders |
+| [`djs-builders`](crates/djs-builders) | `@discordjs/builders` | Embed, command, component and modal builders |
 | [`djs-collection`](crates/djs-collection) | `@discordjs/collection` | `Collection` map type |
 | [`djs-formatters`](crates/djs-formatters) | `@discordjs/formatters` | Markdown, mention and timestamp helpers |
 | [`djs-util`](crates/djs-util) | `@discordjs/util` | Shared utilities |

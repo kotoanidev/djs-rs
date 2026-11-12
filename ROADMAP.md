@@ -95,7 +95,9 @@ just with narrow scope.
 - [x] `EmbedBuilder` with Discord limit validation (D-186–D-191; limits checked on the live API)
 - [x] Slash and context-menu command builders (options, subcommands, localizations, choices;
       D-192–D-196, rules checked on the live API)
-- [ ] Component builders (buttons, select menus, action rows, Components V2), modal builders
+- [x] Component builders (buttons, select menus, action rows, Components V2), modal builders
+      (D-197–D-207; message and V2 rules checked on the live API, modal rules from the docs)
+- [ ] Benchmarks + extreme-load tests of the builders (D-041)
 
 ## Phase 7 — Small standalone crates
 - [ ] `djs-collection` — `Collection<K, V>` with the discord.js `Collection` API surface

@@ -6,12 +6,13 @@ use super::validate;
 use crate::{ValidationError, check::Path};
 
 /// Builds an [action row](https://docs.discord.com/developers/components/reference#action-row):
-/// a line of up to five buttons, or one select menu (or, in legacy modals, one text input).
+/// a line of up to five buttons, or one select menu.
 ///
 /// Children are added with [`component`](Self::component) — any builder of this crate or a
 /// `djs-model` [`Component`] — and [`build`](Self::build) checks the mix (D-198): 1-5 buttons,
-/// or exactly one select menu or text input, with unique `custom_id`s; each child is checked
-/// too, with paths such as `components[2].label`.
+/// or exactly one select menu, with unique `custom_id`s; each child is checked too, with paths
+/// such as `components[2].label`. Text inputs belong in a modal's
+/// [label](crate::LabelBuilder): the old rows of text inputs are rejected (D-207).
 ///
 /// A legacy message (without the Components V2 flag) has at most five rows; check a whole
 /// list with [`validate_components`](crate::validate_components).
