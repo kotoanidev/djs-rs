@@ -1125,6 +1125,19 @@ and why.
 - **Alternatives:** bulk as two lists (`upsert: &[LobbyMemberData]`, `remove: &[UserId]`);
   one `LobbyMemberData` with a `remove_member` flag for every endpoint.
 
+### D-135 — Update Application Identity Profile returns `Option<ApplicationIdentityProfile>`
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `Rest::update_application_identity_profile` returns
+  `Some(profile)` when Discord answers `201 Created` with the profile (the first write, which
+  creates the identity) and `None` for `204 No Content` (later updates).
+- **Alternatives:** always `()`, ignoring the body.
+
+### D-136 — Get Gateway returns `djs_model::rest::Gateway`
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `Rest::get_gateway()` returns a new `#[non_exhaustive]`
+  `djs_model::rest::Gateway { url }`, next to `GatewayBot`.
+- **Alternatives:** returning the URL alone, unwrapped from `{"url": …}`.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
