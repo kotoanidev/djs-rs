@@ -26,7 +26,7 @@ use djs_model::{
     permissions::Permissions,
     poll::Poll,
     sticker::{Sticker, StickerItem},
-    user::{AvatarDecorationData, Collectibles, User},
+    user::{AvatarDecorationData, Collectibles, PrimaryGuild, User, UserFlags},
     util::{ImageHash, Locale, Timestamp},
 };
 
@@ -171,11 +171,168 @@ impl CachedGuild {
     }
 }
 
-/// A cached guild member: a [`Member`] with its guild, and its user shared with the user
-/// resource.
+/// A cached user (D-177): a [`User`] with its rarely set fields behind one box.
+///
+/// Every user has an ID, a username and usually a display name and an avatar; few have a
+/// banner, an accent color, an avatar decoration, collectibles or a primary guild. Those are
+/// kept in one allocation that only exists when one of them is set, and read through methods
+/// ([`banner`](Self::banner), …). That keeps the user a user in many guilds shares with their
+/// members and messages at about two thirds of a [`User`].
+///
+/// The fields mean the same as in [`User`]; see the
+/// [user object](https://docs.discord.com/developers/resources/user#user-object).
+///
+/// discord.js counterpart: `User`.
+///
+/// # Examples
+///
+/// ```
+/// use djs_cache::{Cache, CacheConfig, Limit};
+/// use djs_model::{gateway::payload::GuildMemberAdd, id::UserId};
+///
+/// let cache = Cache::with_config(CacheConfig::builder().users(Limit::Unlimited).build());
+/// let member: GuildMemberAdd = serde_json::from_str(
+///     r#"{"guild_id":"1","user":{"id":"2","username":"nelly","discriminator":"0",
+///         "global_name":"Nelly","avatar":null},"roles":[],"joined_at":null,
+///         "deaf":false,"mute":false,"flags":0}"#,
+/// )?;
+/// cache.update(&member);
+/// let user = cache.users().get(UserId::new(2)).unwrap();
+/// assert_eq!(user.display_name(), "Nelly");
+/// assert_eq!(user.tag(), "nelly");
+/// assert_eq!(user.banner(), None);
+/// # Ok::<(), serde_json::Error>(())
+/// ```
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+#[expect(missing_docs, reason = "the fields are documented on `User`")]
+pub struct CachedUser {
+    pub id: UserId,
+    pub username: CompactString,
+    pub discriminator: u16,
+    pub global_name: Option<CompactString>,
+    pub avatar: Option<ImageHash>,
+    pub bot: bool,
+    pub system: bool,
+    pub public_flags: Option<UserFlags>,
+    extras: Option<Box<UserExtras>>,
+}
+
+/// The rarely set fields of a [`CachedUser`].
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct UserExtras {
+    banner: Option<ImageHash>,
+    accent_color: Option<u32>,
+    avatar_decoration_data: Option<AvatarDecorationData>,
+    collectibles: Option<Collectibles>,
+    primary_guild: Option<PrimaryGuild>,
+}
+
+impl CachedUser {
+    pub(crate) fn new(user: &User) -> Self {
+        let rare = user.banner.is_some()
+            || user.accent_color.is_some()
+            || user.avatar_decoration_data.is_some()
+            || user.collectibles.is_some()
+            || user.primary_guild.is_some();
+        Self {
+            id: user.id,
+            username: user.username.clone(),
+            discriminator: user.discriminator,
+            global_name: user.global_name.clone(),
+            avatar: user.avatar,
+            bot: user.bot,
+            system: user.system,
+            public_flags: user.public_flags,
+            extras: rare.then(|| {
+                Box::new(UserExtras {
+                    banner: user.banner,
+                    accent_color: user.accent_color,
+                    avatar_decoration_data: user.avatar_decoration_data.as_deref().cloned(),
+                    collectibles: user.collectibles.as_deref().cloned(),
+                    primary_guild: user.primary_guild.as_deref().cloned(),
+                })
+            }),
+        }
+    }
+
+    /// Whether this holds the same data as `user` (so an equal user is not stored again).
+    pub(crate) fn is(&self, user: &User) -> bool {
+        self.id == user.id
+            && self.username == user.username
+            && self.discriminator == user.discriminator
+            && self.global_name == user.global_name
+            && self.avatar == user.avatar
+            && self.bot == user.bot
+            && self.system == user.system
+            && self.public_flags == user.public_flags
+            && self.banner() == user.banner
+            && self.accent_color() == user.accent_color
+            && self.avatar_decoration_data() == user.avatar_decoration_data.as_deref()
+            && self.collectibles() == user.collectibles.as_deref()
+            && self.primary_guild() == user.primary_guild.as_deref()
+    }
+
+    /// The user's banner (Nitro).
+    #[must_use]
+    pub fn banner(&self) -> Option<ImageHash> {
+        self.extras.as_ref().and_then(|extras| extras.banner)
+    }
+
+    /// The user's banner color, as an RGB integer.
+    #[must_use]
+    pub fn accent_color(&self) -> Option<u32> {
+        self.extras.as_ref().and_then(|extras| extras.accent_color)
+    }
+
+    /// The user's avatar decoration.
+    #[must_use]
+    pub fn avatar_decoration_data(&self) -> Option<&AvatarDecorationData> {
+        self.extras.as_ref()?.avatar_decoration_data.as_ref()
+    }
+
+    /// The user's collectibles (such as a nameplate).
+    #[must_use]
+    pub fn collectibles(&self) -> Option<&Collectibles> {
+        self.extras.as_ref()?.collectibles.as_ref()
+    }
+
+    /// The guild whose tag the user displays.
+    #[must_use]
+    pub fn primary_guild(&self) -> Option<&PrimaryGuild> {
+        self.extras.as_ref()?.primary_guild.as_ref()
+    }
+
+    /// The name to display: the global display name if set, otherwise the username.
+    ///
+    /// discord.js counterpart: `User#displayName`.
+    #[must_use]
+    pub fn display_name(&self) -> &str {
+        self.global_name.as_deref().unwrap_or(&self.username)
+    }
+
+    /// The user's tag: `username#1234` for a legacy user, the username for a user with a
+    /// unique username (discriminator `0`).
+    ///
+    /// discord.js counterpart: `User#tag`.
+    #[must_use]
+    pub fn tag(&self) -> CompactString {
+        if self.discriminator == 0 {
+            self.username.clone()
+        } else {
+            compact_str::format_compact!("{}#{:04}", self.username, self.discriminator)
+        }
+    }
+}
+
+/// A cached guild member (D-177): a [`Member`] with its guild, its user shared with the user
+/// resource, and its rarely set fields behind one box.
 ///
 /// When users are cached ([`Resource::User`](crate::Resource::User)), `user` is the same
-/// [`Arc`] the user resource holds, so a user in many guilds is stored once.
+/// [`Arc`] the user resource holds, so a user in many guilds is stored once. A guild avatar
+/// or banner, a boost or timeout time, an avatar decoration and collectibles are kept in one
+/// allocation that only exists when one of them is set, and read through methods
+/// ([`avatar`](Self::avatar), …).
 ///
 /// The fields mean the same as in [`Member`]; see the
 /// [guild member object](https://docs.discord.com/developers/resources/guild#guild-member-object).
@@ -187,40 +344,77 @@ impl CachedGuild {
 pub struct CachedMember {
     /// The guild the member belongs to.
     pub guild_id: GuildId,
-    pub user: Arc<User>,
+    pub user: Arc<CachedUser>,
     pub nick: Option<CompactString>,
-    pub avatar: Option<ImageHash>,
-    pub banner: Option<ImageHash>,
-    pub roles: Vec<RoleId>,
+    pub roles: Box<[RoleId]>,
     pub joined_at: Option<Timestamp>,
-    pub premium_since: Option<Timestamp>,
     pub deaf: bool,
     pub mute: bool,
-    pub flags: MemberFlags,
     pub pending: bool,
-    pub communication_disabled_until: Option<Timestamp>,
-    pub avatar_decoration_data: Option<Box<AvatarDecorationData>>,
-    pub collectibles: Option<Box<Collectibles>>,
+    pub flags: MemberFlags,
+    extras: Option<Box<MemberExtras>>,
+}
+
+/// The rarely set fields of a [`CachedMember`].
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct MemberExtras {
+    avatar: Option<ImageHash>,
+    banner: Option<ImageHash>,
+    premium_since: Option<Timestamp>,
+    communication_disabled_until: Option<Timestamp>,
+    avatar_decoration_data: Option<AvatarDecorationData>,
+    collectibles: Option<Collectibles>,
+}
+
+impl MemberExtras {
+    /// The extras, or `None` when none of them is set.
+    fn new(
+        avatar: Option<ImageHash>,
+        banner: Option<ImageHash>,
+        premium_since: Option<Timestamp>,
+        communication_disabled_until: Option<Timestamp>,
+        avatar_decoration_data: Option<&AvatarDecorationData>,
+        collectibles: Option<&Collectibles>,
+    ) -> Option<Box<Self>> {
+        let rare = avatar.is_some()
+            || banner.is_some()
+            || premium_since.is_some()
+            || communication_disabled_until.is_some()
+            || avatar_decoration_data.is_some()
+            || collectibles.is_some();
+        rare.then(|| {
+            Box::new(Self {
+                avatar,
+                banner,
+                premium_since,
+                communication_disabled_until,
+                avatar_decoration_data: avatar_decoration_data.cloned(),
+                collectibles: collectibles.cloned(),
+            })
+        })
+    }
 }
 
 impl CachedMember {
-    pub(crate) fn new(guild_id: GuildId, member: &Member, user: Arc<User>) -> Self {
+    pub(crate) fn new(guild_id: GuildId, member: &Member, user: Arc<CachedUser>) -> Self {
         Self {
             guild_id,
             user,
             nick: member.nick.clone(),
-            avatar: member.avatar,
-            banner: member.banner,
-            roles: member.roles.clone(),
+            roles: member.roles.as_slice().into(),
             joined_at: member.joined_at,
-            premium_since: member.premium_since,
             deaf: member.deaf,
             mute: member.mute,
-            flags: member.flags,
             pending: member.pending,
-            communication_disabled_until: member.communication_disabled_until,
-            avatar_decoration_data: member.avatar_decoration_data.clone(),
-            collectibles: member.collectibles.clone(),
+            flags: member.flags,
+            extras: MemberExtras::new(
+                member.avatar,
+                member.banner,
+                member.premium_since,
+                member.communication_disabled_until,
+                member.avatar_decoration_data.as_deref(),
+                member.collectibles.as_deref(),
+            ),
         }
     }
 
@@ -229,57 +423,65 @@ impl CachedMember {
     /// not cached.
     pub(crate) fn updated(
         update: &GuildMemberUpdate,
-        user: Arc<User>,
+        user: Arc<CachedUser>,
         previous: Option<&Self>,
     ) -> Self {
         Self {
             guild_id: update.guild_id,
             user,
             nick: update.nick.clone(),
-            avatar: update.avatar,
-            banner: update.banner,
-            roles: update.roles.clone(),
+            roles: update.roles.as_slice().into(),
             joined_at: update
                 .joined_at
                 .or_else(|| previous.and_then(|member| member.joined_at)),
-            premium_since: update.premium_since,
             deaf: update
                 .deaf
                 .unwrap_or_else(|| previous.is_some_and(|member| member.deaf)),
             mute: update
                 .mute
                 .unwrap_or_else(|| previous.is_some_and(|member| member.mute)),
-            flags: update
-                .flags
-                .unwrap_or_else(|| previous.map_or_else(MemberFlags::empty, |member| member.flags)),
             pending: update
                 .pending
                 .unwrap_or_else(|| previous.is_some_and(|member| member.pending)),
-            communication_disabled_until: update.communication_disabled_until,
-            avatar_decoration_data: update.avatar_decoration_data.clone(),
-            collectibles: update.collectibles.clone(),
+            flags: update
+                .flags
+                .unwrap_or_else(|| previous.map_or_else(MemberFlags::empty, |member| member.flags)),
+            extras: MemberExtras::new(
+                update.avatar,
+                update.banner,
+                update.premium_since,
+                update.communication_disabled_until,
+                update.avatar_decoration_data.as_deref(),
+                update.collectibles.as_deref(),
+            ),
         }
     }
 
     /// Builds a member from the partial member attached to a message (or an interaction),
     /// whose user is the message's author.
-    pub(crate) fn from_partial(guild_id: GuildId, member: &PartialMember, user: Arc<User>) -> Self {
+    pub(crate) fn from_partial(
+        guild_id: GuildId,
+        member: &PartialMember,
+        user: Arc<CachedUser>,
+    ) -> Self {
         Self {
             guild_id,
             user,
             nick: member.nick.clone(),
-            avatar: member.avatar,
-            banner: member.banner,
-            roles: member.roles.clone(),
+            roles: member.roles.as_slice().into(),
             joined_at: member.joined_at,
-            premium_since: member.premium_since,
             deaf: member.deaf,
             mute: member.mute,
-            flags: member.flags,
             pending: member.pending,
-            communication_disabled_until: member.communication_disabled_until,
-            avatar_decoration_data: member.avatar_decoration_data.clone(),
-            collectibles: member.collectibles.clone(),
+            flags: member.flags,
+            extras: MemberExtras::new(
+                member.avatar,
+                member.banner,
+                member.premium_since,
+                member.communication_disabled_until,
+                member.avatar_decoration_data.as_deref(),
+                member.collectibles.as_deref(),
+            ),
         }
     }
 
@@ -297,8 +499,49 @@ impl CachedMember {
     pub fn display_name(&self) -> &str {
         self.nick
             .as_deref()
-            .or(self.user.global_name.as_deref())
-            .unwrap_or(&self.user.username)
+            .unwrap_or_else(|| self.user.display_name())
+    }
+
+    /// The member's guild avatar (overriding their user's avatar in the guild).
+    #[must_use]
+    pub fn avatar(&self) -> Option<ImageHash> {
+        self.extras.as_ref().and_then(|extras| extras.avatar)
+    }
+
+    /// The member's guild banner.
+    #[must_use]
+    pub fn banner(&self) -> Option<ImageHash> {
+        self.extras.as_ref().and_then(|extras| extras.banner)
+    }
+
+    /// When the member started boosting the guild.
+    ///
+    /// discord.js counterpart: `GuildMember#premiumSince`.
+    #[must_use]
+    pub fn premium_since(&self) -> Option<Timestamp> {
+        self.extras.as_ref().and_then(|extras| extras.premium_since)
+    }
+
+    /// When the member's timeout ends (`None` or a past time: not timed out).
+    ///
+    /// discord.js counterpart: `GuildMember#communicationDisabledUntil`.
+    #[must_use]
+    pub fn communication_disabled_until(&self) -> Option<Timestamp> {
+        self.extras
+            .as_ref()
+            .and_then(|extras| extras.communication_disabled_until)
+    }
+
+    /// The member's guild avatar decoration.
+    #[must_use]
+    pub fn avatar_decoration_data(&self) -> Option<&AvatarDecorationData> {
+        self.extras.as_ref()?.avatar_decoration_data.as_ref()
+    }
+
+    /// The member's guild collectibles.
+    #[must_use]
+    pub fn collectibles(&self) -> Option<&Collectibles> {
+        self.extras.as_ref()?.collectibles.as_ref()
     }
 }
 
@@ -320,7 +563,7 @@ pub struct CachedMessage {
     pub id: MessageId,
     pub channel_id: ChannelId,
     pub guild_id: Option<GuildId>,
-    pub author: Arc<User>,
+    pub author: Arc<CachedUser>,
     pub content: CompactString,
     pub timestamp: Timestamp,
     pub edited_timestamp: Option<Timestamp>,
@@ -359,7 +602,7 @@ pub struct CachedMessage {
 }
 
 impl CachedMessage {
-    pub(crate) fn new(message: &Message, author: Arc<User>) -> Self {
+    pub(crate) fn new(message: &Message, author: Arc<CachedUser>) -> Self {
         Self {
             id: message.id,
             channel_id: message.channel_id,

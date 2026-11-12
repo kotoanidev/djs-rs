@@ -29,11 +29,12 @@ collections, the `makeCache` and `sweepers` client options)
 - **Reads go through views**, like a discord.js manager's `cache`: `cache.guilds().get(id)`,
   `cache.members(guild_id).values()`, … They return [`Arc`](std::sync::Arc)s: cheap to clone,
   holding no lock, safe to keep across `.await`.
-- **Own types only where needed:** roles, emojis, stickers, users, channels, threads, voice
-  states, scheduled events, stage instances and soundboard sounds are the `djs-model` types;
-  [`CachedGuild`] leaves out the lists kept elsewhere, [`CachedMember`] and
-  [`CachedMessage`] share their user with the user resource, and [`CachedPresence`] keeps
-  only its user's ID.
+- **Own types only where needed:** roles, emojis, stickers, channels, threads, voice states,
+  scheduled events, stage instances and soundboard sounds are the `djs-model` types;
+  [`CachedGuild`] leaves out the lists kept elsewhere, [`CachedUser`] and [`CachedMember`]
+  keep their rarely set fields (banners, decorations, boost and timeout times, …) behind one
+  box read through methods, [`CachedMember`] and [`CachedMessage`] share their
+  [`CachedUser`] with the user resource, and [`CachedPresence`] keeps only its user's ID.
 - **Sweeping:** every resource has a `sweep_*` method taking a filter
   (`cache.sweep_users(|user| user.bot)`), plus two lifetime presets,
   [`Cache::sweep_messages_older_than`] and [`Cache::sweep_archived_threads`]. The periodic

@@ -2435,6 +2435,20 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - Previous state: `TypingStart` and `InteractionCreate` return the member they replaced
   (`Previous::Member` through `update_dispatch`), `ThreadMembersUpdate` the thread before.
 
+### C-080 — Compact cached types (D-177)
+- Rare user fields (behind `CachedUser`'s box): `banner`, `accent_color`,
+  `avatar_decoration_data`, `collectibles`, `primary_guild`. Inline: `id`, `username`,
+  `discriminator`, `global_name`, `avatar`, `bot`, `system`, `public_flags`.
+- Rare member fields (behind `CachedMember`'s box): `avatar`, `banner`, `premium_since`,
+  `communication_disabled_until`, `avatar_decoration_data`, `collectibles`. Inline:
+  `guild_id`, `user`, `nick`, `roles`, `joined_at`, `deaf`, `mute`, `pending`, `flags`.
+- The box holds its fields unboxed (no box in a box) and exists only when one of them is
+  set; accessors are named like the fields. `CachedUser` has `display_name` and `tag` like
+  `User`. Whether a user seen again is the cached one is decided by comparing every field
+  (crate-internal `CachedUser::is`), as before with `User`'s `==`.
+- Sizes (x86_64): `CachedMember` 176 → 96 B, `CachedUser` 104 B (`User`: 144 B); guarded in
+  `tests/stress.rs` (`type_sizes`).
+
 ---
 
 ## Open questions (to ask the owner when relevant)

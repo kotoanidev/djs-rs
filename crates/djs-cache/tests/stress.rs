@@ -29,7 +29,9 @@ use std::{
     time::{Duration, Instant},
 };
 
-use djs_cache::{Cache, CacheConfig, CachedGuild, CachedMember, CachedMessage, CachedPresence};
+use djs_cache::{
+    Cache, CacheConfig, CachedGuild, CachedMember, CachedMessage, CachedPresence, CachedUser,
+};
 use djs_model::{
     channel::Channel,
     gateway::{
@@ -158,10 +160,11 @@ impl Guilds {
 fn type_sizes() {
     use core::mem::size_of;
     println!(
-        "[stress] sizes: CachedGuild {} B, CachedMember {} B, CachedMessage {} B, \
+        "[stress] sizes: CachedGuild {} B, CachedMember {} B, CachedUser {} B, CachedMessage {} B, \
          CachedPresence {} B, User {} B, Channel {} B, Role {} B, VoiceState {} B, Cache {} B",
         size_of::<CachedGuild>(),
         size_of::<CachedMember>(),
+        size_of::<CachedUser>(),
         size_of::<CachedMessage>(),
         size_of::<CachedPresence>(),
         size_of::<User>(),
@@ -171,12 +174,18 @@ fn type_sizes() {
         size_of::<Cache>(),
     );
     // Regression guards (the sizes when measured, x86_64) for the types kept by the
-    // thousand: a member shares its user, a presence keeps only its user's ID.
+    // thousand: a member shares its user, a presence keeps only its user's ID, and members
+    // and users keep their rarely set fields behind one box (D-177).
     if cfg!(target_pointer_width = "64") {
         assert!(
-            size_of::<CachedMember>() <= 176,
+            size_of::<CachedMember>() <= 96,
             "{}",
             size_of::<CachedMember>()
+        );
+        assert!(
+            size_of::<CachedUser>() <= 104,
+            "{}",
+            size_of::<CachedUser>()
         );
         assert!(
             size_of::<CachedPresence>() <= 152,

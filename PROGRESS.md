@@ -315,12 +315,9 @@ user), D-153 (updates return the previous state), D-154 (order below), D-155–D
    a. ✅ D-173 (C-079): `TypingStart`, `InteractionCreate`, `ThreadMembersUpdate` in
       `update.rs`; `Cache::{apply_interaction, upsert_partial_member, update_thread_members}`
       in `cache.rs`; tests at the end of `tests/messages_and_more.rs`.
-   b. D-175 → D-177: measured in a fresh process (`startup_500_guilds` spawns a child per
-      configuration) the cache needs 546 B per member; internal changes cannot help much, so
-      (D-177) add a compact public `CachedUser` (users, `CachedMember::user`,
-      `CachedMessage::author`) and compact `CachedMember` (rare fields in one
-      `Option<Box<…>>` + accessors, roles `Box<[RoleId]>`); measure each step, revert if it
-      saves < ~20 %.
+   b. ✅ D-175 → D-177 (C-080): measured in a fresh process (`startup_500_guilds` spawns a
+      child per configuration) 546 B per member; with the compact `CachedUser` and
+      `CachedMember` (`model.rs`) 418 B (−23 %).
    c. The djs-rs `Client` flood with and without a cache (`crates/djs-rs/tests/stress.rs`).
    d. D-174: re-run `docs/VS_NODE.md` with djs-rs + `CacheConfig::discord_js()` in the summary
       and the real cache in the memory section (the page's claim that the cache "can only

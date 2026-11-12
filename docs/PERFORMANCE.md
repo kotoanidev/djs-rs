@@ -654,7 +654,8 @@ a full message channel. The events are decoded before the timed part.
 | `GUILD_MEMBER_UPDATE` | 84–103 ns | 2 (208 B) | |
 | `VOICE_STATE_UPDATE` | 149–159 ns | — | voice state + its member |
 | `CHANNEL_UPDATE` | 66–68 ns | — | |
-| `TYPING_START`, `INTERACTION_CREATE` | 1.5–1.6 ns | 0 | nothing (see the findings) |
+| `TYPING_START` (D-173) | 62–86 ns | — | member upsert |
+| `INTERACTION_CREATE` (D-173) | 154–163 ns | — | user, member, resolved user and member |
 
 - **The cost of copying events (D-161).** Updates borrow the event and copy what the cache
   keeps. Cloning a whole decoded `GUILD_CREATE` takes 134–141 µs (3 050 allocations), about
@@ -698,13 +699,13 @@ nothing here (D-158).
 
 | Test | Result |
 |---|---|
-| Startup: 500 guilds × 1000 members (unique users), discord.js config, own process | applied in 166–199 ms (2.5–3.0 M members/s, 0.34–0.40 ms per guild); **+260 MiB RSS, 546 B per member** (member, user, channels, roles, emojis, voice states, indexes; no presences) |
-| Same, members + users only | 176–182 ms; +255 MiB, **534 B per member** |
+| Startup: 500 guilds × 1000 members (unique users), discord.js config, own process | **after D-177: 155 ms (3.2 M members/s, 0.31 ms per guild); +199 MiB RSS, 418 B per member**; before: 166–199 ms, +260 MiB, 546 B (member, user, channels, roles, emojis, voice states, indexes; no presences) |
+| Same, members + users only | after D-177: 147 ms, +194 MiB, **406 B per member**; before: 176–182 ms, 534 B |
 | Same, default config | 4 ms; +5 MiB (11 B per member: guilds, channels, roles only) |
 | Message churn: 2 M `MESSAGE_CREATE`s over 1000 channels, 200 per channel | 1.7–2.1 M messages/s on 1 thread, 3.0–3.8 M/s on 4 (including cloning each event); always 200 000 cached; RSS flat from the first round |
 | Sweeping under load: 4 writers + a sweep every millisecond, 2 s | 2.0–2.4 M inserts/s, 606–852 sweeps, nothing left after the last; no deadlock |
 | Guild churn: 300 × join + leave of a 1000-member guild | 218–226 ms; RSS flat (65.8–65.9 MiB every 50 rounds); nothing left in any resource |
-| Type sizes (x86_64) | `CachedGuild` 440 B, `CachedMember` 176 B, `CachedMessage` 512 B, `CachedPresence` 152 B, `User` 144 B, `Channel` 200 B, `Role` 128 B, `VoiceState` 80 B, `Cache` 1 696 B (guarded by `type_sizes`) |
+| Type sizes (x86_64) | `CachedGuild` 440 B, `CachedMember` 96 B (was 176 B), `CachedUser` 104 B (new; `User` is 144 B), `CachedMessage` 512 B, `CachedPresence` 152 B, `Channel` 200 B, `Role` 128 B, `VoiceState` 80 B, `Cache` 1 696 B (guarded by `type_sizes`) |
 
 **Concurrent readers and writers** (one 10 000-member guild; writers apply member and
 presence updates, readers look members and presences up; millions per second):
@@ -737,16 +738,20 @@ presence updates, readers look members and presences up; millions per second):
   with lock-free reads would. A tokio bot runs one worker per CPU and reads far less than
   64 M times per second, so this needs oversubscription and synthetic read rates — but it
   is recorded as an open question (a lock-free `Backend`, which needs a new dependency).
-- **Being fixed: 546 B per member** is more than the 373 B the `VS_NODE.md` stand-in
-  (decoded guilds in a `HashMap`) needed. Where it goes (allocation profiler, one guild):
-  the `Arc<CachedMember>` block (192 B requested, 208 B from malloc), the shared
+- **Fixed: 546 → 418 B per member (−23 %).** Where the 546 B went (allocation profiler, one
+  guild): the `Arc<CachedMember>` block (192 B requested, 208 B from malloc), the shared
   `Arc<User>` (160 B, 176 B), the role list (16 B, 32 B), and ≈ 60–90 B of hash tables (the
   member's `(guild, user)` key and pointer, the user's, the guild → members index). Internal
-  changes cannot shrink the blocks; compact cached types will (D-177).
+  changes could not shrink the blocks; the compact `CachedMember` (96 B) and `CachedUser`
+  (104 B), which keep their rarely set fields behind one box, did (D-177, C-080). Applying
+  the startup guilds also got faster (166–199 → 155 ms for 500 000 members). What remains:
+  the two blocks (≈ 112 + 120 B with their `Arc` headers), the role list's block and the hash
+  tables. That is still more than the 373 B of the `VS_NODE.md` stand-in, which kept the
+  decoded guilds in one `Vec` per guild without any lookup structure.
 - **`CachedPresence` is 152 B** for two IDs, a status and a box of activities:
   `ClientStatus` holds four `Option<Status>`, and `Status` can carry an unknown status as
   text. A compact cached form (one byte per platform) would halve it.
-- **`TYPING_START` and `INTERACTION_CREATE` are not applied.** Both carry a member (and an
-  interaction its user and resolved users/members); discord.js caches them. To be decided
-  with the owner (the decided scope is "every dispatch event that carries cacheable state").
+- **Fixed: `TYPING_START` and `INTERACTION_CREATE` were not applied** (1.6 ns: nothing
+  done). Both carry a member, an interaction also its user and resolved users and members;
+  discord.js caches them. They are applied now, with `THREAD_MEMBERS_UPDATE` (D-173).
 

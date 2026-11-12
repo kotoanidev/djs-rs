@@ -29,7 +29,7 @@ use djs_model::{
 
 use crate::{
     Backend, CacheConfig, CacheView, CachedGuild, CachedMember, CachedMessage, CachedPresence,
-    ChannelView, DashMapBackend, GuildView, Previous, Resource, Store, UpdateCache,
+    CachedUser, ChannelView, DashMapBackend, GuildView, Previous, Resource, Store, UpdateCache,
     config::Scope,
     dashmap_store::Hasher,
     limits::{ChannelScopedOf, Global, GlobalOf, Index, Scoped, ScopedOf},
@@ -83,7 +83,7 @@ pub struct Cache<B: Backend = DashMapBackend> {
     emojis: Option<ScopedOf<EmojiId, Emoji, B>>,
     stickers: Option<ScopedOf<StickerId, Sticker, B>>,
     members: Option<ScopedOf<UserId, CachedMember, B>>,
-    users: Option<GlobalOf<UserId, User, B>>,
+    users: Option<GlobalOf<UserId, CachedUser, B>>,
     threads: Option<ScopedOf<ChannelId, Channel, B>>,
     messages: Option<ChannelScopedOf<MessageId, CachedMessage, B>>,
     /// The channels of each guild that have cached messages, for dropping a deleted guild's
@@ -234,7 +234,7 @@ impl<B: Backend> Cache<B> {
     ///
     /// discord.js counterpart: `client.users.cache`.
     #[must_use]
-    pub fn users(&self) -> CacheView<'_, UserId, User, B> {
+    pub fn users(&self) -> CacheView<'_, UserId, CachedUser, B> {
         CacheView::new(self.users.as_ref(), None)
     }
 
@@ -396,7 +396,7 @@ impl<B: Backend> Cache<B> {
     }
 
     /// Sweeps users. Members keep their own reference to their user.
-    pub fn sweep_users(&self, mut filter: impl FnMut(&User) -> bool) -> usize {
+    pub fn sweep_users(&self, mut filter: impl FnMut(&CachedUser) -> bool) -> usize {
         self.users
             .as_ref()
             .map_or(0, |users| users.sweep(&mut |_, user| filter(user)))
@@ -855,7 +855,7 @@ impl<B: Backend> Cache<B> {
     /// the message's member data, as a member.
     pub(crate) fn insert_message(&self, message: &Message) -> Option<Arc<CachedMessage>> {
         let author = if message.webhook_id.is_some() {
-            Arc::new(message.author.clone())
+            Arc::new(CachedUser::new(&message.author))
         } else if self.messages.is_some() || self.members.is_some() {
             self.share_user(&message.author)
         } else {
@@ -1096,16 +1096,16 @@ impl<B: Backend> Cache<B> {
     /// Returns an `Arc` of `user`: the user resource's own when it holds an equal user (so a
     /// user in many guilds is stored once), else a new one, which the user resource then
     /// keeps.
-    fn share_user(&self, user: &User) -> Arc<User> {
+    fn share_user(&self, user: &User) -> Arc<CachedUser> {
         let Some(users) = &self.users else {
-            return Arc::new(user.clone());
+            return Arc::new(CachedUser::new(user));
         };
         if let Some(cached) = users.get(&user.id)
-            && *cached == *user
+            && cached.is(user)
         {
             return cached;
         }
-        let shared = Arc::new(user.clone());
+        let shared = Arc::new(CachedUser::new(user));
         users.insert(user.id, Arc::clone(&shared));
         shared
     }
@@ -1175,7 +1175,7 @@ fn put_partial_member<S>(
     members: &Scoped<GuildId, UserId, CachedMember, S>,
     guild_id: GuildId,
     member: &PartialMember,
-    user: Arc<User>,
+    user: Arc<CachedUser>,
 ) where
     S: Store<(GuildId, UserId), CachedMember>,
 {

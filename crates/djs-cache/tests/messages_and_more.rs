@@ -17,16 +17,16 @@ use djs_model::{
     gateway::{
         DispatchEvent, Status,
         payload::{
-            ChannelDelete, GuildCreate, GuildDelete, GuildMemberAdd, GuildScheduledEventCreate,
-            GuildScheduledEventDelete, GuildSoundboardSoundCreate, GuildSoundboardSoundDelete,
-            InteractionCreate, MessageCreate, MessageDelete, MessageDeleteBulk, MessageReactionAdd,
-            MessageReactionRemove, MessageReactionRemoveAll, MessageReactionRemoveEmoji,
-            MessageUpdate, PresenceUpdate, Ready, StageInstanceCreate, StageInstanceDelete,
-            ThreadCreate, ThreadDelete, ThreadListSync, ThreadMembersUpdate, ThreadUpdate,
-            TypingStart, VoiceStateUpdate,
+            ChannelDelete, GuildCreate, GuildDelete, GuildMemberAdd, GuildMemberUpdate,
+            GuildScheduledEventCreate, GuildScheduledEventDelete, GuildSoundboardSoundCreate,
+            GuildSoundboardSoundDelete, InteractionCreate, MessageCreate, MessageDelete,
+            MessageDeleteBulk, MessageReactionAdd, MessageReactionRemove, MessageReactionRemoveAll,
+            MessageReactionRemoveEmoji, MessageUpdate, PresenceUpdate, Ready, StageInstanceCreate,
+            StageInstanceDelete, ThreadCreate, ThreadDelete, ThreadListSync, ThreadMembersUpdate,
+            ThreadUpdate, TypingStart, VoiceStateUpdate,
         },
     },
-    id::{ChannelId, GuildId, MessageId, ScheduledEventId, SoundboardSoundId, UserId},
+    id::{ChannelId, GuildId, MessageId, RoleId, ScheduledEventId, SoundboardSoundId, UserId},
 };
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
@@ -556,4 +556,77 @@ fn update_dispatch_handles_typing_interactions_and_thread_members() {
         DispatchEvent::InteractionCreate(Box::new(decode(hot_event_json("INTERACTION_CREATE"))));
     assert_eq!(cache.update_dispatch(&interaction), Previous::None);
     assert!(cache.members(GUILD).contains(user(1)));
+}
+
+#[test]
+fn rare_member_and_user_fields_are_read_through_methods() {
+    let cache = everything();
+    let plain: GuildMemberAdd = decode(json!({
+        "guild_id": GUILD.to_string(),
+        "user": {"id": "5", "username": "plain", "discriminator": "0", "global_name": null,
+                 "avatar": null},
+        "roles": ["11", "12"], "joined_at": "2024-05-01T12:00:00.000000+00:00",
+        "deaf": false, "mute": false, "flags": 0
+    }));
+    let decorated: GuildMemberAdd = decode(json!({
+        "guild_id": GUILD.to_string(),
+        "user": {"id": "6", "username": "legacy", "discriminator": "0042",
+                 "global_name": "Decorated", "avatar": null,
+                 "banner": "1269e74af4df7417b13759eae50c83dc", "accent_color": 16_711_680},
+        "roles": [], "joined_at": "2024-05-01T12:00:00.000000+00:00",
+        "avatar": "a_1269e74af4df7417b13759eae50c83dc",
+        "premium_since": "2025-01-01T00:00:00.000000+00:00",
+        "communication_disabled_until": "2030-01-01T00:00:00.000000+00:00",
+        "deaf": false, "mute": false, "flags": 0
+    }));
+    cache.update(&plain);
+    cache.update(&decorated);
+
+    let plain = cache.members(GUILD).get(UserId::new(5)).unwrap();
+    assert_eq!(&*plain.roles, [RoleId::new(11), RoleId::new(12)]);
+    assert_eq!(plain.avatar(), None);
+    assert_eq!(plain.premium_since(), None);
+    assert_eq!(plain.user.banner(), None);
+    assert_eq!(plain.display_name(), "plain");
+
+    let decorated = cache.members(GUILD).get(UserId::new(6)).unwrap();
+    assert!(decorated.avatar().unwrap().is_animated());
+    assert_eq!(decorated.banner(), None);
+    assert_eq!(
+        decorated.premium_since().unwrap().to_string(),
+        "2025-01-01T00:00:00.000000+00:00"
+    );
+    assert!(decorated.communication_disabled_until().is_some());
+    assert_eq!(decorated.display_name(), "Decorated");
+    let user = &decorated.user;
+    assert_eq!(user.accent_color(), Some(0xff_0000));
+    assert!(user.banner().is_some());
+    assert_eq!(user.avatar_decoration_data(), None);
+    assert_eq!(user.tag(), "legacy#0042");
+
+    // The member's user is the one the user resource holds.
+    let shared = cache.users().get(UserId::new(6)).unwrap();
+    assert!(Arc::ptr_eq(user, &shared));
+    // An equal user seen again is not stored again; a changed one replaces it.
+    let update = |user: Value| -> GuildMemberUpdate {
+        decode(json!({
+            "guild_id": GUILD.to_string(), "user": user, "roles": [],
+            "joined_at": "2024-05-01T12:00:00.000000+00:00"
+        }))
+    };
+    cache.update(&update(json!({
+        "id": "6", "username": "legacy", "discriminator": "0042", "global_name": "Decorated",
+        "avatar": null, "banner": "1269e74af4df7417b13759eae50c83dc", "accent_color": 16_711_680
+    })));
+    assert!(Arc::ptr_eq(
+        &shared,
+        &cache.users().get(UserId::new(6)).unwrap()
+    ));
+    cache.update(&update(json!({
+        "id": "6", "username": "legacy", "discriminator": "0042", "global_name": "Decorated",
+        "avatar": null
+    })));
+    let replaced = cache.users().get(UserId::new(6)).unwrap();
+    assert!(!Arc::ptr_eq(&shared, &replaced));
+    assert_eq!(replaced.banner(), None);
 }

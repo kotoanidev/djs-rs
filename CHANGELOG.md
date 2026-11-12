@@ -358,6 +358,12 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `login`/`shutdown`, prelude; `examples/ping.rs`; end-to-end tests with mock REST + gateway.
 
 ### Changed
+- **Breaking (`djs-cache`, D-177):** users are cached as the new compact `CachedUser`
+  (`cache.users()`, `CachedMember::user`, `CachedMessage::author`), and `CachedMember` keeps
+  its rarely set fields behind one box: `avatar`, `banner`, `premium_since`,
+  `communication_disabled_until`, `avatar_decoration_data` and `collectibles` are methods
+  now, and `roles` is a `Box<[RoleId]>`. Memory per cached member: 546 → 418 B (discord.js'
+  defaults).
 - A shard's own 5-second identify spacing is now done by its configuration's IDENTIFY queue.
 - `ClientBuilder::gateway_url` no longer skips Get Gateway Bot on its own: it is skipped only
   together with a fixed shard count (`Shards::Count`/`Shards::Range`).
