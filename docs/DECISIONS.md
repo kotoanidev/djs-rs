@@ -1912,6 +1912,40 @@ and why.
 - **Alternatives:** one function per variant (`code_block_with_language`, …); `Option`
   parameters like discord.js' overloads.
 
+### D-214 — `Collection` methods that build a new collection consume `self`
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `filter`, `partition`, `map_values`, `to_sorted`, `to_reversed`, `union`,
+  `intersection`, `difference`, `symmetric_difference`, `concat`, `merge`, `flat_map` take
+  the collection by value and clone nothing; keep the original by cloning it first.
+  In-place changes (`sweep`, `sort`, `reverse`) take `&mut self`, and reads (`find`, `first`,
+  `map` → `Vec`, …) take `&self`.
+- **Alternatives:** clone from `&self` like discord.js (needs `K: Clone`, `V: Clone`; the
+  recommendation); both versions of every method.
+
+### D-215 — `Collection::remove` keeps the order
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `remove` keeps insertion order like `delete` on a JS `Map` (O(n): later
+  entries move up); `swap_remove` removes in O(1) by moving the last entry into the gap;
+  `sweep` removes many in one O(n) pass.
+- **Alternatives:** `remove` as the O(1) swap, with `shift_remove` keeping the order.
+
+### D-216 — `Collection<K, V, S>` hashes with foldhash by default
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** the default `S` is `foldhash::fast::RandomState`, as in `djs-cache` (D-158);
+  `foldhash` becomes a dependency of `djs-collection` (already a workspace dependency).
+  Another hasher can be chosen through `S`.
+- **Alternatives:** std's SipHash (no extra dependency, resistant to HashDoS, slower).
+
+### D-217 — `Collection` has its own API, with access to the `IndexMap`
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** `Collection` offers its own map methods (`get`, `get_mut`, `insert`,
+  `remove`, `contains_key`, `len`, `iter`, `keys`, `values`, …) and the discord.js methods,
+  with its own iterator types; `as_index_map`, `as_index_map_mut`, `into_index_map` and
+  `From<IndexMap>` give access to the inner `IndexMap` for rare operations, so a new major
+  version of `indexmap` only touches those.
+- **Alternatives:** `Deref` to `IndexMap` (its whole API, but its versions become ours);
+  no access at all.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
@@ -3044,6 +3078,10 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 ---
 
 ## Open questions (to ask the owner when relevant)
+
+- **`Collection` in the cache and the client**: whether `djs-cache` views and the Phase 8
+  managers return `djs_collection::Collection` (as discord.js does) instead of iterators or
+  `Vec`s — to decide with the managers' API in Phase 8.
 
 - **Removing parts with the builders**: discord.js can clear a part (`setTitle(null)`) and
   replace or splice fields (`setFields`, `spliceFields`). `EmbedBuilder` only sets and adds;

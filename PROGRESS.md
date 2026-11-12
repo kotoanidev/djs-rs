@@ -401,8 +401,9 @@ discord.js names where they fit + Rust traits; no `each`/`reduce`/`some`/`every`
       in `docs/PERFORMANCE.md` ("Phase 7 — djs-formatters"). Fixed on the way: plain text
       scanned byte by byte (now a lookup-table skip, 3.9× faster) and a quadratic case for
       long backtick runs with code content skipped.
-2. **Next:** `djs-collection` (D-209, D-210): ask before deciding anything not covered
-   (for example whether `djs-cache` returns it, and the exact method list).
+2. **Next:** `djs-collection` (D-209, D-210, D-214 consuming transformations, D-215
+   order-keeping `remove`, D-216 foldhash default, D-217 own API + `IndexMap` access). Whether
+   `djs-cache` / the `Client` return it is left to Phase 8 (open question).
 3. `djs-util`: only what other crates need.
 
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON
