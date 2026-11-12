@@ -438,11 +438,16 @@ fields with `Deref` to `new`). Steps:
       `Raw` / unwatched floods; A/B against `e65961a` pinned to two P-cores: −2.4 % (+45 ns
       per event, spread bookkeeping, same `perf` profile); results in `docs/PERFORMANCE.md`
       ("Phase 8 — djs-rs events").
-2. **Next:** structures with methods (extension traits, D-220) and managers (fetch / cache
-   semantics). Ask the owner first: the managers' API (`ctx.guilds().fetch(id)`-style
-   managers vs methods on the `Context`), fetch semantics (cache first, `force`), the open
-   question "`Collection` in the cache and the client", and which structures / methods come
-   first; record D-229+ before implementing.
+2. Structures with methods and managers (D-220, D-229–D-233): managers on the `Context`
+   (`ctx.members(guild).fetch(user)`), `fetch` cache-first with `force` and REST write-back
+   (new public write API in `djs-cache`), lists as `Collection`, `fetch` returning the cached
+   type behind an `Arc` (REST results converted), methods for model and cached types; the
+   most used first (D-232). Steps:
+   a. **Next:** `djs-cache` write API for REST objects (convert + store when enabled, return
+      the stored `Arc`) and public conversions to the cached types; then the first managers
+      (guilds, channels, members, messages, roles, bans, users) and the message / channel /
+      member methods; tests with the mock REST API.
+   b. The other resources, one batch per commit. c. Benchmarks + extreme-load tests (D-041).
 3. Interactions. 4. Collectors and `await_*`. 5. Partials and intents guidance. 6. Examples.
 
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON

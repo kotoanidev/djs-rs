@@ -2051,6 +2051,52 @@ and why.
   `delete.channel_id`) and `old` the removed object.
 - **Alternatives:** the same fields without `Deref`; `old` and `event` without `Deref`.
 
+### D-229 — Managers are lightweight objects on the `Context`
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** discord.js' managers become small types borrowing the `Context` (its `Rest`
+  and optional cache): `ctx.guilds().fetch(id)`, `ctx.members(guild_id).fetch(user_id)`,
+  `ctx.messages(channel_id).fetch(id)`, `ctx.channels().fetch(id)`, … Each gathers the
+  operations of one resource (`fetch`, list, create, edit, delete).
+- **Alternatives:** flat methods on the `Context` (`ctx.fetch_member(guild, user)`);
+  extension traits on IDs (`guild_id.members(&ctx).fetch(user)`).
+
+### D-230 — `fetch` reads the cache first and writes REST results back
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** like discord.js, a manager's `fetch` returns the cached value when the cache
+  holds it, otherwise asks the REST API; a `force` option always asks the REST API. A REST
+  result is stored in the cache when that resource is enabled. `djs-cache` gains a public
+  write API for REST objects (for example `cache.insert_member(guild_id, &member)`).
+- **Alternatives:** always the REST API, the cache only read explicitly; cache first without
+  writing REST results back.
+
+### D-231 — Lists return `Collection`; cache views stay iterators
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** list operations of the managers (`members.list()`, `messages.fetch_many()`,
+  `bans.fetch()`, …) return a `djs_collection::Collection<Id, T>` in Discord's order, with
+  discord.js' helpers. The `djs-cache` views keep returning iterators and views (no copy).
+  Resolves the open question "`Collection` in the cache and the client".
+- **Alternatives:** `Vec<T>` everywhere; `Collection` from the cache views too (a copy per
+  call).
+
+### D-232 — Structures and methods: the most used first
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** Phase 8 step 2 starts with what bots use most — messages (`reply`, `edit`,
+  `delete`, `react`, `pin`, threads), channels (`send`, typing, bulk delete), members
+  (`kick`, `ban`, roles, timeout, nickname), guilds (members, bans, roles) and users (DMs) —
+  then the other resources, one commit per batch.
+- **Alternatives:** resource by resource in discord.js' documentation order.
+
+### D-233 — `fetch` returns the cached type, behind an `Arc`
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** a manager's `fetch` (and its lists) always return the type the cache stores:
+  `Arc<CachedMember>`, `Arc<CachedMessage>`, `Arc<CachedGuild>`, `Arc<CachedUser>` for the
+  compact cached types (D-081), `Arc<Channel>`, `Arc<Role>`, … where the cache stores the
+  model type. A REST result is converted to it (and stored when the resource is enabled), so
+  a cache hit is an `Arc` clone. The structure methods (D-220) are implemented for both the
+  model and the cached types.
+- **Alternatives:** always the model type (a cache hit converted back, allocating); an enum of
+  the cached and the REST value.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
@@ -3267,10 +3313,6 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 ---
 
 ## Open questions (to ask the owner when relevant)
-
-- **`Collection` in the cache and the client**: whether `djs-cache` views and the Phase 8
-  managers return `djs_collection::Collection` (as discord.js does) instead of iterators or
-  `Vec`s — to decide with the managers' API in Phase 8.
 
 - **Removing parts with the builders**: discord.js can clear a part (`setTitle(null)`) and
   replace or splice fields (`setFields`, `spliceFields`). `EmbedBuilder` only sets and adds;
