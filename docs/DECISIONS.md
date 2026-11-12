@@ -2125,6 +2125,32 @@ and why.
   from the REST call (the gateway event then finds nothing); managers would need the client's
   event emitter.
 
+### D-237 — Webhooks: one `ctx.webhooks()` manager
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** one manager by webhook ID — fetch, edit, delete, send with the webhook token
+  and the webhook's messages — which also creates (`create(channel, …)`) and lists
+  (`list_channel(channel)`, `list_guild(guild)`). Shortcuts on the structures:
+  `channel.create_webhook` / `channel.webhooks`, `guild.webhooks`, and methods on `Webhook`
+  (`send`, `edit`, `delete`). Webhooks are not cached: the `djs-model` types are returned.
+- **Alternatives:** split like D-234, with a `ctx.channel_webhooks(channel)` manager for
+  create and list.
+
+### D-238 — `WebhookClient` now, in djs-rs
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** a small `WebhookClient` in `djs-rs` for a webhook's URL or ID and token,
+  without a bot token or a gateway: `WebhookClient::from_url(url)`, `send`, fetch / edit /
+  delete of its messages, `edit`, `delete` (discord.js: `WebhookClient`).
+- **Alternatives:** the same type in `djs-rest`; later (users call `Rest` without a token).
+
+### D-239 — Invites: one `ctx.invites()` manager
+- **Date:** 2026-11-12 · **Decided by:** Owner
+- **Decision:** invite codes are global, so one manager without a guild: by code `fetch` and
+  `delete`, plus `create(channel, …)`, `list_channel(channel)` and `list_guild(guild)`.
+  Shortcuts: `channel.create_invite` / `channel.invites`, `guild.invites`. Invites are not
+  cached: the `djs-model` types are returned.
+- **Alternatives:** like discord.js, a guild-scoped `ctx.invites(guild)` plus
+  `ctx.fetch_invite(code)` for other guilds' invites.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
