@@ -81,8 +81,9 @@ just with narrow scope.
 - [x] Mock gateway tests, benchmarks and extreme-load tests (`docs/PERFORMANCE.md`, Phase 4)
 
 ## Phase 5 — `djs-cache`
-- [ ] Cache trait (pluggable backend) + DashMap default backend
-- [ ] Per-resource enable/disable and size limits (≈ `makeCache`)
+- [x] Cache trait (pluggable backend) + DashMap default backend (D-155, D-158)
+- [ ] Per-resource enable/disable and size limits (≈ `makeCache`) — configuration and
+      enforcement done (D-156, D-157, D-159); applied as the resources land
 - [ ] Sweepers (≈ `sweepers` option), partials support
 - [ ] Event → cache update logic for every dispatch event
 - [ ] Memory/size tests, benchmarks

@@ -1331,7 +1331,7 @@ and why.
 
 ### D-158 — Cache keys are hashed with `foldhash`
 - **Date:** 2026-11-12 · **Decided by:** Owner
-- **Decision:** new dependency `foldhash` 0.2 for the `DashMapStore` hasher
+- **Decision:** new dependency `foldhash` 0.2 for the `DashMapStore` hasher (with `dashmap` 6.2, D-016)
   (`foldhash::fast::RandomState`): about 1–2 ns per snowflake key instead of 15–20 ns for
   std's SipHash, with good mixing of the high bits DashMap uses to pick a shard and minimal
   DoS resistance. To be confirmed by the Phase 5 benchmarks.
@@ -2136,6 +2136,29 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   to the same cores (`0,2`: two P-cores without HT siblings, or `0-3`, or `4-11`), and also
   compare `perf stat` instruction counts, which do not depend on placement. Absolute
   numbers in `docs/PERFORMANCE.md` stay unpinned unless a section says otherwise.
+
+### C-073 — Cache core details (Phase 5, step 1)
+- `dashmap` 6.2.1, the latest stable release (7.0 is a release candidate).
+- The cache enforces every limit itself, on top of the stores (`limits.rs`: `Global` for
+  limits over the whole cache, `Scoped` with the guild/channel → keys index for the others);
+  `Backend::store` receives the limit for information only, so custom stores never evict.
+  Disabled resources get no store.
+- The insertion order keeps a sequence number with each key, so a key removed and inserted
+  again counts as new (exact FIFO). Removed keys stay in the queue until popped or until the
+  queue is compacted (when stale entries exceed live ones + 32), so removal is amortised
+  O(1). Cost per entry of a limited resource: the key and a `u64` in the order's map plus the
+  same in its queue.
+- A limited resource over the whole cache takes one mutex around each insert and removal,
+  which keeps the order exact; unlimited resources take no extra lock. `Scoped` changes hold
+  the parent's index entry around the store call (lock order: index → store).
+- `Limit::Max(0)` is stored as `Limit::Disabled`. The current user is always kept and is not
+  a `Resource`. Threads, scheduled events, stage instances and soundboard sounds count per
+  guild (D-159).
+- Public helpers beyond the approved sketch: `Store::{is_empty, contains_key}` (default
+  methods), `Resource::ALL`, `Limit::{is_enabled, max}`, `CacheConfig::{limit, is_enabled}`,
+  `CacheConfigBuilder::limit` plus one method per resource, `From<CacheConfig> for
+  CacheConfigBuilder`, `Cache::{new, with_config, with_backend, config, backend}`,
+  `DashMapBackend::new` (a non-exhaustive unit struct, so fields can be added later).
 
 ---
 

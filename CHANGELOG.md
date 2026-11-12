@@ -8,6 +8,11 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `djs-cache` core (Phase 5, D-151–D-159): `CacheConfig` with one `Limit` per `Resource`
+  (`Disabled`, `Max(n)`, `Unlimited`; minimal default of guilds, channels and roles;
+  `CacheConfig::discord_js()` preset), the pluggable `Store` / `Backend` traits with the
+  default `DashMapBackend` (`dashmap` + `foldhash`), and `Cache<B = DashMapBackend>`. Cached
+  resources follow in the next steps.
 - `zlib-stream` transport compression (feature `zlib-stream` in djs-gateway and djs-rs,
   D-140): `Compression::ZlibStream`, decoded with `flate2` + the pure-Rust `zlib-rs`,
   including payloads split over several WebSocket messages. Stress-tested against zstd
