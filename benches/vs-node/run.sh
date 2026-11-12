@@ -101,8 +101,10 @@ echo "== 2/4 event flood ($EVENTS MESSAGE_CREATE per run)"
 start_mock mock-gateway --guilds 1 --messages "$EVENTS"
 for run in $(seq "$RUNS"); do
   echo " run $run/$RUNS"
+  client "$BIN" flood --gateway "$GATEWAY" --events "$EVENTS" --cache discord-js
   client "$BIN" flood --gateway "$GATEWAY" --events "$EVENTS"
   client "$BIN_MIMALLOC" flood --gateway "$GATEWAY" --events "$EVENTS"
+  client "$BIN" flood --gateway "$GATEWAY" --events "$EVENTS" --mode sequential --cache discord-js
   client "$BIN" flood --gateway "$GATEWAY" --events "$EVENTS" --mode sequential
   client "$BIN" shard-flood --gateway "$GATEWAY" --events "$EVENTS"
   client node node/flood.mjs --api "$API" --events "$EVENTS" --layer client

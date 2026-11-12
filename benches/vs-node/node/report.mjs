@@ -58,10 +58,14 @@ function name(r) {
       if (r.variant.startsWith('djs-gateway')) return 'djs-gateway Shard';
       if (r.library === '@discordjs/ws') return '@discordjs/ws WebSocketManager';
       if (r.library === 'discord.js') return r.variant.includes('cache off') ? 'discord.js Client, message cache off' : 'discord.js Client (default)';
-      if (r.variant.includes('Sequential')) return `djs-rs Client, sequential handlers${mimalloc}`;
-      return mimalloc ? 'djs-rs Client + mimalloc' : 'djs-rs Client (default)';
+      {
+        const cache = r.variant.includes('CacheConfig::discord_js') ? ' + cache like discord.js' : '';
+        if (r.variant.includes('Sequential')) return `djs-rs Client, sequential handlers${cache || ', no cache'}${mimalloc}`;
+        if (cache) return `djs-rs Client${cache}${mimalloc}`;
+        return mimalloc ? 'djs-rs Client + mimalloc, no cache' : 'djs-rs Client (default: no cache)';
+      }
     case 'memory':
-      return r.library === 'djs-rs' ? `djs-rs${mimalloc}` : 'discord.js Client (default caches)';
+      return r.library === 'djs-rs' ? `djs-rs Client + cache like discord.js${mimalloc}` : 'discord.js Client (default caches)';
     default:
       return r.library === 'djs-rs' ? `djs-rest${mimalloc}` : '@discordjs/rest';
   }
@@ -399,14 +403,15 @@ function summarySection(s) {
   const message = (r) => r.payload === 'MESSAGE_CREATE';
   const guild = (r) => r.payload === 'GUILD_CREATE';
   const decodeNode = (p) => (r) => p(r) && r.library === 'discord.js';
-  const clientDefault = (r) => r.name === 'djs-rs Client (default)' || r.name === 'discord.js Client (default)';
+  // Equal caches (D-174): djs-rs with the cache discord.js keeps by default.
+  const clientDefault = (r) => r.name === 'djs-rs Client + cache like discord.js' || r.name === 'discord.js Client (default)';
   const most = Math.max(...s.memory.map((r) => r.guilds));
   const big = (r) => r.guilds === most;
   const idle = (r) => r.guilds === 0;
   const items = [
     ['Decode `MESSAGE_CREATE`', rust(s.decode, message), node(s.decode, decodeNode(message)), (r) => duration(r.median_ns), (a, b) => b.median_ns / a.median_ns, 'faster'],
     ['Decode `GUILD_CREATE` (1000 members)', rust(s.decode, guild), node(s.decode, decodeNode(guild)), (r) => duration(r.median_ns), (a, b) => b.median_ns / a.median_ns, 'faster'],
-    ['Event flood, default clients (events/s)', rust(s.flood, clientDefault), node(s.flood, clientDefault), (r) => grouped(r.events_per_sec), (a, b) => a.events_per_sec / b.events_per_sec, 'more'],
+    ['Event flood, full clients, equal caches (events/s)', rust(s.flood, clientDefault), node(s.flood, clientDefault), (r) => grouped(r.events_per_sec), (a, b) => a.events_per_sec / b.events_per_sec, 'more'],
     ['Event flood, gateway layer (events/s)', rust(s.flood, transport), node(s.flood, transport), (r) => grouped(r.events_per_sec), (a, b) => a.events_per_sec / b.events_per_sec, 'more'],
     ['Memory, idle bot (RSS, connected, no guilds)', rust(s.memory, idle), node(s.memory, idle), (r) => mib(r.rss_kib), (a, b) => b.rss_kib / a.rss_kib, 'less'],
     [`Memory, ${grouped(most * 1000)} members (RSS)`, rust(s.memory, big), node(s.memory, big), (r) => mib(r.rss_kib), (a, b) => b.rss_kib / a.rss_kib, 'less'],
@@ -415,7 +420,7 @@ function summarySection(s) {
   ];
   const picture = writeChart('summary', {
     title: 'How many times better djs-rs is than discord.js',
-    subtitle: 'ratio per scenario (default configurations, system allocator), higher is better',
+    subtitle: 'ratio per scenario (equal caches, otherwise default configurations; system allocator), higher is better',
     tick: (v) => `${v}×`,
     legend: false,
     single: true,

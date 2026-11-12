@@ -14,7 +14,7 @@ use std::{
 
 use djs_gateway::{Compression, Config, Shard};
 use djs_model::gateway::{DispatchEvent, GatewayEvent, Intents, ShardId};
-use djs_rs::{Client, Events, HandlerMode};
+use djs_rs::{Client, Events, HandlerMode, Shards, cache::CacheConfig};
 use serde_json::{Value, json};
 use tokio::sync::Notify;
 
@@ -84,21 +84,33 @@ impl Window {
     }
 }
 
-/// A djs-rs [`Client`] with one `MESSAGE_CREATE` handler, as a bot would register it.
+/// A djs-rs [`Client`] with one `MESSAGE_CREATE` handler, as a bot would register it;
+/// `--cache discord-js` gives it the cache discord.js keeps by default (D-174).
 pub(crate) async fn client(options: &Options, allocator: &str) {
     let window = Arc::new(Window::new(options.get("events", 1_000_000)));
     let sequential = options.get("mode", String::from("concurrent")) == "sequential";
     let current_thread = options.get("runtime", String::from("multi")) == "current";
-    let client = Client::builder(TOKEN)
+    let cached = match options.get("cache", String::from("none")).as_str() {
+        "none" => false,
+        "discord-js" => true,
+        other => panic!("unknown --cache {other} (none, discord-js)"),
+    };
+    // One fixed shard with a gateway URL: the client never calls Get Gateway Bot (which would
+    // go to the real Discord API, D-146).
+    let mut builder = Client::builder(TOKEN)
         .intents(INTENTS)
         .gateway_url(options.required("gateway"))
+        .shards(Shards::Count(1))
         .compression(Compression::None)
         .handler_mode(if sequential {
             HandlerMode::Sequential
         } else {
             HandlerMode::Concurrent
-        })
-        .build();
+        });
+    if cached {
+        builder = builder.cache(CacheConfig::discord_js());
+    }
+    let client = builder.build();
     let counter = Arc::clone(&window);
     client.on(Events::MessageCreate, move |_ctx, message| {
         let counter = Arc::clone(&counter);
@@ -108,16 +120,19 @@ pub(crate) async fn client(options: &Options, allocator: &str) {
             Ok(())
         }
     });
-    let running = client.clone();
-    tokio::spawn(async move { running.login().await });
+    crate::login(&client);
     window.done.notified().await;
-    let variant = match (sequential, current_thread) {
+    let mut variant = match (sequential, current_thread) {
         (false, false) => "Client + messageCreate handler",
         (true, false) => "Client + messageCreate handler, HandlerMode::Sequential",
         (false, true) => "Client + messageCreate handler, current-thread runtime",
         (true, true) => "Client + messageCreate handler, Sequential, current-thread runtime",
-    };
-    println!("{}", window.result("djs-rs", variant, allocator));
+    }
+    .to_owned();
+    if cached {
+        variant.push_str(", CacheConfig::discord_js()");
+    }
+    println!("{}", window.result("djs-rs", &variant, allocator));
     // Exit without the clean disconnect; the mock server does not care.
     std::process::exit(0);
 }

@@ -77,6 +77,18 @@ impl Options {
     }
 }
 
+/// Logs `client` in on a task; a failed login ends the process with an error instead of
+/// leaving the scenario waiting for events forever.
+fn login<B: djs_rs::cache::Backend>(client: &djs_rs::Client<B>) {
+    let client = client.clone();
+    tokio::spawn(async move {
+        if let Err(error) = client.login().await {
+            eprintln!("login failed: {error}");
+            std::process::exit(1);
+        }
+    });
+}
+
 /// Runs the subcommand named by the first argument. `allocator` names the global allocator
 /// of the calling binary and is included in every result.
 ///
