@@ -2606,6 +2606,31 @@ and why.
   one (≈ `broadcastEval`).
 - **Alternatives:** only named commands; only built-in values.
 
+### D-287 — Bots rebuild fast: the library builds the futures of its public async API
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Context (measured, D-283):** after editing `main.rs`, the `!ping` bot of
+  `benches/vs-serenity/bots/djs-rs` rebuilt in 9.9 s (release) against 4.95 s for serenity.
+  `-Z time-passes` showed 95 % of it in LLVM for the bot crate, whose IR was 2.3× serenity's
+  (727k vs 312k lines): the bodies of `async fn`s are instantiated in the crate that polls
+  them, so `client.login().await` pulled the whole client (shard loop, cache update, event
+  conversion, hyper/h2) into the bot crate; everything generic over the cache backend
+  (`Client<B>`, `Context<B>`, managers) is too; and serde's (de)serialization of the model
+  types (`Message`, `Component`, `CreateMessage`, …) is instantiated where it is used.
+  Prototypes (release rebuild, median of 3): login and REST unchanged 7.1 s without and
+  7.8 s with a `msg.reply`; login boxed in the library 0.98 s without REST; login and reply
+  both built in the library **0.97 s**.
+- **Decision:** the public async methods — every REST method of `djs-rest`, `Client::login`,
+  and the manager and structure methods of `djs-rs` — return `impl Future<Output = …> + Send`
+  whose future is created inside the library (boxed), so its body is compiled once, in the
+  library. For the default cache backend (`DashMapBackend`), the code that depends on the
+  backend is compiled into `djs-rs` through a table of functions that the non-generic
+  `Client::builder()` sets; `cache_backend::<C>()` swaps in the generic table, so custom
+  backends work as today (their part compiles in the bot). Calls (`.await`) do not change.
+  Each call costs one heap allocation; it is benchmarked against the current numbers.
+- **Alternatives:** removing the backend type parameter (`Client`/`Context` without `<B>`,
+  the cache behind a trait object: a breaking change); boxing only the REST methods and
+  `login` (the generic managers stay in the bot crate).
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
@@ -4186,7 +4211,8 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   faster. A likely cause is that the generic `Client` and the handler closures are
   monomorphized and optimized in the bot's crate; erasing types at the handler boundary or
   moving work into non-generic functions could help. Worth a measurement and a decision
-  before 1.0, since it is what a bot author feels on every edit.
+  before 1.0, since it is what a bot author feels on every edit. **Measured and decided:
+  D-287.**
 - **Ergonomics gaps found by the examples (C-107):** (1) an ephemeral or embed reply needs
   `let mut reply = MessageCallbackData::from(…); reply.flags = Some(MessageFlags::EPHEMERAL);`
   — the body types are `#[non_exhaustive]`, so struct literals are impossible outside the
