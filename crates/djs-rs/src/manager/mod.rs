@@ -40,6 +40,7 @@ mod ban;
 mod channel;
 mod command;
 mod emoji;
+mod gateway;
 mod guild;
 mod guild_channel;
 mod invite;
@@ -87,6 +88,7 @@ pub use self::{
     channel::{ChannelManager, OverwriteTarget},
     command::{CommandManager, GuildCommandManager},
     emoji::EmojiManager,
+    gateway::{FetchMembers, GatewayRequestError, GuildSoundboardSounds},
     guild::GuildManager,
     guild_channel::GuildChannelManager,
     invite::InviteManager,

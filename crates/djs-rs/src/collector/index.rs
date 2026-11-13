@@ -11,6 +11,7 @@ use core::{
     fmt,
     hash::{BuildHasherDefault, Hasher},
     sync::atomic::{AtomicU32, AtomicUsize, Ordering},
+    time::Duration,
 };
 use std::{
     collections::HashMap,
@@ -56,9 +57,18 @@ pub enum Sink {
     /// A modal collector.
     Modals(Tx<ModalInteraction>),
     /// A member request (D-270).
-    MemberChunks(Tx<Arc<GuildMembersChunk>>),
+    MemberChunks(Tx<MemberReply>),
     /// A soundboard sounds request.
     SoundboardSounds(Tx<Arc<SoundboardSounds>>),
+}
+
+/// What a member request receives.
+#[derive(Debug)]
+pub enum MemberReply {
+    /// One chunk of the answer.
+    Chunk(Arc<GuildMembersChunk>),
+    /// Discord rate limited the request; it may be sent again after this long.
+    RateLimited(Duration),
 }
 
 /// The deletions that end the collectors living in a channel or a guild.
@@ -98,7 +108,7 @@ impl Sink {
                 DELETIONS[2],
             ],
             Self::Modals(_) => &[EventKind::InteractionCreate],
-            Self::MemberChunks(_) => &[EventKind::GuildMembersChunk],
+            Self::MemberChunks(_) => &[EventKind::GuildMembersChunk, EventKind::RateLimited],
             Self::SoundboardSounds(_) => &[EventKind::SoundboardSounds],
         }
     }
@@ -278,7 +288,6 @@ impl Collectors {
     }
 
     /// Returns a nonce no other request of this client uses.
-    #[expect(dead_code, reason = "the gateway member requests come in step 4b")]
     pub(crate) fn nonce(&self) -> u64 {
         let mut index = self.lock();
         index.next_id += 1;
@@ -419,7 +428,23 @@ impl Collectors {
                 if let Some(nonce) = chunk.nonce.as_deref().and_then(parse_nonce) {
                     self.each(Key::Nonce(nonce), |sink| {
                         if let Sink::MemberChunks(tx) = sink {
-                            send(tx, Arc::clone(chunk));
+                            send(tx, MemberReply::Chunk(Arc::clone(chunk)));
+                        }
+                    });
+                }
+            }
+            Dispatch::RateLimited(limited) => {
+                let nonce = limited
+                    .meta
+                    .as_ref()
+                    .and_then(|meta| meta.nonce.as_deref())
+                    .and_then(parse_nonce);
+                if let Some(nonce) = nonce {
+                    let retry_after =
+                        Duration::try_from_secs_f64(limited.retry_after).unwrap_or_default();
+                    self.each(Key::Nonce(nonce), |sink| {
+                        if let Sink::MemberChunks(tx) = sink {
+                            send(tx, MemberReply::RateLimited(retry_after));
                         }
                     });
                 }

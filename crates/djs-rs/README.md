@@ -110,6 +110,9 @@ The operations of a resource live on a manager reached from the handler `Context
   Discord, and with or without a cache. Bans, which are never cached, are `djs-model` types.
 - Deleting through a manager only sends the request: the cache changes when the gateway
   event arrives, so the delete event still carries the previous state.
+- Some answers come through the gateway: `ctx.members(guild).fetch_all()`,
+  `.fetch_by_query("ab")` and `.fetch_many(ids)` gather the member chunks of their request
+  (D-270), and `ctx.guilds().fetch_soundboard_sounds(ids, time)` the sounds of several guilds.
 
 Structures stay plain data; behaviour such as `msg.reply(&ctx, …)` comes from extension traits
 in the prelude (`MessageExt`, `ChannelExt`, `UserExt`, `MemberExt`, `GuildExt`) that take the

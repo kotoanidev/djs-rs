@@ -17,6 +17,10 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `Context` by channel ID, and `interaction.component_collector` / `await_component` /
   `await_modal_submit`. Events reach them through an index by ID (D-264) and still reach the
   handlers and routes (D-266).
+- Gateway requests in `djs-rs` (Phase 8 step 4b, D-270, C-104): `ctx.members(guild)
+  .fetch_all()` / `.fetch_by_query(q)` / `.fetch_many(ids)` (`limit`, `presences`, `time`)
+  gather the `GUILD_MEMBERS_CHUNK` answers of their nonce and cache the members;
+  `ctx.guilds().fetch_soundboard_sounds(ids, time)`; `manager::GatewayRequestError`.
 - Interaction benchmarks and extreme-load tests (Phase 8 step 3d, C-102):
   `djs-model/benches/interaction.rs` (getters 2–22 ns, no allocation; decoding a 1.9 KB
   interaction 3.8 µs), a gateway `INTERACTION_CREATE` flood, and

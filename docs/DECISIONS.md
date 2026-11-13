@@ -3908,6 +3908,24 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   place back under `max`, as discord.js' `total--`; the item reaching a limit is still
   yielded; a component of another `component_type` is not even processed.
 
+### C-104 — Phase 8 step 4b: gateway member and soundboard requests (D-265, D-270)
+- `manager/gateway.rs`: `FetchMembers` (`limit`, `presences`, `time`; `IntoFuture`, boxed
+  once per request), `GatewayRequestError` (`ShardNotRunning`, `Send`, `Timeout`,
+  `RateLimited { retry_after }`, `Ended(EndReason)`) — a separate error type, as
+  `djs_rs::Error` is the login error and the managers return REST errors;
+  `GuildSoundboardSounds`.
+- Defaults: 120 s for members and an explicit `time` for the sounds (discord.js: 120 s and
+  10 s); a query asks for 100 members unless `limit` says otherwise (Discord requires a
+  limit with a query), `fetch_all` sends the empty query with limit 0; `fetch_many` splits
+  the IDs into requests of 100 (Discord's maximum), sent one after another; each request has
+  its own nonce `djs-rs:<n>`, so other libraries' and the user's own requests are not
+  mistaken for ours.
+- A `RATE_LIMITED` event for our nonce ends the request with `RateLimited`; a deletion of
+  the guild or the shutdown with `Ended`. The returned members are the cache's (stored while
+  handling each chunk), converted when the cache keeps no members.
+- `GuildManager::fetch_soundboard_sounds(ids, time)` groups the guilds by shard (one
+  command per shard) and waits for every guild.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

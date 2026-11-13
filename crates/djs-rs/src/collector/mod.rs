@@ -97,7 +97,9 @@ use tokio::{
     time::{Instant, Sleep},
 };
 
-pub(crate) use self::index::{Collectors, Key, Registration, Signal, Sink};
+pub(crate) use self::index::{
+    Collectors, Key, MemberReply, NONCE_PREFIX, Registration, Signal, Sink,
+};
 use crate::{
     Context,
     router::{ComponentInteraction, ModalInteraction},

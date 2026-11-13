@@ -10,7 +10,7 @@ use djs_rs::{
     gateway::Compression,
     model::{
         component::ComponentType,
-        id::{ChannelId, MessageId, UserId},
+        id::{ChannelId, GuildId, MessageId, UserId},
         interaction::Interaction,
         message::Message,
     },
@@ -118,15 +118,20 @@ fn the_message() -> Message {
     serde_json::from_value(message_json(CHANNEL, MESSAGE, 1, "watched")).unwrap()
 }
 
-/// A gateway that identifies the client, sends `READY`, then forwards what the test sends.
+type Script = mpsc::UnboundedSender<(&'static str, Value)>;
+
+/// A gateway that identifies the client, sends `READY`, then forwards what the test sends;
+/// the client's member and soundboard requests (opcodes 8 and 31) go to `requests`.
 async fn scripted_gateway() -> (
     String,
-    mpsc::UnboundedSender<(&'static str, Value)>,
+    Script,
+    mpsc::UnboundedReceiver<Value>,
     JoinHandle<()>,
 ) {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let url = format!("ws://{}", listener.local_addr().unwrap());
     let (tx, mut rx) = mpsc::unbounded_channel::<(&'static str, Value)>();
+    let (requests_tx, requests) = mpsc::unbounded_channel();
     let task = tokio::spawn(async move {
         let (stream, _) = listener.accept().await.unwrap();
         let (_, mut ws) = ServerBuilder::new().accept(stream).await.unwrap();
@@ -163,20 +168,30 @@ async fn scripted_gateway() -> (
                     sequence += 1;
                 }
                 frame = ws.next() => match frame {
-                    Some(Ok(frame)) if !frame.is_close() => {}
+                    Some(Ok(frame)) if !frame.is_close() => {
+                        let command = frame
+                            .as_text()
+                            .and_then(|text| serde_json::from_str::<Value>(text).ok());
+                        if let Some(command) = command
+                            && (command["op"] == 8 || command["op"] == 31)
+                        {
+                            let _ = requests_tx.send(command["d"].clone());
+                        }
+                    }
                     _ => return,
                 },
             }
         }
     });
-    (url, tx, task)
+    (url, tx, requests, task)
 }
 
 /// A logged-in client, its handler context and the gateway's script.
 struct Session {
     client: Client,
     ctx: Context,
-    gateway: mpsc::UnboundedSender<(&'static str, Value)>,
+    gateway: Script,
+    requests: mpsc::UnboundedReceiver<Value>,
     running: JoinHandle<Result<(), djs_rs::Error>>,
 }
 
@@ -186,7 +201,7 @@ impl Session {
     }
 
     async fn start_with(configure: impl FnOnce(Client) -> Client) -> Self {
-        let (url, gateway, _task) = scripted_gateway().await;
+        let (url, gateway, requests, _task) = scripted_gateway().await;
         let client = Client::builder("test-token")
             .intents(Intents::GUILDS)
             .gateway_url(url)
@@ -213,8 +228,14 @@ impl Session {
             client,
             ctx,
             gateway,
+            requests,
             running,
         }
+    }
+
+    /// The next member or soundboard request the client sent.
+    async fn request(&mut self) -> Value {
+        timeout(STEP, self.requests.recv()).await.unwrap().unwrap()
     }
 
     fn send(&self, dispatch: (&'static str, Value)) {
@@ -553,5 +574,144 @@ async fn dropping_a_collector_unregisters_it() {
     session.send(message_create(CHANNEL, 800, 5, "only one listener"));
     assert_eq!(next(&mut second).await.unwrap().id, MessageId::new(800));
     assert_eq!(next(&mut second).await.map(|m| m.id), None);
+    session.finish().await;
+}
+
+fn chunk(nonce: &Value, index: u32, count: u32, members: &[u64]) -> (&'static str, Value) {
+    let members: Vec<Value> = members.iter().map(|&id| member(id)).collect();
+    (
+        "GUILD_MEMBERS_CHUNK",
+        json!({
+            "guild_id": GUILD.to_string(), "members": members, "chunk_index": index,
+            "chunk_count": count, "nonce": nonce
+        }),
+    )
+}
+
+#[tokio::test]
+async fn fetch_all_gathers_every_chunk_of_its_nonce() {
+    let mut session = Session::start().await;
+    let ctx = session.ctx.clone();
+    let fetching = tokio::spawn(async move {
+        ctx.members(GuildId::new(GUILD))
+            .fetch_all()
+            .presences(true)
+            .await
+    });
+    let request = session.request().await;
+    assert_eq!(
+        (
+            &request["guild_id"],
+            &request["query"],
+            &request["limit"],
+            &request["presences"]
+        ),
+        (
+            &json!(GUILD.to_string()),
+            &json!(""),
+            &json!(0),
+            &json!(true)
+        )
+    );
+    let nonce = request["nonce"].clone();
+    assert!(nonce.as_str().unwrap().starts_with("djs-rs:"), "{nonce}");
+    // Another request's chunk is not part of the answer.
+    session.send(chunk(&json!("someone-else"), 0, 1, &[99]));
+    session.send(chunk(&nonce, 0, 2, &[5, 6]));
+    session.send(chunk(&nonce, 1, 2, &[7]));
+    let members = timeout(STEP, fetching).await.unwrap().unwrap().unwrap();
+    assert_eq!(
+        members.keys().copied().collect::<Vec<_>>(),
+        [UserId::new(5), UserId::new(6), UserId::new(7)]
+    );
+    assert_eq!(members[&UserId::new(6)].user.username, "user-6");
+    session.finish().await;
+}
+
+#[tokio::test]
+async fn fetch_many_asks_in_batches_of_100() {
+    let mut session = Session::start().await;
+    let ctx = session.ctx.clone();
+    let fetching = tokio::spawn(async move {
+        ctx.members(GuildId::new(GUILD))
+            .fetch_many((1..=150).map(UserId::new))
+            .await
+    });
+    for (expected, found) in [(100, [3, 4]), (50, [120, 150])] {
+        let request = session.request().await;
+        assert_eq!(request["user_ids"].as_array().unwrap().len(), expected);
+        assert_eq!(request.get("query"), None);
+        session.send(chunk(&request["nonce"], 0, 1, &found));
+    }
+    let members = timeout(STEP, fetching).await.unwrap().unwrap().unwrap();
+    assert_eq!(members.len(), 4);
+    session.finish().await;
+}
+
+#[tokio::test]
+async fn member_requests_time_out_or_report_the_rate_limit() {
+    use djs_rs::manager::GatewayRequestError;
+
+    let mut session = Session::start().await;
+    let ctx = session.ctx.clone();
+    let error = ctx
+        .members(GuildId::new(GUILD))
+        .fetch_by_query("ab")
+        .limit(5)
+        .time(Duration::from_millis(100))
+        .await
+        .unwrap_err();
+    assert!(matches!(error, GatewayRequestError::Timeout), "{error:?}");
+    let request = session.request().await;
+    assert_eq!(
+        (&request["query"], &request["limit"]),
+        (&json!("ab"), &json!(5))
+    );
+
+    let limited =
+        tokio::spawn(async move { ctx.members(GuildId::new(GUILD)).fetch_by_query("cd").await });
+    let request = session.request().await;
+    session.send((
+        "RATE_LIMITED",
+        json!({"opcode": 8, "retry_after": 2.5,
+        "meta": {"guild_id": GUILD.to_string(), "nonce": request["nonce"]}}),
+    ));
+    let error = timeout(STEP, limited).await.unwrap().unwrap().unwrap_err();
+    assert!(
+        matches!(error, GatewayRequestError::RateLimited { retry_after } if retry_after == Duration::from_millis(2500)),
+        "{error:?}"
+    );
+    session.finish().await;
+}
+
+#[tokio::test]
+async fn soundboard_sounds_of_several_guilds() {
+    let mut session = Session::start().await;
+    let ctx = session.ctx.clone();
+    let fetching = tokio::spawn(async move {
+        ctx.guilds()
+            .fetch_soundboard_sounds([GuildId::new(GUILD), GuildId::new(11)], STEP)
+            .await
+    });
+    let request = session.request().await;
+    assert_eq!(request["guild_ids"], json!([GUILD.to_string(), "11"]));
+    let sound = |id: u64, guild: u64| {
+        json!({"name": format!("sound-{id}"),
+        "sound_id": id.to_string(), "volume": 1.0, "emoji_id": null, "emoji_name": null,
+        "guild_id": guild.to_string(), "available": true})
+    };
+    session.send((
+        "SOUNDBOARD_SOUNDS",
+        json!({"guild_id": "11", "soundboard_sounds": []}),
+    ));
+    session.send((
+        "SOUNDBOARD_SOUNDS",
+        json!({"guild_id": GUILD.to_string(),
+        "soundboard_sounds": [sound(40, GUILD), sound(41, GUILD)]}),
+    ));
+    let sounds = timeout(STEP, fetching).await.unwrap().unwrap().unwrap();
+    assert_eq!(sounds.len(), 2);
+    assert!(sounds[&GuildId::new(11)].is_empty());
+    assert_eq!(sounds[&GuildId::new(GUILD)].len(), 2);
     session.finish().await;
 }

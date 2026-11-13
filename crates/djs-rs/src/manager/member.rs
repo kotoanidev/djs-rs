@@ -14,7 +14,7 @@ use djs_model::{
 };
 use djs_rest::Error;
 
-use super::Fetch;
+use super::{Fetch, FetchMembers};
 use crate::Context;
 
 /// The members of one guild. Returned by [`Context::members`].
@@ -73,6 +73,49 @@ impl<'a, B: Backend> MemberManager<'a, B> {
             let member = ctx.rest().get_guild_member(guild_id, user_id).await?;
             Ok(ctx.store_member(guild_id, &member))
         })
+    }
+
+    /// Every member of the guild, through the gateway (D-270): sends [Request Guild
+    /// Members](djs_model::gateway::payload::RequestGuildMembers) on the guild's shard and
+    /// gathers every chunk of the answer. Needs the privileged `GUILD_MEMBERS` intent. The
+    /// members (and, with [`presences`](FetchMembers::presences), their presences) are cached.
+    ///
+    /// Await the returned request; it fails with
+    /// [`GatewayRequestError`](super::GatewayRequestError) if the guild's shard does not run
+    /// here, the answer does not complete in [`time`](FetchMembers::time) (120 seconds by
+    /// default) or Discord rate limits it.
+    ///
+    /// discord.js counterpart: `GuildMemberManager#fetch()` (no options).
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use djs_rs::{model::id::GuildId, prelude::*};
+    /// # async fn example(ctx: Context, guild_id: GuildId) -> Result<(), HandlerError> {
+    /// let members = ctx.members(guild_id).fetch_all().await?;
+    /// println!("{} members", members.len());
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn fetch_all(self) -> FetchMembers<'a, B> {
+        FetchMembers::all(self.ctx, self.guild_id)
+    }
+
+    /// The members whose username or nickname starts with `query`, through the gateway (at
+    /// most [`limit`](FetchMembers::limit), 100 by default), like [`fetch_all`](Self::fetch_all).
+    ///
+    /// discord.js counterpart: `GuildMemberManager#fetch({ query, limit })`.
+    pub fn fetch_by_query(self, query: impl Into<String>) -> FetchMembers<'a, B> {
+        FetchMembers::query(self.ctx, self.guild_id, query.into())
+    }
+
+    /// The members with these user IDs, through the gateway, like
+    /// [`fetch_all`](Self::fetch_all); IDs that are not members are left out. Discord takes
+    /// 100 IDs per request, so more are asked in several requests, one after another.
+    ///
+    /// discord.js counterpart: `GuildMemberManager#fetch({ user: [ids] })`.
+    pub fn fetch_many(self, user_ids: impl IntoIterator<Item = UserId>) -> FetchMembers<'a, B> {
+        FetchMembers::users(self.ctx, self.guild_id, user_ids.into_iter().collect())
     }
 
     /// A page of members, sorted by user ID ([List Guild

@@ -1,6 +1,6 @@
 //! [`GuildManager`].
 
-use std::{future::Future, sync::Arc};
+use std::{future::Future, sync::Arc, time::Duration};
 
 use djs_cache::{Backend, CacheView, CachedGuild};
 use djs_collection::Collection;
@@ -12,7 +12,7 @@ use djs_model::{
 };
 use djs_rest::Error;
 
-use super::Fetch;
+use super::{Fetch, GatewayRequestError, GuildSoundboardSounds};
 use crate::Context;
 
 /// The guilds of the bot. Returned by [`Context::guilds`].
@@ -42,6 +42,27 @@ impl<'a, B: Backend> GuildManager<'a, B> {
     #[must_use]
     pub fn cache(self) -> Option<CacheView<'a, GuildId, CachedGuild, B>> {
         self.ctx.cache().map(djs_cache::Cache::guilds)
+    }
+
+    /// The soundboard sounds of `guild_ids`, through the gateway (D-265): sends [Request
+    /// Soundboard Sounds](djs_model::gateway::payload::RequestSoundboardSounds) on the shards
+    /// of the guilds and waits up to `time` for every guild's answer (discord.js waits 10
+    /// seconds). The sounds are cached. A single guild's sounds can also be listed over REST
+    /// ([`SoundboardSoundManager::list`](super::SoundboardSoundManager::list)).
+    ///
+    /// discord.js counterpart: `GuildManager#fetchSoundboardSounds`.
+    ///
+    /// # Errors
+    ///
+    /// [`GatewayRequestError`] if a guild's shard does not run here, the request could not
+    /// be sent, or not every guild answered in time.
+    pub async fn fetch_soundboard_sounds(
+        self,
+        guild_ids: impl IntoIterator<Item = GuildId>,
+        time: Duration,
+    ) -> Result<GuildSoundboardSounds, GatewayRequestError> {
+        super::gateway::fetch_soundboard_sounds(self.ctx, guild_ids.into_iter().collect(), time)
+            .await
     }
 
     /// A guild: the cached one, or [Get Guild](djs_rest::Rest::get_guild) (with the

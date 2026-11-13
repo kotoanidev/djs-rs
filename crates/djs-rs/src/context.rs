@@ -27,7 +27,6 @@ pub(crate) struct Shared {
 
 impl Shared {
     /// The sender of shard `number`, if it runs in this client.
-    #[expect(dead_code, reason = "the gateway member requests come in step 4b")]
     pub(crate) fn shard(&self, number: u32) -> Option<MessageSender> {
         self.shards
             .read()
@@ -97,7 +96,6 @@ impl<B: Backend> Context<B> {
     }
 
     /// The sender of the shard that receives `guild`'s events, if it runs in this client.
-    #[expect(dead_code, reason = "the gateway member requests come in step 4b")]
     pub(crate) fn guild_shard(&self, guild: GuildId) -> Option<MessageSender> {
         let own = self.inner.shard;
         let number = ShardId::for_guild(guild, own.total()).number();

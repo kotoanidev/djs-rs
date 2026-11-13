@@ -528,15 +528,16 @@ fields with `Deref` to `new`). Steps:
       (application ID, collectors, `sequential`, shard senders); the client's `wants` / `emit`
       feed the index; ext methods on messages, channels and interactions; tests
       `tests/collectors.rs` (scripted mock gateway, 11 tests).
-   b. **Next:** gateway member requests and soundboard sounds (D-270): `members(guild)
-      .fetch_all()` / `.fetch_by_query(q).limit(n)` / `.fetch_many(ids)` with `presences` and
-      `time` — send `RequestGuildMembers` with a `djs-rs:<n>` nonce (`Collectors::nonce`) on
-      the guild's shard (`Context::guild_shard`), register a `Sink::MemberChunks` entry under
-      `Key::Nonce`, assemble the chunks (`chunk_count`), store members (and presences) in the
-      cache, return `Collection<UserId, Arc<CachedMember>>`; the soundboard request likewise
-      (`Sink::SoundboardSounds`, `Key::Sounds`). The `#[expect(dead_code)]` marks in
-      `index.rs` / `context.rs` go away then.
-   c. Benchmarks + extreme-load tests (D-041).
+   b. ✅ Gateway member requests and soundboard sounds (D-270, C-104):
+      `crates/djs-rs/src/manager/gateway.rs` (`FetchMembers`, `GatewayRequestError`,
+      `fetch_soundboard_sounds`); `MemberManager::{fetch_all, fetch_by_query, fetch_many}`,
+      `GuildManager::fetch_soundboard_sounds`; the index's `MemberReply` (chunks and
+      `RATE_LIMITED` by nonce); 4 tests in `tests/collectors.rs` (the scripted gateway answers
+      opcodes 8 and 31).
+   c. **Next:** benchmarks + extreme-load tests (D-041): the cost of `deliver` / `wants`
+      with 0, 1 and 10 000 collectors on the event path (divan), a flood of 1M events with
+      many collectors, a component storm on one collector, and `fetch_all` of a large guild
+      (100 000 members in 1 000-member chunks); all through the guard, one at a time.
 
 > **Heavy runs (D-257, D-259–D-262):** the owner's laptop hard-froze on 2026-11-13 under
 > assistant load. Every cargo build/test/bench/stress test goes through
