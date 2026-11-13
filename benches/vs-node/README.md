@@ -15,7 +15,7 @@ benches/vs-node/run.sh     # runs everything and rewrites docs/VS_NODE.md
 | `run.sh` | Orchestrator: builds, runs every scenario, calls `report.mjs`. Settings are environment variables at its top. |
 | `src/` | The Rust crate `djs-vs-node` (`publish = false`): payload generator, mock servers and the djs-rs runners. |
 | `src/bin/vs-node.rs`, `src/bin/vs-node-mimalloc.rs` | The same subcommands with the system allocator and with mimalloc. |
-| `node/` | The discord.js runners (`decode`, `flood`, `memory`, `rest`), shared helpers and `report.mjs`. |
+| `node/` | The discord.js runners (`decode`, `flood`, `memory`, `rest`), shared helpers, `report.mjs` and `charts.mjs` (its charts and tables, also used by `benches/vs-serenity`). |
 | `package.json`, `package-lock.json` | The pinned npm packages (`npm ci`; `node_modules/` is git-ignored). |
 | `results.json` | The committed summary of the last run, from which `report.mjs` renders the page. |
 | `out/` | Raw results, fixtures and mock-server logs of the last run (git-ignored). |

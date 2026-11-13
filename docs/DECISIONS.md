@@ -4112,10 +4112,46 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   connecting outside fails), so no future mistake can reach Discord. The runners keep their
   own checks (only `127.0.0.1` URLs; only the test CA trusted).
 
+### C-109 — How the serenity comparison is measured (the harness's defaults)
+- **Equal caches** (D-280): serenity's default cache `Settings` keep guilds with their
+  members, roles, emojis, stickers, channels, threads, presences, voice states, stage
+  instances and scheduled events, plus channels and users, and no messages
+  (`max_messages: 0`); `djs_vs_node::serenity_cache()` gives a djs-rs `Client` the same
+  (messages and soundboard sounds disabled). djs-rs without a cache (its default) is shown
+  as a variant.
+- **Equal optimization:** the harness workspace has the main workspace's release profile
+  (`lto = "fat"`, `codegen-units = 1`), so the serenity runners are built like the djs-rs
+  runners of `benches/vs-node`. The two `!ping` bots of `build.sh` use the default profiles
+  of a new bot project, both alike.
+- **REST:** serenity over the HTTPS mock (D-282) is the baseline; serenity with its limiter
+  off over plain HTTP is a bound, shown and named as such. djs-rs's proactive global limit
+  (50/s by default) is off in the throughput run, as in `docs/VS_NODE.md`; in the
+  reliability run both libraries keep their defaults, and 40 requests stay under that limit.
+- **Builds:** `cargo build` from an empty target directory with every CPU, then the rebuild
+  after touching `main.rs`; two runs alternated, the faster shown with the range; offline,
+  in the network namespace. Dependencies: `cargo tree -e normal` for this platform.
+- **Gateway faults:** one message per ms, 10,000 in all, the fault at message 2000; a
+  heartbeat interval of 1000 ms (Discord's is about 41 s) so a zombie connection is noticed
+  within a run; the time without events is the mock's, from the fault to the first `READY`
+  or `RESUMED`, the same clock for both libraries. A client that does not get every message
+  waits until the production ends plus 5 s.
+- **API faults:** the 429s ask for 0.5 s in the body's `retry_after` and send a
+  whole-second `Retry-After` header, rounded up as Discord does (its examples: `65` for
+  `64.57`); a request within 25 ms of a 429 counts as already in flight, a later one inside
+  the window as early. The 502s hit the first attempt at every 4th message of a channel, as
+  an HTML page from a proxy, so a client that retries sends everything.
+
 ---
 
 ## Open questions (to ask the owner when relevant)
 
+- **djs-rs bots rebuild slower than serenity bots** (`docs/VS_SERENITY.md`, C-109): after
+  editing `main.rs` of the same `!ping` bot, a release rebuild takes about twice as long
+  with djs-rs as with serenity (debug too, by a smaller margin), although clean builds are
+  faster. A likely cause is that the generic `Client` and the handler closures are
+  monomorphized and optimized in the bot's crate; erasing types at the handler boundary or
+  moving work into non-generic functions could help. Worth a measurement and a decision
+  before 1.0, since it is what a bot author feels on every edit.
 - **Ergonomics gaps found by the examples (C-107):** (1) an ephemeral or embed reply needs
   `let mut reply = MessageCallbackData::from(…); reply.flags = Some(MessageFlags::EPHEMERAL);`
   — the body types are `#[non_exhaustive]`, so struct literals are impossible outside the

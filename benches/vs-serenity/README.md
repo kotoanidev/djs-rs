@@ -27,7 +27,12 @@ never builds serenity (D-278).
 benches/vs-serenity/run.sh           # performance: decode, flood, memory, REST → out/results.jsonl
 benches/vs-serenity/build.sh         # resources: builds, sizes, dependencies → out/build.jsonl
 benches/vs-serenity/reliability.sh   # reliability: gateway and API faults → out/reliability.jsonl
+node benches/vs-serenity/report.mjs benches/vs-serenity/out   # → results.json, docs/VS_SERENITY.md, docs/vs-serenity/*.svg
 ```
+
+`report.mjs` aggregates the runs (the median run of each configuration, with its range) into
+the committed `results.json` and rewrites the generated parts of `docs/VS_SERENITY.md`; with
+no argument it re-renders the page from `results.json` alone.
 
 `build.sh` builds offline: fetch the bots' dependencies first (`cargo fetch` in each of
 `bots/djs-rs` and `bots/serenity`). `out/` is git-ignored.
