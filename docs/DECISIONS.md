@@ -2728,6 +2728,40 @@ and why.
 - **Alternatives:** Discord's pseudocode only (as discord.js); both a filtered and a raw
   method.
 
+### D-296 — Shard processes run the same executable
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Decision:** the manager starts shard processes from `std::env::current_exe()` with an
+  environment variable that marks the process as a shard (with its shard IDs and the IPC
+  address and token of D-285); the bot's `main` has one entry point that recognizes its
+  role. One binary to build and deploy. Starting another executable stays possible as an
+  option.
+- **Alternatives:** a separate bot binary given by path, as discord.js's
+  `new ShardingManager('./bot.js')`.
+
+### D-297 — Shards per process: configurable, one by default
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Decision:** one shard per process by default, as discord.js; a `shards_per_process`
+  option groups shards into one process (a cluster), so that a large bot does not run
+  hundreds of processes, each with its own cache, runtime and REST client.
+- **Alternatives:** always one per process; clusters sized automatically from the CPU count.
+
+### D-298 — Crashed shard processes are restarted with a growing delay
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Decision:** by default the manager restarts a process that exits; after repeated quick
+  failures the delay grows (for example 1 s, 2 s, 4 s, … up to a limit) so that a failing
+  bot does not loop. Configurable and can be turned off; every exit is also an event for the
+  manager's code.
+- **Alternatives:** discord.js's fixed 500 ms respawn; no restart (an event only).
+
+### D-299 — The manager is the IDENTIFY queue of every process
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Decision:** shard processes ask the manager for an IDENTIFY slot over the IPC of D-285,
+  and the manager grants them by `max_concurrency` buckets, one per bucket every 5 s (what
+  `LocalIdentifyQueue` does within one process). Starts are as fast as Discord allows and
+  stay correct when a process is restarted later.
+- **Alternatives:** starting processes one after another with a fixed delay (~5.5 s, as
+  discord.js) and letting each identify on its own.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)

@@ -632,7 +632,11 @@ fields with `Deref` to `new`). Steps:
    behind the `sharding` feature, TCP 127.0.0.1 + length-prefixed JSON with a per-process
    token, built-in values + named typed commands instead of `broadcastEval`. Still to ask:
    the process model (re-spawn the same executable or a given binary), shards per process,
-   respawn policy, IDENTIFY coordination across processes.
+   respawn policy, IDENTIFY coordination across processes. **Decided 2026-11-14:** D-296
+   (the same executable, role from an environment variable), D-297 (`shards_per_process`,
+   default 1), D-298 (restart with a growing delay), D-299 (the manager is the IDENTIFY
+   queue). Still to ask before coding: the public API shape (names and entry point), the
+   REST global rate limit across processes, and the step order.
 
 > **Heavy runs (D-257, D-259–D-262):** the owner's laptop hard-froze on 2026-11-13 under
 > assistant load. Every cargo build/test/bench/stress test goes through
