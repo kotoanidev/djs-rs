@@ -491,9 +491,12 @@ fields with `Deref` to `new`). Steps:
       responses, the original response and follow-ups; 3 tests in `tests/managers.rs`
       (every callback body, the webhook routes without the bot token, and an end-to-end
       `INTERACTION_CREATE` → handler → `reply` through `mock_gateway_with`).
-   c. **Next:** the router (D-251): ask the owner its shape first (registration API, how
-      handlers get the typed data, subcommands, component `custom_id` matching, unmatched
-      interactions).
+   c. **Next:** the router (D-251). Shape decided 2026-11-13: D-252 (handlers get
+      `CommandInteraction` / `ComponentInteraction` / `ModalInteraction` /
+      `AutocompleteInteraction` wrappers over the same `Arc<InteractionCreate>`, deref to the
+      data + the responses), D-253 (full-path keys `"mod ban"`, `"mod"` catches the rest),
+      D-254 (`custom_id` prefix before `:`, the rest as arguments, hash-map lookup), D-255
+      (routes only; `InteractionCreate` still emitted; no command registration).
    d. Benchmarks + extreme-load tests (D-041).
 4. Collectors and `await_*`. 5. Partials and intents guidance. 6. Examples.
 

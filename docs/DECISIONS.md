@@ -2254,6 +2254,40 @@ and why.
 - **Alternatives:** none now (a `match` on the name, as with discord.js), maybe after
   Phase 8.
 
+### D-252 — Router handlers get a typed interaction wrapper
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Decision:** a handler registered with the router (D-251) receives `(ctx, CommandInteraction)`
+  — and `ComponentInteraction`, `ModalInteraction`, `AutocompleteInteraction` for the other
+  kinds — a wrapper holding the same `Arc<InteractionCreate>` (no extra allocation) that
+  dereferences to the typed data (`get_string`, `subcommand`, …) and offers the responses of
+  `InteractionExt` (`cmd.reply(&ctx, …)`).
+- **Alternatives:** the event's `(ctx, Arc<InteractionCreate>)`, the data taken out with
+  `interaction.command().unwrap()`.
+
+### D-253 — Subcommands are routed by their full path
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Decision:** the route key is the full command name as Discord shows it:
+  `client.command("mod ban", …)`, `client.command("mod config set", …)`. A route for the
+  top-level name (`"mod"`) catches the subcommands that have no route of their own.
+- **Alternatives:** only the top-level name (the handler matches `subcommand()`); a nested
+  router builder.
+
+### D-254 — Component and modal `custom_id`s are routed by the prefix before `:`
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Decision:** `client.component("vote", …)` (and `client.modal(…)`) catches the custom IDs
+  `vote` and `vote:42`; the rest after the first `:` (`42`) is available to the handler as
+  its arguments. Routes are looked up in a hash map, no regular expressions.
+- **Alternatives:** exact matches only; exact matches plus arbitrary prefixes (a linear scan).
+
+### D-255 — The router only routes; it does not register commands
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Decision:** the router dispatches incoming interactions to handlers; commands are
+  registered with Discord as before (`ctx.commands().set(…)`, `ctx.guild_commands(g).set(…)`,
+  for example in `ClientReady`). `Events::InteractionCreate` is still emitted for every
+  interaction.
+- **Alternatives:** routes registered with command builders and synchronised with a bulk
+  overwrite at `READY`.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
