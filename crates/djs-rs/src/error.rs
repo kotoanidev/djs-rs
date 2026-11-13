@@ -32,4 +32,10 @@ pub enum Error {
     /// [`Client::login`](crate::Client::login) was called while the client was already running.
     #[error("the client is already logged in")]
     AlreadyRunning,
+    /// The connection of a cluster process to its manager failed
+    /// ([`ClientBuilder::cluster`](crate::ClientBuilder::cluster), D-300).
+    #[cfg(feature = "sharding")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "sharding")))]
+    #[error("the connection to the cluster manager failed")]
+    Cluster(#[from] crate::sharding::ClusterError),
 }

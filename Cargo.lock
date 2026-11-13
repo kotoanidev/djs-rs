@@ -291,6 +291,7 @@ dependencies = [
  "hyper",
  "hyper-util",
  "mimalloc",
+ "serde",
  "serde_json",
  "thiserror",
  "tokio",

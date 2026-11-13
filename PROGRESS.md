@@ -31,8 +31,8 @@ extreme-load tests in `docs/PERFORMANCE.md`).
 **The serenity comparison: ✅ done 2026-11-13** (`docs/VS_SERENITY.md`, D-277–D-282, C-108,
 C-109). **Next: the fixes found by the comparison (D-283) — the rebuild time after an edit
 ✅ (D-287–D-289, `docs/VS_SERENITY.md` re-measured), the ergonomics gaps ✅ (D-290–D-295).
-Next: Phase 9** (D-284–D-286 already decided; the remaining questions are asked first),
-see "Next step".
+**Phase 9 — multi-process sharding: in progress** (step 1 of 5 ✅ 2026-11-14), see "Next
+step".
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-075 in `docs/DECISIONS.md`; Claude defaults C-001 …
@@ -638,7 +638,22 @@ fields with `Deref` to `new`). Steps:
    queue), D-300 (`sharding::process()` → assignment → `ClientBuilder::cluster`, else the
    manager), D-301 (`ClusterManager`, `Cluster`, `ClusterClient` via `client.cluster()`),
    D-302 (REST limits per process), D-303 (order: IPC + spawning → IDENTIFY queue →
-   restarts → values and commands → benchmarks). **Next: step 1.**
+   restarts → values and commands → benchmarks), D-304 (`tokio` `process`). Steps, one
+   commit each:
+   1. ✅ IPC, starting the processes, shard assignment (D-285, D-296, D-297, D-300, C-112):
+      `crates/djs-rs/src/sharding/{mod.rs (process(), ClusterError), ipc.rs (frames,
+      ToManager / ToCluster, Token), cluster.rs (ClusterAssignment, the process's
+      connection: a shutdown or a lost manager → `Shared::shutdown`), manager.rs
+      (ClusterManager + builder, Cluster, ClusterEvent(s); supervise → start / wait /
+      exited, accept / handshake)}`; `ClientBuilder::cluster` and the connection in
+      `Client::run`; `Error::Cluster`. Tests: unit tests in the three modules, and
+      `crates/djs-rs/tests/sharding.rs`, which starts the test binary again as the cluster
+      processes (an `#[ignore]`d `cluster_process` test) against a mock REST API and gateway.
+   2. **Next:** the manager as the IDENTIFY queue (D-299): until then each process uses
+      its own `LocalIdentifyQueue` (C-112).
+   3. Restarts with a growing delay (D-298).
+   4. Built-in values and named commands (D-286; ask the API details first).
+   5. Benchmarks + extreme-load tests (D-041), then Phase 9 is done.
 
 > **Heavy runs (D-257, D-259–D-262):** the owner's laptop hard-froze on 2026-11-13 under
 > assistant load. Every cargo build/test/bench/stress test goes through

@@ -172,6 +172,9 @@ struct Inner<B: Backend> {
     /// [`Context`].
     shared: Arc<Shared>,
     compiled: Compiled<B>,
+    /// The assignment of a cluster process (D-300).
+    #[cfg(feature = "sharding")]
+    cluster: Option<crate::sharding::ClusterAssignment>,
 }
 
 /// A future boxed inside this crate (D-287).
@@ -256,6 +259,8 @@ impl Client {
             cache: None,
             backend: DashMapBackend::new(),
             compiled: Compiled::generic(),
+            #[cfg(feature = "sharding")]
+            cluster: None,
         }
     }
 }
@@ -670,6 +675,12 @@ impl<B: Backend> Client<B> {
         inner.shared.shutdown.send_replace(false);
         // Subscribed before anything can wait, so a shutdown during start-up is not missed.
         let shutdown = inner.shared.shutdown.subscribe();
+        // A cluster process stays connected to its manager while it runs (D-300).
+        #[cfg(feature = "sharding")]
+        let _manager = match &inner.cluster {
+            Some(assignment) => Some(assignment.connect(Arc::clone(&inner.shared)).await?),
+            None => None,
+        };
 
         let plan = self.plan().await?;
         tracing::info!(
@@ -1049,6 +1060,8 @@ pub struct ClientBuilder<B: Backend = DashMapBackend> {
     cache: Option<CacheConfig>,
     backend: B,
     compiled: Compiled<B>,
+    #[cfg(feature = "sharding")]
+    cluster: Option<crate::sharding::ClusterAssignment>,
 }
 
 impl<B: Backend> ClientBuilder<B> {
@@ -1112,6 +1125,25 @@ impl<B: Backend> ClientBuilder<B> {
             ),
         }
         self.shards = shards;
+        self
+    }
+
+    /// Makes this client the one of a cluster process started by a
+    /// [`ClusterManager`](crate::sharding::ClusterManager) (D-300): it runs the assignment's
+    /// shards ([`Shards::Range`]), connects to the manager when it logs in, and shuts down
+    /// when the manager asks or goes away. Get the assignment from
+    /// [`sharding::process`](crate::sharding::process).
+    ///
+    /// discord.js counterpart: what `new Client()` reads from the environment in a shard
+    /// process (`client.shard`).
+    #[cfg(feature = "sharding")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "sharding")))]
+    pub fn cluster(mut self, assignment: crate::sharding::ClusterAssignment) -> Self {
+        self.shards = Shards::Range {
+            range: assignment.shards(),
+            total: assignment.total_shards(),
+        };
+        self.cluster = Some(assignment);
         self
     }
 
@@ -1209,6 +1241,8 @@ impl<B: Backend> ClientBuilder<B> {
             cache: Some(self.cache.unwrap_or_default()),
             backend,
             compiled: Compiled::generic(),
+            #[cfg(feature = "sharding")]
+            cluster: self.cluster,
         }
     }
 
@@ -1249,6 +1283,8 @@ impl<B: Backend> ClientBuilder<B> {
                     ..Shared::default()
                 }),
                 compiled,
+                #[cfg(feature = "sharding")]
+                cluster: self.cluster,
             }),
         }
     }

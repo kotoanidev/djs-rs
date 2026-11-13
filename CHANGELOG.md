@@ -8,6 +8,16 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Multi-process sharding, first step (D-284, D-285, D-296, D-297, D-300–D-303, C-112), behind
+  the new `sharding` feature: `ClusterManager` starts the bot's executable again once per
+  group of `shards_per_process` shards (1 by default, Discord's recommended count or a fixed
+  one), gives each process its shards through `DJS_RS_CLUSTER`, accepts its connection over
+  `127.0.0.1` (length-prefixed JSON frames, a secret token), reports `ClusterEvent`s and
+  `clusters()`, and on `shutdown` asks every process to stop, killing those still running
+  after `shutdown_timeout`. A process tells itself apart with `sharding::process()` and
+  passes its `ClusterAssignment` to `ClientBuilder::cluster`; its client shuts down when the
+  manager asks or goes away. The manager does not coordinate IDENTIFY, restart processes or
+  run commands in them yet (the next steps).
 - Member permissions (D-292, D-294, D-295, C-111): `Permissions::guild_level`,
   `Permissions::in_channel` and `Permissions::during_timeout` compute them the way Discord
   does (owner, `@everyone`, roles, `ADMINISTRATOR`, channel overwrites, the implicit

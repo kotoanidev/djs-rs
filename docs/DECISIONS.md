@@ -4430,6 +4430,50 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   compiled in djs-rs (D-289); they read the cache's current member, not the value they are
   called on.
 
+### C-112 — The first step of multi-process sharding (D-284–D-286, D-296–D-303, step 1)
+- **The wire:** `{"op": "hello", "cluster", "token"}` from the process, then `welcome` and
+  `shutdown` from the manager, as JSON frames after a 4-byte big-endian length, at most
+  16 MiB each so a peer cannot make the other side allocate more. The process sends
+  `hello` first and has 30 s to be welcomed; the manager gives a new connection 10 s to say
+  `hello`. A wrong token, an unknown cluster or a second connection for a connected cluster
+  is closed without an answer (the process gets `ClusterError::Refused`).
+- **The token:** 128 bits from two `std::collections::hash_map::RandomState` hashes, whose
+  `SipHash` keys the standard library takes from the operating system's random source:
+  no `rand`/`getrandom` dependency for a secret that only guards a loopback port against
+  other local programs (anyone who can read the process's environment could read memory
+  anyway). Compared in constant time, and never printed (`Debug` redacts it, and
+  `ClusterAssignment`'s `Debug` leaves it out).
+- **The assignment:** the environment variable `DJS_RS_CLUSTER` holds the JSON of
+  `ClusterAssignment` (cluster, shard range, total, the manager's address, the token).
+  `sharding::process()` rejects a range that is empty or past the total, and a manager that
+  is not on a loopback address.
+- **The processes:** the manager's own executable (`std::env::current_exe`) with the
+  manager's own arguments unless `executable`/`args` say otherwise, the manager's
+  environment plus `env(...)` entries, standard input closed, standard output and error
+  shared with the manager, `kill_on_drop` so that a manager that is dropped or dies does not
+  leave them behind. Cluster *n* runs shards `[n × shards_per_process, …)`; the last may run
+  fewer.
+- **Stopping:** `ClusterManager::shutdown` sends `shutdown` to every connected process (and
+  to any that connects afterwards), waits `shutdown_timeout` (30 s by default, like the
+  gateway's own grace periods), then kills what is still running; `spawn` returns once every
+  process has exited, or with the first error (`AlreadyRunning` when the manager is already
+  running). A process whose connection to the manager closes shuts its client down, as if
+  asked.
+- **The API:** `ClusterManager` (cheap to clone, like `Client`) with `builder`, `spawn`,
+  `shutdown`, `events()` (a stream of `ClusterEvent::{Spawned, Connected, Exited}`, a new
+  receiver per call, as `Client::events`) and `clusters()` (a snapshot of `Cluster { id,
+  shards, pid, connected }`); `ClientBuilder::cluster(assignment)` sets the process's shard
+  range and connects to the manager in `login`. `ClusterError` is separate from `Error`
+  (the manager has no client), and `Error::Cluster` wraps it for `login`.
+- **Until step 2 (D-299)** each process identifies through its own local queue: two
+  processes may start sessions in the same 5-second window of a `max_concurrency` bucket,
+  which Discord may reject (the shard then retries), so step 1 is not meant for production
+  bots with many processes yet.
+- **Tests:** the cross-process tests start the test binary again with arguments that run
+  only an `#[ignore]`d test (`cluster_process --exact --ignored`), which reads its
+  assignment and connects to the mock REST API and gateway; `sleep` stands in for a process
+  that never connects, to test the kill after the grace period (Unix only).
+
 ---
 
 ## Open questions (to ask the owner when relevant)

@@ -22,6 +22,9 @@ zlib-stream = ["djs-gateway/zlib-stream"]
 ## Also trust the operating system's root certificates (e.g. a corporate proxy's CA), in
 ## addition to the bundled `webpki-roots`, for REST and gateway connections (D-088, D-100).
 native-roots = ["djs-gateway/native-roots", "djs-rest/native-roots"]
+## Multi-process sharding, `djs_rs::sharding` (D-284): a `ClusterManager` runs the bot's
+## shards in several processes of the same executable (D-296–D-304).
+sharding = ["dep:serde", "dep:serde_json", "tokio/io-util", "tokio/net", "tokio/process"]
 
 [dependencies]
 djs-builders.workspace = true
@@ -32,6 +35,8 @@ djs-gateway.workspace = true
 djs-model.workspace = true
 djs-rest.workspace = true
 futures-core.workspace = true
+serde = { workspace = true, features = ["derive", "std"], optional = true }
+serde_json = { workspace = true, optional = true }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt", "sync", "macros", "time"] }
 tracing = { workspace = true, features = ["std"] }

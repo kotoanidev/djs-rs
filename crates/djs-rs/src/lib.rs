@@ -12,6 +12,9 @@ pub mod ext;
 mod handler;
 pub mod manager;
 pub mod router;
+#[cfg(feature = "sharding")]
+#[cfg_attr(docsrs, doc(cfg(feature = "sharding")))]
+pub mod sharding;
 pub mod webhook;
 
 pub use self::{

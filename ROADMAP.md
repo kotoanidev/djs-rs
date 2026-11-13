@@ -120,7 +120,12 @@ just with narrow scope.
       C-108, C-109; `benches/vs-serenity/`, `docs/VS_SERENITY.md`)
 
 ## Phase 9 — Multi-process sharding (D-018)
-- [ ] `ShardingManager` spawning processes, IPC, `broadcastEval`-style messaging, respawn
+- [x] `ClusterManager` starting processes of the same executable, IPC over `127.0.0.1`,
+      shard assignment, shutdown (D-284, D-285, D-296, D-297, D-300–D-304, C-112)
+- [ ] The manager as the IDENTIFY queue across processes (D-299)
+- [ ] Restarts with a growing delay (D-298)
+- [ ] Built-in values and named typed commands instead of `broadcastEval` (D-286)
+- [ ] Benchmarks + extreme-load tests (D-041)
 
 ## Phase 10 — `djs-voice` (≈ @discordjs/voice, D-017)
 - [ ] Voice gateway, UDP/RTP, encryption modes, DAVE E2EE
