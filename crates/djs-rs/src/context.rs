@@ -10,6 +10,7 @@ use djs_model::{
     id::{ApplicationId, GuildId},
 };
 use djs_rest::Rest;
+use tokio::sync::watch;
 
 use crate::{
     cache_ops::{CacheOps, converter},
@@ -17,7 +18,7 @@ use crate::{
 };
 
 /// What the client and every shard's [`Context`] share.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub(crate) struct Shared {
     /// Set by the client at the first `READY` (D-245).
     pub(crate) application_id: OnceLock<ApplicationId>,
@@ -29,6 +30,22 @@ pub(crate) struct Shared {
     pub(crate) intents: Intents,
     /// The senders of the running shards, by shard number (empty while not running).
     pub(crate) shards: RwLock<Vec<(u32, MessageSender)>>,
+    /// Set to `true` to stop the running client ([`Client::shutdown`](crate::Client::shutdown),
+    /// [`Context::shutdown`], D-293); `login` sets it back to `false`.
+    pub(crate) shutdown: watch::Sender<bool>,
+}
+
+impl Default for Shared {
+    fn default() -> Self {
+        Self {
+            application_id: OnceLock::new(),
+            collectors: Arc::default(),
+            sequential: false,
+            intents: Intents::empty(),
+            shards: RwLock::default(),
+            shutdown: watch::channel(false).0,
+        }
+    }
 }
 
 impl Shared {
@@ -214,5 +231,32 @@ impl<B: Backend> Context<B> {
     #[must_use]
     pub fn shard(&self) -> &MessageSender {
         &self.inner.core.sender
+    }
+
+    /// Asks the client to disconnect, as [`Client::shutdown`](crate::Client::shutdown) does:
+    /// every shard closes, the session is invalidated (the bot appears offline) and
+    /// [`Client::login`](crate::Client::login) returns `Ok(())`. Has no effect once the client
+    /// has stopped.
+    ///
+    /// discord.js counterpart: `client.destroy()` (through `message.client`).
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use djs_rs::{model::id::UserId, prelude::*};
+    ///
+    /// # fn register(client: &Client) {
+    /// const OWNER: UserId = UserId::new(123_456_789_012_345_678);
+    /// client.on(Events::MessageCreate, |ctx, msg| async move {
+    ///     if msg.content == "!stop" && msg.author.id == OWNER {
+    ///         msg.reply(&ctx, "Bye!").await?;
+    ///         ctx.shutdown();
+    ///     }
+    ///     Ok(())
+    /// });
+    /// # }
+    /// ```
+    pub fn shutdown(&self) {
+        self.inner.core.shared.shutdown.send_replace(true);
     }
 }

@@ -8,6 +8,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `Context::shutdown` (D-293): a handler stops the client the way `Client::shutdown` does,
+  without capturing a `Client` clone; the examples' `--cleanup` paths use it.
 - Chainable setters on the message bodies (D-290, D-291, C-110): `CreateMessage`,
   `MessageCallbackData`, `EditMessage`, `EditWebhookMessage`, `ExecuteWebhook` and
   `CreateFollowupMessage` get `content`, `embed` / `embeds`, `component` / `components`,

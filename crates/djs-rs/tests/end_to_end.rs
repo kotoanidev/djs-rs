@@ -354,6 +354,36 @@ async fn handler_errors_do_not_stop_the_client() {
 }
 
 #[tokio::test]
+async fn a_handler_shuts_the_client_down() {
+    let gateway = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let gateway_url = format!("ws://{}", gateway.local_addr().unwrap());
+    let gateway = tokio::spawn(mock_gateway(
+        gateway,
+        vec![message_create(2, "10", "!stop")],
+    ));
+
+    let client = Client::builder("test-token")
+        .intents(Intents::GUILD_MESSAGES)
+        .gateway_url(gateway_url)
+        .shards(Shards::Count(1))
+        .compression(Compression::None)
+        .build();
+    client.on(Events::MessageCreate, |ctx, msg| async move {
+        if msg.content == "!stop" {
+            // D-293: no captured `Client` needed.
+            ctx.shutdown();
+        }
+        Ok(())
+    });
+
+    // `login` returns by itself: nothing outside the handler stops the client.
+    timeout(STEP, client.login()).await.unwrap().unwrap();
+    gateway.await.unwrap();
+    // Once the client has stopped, a shutdown has no effect.
+    client.shutdown();
+}
+
+#[tokio::test]
 async fn auto_sharding_runs_every_recommended_shard() {
     let gateway = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let gateway_url = format!("ws://{}", gateway.local_addr().unwrap());

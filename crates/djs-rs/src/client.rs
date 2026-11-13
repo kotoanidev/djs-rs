@@ -165,7 +165,6 @@ struct Inner<B: Backend> {
     subscribers: Mutex<Vec<mpsc::UnboundedSender<ShardEvent>>>,
     has_subscribers: AtomicBool,
     running: AtomicBool,
-    shutdown: watch::Sender<bool>,
     /// The shards of the current `login` and how many of them have been ready (D-224).
     shard_count: AtomicU32,
     ready_shards: AtomicU32,
@@ -662,15 +661,15 @@ impl<B: Backend> Client<B> {
     ///
     /// discord.js counterpart: `Client#destroy`.
     pub fn shutdown(&self) {
-        self.inner.shutdown.send_replace(true);
+        self.inner.shared.shutdown.send_replace(true);
     }
 
     async fn run(&self) -> Result<(), Error> {
         let inner = &*self.inner;
         warn_missing_intents(inner.intents, self.listened());
-        inner.shutdown.send_replace(false);
+        inner.shared.shutdown.send_replace(false);
         // Subscribed before anything can wait, so a shutdown during start-up is not missed.
-        let shutdown = inner.shutdown.subscribe();
+        let shutdown = inner.shared.shutdown.subscribe();
 
         let plan = self.plan().await?;
         tracing::info!(
@@ -713,7 +712,7 @@ impl<B: Backend> Client<B> {
                 Ok(Err(error)) => {
                     if result.is_ok() {
                         // A fatal error on one shard stops the whole client.
-                        inner.shutdown.send_replace(true);
+                        inner.shared.shutdown.send_replace(true);
                         result = Err(error);
                     }
                 }
@@ -1242,7 +1241,6 @@ impl<B: Backend> ClientBuilder<B> {
                 subscribers: Mutex::new(Vec::new()),
                 has_subscribers: AtomicBool::new(false),
                 running: AtomicBool::new(false),
-                shutdown: watch::channel(false).0,
                 shard_count: AtomicU32::new(0),
                 ready_shards: AtomicU32::new(0),
                 shared: Arc::new(Shared {

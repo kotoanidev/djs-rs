@@ -366,10 +366,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .build();
 
-    let handle = client.clone();
     client.on(Events::ClientReady, move |ctx, ready| {
         let commands = std::sync::Arc::clone(&commands);
-        let handle = handle.clone();
         async move {
             let guild_id = match guild {
                 Some(guild_id) => guild_id,
@@ -378,7 +376,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if cleanup {
                 ctx.guild_commands(guild_id).set(&[]).await?;
                 println!("Removed the bot's commands from guild {guild_id}.");
-                handle.shutdown();
+                ctx.shutdown();
                 return Ok(());
             }
             ctx.guild_commands(guild_id).set(&commands).await?;

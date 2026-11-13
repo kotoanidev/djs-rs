@@ -118,10 +118,8 @@ fn commands() -> Result<Vec<CreateApplicationCommand>, ValidationError> {
 /// guild.
 fn register(client: &Client, guild: Option<GuildId>, cleanup: bool) -> Result<(), ValidationError> {
     let commands = Arc::new(commands()?);
-    let handle = client.clone();
     client.on(Events::ClientReady, move |ctx, ready| {
         let commands = Arc::clone(&commands);
-        let handle = handle.clone();
         async move {
             let guild_id = match guild {
                 Some(guild_id) => guild_id,
@@ -130,7 +128,7 @@ fn register(client: &Client, guild: Option<GuildId>, cleanup: bool) -> Result<()
             if cleanup {
                 ctx.guild_commands(guild_id).set(&[]).await?;
                 println!("Removed the bot's commands from guild {guild_id}.");
-                handle.shutdown();
+                ctx.shutdown();
                 return Ok(());
             }
             let registered = ctx.guild_commands(guild_id).set(&commands).await?;

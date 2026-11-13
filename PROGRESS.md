@@ -617,9 +617,10 @@ fields with `Deref` to `new`). Steps:
      a. ✅ Setters on the message bodies + `From` conversions (D-290, D-291, C-110):
         `crates/djs-model/src/rest/setters.rs`, tests `crates/djs-model/tests/message_bodies.rs`,
         the examples rewritten with them.
-     b. Next: `ctx.shutdown()` (D-293): the context keeps a clone of the client's shutdown
-        sender.
-     c. Then member permissions (D-292): a pure computation in `djs-model`,
+     b. ✅ `ctx.shutdown()` (D-293): the shutdown `watch::Sender` moved from the client's
+        `Inner` into `context::Shared`, which the client and every context share; test
+        `end_to_end.rs::a_handler_shuts_the_client_down`.
+     c. Next: member permissions (D-292): a pure computation in `djs-model`,
         `Cache::member_permissions(guild, user)` / `member_permissions_in(channel, user)`,
         and `member.permissions(&ctx)` / `permissions_in(&ctx, channel)` in `djs-rs`
         (`Option<Permissions>`); benchmark the computation (D-041).
