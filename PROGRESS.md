@@ -501,7 +501,13 @@ fields with `Deref` to `new`). Steps:
       2–22 ns without allocations; the router ≈ 1 % over a `match`; decoding (4.8 µs of shard
       CPU per 1.9 KB interaction) dominates.
    e. **Next:** box the values of `Resolved` (D-256, decided 2026-11-13; prototype: 8.72 →
-      3.14 KB per interaction, same speed), re-measure, then step 4.
+      3.14 KB per interaction, same speed): the code is in the working tree (data.rs,
+      getters.rs); run the gate and one decode benchmark **through the guard (D-257)**,
+      reduce the 16-shard reply flood to 50 000 (D-258), commit, then step 4.
+
+> **Heavy runs (D-257, D-258):** the owner's laptop froze on 2026-11-13 under assistant load.
+> Every cargo build/test/bench goes through the resource guard (4 CPUs, 6 GB, no swap,
+> 70 °C start / 90 °C stop, AC only); stress tests only after asking the owner.
 4. Collectors and `await_*`. 5. Partials and intents guidance. 6. Examples.
 
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON

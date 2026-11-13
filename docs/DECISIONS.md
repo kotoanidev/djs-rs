@@ -2298,6 +2298,28 @@ and why.
   `&User`, `&Role`, …. Breaking, noted in the CHANGELOG.
 - **Alternatives:** keep `BTreeMap<Id, V>`; a new compact sorted-`Vec` map type.
 
+### D-257 — Heavy runs go through a resource guard
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Decision:** the owner's laptop hard-froze on 2026-11-13 (03:55) while an assistant ran
+  back-to-back release `cargo bench` builds after hours of builds and stress floods; the
+  journal just stops (no OOM, thermal or hardware message). From now on every assistant
+  `cargo` build, clippy, test, bench and stress test runs through a guard: AC power required;
+  start only below 70 °C and a 1-minute load below 4; a `systemd-run --user --scope` with
+  `CPUQuota=400%` (4 of 12 threads), `MemoryMax=6G`, `MemorySwapMax=0`, nice 19 and idle I/O;
+  `CARGO_BUILD_JOBS`, `TOKIO_WORKER_THREADS` and `RUST_TEST_THREADS` set to 4; a watchdog
+  stopping the whole scope at 90 °C (twice in a row), on unplugged AC or after a timeout.
+  Heavy runs are never looped back to back. Numbers measured under the guard (4 workers) are
+  not directly comparable with earlier ones (12 workers); `docs/PERFORMANCE.md` says which.
+- **Alternatives:** 2 CPUs / 4 GB / 85 °C (coolest, ≈ 5× slower builds); 6 CPUs / 8 GB.
+
+### D-258 — Smaller stress tests, run only after asking
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Decision:** the heaviest stress tests are reduced (the 16-shard reply flood from 200 000 to
+  50 000 interactions, a peak below 0.5 GiB), and stress tests run only after the owner agrees
+  each time, always through the guard (D-257), never several back to back without a pause.
+  Benchmarks run singly through the guard.
+- **Alternatives:** keep the sizes; run stress tests only when the owner asks.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
@@ -3728,6 +3750,9 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 
 ## Open questions (to ask the owner when relevant)
 
+- **Committing the resource guard** (D-257): the guard script lives in the assistant's
+  scratchpad (`/tmp`, wiped on reboot) and is recreated from the `safe-heavy-runs` memory;
+  committing it (for example `scripts/safe.sh`) would keep it with the repository.
 - **Removing parts with the builders**: discord.js can clear a part (`setTitle(null)`) and
   replace or splice fields (`setFields`, `spliceFields`). `EmbedBuilder` only sets and adds;
   clearing (for example `clear_footer()` or `Option` setters) would matter when editing a
