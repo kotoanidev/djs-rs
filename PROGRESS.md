@@ -570,6 +570,13 @@ fields with `Deref` to `new`). Steps:
    outside the workspace (own `Cargo.lock`, serenity 0.12.5 with default features), reusing
    the mocks and payloads of `benches/vs-node/`; performance, resources and reliability
    (gateway and REST failure scenarios); results in `docs/VS_SERENITY.md`.
+   **In progress (S1, performance):** `benches/vs-serenity/` exists (own workspace and
+   `Cargo.lock`, serenity `=0.12.5`, the main lints) with serenity runners `decode`, `flood`,
+   `memory`, `rest`; `vs-node` gained `GET /gateway` in its mock, `metrics::Window` (shared),
+   `serenity_cache()` and `--cache serenity` for `flood`/`memory`. serenity reaches the mocks
+   through an HTTPS mock and a harness-built `reqwest::Client` (D-282, being written);
+   **every run inside `unshare -rn`** (C-108: one request reached Discord in the first smoke
+   test). Next: S2 resources, S3 reliability (mock faults), S4 the report page.
 
 > **Heavy runs (D-257, D-259–D-262):** the owner's laptop hard-froze on 2026-11-13 under
 > assistant load. Every cargo build/test/bench/stress test goes through

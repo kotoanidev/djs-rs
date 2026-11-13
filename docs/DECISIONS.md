@@ -2553,6 +2553,24 @@ and why.
   owner's two test messages of the runs were deleted with the bot's on the owner's request.
 - **Alternatives:** rerun both, or only `components`, with the owner at the keyboard.
 
+### D-282 — serenity reaches the mocks through a TLS mock, with its default rate limiter
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Decision:** serenity 0.12.5's default rate limiter builds its requests without the
+  `HttpBuilder::proxy` URL (`ratelimiting.rs`, `build(…, None)`), so a proxy only works with
+  the limiter disabled. Instead, serenity keeps its default configuration and gets one
+  harness-built `reqwest::Client` (`HttpBuilder::client`) that resolves `discord.com` to a
+  local HTTPS mock and trusts only a test certificate authority (no built-in roots), so it
+  cannot talk to the real Discord. The HTTPS mock answers exactly like the plain one (the same
+  `vs-node` response code). New dependencies, in `benches/vs-serenity` only: `rcgen` (the test
+  CA and certificate), `tokio-rustls` (the TLS server) and `reqwest` (the version serenity
+  resolves); `hyper`, `hyper-util`, `http-body-util` and `bytes` are already in the project.
+  Since serenity then pays for TLS on loopback while djs-rs talks plain HTTP, the REST
+  scenario also measures serenity with its limiter disabled over plain HTTP (its documented
+  proxy setup), labelled, as a bound. The 429/5xx reliability scenarios use the default
+  limiter.
+- **Alternatives:** serenity with its limiter disabled everywhere (no 429/5xx scenarios for
+  it); TLS for both with a djs-rest option to trust extra root certificates.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
@@ -4081,6 +4099,18 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   `spawn_logged` helper; statistics from `client.events()`; `!webhook` creates a webhook,
   sends, edits and deletes a message through `WebhookClient::new`, and deletes the webhook
   whatever happened.
+
+### C-108 — The serenity harness runs without a network (after a request reached Discord)
+- On 2026-11-13 the first smoke test of `benches/vs-serenity` sent one request to the real
+  Discord: `GET https://discord.com/api/v10/gateway` with the fake benchmark token
+  (`djs_vs_node::TOKEN`) and serenity's User-Agent, because serenity's default rate limiter
+  ignores `HttpBuilder::proxy` (D-282). Discord answered with its public gateway URL; the
+  runner's check (`ws://127.0.0.1:` only) stopped it before any gateway connection. No real
+  token or data was sent; the owner was told.
+- Since then every run of the serenity harness — mocks and clients of both libraries — runs
+  in a network namespace without a route out (`unshare -rn`, loopback only; checked that
+  connecting outside fails), so no future mistake can reach Discord. The runners keep their
+  own checks (only `127.0.0.1` URLs; only the test CA trusted).
 
 ---
 
