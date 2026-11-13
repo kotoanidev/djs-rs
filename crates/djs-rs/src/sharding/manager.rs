@@ -46,6 +46,12 @@ const HELLO_TIMEOUT: Duration = Duration::from_secs(10);
 /// killed.
 const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(30);
 
+/// The default first and largest delays before a process is restarted (D-306).
+const RESTART_DELAY: (Duration, Duration) = (Duration::from_secs(1), Duration::from_secs(60));
+
+/// How a cluster process ended: its ID, its exit status and how long it ran.
+type Exit = (u32, io::Result<ExitStatus>, Duration);
+
 type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
 /// Runs a bot's shards in several processes of the same executable, `shards_per_process`
@@ -97,6 +103,8 @@ struct Inner {
     args: Option<Vec<OsString>>,
     envs: Vec<(OsString, OsString)>,
     shutdown_timeout: Duration,
+    restart: Restart,
+    restart_delay: (Duration, Duration),
     running: AtomicBool,
     shutdown: watch::Sender<bool>,
     subscribers: Mutex<Vec<mpsc::UnboundedSender<ClusterEvent>>>,
@@ -110,6 +118,8 @@ struct State {
     pid: Option<u32>,
     /// The frames to send, while the process is connected.
     sender: Option<mpsc::UnboundedSender<ToCluster>>,
+    /// The delay before the next restart, unless the process ran long enough (D-306).
+    delay: Duration,
 }
 
 impl ClusterManager {
@@ -129,11 +139,13 @@ impl ClusterManager {
             args: None,
             envs: Vec::new(),
             shutdown_timeout: SHUTDOWN_TIMEOUT,
+            restart: Restart::OnFailure,
+            restart_delay: RESTART_DELAY,
         }
     }
 
-    /// Starts the cluster processes and runs until every one of them has exited (after
-    /// [`shutdown`](Self::shutdown), or on its own).
+    /// Starts the cluster processes and runs until every one of them has stopped (after
+    /// [`shutdown`](Self::shutdown), or on its own without being restarted).
     ///
     /// The manager first asks Discord for the gateway's details once, for every process
     /// ([Get Gateway Bot], D-305): the gateway URL, the recommended shard count (used with
@@ -152,6 +164,11 @@ impl ClusterManager {
     /// (`shard % max_concurrency`) every 5 seconds over all the processes, so the shards
     /// start as fast as Discord allows and none is refused for identifying too fast.
     ///
+    /// A process that fails is started again with the same shards, after a delay that grows
+    /// while it keeps failing ([`ClusterManagerBuilder::restart`] and
+    /// [`restart_delay`](ClusterManagerBuilder::restart_delay), D-306). `spawn` returns once
+    /// every process has exited and none is waiting for a restart.
+    ///
     /// [Get Gateway Bot]: https://docs.discord.com/developers/events/gateway#get-gateway-bot
     ///
     /// discord.js counterpart: `ShardingManager#spawn` (which returns once the shards are
@@ -161,7 +178,8 @@ impl ClusterManager {
     ///
     /// [`ClusterError::Rest`] if Get Gateway Bot fails, [`ClusterError::SessionStartLimit`]
     /// if too few session starts are left for the shards, [`ClusterError::Io`] if the manager
-    /// cannot listen or start a process, [`ClusterError::AlreadyRunning`] if the manager is
+    /// cannot listen or start the first processes (a restart that cannot start is tried
+    /// again after the next delay), [`ClusterError::AlreadyRunning`] if the manager is
     /// already running.
     pub fn spawn(&self) -> impl Future<Output = Result<(), ClusterError>> + Send + '_ {
         boxed(self.run())
@@ -273,6 +291,7 @@ impl ClusterManager {
                 shards: shards.clone(),
                 pid: None,
                 sender: None,
+                delay: inner.restart_delay.0,
             })
             .collect();
         tracing::info!(
@@ -283,79 +302,99 @@ impl ClusterManager {
         );
 
         let accepting = tokio::spawn(accept(self.clone(), listener, Arc::clone(&session)));
-        let (kill_tx, kill_rx) = watch::channel(false);
-        let mut processes = JoinSet::new();
-        let started = self.start(&launch, &session, &groups, &kill_rx, &mut processes);
-        let waited = self.wait(processes, shutdown, &kill_tx).await;
+        let mut run = Run {
+            manager: self,
+            launch,
+            session,
+            kill: watch::channel(false).0,
+            processes: JoinSet::new(),
+            restarts: JoinSet::new(),
+        };
+        let mut started = Ok(());
+        for id in (0_u32..).take(groups.len()) {
+            if let Err(error) = run.start(id) {
+                // Stop what was started and report the error.
+                tracing::error!(cluster = id, %error, "could not start a cluster process");
+                inner.shutdown.send_replace(true);
+                started = Err(ClusterError::Io(error));
+                break;
+            }
+        }
+        let waited = run.wait(shutdown).await;
         accepting.abort();
         started.and(waited)
     }
+}
 
-    /// Starts one process per group of shards. On an error, the processes already started
-    /// are asked to shut down.
-    fn start(
-        &self,
-        launch: &Launch,
-        session: &Session,
-        groups: &[Range<u32>],
-        kill: &watch::Receiver<bool>,
-        processes: &mut JoinSet<(u32, io::Result<ExitStatus>)>,
-    ) -> Result<(), ClusterError> {
-        let inner = &*self.inner;
-        for (id, shards) in (0_u32..).zip(groups) {
-            let assignment = ClusterAssignment::new(
-                id,
-                shards.clone(),
-                &session.gateway,
-                launch.address,
-                session.token.as_str().into(),
-            );
-            let mut command = Command::new(&launch.executable);
-            command
-                .args(&launch.args)
-                .envs(inner.envs.iter().map(|(key, value)| (key, value)))
-                .env(CLUSTER_ENV, assignment.to_env())
-                .stdin(Stdio::null())
-                .kill_on_drop(true);
-            let mut child = match command.spawn() {
-                Ok(child) => child,
-                Err(error) => {
-                    tracing::error!(cluster = id, %error, "could not start a cluster process");
-                    inner.shutdown.send_replace(true);
-                    return Err(ClusterError::Io(error));
+/// One [`ClusterManager::spawn`] once its processes can start: their processes and
+/// restarts.
+struct Run<'a> {
+    manager: &'a ClusterManager,
+    launch: Launch,
+    session: Arc<Session>,
+    /// Set once the processes still running after the grace period must be killed.
+    kill: watch::Sender<bool>,
+    processes: JoinSet<Exit>,
+    /// The clusters waiting for their restart delay.
+    restarts: JoinSet<u32>,
+}
+
+impl Run<'_> {
+    /// Starts cluster `id`'s process.
+    fn start(&mut self, id: u32) -> io::Result<()> {
+        let inner = &*self.manager.inner;
+        let Some(shards) = lock(&inner.clusters)
+            .get(id as usize)
+            .map(|state| state.shards.clone())
+        else {
+            return Ok(());
+        };
+        let assignment = ClusterAssignment::new(
+            id,
+            shards,
+            &self.session.gateway,
+            self.launch.address,
+            self.session.token.as_str().into(),
+        );
+        let mut command = Command::new(&self.launch.executable);
+        command
+            .args(&self.launch.args)
+            .envs(inner.envs.iter().map(|(key, value)| (key, value)))
+            .env(CLUSTER_ENV, assignment.to_env())
+            .stdin(Stdio::null())
+            .kill_on_drop(true);
+        let mut child = command.spawn()?;
+        let pid = child.id();
+        if let Some(state) = lock(&inner.clusters).get_mut(id as usize) {
+            state.pid = pid;
+        }
+        self.manager
+            .emit(&ClusterEvent::Spawned { cluster: id, pid });
+        let mut kill = self.kill.subscribe();
+        let started = tokio::time::Instant::now();
+        self.processes.spawn(async move {
+            let status = tokio::select! {
+                status = child.wait() => status,
+                () = async { let _ = kill.wait_for(|kill| *kill).await; } => {
+                    let _ = child.start_kill();
+                    child.wait().await
                 }
             };
-            let pid = child.id();
-            if let Some(state) = lock(&inner.clusters).get_mut(id as usize) {
-                state.pid = pid;
-            }
-            self.emit(&ClusterEvent::Spawned { cluster: id, pid });
-            let mut kill = kill.clone();
-            processes.spawn(async move {
-                let status = tokio::select! {
-                    status = child.wait() => status,
-                    () = async { let _ = kill.wait_for(|kill| *kill).await; } => {
-                        let _ = child.start_kill();
-                        child.wait().await
-                    }
-                };
-                (id, status)
-            });
-        }
+            (id, status, started.elapsed())
+        });
         Ok(())
     }
 
-    /// Waits for every process to exit: on a shutdown, asks the connected ones to stop, then
-    /// kills those still running after the grace period.
-    async fn wait(
-        &self,
-        mut processes: JoinSet<(u32, io::Result<ExitStatus>)>,
-        mut shutdown: watch::Receiver<bool>,
-        kill: &watch::Sender<bool>,
-    ) -> Result<(), ClusterError> {
-        let inner = &*self.inner;
+    /// Waits for every process to exit, restarting those the policy says (D-306). On a
+    /// shutdown, cancels the restarts, asks the connected processes to stop, then kills
+    /// those still running after the grace period.
+    async fn wait(&mut self, mut shutdown: watch::Receiver<bool>) -> Result<(), ClusterError> {
+        let inner = &*self.manager.inner;
         let mut deadline: Option<tokio::time::Instant> = None;
         loop {
+            if self.processes.is_empty() && self.restarts.is_empty() {
+                return Ok(());
+            }
             let grace = async {
                 match deadline {
                     Some(deadline) => tokio::time::sleep_until(deadline).await,
@@ -368,6 +407,8 @@ impl ClusterManager {
                         continue;
                     }
                     tracing::info!("asking the clusters to shut down");
+                    // Dropping the set cancels the restarts still waiting.
+                    self.restarts = JoinSet::new();
                     for state in lock(&inner.clusters).iter() {
                         if let Some(sender) = &state.sender {
                             let _ = sender.send(ToCluster::Shutdown);
@@ -377,15 +418,30 @@ impl ClusterManager {
                 }
                 () = grace => {
                     tracing::warn!("killing the clusters that did not shut down in time");
-                    kill.send_replace(true);
+                    self.kill.send_replace(true);
                     deadline = None;
                 }
-                finished = processes.join_next() => {
-                    let Some(finished) = finished else { return Ok(()) };
-                    let (id, status) = finished.map_err(|error| {
+                Some(finished) = self.processes.join_next() => {
+                    let (id, status, ran) = finished.map_err(|error| {
                         ClusterError::Io(io::Error::other(error))
                     })?;
+                    let failed = !matches!(&status, Ok(status) if status.success());
                     self.exited(id, status);
+                    let restart = match inner.restart {
+                        Restart::OnFailure => failed,
+                        Restart::Always => true,
+                        Restart::Never => false,
+                    };
+                    if restart && !*shutdown.borrow() {
+                        self.restart_later(id, ran);
+                    }
+                }
+                Some(restart) = self.restarts.join_next() => {
+                    let Ok(id) = restart else { continue };
+                    if let Err(error) = self.start(id) {
+                        tracing::error!(cluster = id, %error, "could not restart a cluster process");
+                        self.restart_later(id, Duration::ZERO);
+                    }
                 }
             }
         }
@@ -393,7 +449,7 @@ impl ClusterManager {
 
     /// Records that cluster `id`'s process has exited.
     fn exited(&self, id: u32, status: io::Result<ExitStatus>) {
-        if let Some(state) = lock(&self.inner.clusters).get_mut(id as usize) {
+        if let Some(state) = lock(&self.manager.inner.clusters).get_mut(id as usize) {
             state.sender = None;
             state.pid = None;
         }
@@ -404,7 +460,7 @@ impl ClusterManager {
                 } else {
                     tracing::warn!(cluster = id, %status, "cluster process failed");
                 }
-                self.emit(&ClusterEvent::Exited {
+                self.manager.emit(&ClusterEvent::Exited {
                     cluster: id,
                     status,
                 });
@@ -414,6 +470,40 @@ impl ClusterManager {
             }
         }
     }
+
+    /// Restarts cluster `id` after its delay, which grows while it keeps exiting before
+    /// running for the largest delay (D-306).
+    fn restart_later(&mut self, id: u32, ran: Duration) {
+        let (first, max) = self.manager.inner.restart_delay;
+        let delay = {
+            let mut clusters = lock(&self.manager.inner.clusters);
+            let Some(state) = clusters.get_mut(id as usize) else {
+                return;
+            };
+            let (delay, next) = restart_delay(state.delay, ran, first, max);
+            state.delay = next;
+            delay
+        };
+        tracing::info!(cluster = id, ?delay, "restarting a cluster process");
+        self.manager
+            .emit(&ClusterEvent::Restarting { cluster: id, delay });
+        self.restarts.spawn(async move {
+            tokio::time::sleep(delay).await;
+            id
+        });
+    }
+}
+
+/// The delay before a restart, and the one after it: `current` doubles up to `max`, and a
+/// process that ran for at least `max` starts again from `first`.
+fn restart_delay(
+    current: Duration,
+    ran: Duration,
+    first: Duration,
+    max: Duration,
+) -> (Duration, Duration) {
+    let delay = if ran >= max { first } else { current };
+    (delay, delay.saturating_mul(2).min(max))
 }
 
 /// What one [`ClusterManager::spawn`] starts its processes with.
@@ -578,6 +668,8 @@ pub struct ClusterManagerBuilder {
     args: Option<Vec<OsString>>,
     envs: Vec<(OsString, OsString)>,
     shutdown_timeout: Duration,
+    restart: Restart,
+    restart_delay: (Duration, Duration),
 }
 
 impl ClusterManagerBuilder {
@@ -655,6 +747,36 @@ impl ClusterManagerBuilder {
         self
     }
 
+    /// Sets which exits of a process restart it (default [`Restart::OnFailure`], D-306).
+    /// Processes stopped by [`ClusterManager::shutdown`] are never restarted.
+    ///
+    /// discord.js counterpart: the `respawn` option (which restarts every exit).
+    pub const fn restart(mut self, restart: Restart) -> Self {
+        self.restart = restart;
+        self
+    }
+
+    /// Sets the delays before a process is restarted (default 1 second, up to 60): the first
+    /// restart waits `first`, each next one twice as long up to `max`, and a process that ran
+    /// for at least `max` before exiting starts again from `first` (D-306). A failing bot so
+    /// does not restart in a loop.
+    ///
+    /// discord.js counterpart: the `respawnDelay` of `Shard#respawn` (a fixed delay).
+    ///
+    /// # Panics
+    ///
+    /// Panics if `first` is zero or longer than `max`.
+    #[track_caller]
+    pub const fn restart_delay(mut self, first: Duration, max: Duration) -> Self {
+        assert!(!first.is_zero(), "the first restart delay must not be zero");
+        assert!(
+            first.as_nanos() <= max.as_nanos(),
+            "the first restart delay must not be longer than the largest"
+        );
+        self.restart_delay = (first, max);
+        self
+    }
+
     /// Builds the manager.
     #[must_use]
     pub fn build(self) -> ClusterManager {
@@ -667,6 +789,8 @@ impl ClusterManagerBuilder {
                 args: self.args,
                 envs: self.envs,
                 shutdown_timeout: self.shutdown_timeout,
+                restart: self.restart,
+                restart_delay: self.restart_delay,
                 running: AtomicBool::new(false),
                 shutdown: watch::channel(false).0,
                 subscribers: Mutex::new(Vec::new()),
@@ -674,6 +798,25 @@ impl ClusterManagerBuilder {
             }),
         }
     }
+}
+
+/// Which exits of a cluster process make the manager restart it (D-306): see
+/// [`ClusterManagerBuilder::restart`]. A process stopped by [`ClusterManager::shutdown`] is
+/// never restarted.
+///
+/// discord.js counterpart: the `respawn` option.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum Restart {
+    /// Restart a process that failed: a non-zero exit code, or killed by a signal (a panic,
+    /// an error from `login`, out of memory). A clean exit (code 0, for example after
+    /// [`Context::shutdown`](crate::Context::shutdown) in the process) ends that cluster.
+    #[default]
+    OnFailure,
+    /// Restart every exit, clean ones included (as discord.js's `respawn: true`).
+    Always,
+    /// Never restart: an exited cluster stays stopped.
+    Never,
 }
 
 /// One cluster process as the manager last saw it: its ID, shards and process. Returned by
@@ -720,6 +863,14 @@ pub enum ClusterEvent {
         /// How it exited.
         status: ExitStatus,
     },
+    /// A cluster's process will be started again after `delay` ([`Restart`], D-306); a
+    /// [`Spawned`](Self::Spawned) follows, unless the manager shuts down first.
+    Restarting {
+        /// The cluster's ID.
+        cluster: u32,
+        /// How long the manager waits before starting it.
+        delay: Duration,
+    },
 }
 
 /// The stream of a [`ClusterManager`]'s events. Created by [`ClusterManager::events`].
@@ -755,7 +906,9 @@ mod tests {
     use djs_gateway::LocalIdentifyQueue;
     use djs_model::gateway::ShardId;
 
-    use super::{ClusterEvent, ClusterManager, Session, State, Token, accept, lock, split};
+    use super::{
+        ClusterEvent, ClusterManager, Session, State, Token, accept, lock, restart_delay, split,
+    };
     use crate::{
         Shards,
         context::Shared,
@@ -784,6 +937,22 @@ mod tests {
         }
     }
 
+    #[test]
+    fn restart_delays_grow_until_a_process_runs_long_enough() {
+        let (first, max) = (Duration::from_secs(1), Duration::from_secs(8));
+        let quick = Duration::from_millis(10);
+        let mut current = first;
+        let mut delays = Vec::new();
+        for _ in 0..6 {
+            let (delay, next) = restart_delay(current, quick, first, max);
+            delays.push(delay.as_secs());
+            current = next;
+        }
+        assert_eq!(delays, [1, 2, 4, 8, 8, 8]);
+        // A process that ran for the largest delay starts again from the first.
+        assert_eq!(restart_delay(current, max, first, max), (first, first * 2));
+    }
+
     /// A manager with two clusters that accepts connections, without starting processes.
     async fn listening() -> (ClusterManager, SocketAddr, Token) {
         let manager = ClusterManager::builder("tok")
@@ -795,6 +964,7 @@ mod tests {
                 shards,
                 pid: None,
                 sender: None,
+                delay: Duration::from_secs(1),
             })
             .collect();
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();

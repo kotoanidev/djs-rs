@@ -17,7 +17,7 @@ use djs_rs::{
     gateway::Compression,
     prelude::*,
     rest::Rest,
-    sharding::{self, ClusterError, ClusterEvent, ClusterEvents, ClusterManager},
+    sharding::{self, ClusterError, ClusterEvent, ClusterEvents, ClusterManager, Restart},
 };
 use futures_util::{SinkExt, StreamExt};
 use http_body_util::Full;
@@ -33,6 +33,10 @@ use tokio_websockets::{Message, ServerBuilder};
 
 /// How long one step may take; processes start in milliseconds, but CI machines are slow.
 const STEP: Duration = Duration::from_secs(20);
+
+/// The environment variable naming a file: the first [`cluster_process`] that creates it
+/// crashes once its shards are ready.
+const CRASH_ONCE_ENV: &str = "DJS_RS_TEST_CRASH_ONCE";
 
 /// The process side, started by the manager tests (a plain `cargo test` skips it; run
 /// without a manager, it does nothing).
@@ -59,6 +63,19 @@ async fn cluster_process() {
             ctx.shutdown();
         }
         Ok(())
+    });
+    let crash_once = std::env::var_os(CRASH_ONCE_ENV);
+    client.on(Events::ClientReady, move |_ctx, _ready| {
+        let crash_once = crash_once.clone();
+        async move {
+            if let Some(marker) = crash_once
+                && std::fs::File::create_new(marker).is_ok()
+            {
+                // The first process crashes; the one started again runs.
+                std::process::exit(1);
+            }
+            Ok(())
+        }
     });
     client.login().await.unwrap();
 }
@@ -404,4 +421,176 @@ async fn processes_identify_in_turn_by_bucket() {
 
     manager.shutdown();
     timeout(STEP, running).await.unwrap().unwrap().unwrap();
+}
+
+/// A manager running `sh -c <script>` as its only cluster process.
+#[cfg(unix)]
+async fn shell(script: &str, restart: Restart) -> ClusterManager {
+    ClusterManager::builder("test-token")
+        .rest(mock_rest("ws://127.0.0.1:9", 1, 1000, 1).await)
+        .shards(Shards::Count(1))
+        .executable("sh")
+        .args(["-c", script])
+        .restart(restart)
+        .restart_delay(Duration::from_millis(50), Duration::from_millis(400))
+        .build()
+}
+
+/// The events of a manager until `count` restarts, as (kind, exit code or delay in ms).
+#[cfg(unix)]
+async fn until_restarts(events: &mut ClusterEvents, count: usize) -> Vec<(&'static str, u128)> {
+    let mut seen = Vec::new();
+    let mut restarts = 0;
+    while restarts < count {
+        seen.push(match next_event(events).await {
+            ClusterEvent::Spawned { cluster: 0, .. } => ("spawned", 0),
+            ClusterEvent::Exited { cluster: 0, status } => {
+                ("exited", status.code().unwrap_or(-1).try_into().unwrap())
+            }
+            ClusterEvent::Restarting { cluster: 0, delay } => {
+                restarts += 1;
+                ("restarting", delay.as_millis())
+            }
+            other => panic!("unexpected {other:?}"),
+        });
+    }
+    seen
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn failed_processes_are_restarted_with_growing_delays() {
+    let manager = shell("exit 3", Restart::OnFailure).await;
+    let mut events = manager.events();
+    let running = tokio::spawn({
+        let manager = manager.clone();
+        async move { manager.spawn().await }
+    });
+    let seen = until_restarts(&mut events, 5).await;
+    let mut expected = Vec::new();
+    for delay in [50, 100, 200, 400, 400] {
+        expected.extend([("spawned", 0), ("exited", 3), ("restarting", delay)]);
+    }
+    assert_eq!(seen, expected);
+    // A shutdown cancels the restart still waiting, and `spawn` returns.
+    manager.shutdown();
+    timeout(STEP, running).await.unwrap().unwrap().unwrap();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn the_restart_policy_chooses_the_exits() {
+    // A clean exit ends the cluster by default, and `spawn` returns by itself.
+    let manager = shell("exit 0", Restart::OnFailure).await;
+    let mut events = manager.events();
+    timeout(STEP, manager.spawn()).await.unwrap().unwrap();
+    let [(0, status)] = exits(&mut events, 1).await[..] else {
+        panic!("one exit expected");
+    };
+    assert!(status.success());
+    assert!(
+        timeout(Duration::from_millis(50), events.next())
+            .await
+            .is_err()
+    );
+
+    // `Never` does not restart failures either.
+    let manager = shell("exit 3", Restart::Never).await;
+    let mut events = manager.events();
+    timeout(STEP, manager.spawn()).await.unwrap().unwrap();
+    assert_eq!(exits(&mut events, 1).await[0].1.code(), Some(3));
+
+    // `Always` restarts clean exits too.
+    let manager = shell("exit 0", Restart::Always).await;
+    let mut events = manager.events();
+    let running = tokio::spawn({
+        let manager = manager.clone();
+        async move { manager.spawn().await }
+    });
+    assert_eq!(
+        until_restarts(&mut events, 1).await,
+        [("spawned", 0), ("exited", 0), ("restarting", 50)]
+    );
+    manager.shutdown();
+    timeout(STEP, running).await.unwrap().unwrap().unwrap();
+}
+
+#[test]
+#[should_panic(expected = "must not be zero")]
+fn a_zero_restart_delay_is_rejected() {
+    let _ =
+        ClusterManager::builder("test-token").restart_delay(Duration::ZERO, Duration::from_secs(1));
+}
+
+#[test]
+#[should_panic(expected = "must not be longer than the largest")]
+fn a_first_delay_past_the_largest_is_rejected() {
+    let _ = ClusterManager::builder("test-token")
+        .restart_delay(Duration::from_secs(2), Duration::from_secs(1));
+}
+
+/// A crashed process gets the same shards again, connects again, and its shard identifies
+/// again in its turn: the IDENTIFY queue outlives the processes (D-299).
+#[tokio::test]
+async fn a_crashed_process_is_started_again() {
+    let (gateway_url, mut identified) = mock_gateway(Vec::new()).await;
+    let marker = std::env::temp_dir().join(format!(
+        "djs-rs-crash-once-{}-{:?}",
+        std::process::id(),
+        Instant::now()
+    ));
+    let manager = ClusterManager::builder("test-token")
+        .rest(mock_rest(&gateway_url, 1, 1000, 1).await)
+        .executable(std::env::current_exe().unwrap())
+        .args(child_args())
+        .env(CRASH_ONCE_ENV, &marker)
+        .restart_delay(Duration::from_millis(50), Duration::from_secs(1))
+        .build();
+    let mut events = manager.events();
+    let running = tokio::spawn({
+        let manager = manager.clone();
+        async move { manager.spawn().await }
+    });
+
+    let mut seen = Vec::new();
+    while seen.len() < 6 {
+        seen.push(match next_event(&mut events).await {
+            ClusterEvent::Spawned { cluster: 0, .. } => "spawned",
+            ClusterEvent::Connected { cluster: 0 } => "connected",
+            ClusterEvent::Exited { cluster: 0, status } => {
+                assert_eq!(status.code(), Some(1));
+                "crashed"
+            }
+            ClusterEvent::Restarting { cluster: 0, delay } => {
+                assert_eq!(delay, Duration::from_millis(50));
+                "restarting"
+            }
+            other => panic!("unexpected {other:?}"),
+        });
+    }
+    assert_eq!(
+        seen,
+        [
+            "spawned",
+            "connected",
+            "crashed",
+            "restarting",
+            "spawned",
+            "connected"
+        ]
+    );
+    let (shard, first) = timeout(STEP, identified.recv()).await.unwrap().unwrap();
+    assert_eq!(shard, json!([0, 1]));
+    let (shard, second) = timeout(STEP, identified.recv()).await.unwrap().unwrap();
+    assert_eq!(shard, json!([0, 1]));
+    assert!(
+        second - first >= Duration::from_secs(5),
+        "{:?}",
+        second - first
+    );
+
+    manager.shutdown();
+    timeout(STEP, running).await.unwrap().unwrap().unwrap();
+    assert!(exits(&mut events, 1).await[0].1.success());
+    std::fs::remove_file(&marker).unwrap();
 }

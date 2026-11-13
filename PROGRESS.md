@@ -31,7 +31,7 @@ extreme-load tests in `docs/PERFORMANCE.md`).
 **The serenity comparison: ✅ done 2026-11-13** (`docs/VS_SERENITY.md`, D-277–D-282, C-108,
 C-109). **Next: the fixes found by the comparison (D-283) — the rebuild time after an edit
 ✅ (D-287–D-289, `docs/VS_SERENITY.md` re-measured), the ergonomics gaps ✅ (D-290–D-295).
-**Phase 9 — multi-process sharding: in progress** (steps 1–2 of 5 ✅ 2026-11-14), see "Next
+**Phase 9 — multi-process sharding: in progress** (steps 1–3 of 5 ✅ 2026-11-14), see "Next
 step".
 
 ## Done
@@ -639,7 +639,8 @@ fields with `Deref` to `new`). Steps:
    manager), D-301 (`ClusterManager`, `Cluster`, `ClusterClient` via `client.cluster()`),
    D-302 (REST limits per process), D-303 (order: IPC + spawning → IDENTIFY queue →
    restarts → values and commands → benchmarks), D-304 (`tokio` `process`), D-305 (the
-   manager asks Get Gateway Bot once for every process). Steps, one
+   manager asks Get Gateway Bot once for every process), D-306 (restart failures by default,
+   `Restart` enum, `restart_delay`). Steps, one
    commit each:
    1. ✅ IPC, starting the processes, shard assignment (D-285, D-296, D-297, D-300, C-112):
       `crates/djs-rs/src/sharding/{mod.rs (process(), ClusterError), ipc.rs (frames,
@@ -659,8 +660,13 @@ fields with `Deref` to `new`). Steps:
       `tests/sharding.rs::processes_identify_in_turn_by_bucket` (4 shards, 2 processes,
       `max_concurrency` 2: each bucket's shards ≥ 5 s apart across processes),
       `too_few_session_starts_start_nothing`, unit tests in `cluster.rs` / `manager.rs`.
-   3. **Next:** restarts with a growing delay (D-298).
-   4. Built-in values and named commands (D-286; ask the API details first).
+   3. ✅ Restarts with a growing delay (D-298, D-306, C-114): `manager.rs` `Run` (one
+      `spawn`: `start(id)`, `wait`, `exited`, `restart_later`, the pure `restart_delay`),
+      `Restart`, `ClusterManagerBuilder::{restart, restart_delay}`,
+      `ClusterEvent::Restarting`. Tests: `tests/sharding.rs` (`sh -c "exit N"` for the
+      policies and delays, a `cluster_process` that crashes once after READY and comes back,
+      identifying again ≥ 5 s later in the same queue), a unit test for the delays.
+   4. **Next:** built-in values and named commands (D-286; ask the API details first).
    5. Benchmarks + extreme-load tests (D-041), then Phase 9 is done.
 
 > **Heavy runs (D-257, D-259–D-262):** the owner's laptop hard-froze on 2026-11-13 under

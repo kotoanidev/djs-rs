@@ -124,7 +124,7 @@ just with narrow scope.
       shard assignment, shutdown (D-284, D-285, D-296, D-297, D-300–D-304, C-112)
 - [x] The manager as the IDENTIFY queue across processes, one Get Gateway Bot (D-299,
       D-305, C-113)
-- [ ] Restarts with a growing delay (D-298)
+- [x] Restarts with a growing delay (D-298, D-306, C-114)
 - [ ] Built-in values and named typed commands instead of `broadcastEval` (D-286)
 - [ ] Benchmarks + extreme-load tests (D-041)
 

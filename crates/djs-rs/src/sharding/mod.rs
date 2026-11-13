@@ -61,7 +61,9 @@ use std::sync::{Mutex, MutexGuard, PoisonError};
 pub(crate) use self::cluster::Connection;
 pub use self::{
     cluster::ClusterAssignment,
-    manager::{Cluster, ClusterEvent, ClusterEvents, ClusterManager, ClusterManagerBuilder},
+    manager::{
+        Cluster, ClusterEvent, ClusterEvents, ClusterManager, ClusterManagerBuilder, Restart,
+    },
 };
 
 /// Tells whether this process was started by a [`ClusterManager`] (D-300): its assignment

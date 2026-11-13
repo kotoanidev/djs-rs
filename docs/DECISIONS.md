@@ -4517,6 +4517,22 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   `ClientBuilder::gateway_url` set in a cluster process wins over the manager's URL (for a
   proxy or tests).
 
+### C-114 — Restarting cluster processes (D-298, D-306, step 3)
+- **How long a process ran** is measured from its start to its exit as the manager sees
+  them; a run of at least the largest delay resets the delay to the first one before the
+  next restart (so with the defaults, a process that crashes after a minute waits 1 s).
+- **A restart that cannot start** (the executable was removed, say) is logged and tried
+  again after the next, longer delay, with a new `Restarting` event: only the first start
+  of a `spawn` returns `ClusterError::Io`.
+- **A shutdown** cancels the restarts still waiting (no `Spawned` follows their
+  `Restarting`); a process that exits once the shutdown was asked is never restarted, under
+  any policy.
+- **`restart_delay(first, max)`** panics on a zero `first` (a failing bot would restart in a
+  loop) or a `first` longer than `max`, like the builder's other checks; it is a `const fn`.
+- **The restarted process** gets the same cluster ID, shards and token, connects again
+  (its old connection was cleared when its exit was seen) and waits for its IDENTIFY turn
+  in the same queue: the queue lives as long as the `spawn` (D-299).
+
 ---
 
 ## Open questions (to ask the owner when relevant)
