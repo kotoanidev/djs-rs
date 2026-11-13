@@ -2705,6 +2705,29 @@ and why.
 - **Alternatives:** `ctx.client()` returning a client handle (through a `Weak`), as
   discord.js's `message.client`; leaving it to a captured clone.
 
+### D-294 — The permission computation applies timeouts, as Discord does
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Context (D-292):** Discord takes every permission except `VIEW_CHANNEL` and
+  `READ_MESSAGE_HISTORY` from a timed-out member (owners and `ADMINISTRATOR` are exempt);
+  discord.js's `GuildMember#permissions` ignores timeouts.
+- **Decision:** applied. The cache and member methods compare the member's
+  `communication_disabled_until` with the current time; the pure function in `djs-model`
+  takes whether the member is timed out as an argument. The result is what Discord allows.
+- **Alternatives:** ignore timeouts, as discord.js (the result may overstate a timed-out
+  member's rights).
+
+### D-295 — Channel permissions apply the two documented implicit denials
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Context (D-292):** Discord ignores a member's other channel permissions without
+  `VIEW_CHANNEL`, and `MENTION_EVERYONE`, `SEND_TTS_MESSAGES`, `ATTACH_FILES` and
+  `EMBED_LINKS` without `SEND_MESSAGES`; the voice rule is described only by example ("such
+  as `MANAGE_CHANNELS`"). discord.js applies none of them.
+- **Decision:** the channel computation (`permissions_in`, `Cache::member_permissions_in`)
+  removes the permissions that depend on `VIEW_CHANNEL` and `SEND_MESSAGES`; the voice rule
+  is only documented, since Discord gives no complete list.
+- **Alternatives:** Discord's pseudocode only (as discord.js); both a filtered and a raw
+  method.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
