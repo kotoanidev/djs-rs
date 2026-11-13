@@ -5,7 +5,7 @@
 use compact_str::CompactString;
 use serde::{Serialize, Serializer};
 
-use super::{Attachments, FileUpload};
+use super::{Attachments, FileUpload, setters};
 use crate::{
     component::Component,
     id::{ChannelId, TagId},
@@ -74,8 +74,7 @@ pub struct ModifyWebhook {
 /// ```
 /// use djs_model::rest::ExecuteWebhook;
 ///
-/// let mut body = ExecuteWebhook::from("Build #42 passed");
-/// body.username = Some("CI".into());
+/// let body = ExecuteWebhook::from("Build #42 passed").username("CI");
 /// assert_eq!(
 ///     serde_json::to_string(&body).unwrap(),
 ///     r#"{"content":"Build #42 passed","username":"CI"}"#
@@ -188,21 +187,74 @@ impl Serialize for ExecuteWebhook {
     }
 }
 
-impl From<&str> for ExecuteWebhook {
-    fn from(content: &str) -> Self {
-        Self {
-            content: Some(content.into()),
-            ..Self::default()
-        }
-    }
-}
+setters::message_body!(ExecuteWebhook {
+    content,
+    embeds,
+    components,
+    allowed_mentions,
+    flags,
+    suppress_notifications,
+    files,
+    attachments,
+    poll,
+    tts,
+});
 
-impl From<String> for ExecuteWebhook {
-    fn from(content: String) -> Self {
-        Self {
-            content: Some(content.into()),
-            ..Self::default()
-        }
+/// The setters of the fields only [`ExecuteWebhook`] has (D-290).
+impl ExecuteWebhook {
+    /// Overrides the webhook's name for this message.
+    ///
+    /// discord.js counterpart: the `username` option.
+    #[must_use]
+    pub fn username(mut self, username: impl Into<CompactString>) -> Self {
+        self.username = Some(username.into());
+        self
+    }
+
+    /// Overrides the webhook's avatar for this message (an image URL).
+    ///
+    /// discord.js counterpart: the `avatarURL` option.
+    #[must_use]
+    pub fn avatar_url(mut self, url: impl Into<CompactString>) -> Self {
+        self.avatar_url = Some(url.into());
+        self
+    }
+
+    /// In a forum or media channel: creates a post with this name.
+    ///
+    /// discord.js counterpart: the `threadName` option.
+    #[must_use]
+    pub fn thread_name(mut self, name: impl Into<CompactString>) -> Self {
+        self.thread_name = Some(name.into());
+        self
+    }
+
+    /// Sets the tags of the post created with [`thread_name`](Self::thread_name).
+    ///
+    /// discord.js counterpart: the `appliedTags` option.
+    #[must_use]
+    pub fn applied_tags(mut self, tags: impl IntoIterator<Item = TagId>) -> Self {
+        self.applied_tags = tags.into_iter().collect();
+        self
+    }
+
+    /// Sends the message in this thread of the webhook's channel (unarchiving it).
+    ///
+    /// discord.js counterpart: the `threadId` option.
+    #[must_use]
+    pub const fn thread_id(mut self, thread_id: ChannelId) -> Self {
+        self.thread_id = Some(thread_id);
+        self
+    }
+
+    /// Sets whether Discord uses the [`components`](Self::components) (by default only for
+    /// application-owned webhooks; others can send only non-interactive components).
+    ///
+    /// discord.js counterpart: the `withComponents` option.
+    #[must_use]
+    pub const fn with_components(mut self, with_components: bool) -> Self {
+        self.with_components = Some(with_components);
+        self
     }
 }
 
@@ -219,10 +271,9 @@ impl From<String> for ExecuteWebhook {
 /// # Examples
 ///
 /// ```
-/// use djs_model::{rest::EditWebhookMessage, util::Patch};
+/// use djs_model::rest::EditWebhookMessage;
 ///
-/// let mut body = EditWebhookMessage::default();
-/// body.content = Patch::Set("Done!".into());
+/// let body = EditWebhookMessage::from("Done!");
 /// assert_eq!(serde_json::to_string(&body).unwrap(), r#"{"content":"Done!"}"#);
 /// ```
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -299,13 +350,36 @@ impl Serialize for EditWebhookMessage {
     }
 }
 
-impl From<&str> for EditWebhookMessage {
-    /// Replaces the content.
-    fn from(content: &str) -> Self {
-        Self {
-            content: Patch::Set(content.into()),
-            ..Self::default()
-        }
+setters::message_body!(EditWebhookMessage {
+    content,
+    embeds,
+    components,
+    allowed_mentions,
+    flags,
+    files,
+    attachments,
+    poll,
+});
+
+/// The setters of the fields only [`EditWebhookMessage`] has (D-290).
+impl EditWebhookMessage {
+    /// Edits a message in this thread of the webhook's channel.
+    ///
+    /// discord.js counterpart: the `threadId` option.
+    #[must_use]
+    pub const fn thread_id(mut self, thread_id: ChannelId) -> Self {
+        self.thread_id = Some(thread_id);
+        self
+    }
+
+    /// Sets whether Discord uses the [`components`](Self::components) (by default only for
+    /// application-owned webhooks).
+    ///
+    /// discord.js counterpart: the `withComponents` option.
+    #[must_use]
+    pub const fn with_components(mut self, with_components: bool) -> Self {
+        self.with_components = Some(with_components);
+        self
     }
 }
 

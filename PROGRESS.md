@@ -613,10 +613,16 @@ fields with `Deref` to `new`). Steps:
      rebuild 0.73 s against serenity's 5.32 s (7.3×), debug about the same; clean release
      build 51.2 against 76.4 s; REST 2.1× (a same-session fat A/B of `b0bb7c6` against
      D-289: −2.1 %, +0.25 µs CPU per request).
-   - **Ergonomics gaps** (open question of C-107, in `docs/DECISIONS.md`): setters for the
-     `#[non_exhaustive]` message bodies, `From<String>` for `EditWebhookMessage`, `Vec` vs
-     `Option<Vec>`, member permissions from the cache, shutting down from a handler — ask the
-     owner the API shape of each first.
+   - **Ergonomics gaps** (C-107), decided 2026-11-13 (D-290–D-293), one commit each:
+     a. ✅ Setters on the message bodies + `From` conversions (D-290, D-291, C-110):
+        `crates/djs-model/src/rest/setters.rs`, tests `crates/djs-model/tests/message_bodies.rs`,
+        the examples rewritten with them.
+     b. Next: `ctx.shutdown()` (D-293): the context keeps a clone of the client's shutdown
+        sender.
+     c. Then member permissions (D-292): a pure computation in `djs-model`,
+        `Cache::member_permissions(guild, user)` / `member_permissions_in(channel, user)`,
+        and `member.permissions(&ctx)` / `permissions_in(&ctx, channel)` in `djs-rs`
+        (`Option<Permissions>`); benchmark the computation (D-041).
 9. **Then Phase 9 — multi-process sharding** (D-018, D-284–D-286): `djs_rs::sharding`
    behind the `sharding` feature, TCP 127.0.0.1 + length-prefixed JSON with a per-process
    token, built-in values + named typed commands instead of `broadcastEval`. Still to ask:

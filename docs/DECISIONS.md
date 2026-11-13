@@ -4275,6 +4275,27 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   the window as early. The 502s hit the first attempt at every 4th message of a channel, as
   an HTML page from a proxy, so a client that retries sends everything.
 
+### C-110 — The setters of the message bodies (D-290, D-291)
+- One crate-private macro (`djs-model/src/rest/setters.rs`, `message_body!`) writes the shared
+  setters and the `From<&str>`, `From<String>`, `From<CompactString>` conversions of the six
+  bodies; two private traits (`Slot` for `Option`/`Patch`, `List` for `Vec`/`Option<Vec>`/
+  `Patch<Vec>`) let one setter serve every field shape.
+- Shared setters (where the field exists): `content`, `embed` (adds) / `embeds` (replaces),
+  `component` (adds, takes `impl Into<Component>`) / `components` (replaces),
+  `allowed_mentions`, `no_mentions` (`AllowedMentions::default()`), `flags` (replaces),
+  `suppress_embeds`, `ephemeral` (interaction bodies only), `suppress_notifications`
+  (`CreateMessage`, `ExecuteWebhook`, the interaction bodies), `file` (adds) / `files`
+  (replaces), `attachments` (replaces), `poll`, `tts(bool)`. The flag setters add to the flags
+  set before; `flags` replaces them. On `Patch` lists, `embed`/`component` on a kept list set
+  it to that one item.
+- Own setters: `CreateMessage::{reply_to(MessageId), message_reference, sticker, stickers,
+  nonce(nonce, enforce), shared_client_theme}`; `ExecuteWebhook::{username, avatar_url,
+  thread_name, applied_tags, thread_id, with_components}`;
+  `EditWebhookMessage::{thread_id, with_components}`.
+- No `clear_*` setters: `Patch::Clear` is set by hand (shown in `EditMessage`'s example).
+- The examples (`slash_commands`, `moderation`, `components`, `advanced`) and the rustdoc
+  examples use the setters; their `ephemeral` helpers are gone.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

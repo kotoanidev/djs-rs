@@ -13,7 +13,7 @@ use crate::{
     macros::int_enum,
     message::{AllowedMentions, AttachmentRequest, Embed, Message, MessageFlags},
     poll::CreatePoll,
-    rest::{Attachments, FileUpload},
+    rest::{Attachments, FileUpload, setters},
 };
 
 int_enum! {
@@ -55,13 +55,9 @@ int_enum! {
 /// # Examples
 ///
 /// ```
-/// use djs_model::{
-///     interaction::{InteractionResponse, MessageCallbackData},
-///     message::MessageFlags,
-/// };
+/// use djs_model::interaction::{InteractionResponse, MessageCallbackData};
 ///
-/// let mut reply = MessageCallbackData::from("Only you can see this.");
-/// reply.flags = Some(MessageFlags::EPHEMERAL);
+/// let reply = MessageCallbackData::from("Only you can see this.").ephemeral();
 /// let response = InteractionResponse::ChannelMessageWithSource(Box::new(reply));
 /// assert_eq!(
 ///     serde_json::to_string(&response).unwrap(),
@@ -361,32 +357,19 @@ impl Serialize for MessageCallbackData {
     }
 }
 
-impl From<&str> for MessageCallbackData {
-    fn from(content: &str) -> Self {
-        Self {
-            content: Some(content.into()),
-            ..Self::default()
-        }
-    }
-}
-
-impl From<String> for MessageCallbackData {
-    fn from(content: String) -> Self {
-        Self {
-            content: Some(content.into()),
-            ..Self::default()
-        }
-    }
-}
-
-impl From<CompactString> for MessageCallbackData {
-    fn from(content: CompactString) -> Self {
-        Self {
-            content: Some(content),
-            ..Self::default()
-        }
-    }
-}
+setters::message_body!(MessageCallbackData {
+    content,
+    embeds,
+    components,
+    allowed_mentions,
+    flags,
+    ephemeral,
+    suppress_notifications,
+    files,
+    attachments,
+    poll,
+    tts,
+});
 
 /// The data of a [deferred message response](InteractionResponse::DeferredChannelMessageWithSource):
 /// only the flags of the message that follows.

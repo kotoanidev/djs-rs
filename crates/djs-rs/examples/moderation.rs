@@ -105,13 +105,6 @@ fn commands() -> Result<Vec<CreateApplicationCommand>, ValidationError> {
     ])
 }
 
-/// A reply only the moderator sees.
-fn ephemeral(content: impl Into<String>) -> MessageCallbackData {
-    let mut reply = MessageCallbackData::from(content.into());
-    reply.flags = Some(MessageFlags::EPHEMERAL);
-    reply
-}
-
 /// At most `max` characters of `text`, escaped, for an embed field.
 fn quote(text: &str, max: usize) -> String {
     if text.is_empty() {
@@ -133,10 +126,9 @@ async fn log(
     text: String,
     embed: Option<EmbedBuilder>,
 ) -> Result<(), HandlerError> {
-    let mut body = CreateMessage::from(text);
-    body.allowed_mentions = Some(AllowedMentions::default());
+    let mut body = CreateMessage::from(text).no_mentions();
     if let Some(embed) = embed {
-        body.embeds.push(embed.build()?);
+        body = body.embed(embed.build()?);
     }
     ctx.messages(channel).send(body).await?;
     Ok(())
@@ -150,13 +142,13 @@ fn logs(client: &Client, channel: ChannelId) {
             .cache()
             .map_or(0, |cache| cache.members(member.guild_id).len());
         // This message may ping the new member, and only them.
-        let mut body = CreateMessage::from(format!(
-            "👋 Welcome {}! (account created {created}; {count} members cached)",
-            user_mention(member.user.id)
-        ));
         let mut mentions = AllowedMentions::default();
         mentions.users = vec![member.user.id];
-        body.allowed_mentions = Some(mentions);
+        let body = CreateMessage::from(format!(
+            "👋 Welcome {}! (account created {created}; {count} members cached)",
+            user_mention(member.user.id)
+        ))
+        .allowed_mentions(mentions);
         ctx.messages(channel).send(body).await?;
         Ok(())
     });
@@ -266,7 +258,9 @@ fn moderation(client: &Client) {
             // Missing permissions, a member ranked above the bot, the server owner, …
             Err(error) => format!("Could not time {} out: {error}", user.tag()),
         };
-        cmd.reply(&ctx, ephemeral(text)).await?;
+        // Only the moderator sees the answer.
+        cmd.reply(&ctx, MessageCallbackData::from(text).ephemeral())
+            .await?;
         Ok(())
     });
 
@@ -283,7 +277,9 @@ fn moderation(client: &Client) {
             Ok(()) => format!("{} is banned.", user.tag()),
             Err(error) => format!("Could not ban {}: {error}", user.tag()),
         };
-        cmd.reply(&ctx, ephemeral(text)).await?;
+        // Only the moderator sees the answer.
+        cmd.reply(&ctx, MessageCallbackData::from(text).ephemeral())
+            .await?;
         Ok(())
     });
 
@@ -315,8 +311,7 @@ fn moderation(client: &Client) {
         let skipped = messages.len() - deleted;
         cmd.edit_reply(
             &ctx,
-            format!("Deleted {deleted} messages ({skipped} older than 14 days were kept).")
-                .as_str(),
+            format!("Deleted {deleted} messages ({skipped} older than 14 days were kept)."),
         )
         .await?;
         Ok(())
@@ -335,8 +330,7 @@ fn moderation(client: &Client) {
                 "{} members ({bots} bots), fetched in {:.0?}.",
                 members.len(),
                 started.elapsed()
-            )
-            .as_str(),
+            ),
         )
         .await?;
         Ok(())

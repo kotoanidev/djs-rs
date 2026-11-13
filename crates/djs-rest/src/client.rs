@@ -574,8 +574,7 @@ impl<'a> Request<'a> {
     /// };
     /// use djs_rest::{Request, Route};
     ///
-    /// let mut body = CreateMessage::from("The log:");
-    /// body.files.push(FileUpload::new("log.txt", "everything is fine\n"));
+    /// let body = CreateMessage::from("The log:").file(FileUpload::new("log.txt", "everything is fine\n"));
     /// let request = Request::new(Route::CreateMessage { channel_id: ChannelId::new(1) })
     ///     .json(&body)
     ///     .unwrap()

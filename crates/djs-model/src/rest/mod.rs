@@ -41,6 +41,8 @@ mod user;
 mod voice;
 mod webhook;
 
+pub(crate) mod setters;
+
 pub use self::{
     application::EditCurrentApplication,
     application_command::{

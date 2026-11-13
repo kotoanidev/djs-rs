@@ -7,7 +7,7 @@
 use compact_str::CompactString;
 use serde::{Serialize, Serializer};
 
-use super::{Attachments, FileUpload};
+use super::{Attachments, FileUpload, setters};
 use crate::{
     component::Component,
     message::{AllowedMentions, AttachmentRequest, Embed, MessageFlags},
@@ -26,10 +26,9 @@ use crate::{
 /// # Examples
 ///
 /// ```
-/// use djs_model::{message::MessageFlags, rest::CreateFollowupMessage};
+/// use djs_model::rest::CreateFollowupMessage;
 ///
-/// let mut body = CreateFollowupMessage::from("Only you can see this.");
-/// body.flags = Some(MessageFlags::EPHEMERAL);
+/// let body = CreateFollowupMessage::from("Only you can see this.").ephemeral();
 /// assert_eq!(
 ///     serde_json::to_string(&body).unwrap(),
 ///     r#"{"content":"Only you can see this.","flags":64}"#
@@ -109,20 +108,16 @@ impl Serialize for CreateFollowupMessage {
     }
 }
 
-impl From<&str> for CreateFollowupMessage {
-    fn from(content: &str) -> Self {
-        Self {
-            content: Some(content.into()),
-            ..Self::default()
-        }
-    }
-}
-
-impl From<String> for CreateFollowupMessage {
-    fn from(content: String) -> Self {
-        Self {
-            content: Some(content.into()),
-            ..Self::default()
-        }
-    }
-}
+setters::message_body!(CreateFollowupMessage {
+    content,
+    embeds,
+    components,
+    allowed_mentions,
+    flags,
+    ephemeral,
+    suppress_notifications,
+    files,
+    attachments,
+    poll,
+    tts,
+});

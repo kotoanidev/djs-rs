@@ -39,7 +39,7 @@ use djs_rs::{
         application_command::Choice,
         id::GuildId,
         interaction::{AutocompleteChoices, InteractionContextType, MessageCallbackData},
-        message::{AllowedMentions, MessageFlags},
+        message::MessageFlags,
         rest::CreateApplicationCommand,
         util::Timestamp,
     },
@@ -113,13 +113,6 @@ fn commands() -> Result<Vec<CreateApplicationCommand>, ValidationError> {
     ])
 }
 
-/// A reply only the user who ran the command sees.
-fn ephemeral(content: impl Into<String>) -> MessageCallbackData {
-    let mut reply = MessageCallbackData::from(content.into());
-    reply.flags = Some(MessageFlags::EPHEMERAL);
-    reply
-}
-
 /// Registers the commands in the test guild once logged in (the application ID is known from
 /// `READY` on), or removes them with `--cleanup`. `set` replaces all the bot's commands in that
 /// guild.
@@ -165,9 +158,10 @@ fn simple_commands(client: &Client) {
         let latency = now.saturating_sub(created);
         cmd.reply(
             &ctx,
-            ephemeral(format!(
+            MessageCallbackData::from(format!(
                 "Pong! The command reached the bot in {latency} ms."
-            )),
+            ))
+            .ephemeral(),
         )
         .await?;
         Ok(())
@@ -176,11 +170,10 @@ fn simple_commands(client: &Client) {
     client.command("echo", |ctx, cmd| async move {
         let text = cmd.get_string("text").unwrap_or_default();
         let times = usize::try_from(cmd.get_integer("times").unwrap_or(1))?;
-        let mut reply = MessageCallbackData::from(vec![text; times].join("\n"));
         // The text is the user's: never let it ping `@everyone`, roles or users.
-        reply.allowed_mentions = Some(AllowedMentions::default());
+        let mut reply = MessageCallbackData::from(vec![text; times].join("\n")).no_mentions();
         if cmd.get_boolean("private").unwrap_or(false) {
-            reply.flags = Some(MessageFlags::EPHEMERAL);
+            reply = reply.ephemeral();
         }
         cmd.reply(&ctx, reply).await?;
         Ok(())
@@ -214,9 +207,8 @@ fn info_commands(client: &Client) {
             .field("Account created", created.to_string())
             .footer(format!("ID {}", user.id))
             .build()?;
-        let mut reply = MessageCallbackData::default();
-        reply.embeds = Some(vec![embed]);
-        cmd.reply(&ctx, reply).await?;
+        cmd.reply(&ctx, MessageCallbackData::default().embed(embed))
+            .await?;
         Ok(())
     });
 
@@ -231,9 +223,8 @@ fn info_commands(client: &Client) {
             .inline_field("Features", guild.features.len().to_string())
             .footer(format!("ID {}", guild.id))
             .build()?;
-        let mut reply = MessageCallbackData::default();
-        reply.embeds = Some(vec![embed]);
-        cmd.reply(&ctx, reply).await?;
+        cmd.reply(&ctx, MessageCallbackData::default().embed(embed))
+            .await?;
         Ok(())
     });
 }
@@ -261,9 +252,10 @@ fn docs_command(client: &Client) {
             Some((title, anchor)) => {
                 MessageCallbackData::from(format!("{title}: <{README}#{anchor}>"))
             }
-            None => ephemeral(format!(
+            None => MessageCallbackData::from(format!(
                 "No section is called {topic:?}; pick a suggestion."
-            )),
+            ))
+            .ephemeral(),
         };
         cmd.reply(&ctx, reply).await?;
         Ok(())
@@ -295,7 +287,8 @@ fn feedback_command(client: &Client) {
         submitted
             .reply(
                 &ctx,
-                ephemeral(format!("Thanks for your feedback about {topic:?}!")),
+                MessageCallbackData::from(format!("Thanks for your feedback about {topic:?}!"))
+                    .ephemeral(),
             )
             .await?;
         Ok(())

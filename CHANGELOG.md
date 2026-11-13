@@ -8,6 +8,15 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Chainable setters on the message bodies (D-290, D-291, C-110): `CreateMessage`,
+  `MessageCallbackData`, `EditMessage`, `EditWebhookMessage`, `ExecuteWebhook` and
+  `CreateFollowupMessage` get `content`, `embed` / `embeds`, `component` / `components`,
+  `allowed_mentions`, `no_mentions`, `flags`, `suppress_embeds`, `file` / `files`,
+  `attachments`, `poll`, `tts` where the field exists, `ephemeral` on the interaction bodies,
+  `suppress_notifications`, and setters for the fields only one body has (`reply_to`,
+  `username`, `thread_id`, …). Every body converts from `&str`, `String` and `CompactString`
+  (`EditMessage` had none, `EditWebhookMessage` only `&str`): an ephemeral reply is
+  `MessageCallbackData::from("Done").ephemeral()`. The field types do not change.
 - A comparison harness against serenity 0.12.5 with its default configuration
   (`benches/vs-serenity/`, its own workspace and `Cargo.lock`, D-277–D-282, C-108):
   performance runners (decode, gateway flood, memory, REST) reusing the `benches/vs-node`

@@ -289,8 +289,7 @@ impl Rest {
     ///
     /// // Webhook routes need no bot token (D-121).
     /// let rest = Rest::builder().build();
-    /// let mut body = ExecuteWebhook::from("Deploy finished");
-    /// body.username = Some("CI".into());
+    /// let body = ExecuteWebhook::from("Deploy finished").username("CI");
     /// rest.execute_webhook(webhook_id, token, &body).await?;
     /// # Ok(())
     /// # }

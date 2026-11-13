@@ -115,8 +115,7 @@ const EMBED_CONTENT: &str =
 /// use djs_model::rest::CreateMessage;
 ///
 /// # fn main() -> Result<(), djs_builders::ValidationError> {
-/// let mut message = CreateMessage::default();
-/// message.embeds.push(EmbedBuilder::new().description("Hello!").build()?);
+/// let message = CreateMessage::default().embed(EmbedBuilder::new().description("Hello!").build()?);
 /// assert_eq!(
 ///     serde_json::to_string(&message).unwrap(),
 ///     r#"{"embeds":[{"description":"Hello!"}]}"#

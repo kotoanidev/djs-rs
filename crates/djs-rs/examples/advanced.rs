@@ -124,8 +124,8 @@ async fn webhook_demo(ctx: Context, channel_id: ChannelId) -> Result<(), Handler
             .as_deref()
             .ok_or("the new webhook has no token")?;
         let client = WebhookClient::new(webhook.id, token);
-        let mut body = ExecuteWebhook::from("Sent through a `WebhookClient`: no bot token needed.");
-        body.username = Some("Webhook demo".into());
+        let body = ExecuteWebhook::from("Sent through a `WebhookClient`: no bot token needed.")
+            .username("Webhook demo");
         let message = client.send(body).await?;
         tokio::time::sleep(Duration::from_secs(3)).await;
         let edit = EditWebhookMessage::from("Edited through the same webhook; gone in 5 seconds.");

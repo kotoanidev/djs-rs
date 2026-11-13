@@ -31,9 +31,8 @@ use djs_rs::{
         component::Component,
         emoji::PartialEmoji,
         interaction::MessageCallbackData,
-        message::{AllowedMentions, Embed, Message, MessageFlags},
+        message::{Embed, Message},
         rest::{CreateMessage, EditMessage},
-        util::Patch,
     },
     prelude::*,
 };
@@ -98,19 +97,10 @@ fn page(index: usize, closed: bool) -> Result<(Embed, Component), ValidationErro
     Ok((embed, buttons))
 }
 
-/// A reply only the user who clicked sees.
-fn ephemeral(content: &str) -> MessageCallbackData {
-    let mut reply = MessageCallbackData::from(content);
-    reply.flags = Some(MessageFlags::EPHEMERAL);
-    reply
-}
-
 /// `!menu`: one message whose buttons turn its pages, for its author only.
 async fn menu(ctx: Context, msg: &Message) -> Result<(), HandlerError> {
     let (embed, buttons) = page(0, false)?;
-    let mut body = CreateMessage::default();
-    body.embeds = vec![embed];
-    body.components = vec![buttons];
+    let body = CreateMessage::default().embed(embed).component(buttons);
     let menu = msg.reply(&ctx, body).await?;
 
     let mut clicks = menu
@@ -124,7 +114,9 @@ async fn menu(ctx: Context, msg: &Message) -> Result<(), HandlerError> {
             click
                 .reply(
                     &ctx,
-                    ephemeral("Only the author of `!menu` can turn its pages."),
+                    // Only the user who clicked sees it.
+                    MessageCallbackData::from("Only the author of `!menu` can turn its pages.")
+                        .ephemeral(),
                 )
                 .await?;
             continue;
@@ -136,9 +128,10 @@ async fn menu(ctx: Context, msg: &Message) -> Result<(), HandlerError> {
             _ => clicks.stop(),
         }
         let (embed, buttons) = page(index, closed)?;
-        let mut update = MessageCallbackData::default();
-        update.embeds = Some(vec![embed]);
-        update.components = Some(vec![buttons]);
+        // Replaces the message's embeds and buttons.
+        let update = MessageCallbackData::default()
+            .embeds([embed])
+            .components([buttons]);
         click.update(&ctx, update).await?;
     }
 
@@ -146,8 +139,7 @@ async fn menu(ctx: Context, msg: &Message) -> Result<(), HandlerError> {
     // so the message is edited).
     if clicks.end_reason() == Some(EndReason::Idle) {
         let (_, buttons) = page(index, true)?;
-        let mut edit = EditMessage::default();
-        edit.components = Patch::Set(vec![buttons]);
+        let edit = EditMessage::default().components([buttons]);
         menu.edit(&ctx, &edit).await?;
     }
     Ok(())
@@ -176,11 +168,11 @@ async fn quiz(ctx: Context, msg: &Message) -> Result<(), HandlerError> {
 
 /// `!poll <question>`: counts the 👍 and 👎 reactions for 30 seconds.
 async fn poll(ctx: Context, msg: &Message, question: &str) -> Result<(), HandlerError> {
-    let mut body = CreateMessage::from(format!(
-        "**{question}**\nReact with {YES} or {NO}: the result comes in 30 seconds."
-    ));
     // The question is the user's text: no pings.
-    body.allowed_mentions = Some(AllowedMentions::default());
+    let body = CreateMessage::from(format!(
+        "**{question}**\nReact with {YES} or {NO}: the result comes in 30 seconds."
+    ))
+    .no_mentions();
     let poll = msg.reply(&ctx, body).await?;
     poll.react(&ctx, YES).await?;
     poll.react(&ctx, NO).await?;

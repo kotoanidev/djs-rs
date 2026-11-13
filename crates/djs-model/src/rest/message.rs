@@ -4,7 +4,7 @@
 use compact_str::CompactString;
 use serde::{Deserialize, Serialize, Serializer};
 
-use super::{Attachments, FileUpload};
+use super::{Attachments, FileUpload, setters};
 use crate::{
     channel::{Channel, ThreadMember},
     component::Component,
@@ -38,8 +38,7 @@ use crate::{
 /// let body = CreateMessage::from("Pong!");
 /// assert_eq!(serde_json::to_string(&body).unwrap(), r#"{"content":"Pong!"}"#);
 ///
-/// let mut body = CreateMessage::from("A log");
-/// body.files.push(FileUpload::new("log.txt", "line 1\nline 2\n"));
+/// let body = CreateMessage::from("A log").file(FileUpload::new("log.txt", "line 1\nline 2\n"));
 /// assert_eq!(
 ///     serde_json::to_string(&body).unwrap(),
 ///     r#"{"content":"A log","attachments":[{"id":0,"filename":"log.txt"}]}"#
@@ -151,24 +150,74 @@ impl Serialize for CreateMessage {
     }
 }
 
-impl From<&str> for CreateMessage {
-    fn from(content: &str) -> Self {
-        Self::from(CompactString::from(content))
-    }
-}
+setters::message_body!(CreateMessage {
+    content,
+    embeds,
+    components,
+    allowed_mentions,
+    flags,
+    suppress_notifications,
+    files,
+    attachments,
+    poll,
+    tts,
+});
 
-impl From<String> for CreateMessage {
-    fn from(content: String) -> Self {
-        Self::from(CompactString::from(content))
+/// The setters of the fields only [`CreateMessage`] has (D-290).
+impl CreateMessage {
+    /// Makes the message a reply to `message_id`, in the same channel.
+    ///
+    /// discord.js counterpart: `reply: { messageReference }`.
+    #[must_use]
+    pub const fn reply_to(mut self, message_id: MessageId) -> Self {
+        self.message_reference = Some(MessageReference::reply(message_id));
+        self
     }
-}
 
-impl From<CompactString> for CreateMessage {
-    fn from(content: CompactString) -> Self {
-        Self {
-            content: Some(content),
-            ..Self::default()
-        }
+    /// Sets the message this one replies to or forwards.
+    ///
+    /// discord.js counterpart: the `reply` and `forward` options.
+    #[must_use]
+    pub fn message_reference(mut self, reference: MessageReference) -> Self {
+        self.message_reference = Some(reference);
+        self
+    }
+
+    /// Adds a sticker of the guild, after the ones set before (up to 3).
+    ///
+    /// discord.js counterpart: an item of the `stickers` option.
+    #[must_use]
+    pub fn sticker(mut self, sticker_id: StickerId) -> Self {
+        self.sticker_ids.push(sticker_id);
+        self
+    }
+
+    /// Replaces the stickers (up to 3 of the guild's).
+    ///
+    /// discord.js counterpart: the `stickers` option.
+    #[must_use]
+    pub fn stickers(mut self, sticker_ids: impl IntoIterator<Item = StickerId>) -> Self {
+        self.sticker_ids = sticker_ids.into_iter().collect();
+        self
+    }
+
+    /// Sets a value to recognize the message in its `MESSAGE_CREATE` event; with
+    /// `enforce`, a message with the same nonce sent by the same author in the last few
+    /// minutes is returned instead of creating a new one.
+    ///
+    /// discord.js counterpart: the `nonce` and `enforceNonce` options.
+    #[must_use]
+    pub fn nonce(mut self, nonce: Nonce, enforce: bool) -> Self {
+        self.nonce = Some(nonce);
+        self.enforce_nonce = enforce;
+        self
+    }
+
+    /// Shares a client theme through the message.
+    #[must_use]
+    pub fn shared_client_theme(mut self, theme: SharedClientTheme) -> Self {
+        self.shared_client_theme = Some(theme);
+        self
     }
 }
 
@@ -190,8 +239,8 @@ impl From<CompactString> for CreateMessage {
 /// ```
 /// use djs_model::{rest::EditMessage, util::Patch};
 ///
-/// let mut body = EditMessage::default();
-/// body.content = Patch::Set("Edited".into());
+/// // Setters for the usual fields (D-290); `Patch::Clear` by hand to remove a field.
+/// let mut body = EditMessage::from("Edited");
 /// body.embeds = Patch::Clear;
 /// assert_eq!(
 ///     serde_json::to_string(&body).unwrap(),
@@ -257,6 +306,16 @@ impl Serialize for EditMessage {
         .serialize(serializer)
     }
 }
+
+setters::message_body!(EditMessage {
+    content,
+    embeds,
+    components,
+    allowed_mentions,
+    flags,
+    files,
+    attachments,
+});
 
 /// The query of [Get Channel Messages](https://docs.discord.com/developers/resources/message#get-channel-messages)
 /// (`GET /channels/{channel.id}/messages`). Messages are returned newest first.
