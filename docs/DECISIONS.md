@@ -2828,6 +2828,22 @@ and why.
   `Shards::Auto`, processes still asking for the URL); processes reporting `max_concurrency`
   with their IDENTIFY requests (N requests at start).
 
+### D-306 — Which cluster exits are restarted, and how it is configured
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Decision:** by default the manager restarts a process only when it fails: a non-zero
+  exit code or a signal (a panic, an error from `login`, an out-of-memory kill). A clean
+  exit (code 0, for example after `ctx.shutdown()` in the process) means the bot ended that
+  cluster on purpose; exits the manager asked for (`shutdown`) are never restarted. The
+  policy is `ClusterManagerBuilder::restart(Restart)`, a non-exhaustive enum
+  `Restart::{OnFailure (default), Always, Never}`, and the delays are
+  `ClusterManagerBuilder::restart_delay(first, max)`: 1 s by default, doubled after each
+  restart up to 60 s, back to the first delay once a process has run for at least the
+  maximum delay. A restart is reported as `ClusterEvent::Restarting { cluster, delay }`
+  before the process is started again.
+- **Alternatives:** restarting every exit the manager did not ask for (discord.js's
+  `respawn: true`); `restart(bool)` without a choice of exits; a `RestartPolicy` struct
+  with every threshold configurable.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
