@@ -1191,6 +1191,34 @@ hash lookup), an `Arc` clone and the route's name for error logs.
   Real interactions must be answered within 3 seconds, so such a backlog cannot last in
   production, but the size per interaction matters for every bot that keeps them.
 
+### Re-run after D-256 (2026-11-13: balanced profile, under the guard)
+
+The boxed `Resolved` values (D-256) measured with the final code. Every run went through the
+resource guard (D-257–D-262) with the fan forced to full speed, one test at a time with a
+cool-down, in the **balanced** platform profile the owner switched to (PL1 23 W, PL2 39 W).
+That profile caps the clocks, so the single-shard rows are 10–33 % below the
+performance-profile table above and are not comparable with it; the memory columns and the
+16-shard rows are.
+
+| Measurement | System allocator | mimalloc |
+|---|---:|---:|
+| Decoding the whole dispatch (`decode_dispatch`, pinned to 2 P-cores) | **3.54 µs, 18 allocations, 3.14 KB** (was 3.79 µs, 15, 8.72 KB) | — |
+| Gateway only: 1M `INTERACTION_CREATE`, one shard (shard CPU per event) | 173 900/s (5.35 µs) | — |
+| 1M through an `InteractionCreate` handler, `Concurrent` | 68 500/s | 79 700/s |
+| 1M through the router (20 routes), `Concurrent` | 66 900/s | 106 600/s |
+| 1M through the router and an event handler | 64 400/s | 76 400/s |
+| 1M through the router, `Sequential` | 92 000/s | 96 400/s |
+| 1M through the router, 16 shards | **447 400/s** (peak 161 MiB; was 366 000–407 000/s) | **626 500/s** (peak 167 MiB; was 449 000/s) |
+| 100k answered with `reply`, `Sequential` | 49 100/s (20.4 µs each) | 48 600/s |
+| 200k answered with `reply`, 64 in flight | 50 300/s (peak 21 MiB) | 76 800/s (peak 39 MiB) |
+| 50k answered with `reply`, 64 in flight, 16 shards (D-258) | 131 000/s (peak **318 MiB**) | 122 500/s (peak 346 MiB) |
+
+- **Smaller interactions are faster where many are in flight**: with 16 shards the router
+  floods gained 10–40 % although the balanced profile runs at lower clocks, and the reply
+  backlog costs ≈ 6.5 KB per waiting interaction instead of ≈ 11 KB (318 MiB for 50 000).
+- Every reply reached the mock API exactly once; every run peaked at 42–61 °C (the guard's
+  target is below 95 °C) without thermal throttling.
+
 ### Findings and optimization candidates (Phase 8, interactions)
 
 - **Applied (D-256): the values of `Resolved`'s maps are boxed** (`BTreeMap<Id, Box<V>>`).
@@ -1202,8 +1230,9 @@ hash lookup), an `Arc` clone and the route's name for error logs.
   would be a new public type.
 - **The 16-shard reply flood now sends 50 000 interactions** (D-258): at 200 000 its backlog
   peaked at 2.2 GiB. Since 2026-11-13 every assistant run goes through a resource guard
-  (D-257: 4 CPUs, 6 GB, no swap, stop at 90 °C), so later numbers state when they were
-  measured under it.
+  (D-257, D-259–D-262: 6 GB without swap, the fan at full speed, a stop only on a real
+  danger), so later numbers state when they were measured under it and in which platform
+  profile.
 - `Concurrent` dispatch of interactions costs ≈ 5 µs more than `Sequential`, far more than for
   messages (≈ 1.2 µs); `perf` is blocked on this machine (SELinux, `perf_event_paranoid` 2),
   so the split between the cross-core hand-off and the allocator could only be bounded by the

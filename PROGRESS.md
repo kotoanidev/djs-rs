@@ -500,17 +500,31 @@ fields with `Deref` to `new`). Steps:
       (+ `_mimalloc`); results in `docs/PERFORMANCE.md` ("Phase 8 — interactions"). Getters
       2–22 ns without allocations; the router ≈ 1 % over a `match`; decoding (4.8 µs of shard
       CPU per 1.9 KB interaction) dominates.
-   e. 🟡 **In progress, paused (wip commit):** box the values of `Resolved` (D-256): the code
-      is committed (`data.rs`, `getters.rs` with private unboxing helpers on `Resolved`; the
-      16-shard reply flood reduced to 50 000 per D-258; CHANGELOG and PERFORMANCE updated).
-      **Verified:** `cargo fmt` and `cargo clippy --workspace --all-targets --all-features`
-      (which type-checks every test, bench and example). **Not yet run:** `cargo test` and
-      `cargo doc` — the guard stopped the gate at 94 °C. **Next (D-259, the owner asked to run
-      the stress tests):** run `.reference/tools/gate.sh` through `.reference/tools/safe.sh`,
-      then one decode benchmark
-      (`cargo bench -p djs-model --bench interaction -- decode_dispatch`, pinned to one core),
-      and the interaction stress tests one at a time (both allocators, the gateway flood),
-      record them in `docs/PERFORMANCE.md`, and commit without the `wip` mark; then step 4.
+   e. ✅ The values of `Resolved` are boxed (D-256): `data.rs`, `getters.rs` (private
+      unboxing helpers on `Resolved`); the 16-shard reply flood reduced to 50 000 (D-258).
+      Gate passed (931 tests); `decode_dispatch` 3.54 µs, 18 allocations, **3.14 KB** (was
+      8.72 KB); stress re-run under the guard in the balanced profile: 16 shards route
+      447 000/s (mimalloc 627 000/s), the 50 000-reply backlog peaks at 318 MiB
+      (`docs/PERFORMANCE.md`, "Re-run after D-256").
+4. **Collectors and gateway requests** (ROADMAP Phase 8). Decided 2026-11-13: D-263 (streams
+   with `time` / `idle` / `max` / `filter` builders and `await_*` shortcuts, no callbacks),
+   D-264 (a shared index of collectors by channel / message / interaction / user / nonce /
+   guild ID: one lookup per event, one atomic read without collectors), D-265 (message,
+   reaction with dispose, component and modal collectors, plus gateway member requests and
+   soundboard sounds), D-266 (collected events still reach the handlers and routes), D-267
+   (`Sequential` mode: documented + a `tracing` warning), D-268 (`await_component` /
+   `await_modal_submit` → `Result<T, CollectorError>`; `await_messages` / `await_reactions`
+   → `Collected` = `Collection` + `reason()`), D-269 (short names: `message_collector`,
+   `reaction_collector`, `component_collector`, `await_messages`, `await_reactions`,
+   `await_component`, `await_modal_submit`), D-270 (`members(guild).fetch_all()` /
+   `fetch_by_query(q).limit(n)` / `fetch_many(ids)` with `presences` and `time`, chunks by
+   nonce, cached, `Collection<UserId, Arc<CachedMember>>`). Steps:
+   a. 🟡 **In progress:** the collector core and the four collectors: `crates/djs-rs/src/
+      collector/{mod.rs, index.rs}` (index: `Collectors`, `Sink`, `Key`, `Registration`;
+      the client's `wants` / `emit` feed it; ending on message / channel / thread / guild
+      deletion), the extension methods and the `Context` methods by channel ID; tests.
+   b. Gateway member requests and soundboard sounds (D-270).
+   c. Benchmarks + extreme-load tests (D-041).
 
 > **Heavy runs (D-257, D-259–D-262):** the owner's laptop hard-froze on 2026-11-13 under
 > assistant load. Every cargo build/test/bench/stress test goes through
