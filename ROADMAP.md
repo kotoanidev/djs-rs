@@ -110,8 +110,10 @@ just with narrow scope.
 - [x] All events, structures with methods, managers (fetch/cache semantics)
 - [x] Interactions: replies, deferrals, follow-ups, modals, autocomplete (D-248–D-255; typed
   getters, `InteractionExt`, a command router; benchmarked)
-- [ ] Collectors (message, reaction, interaction) and `await_*` helpers
-- [ ] Partials, intents/privileged intents guidance
+- [x] Collectors (message, reaction, interaction) and `await_*` helpers (D-263–D-270; with
+  gateway member and soundboard requests; benchmarked)
+- [x] Partials, intents/privileged intents guidance (D-271–D-273: `Event::INTENTS`, a login
+  warning, `required_intents()`, a partials table)
 - [ ] Examples directory covering common bot patterns
 
 ## Phase 9 — Multi-process sharding (D-018)

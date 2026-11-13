@@ -79,9 +79,9 @@ const DELETIONS: [EventKind; 3] = [
 ];
 
 impl Sink {
-    /// The events this kind of collector needs; the client converts them even without a
-    /// handler while such a collector runs.
-    const fn kinds(&self) -> &'static [EventKind] {
+    /// The events this kind of collector needs, the collected one first; the client converts
+    /// them even without a handler while such a collector runs.
+    pub(crate) const fn kinds(&self) -> &'static [EventKind] {
         match self {
             Self::Messages(_) => &[
                 EventKind::MessageCreate,
@@ -370,8 +370,9 @@ impl Collectors {
     }
 
     /// Hands one event to the collectors watching its IDs.
-    pub(crate) fn deliver(&self, dispatch: &Dispatch) {
-        if self.count.load(Ordering::Acquire) == 0 {
+    pub(crate) fn deliver(&self, kind: EventKind, dispatch: &Dispatch) {
+        // Without a collector needing this kind of event, no lock is taken.
+        if !self.wants(kind) {
             return;
         }
         match dispatch {

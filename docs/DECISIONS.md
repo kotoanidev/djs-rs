@@ -3952,6 +3952,32 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - `GuildManager::fetch_soundboard_sounds(ids, time)` groups the guilds by shard (one
   command per shard) and waits for every guild.
 
+### C-105 — Phase 8 step 4c: collector benchmarks and stress tests (D-041)
+- `djs-rs/tests/stress_collectors.rs` (ignored): a mock gateway that floods only after the
+  test registered its collectors (a `Notify`), message floods with 0 / 10 000 unrelated /
+  10 000 other-kind / 1 busy collector, a 1M-click storm, register + drop churn, and
+  `fetch_all` of 100 000 members with and without a cache.
+- The A/B against the commit before the collectors ran from a temporary `git worktree` in
+  the git-ignored `.reference/ab-base` (removed afterwards), pinned to two P-cores.
+- Fixed on the way: `Collectors::deliver` takes the event kind and returns before locking
+  when no collector wants that kind.
+
+### C-106 — Phase 8 step 5: intents and partials (D-271–D-273)
+- The `events!` macro takes each event's intents as `[GUILD_MESSAGES | DIRECT_MESSAGES]`
+  (`[]` for none), from Discord's list of intents; derived events (per-emoji, per-sticker,
+  `GuildAvailable`, …) take their source's. `Event::INTENTS` is public (a new associated
+  constant on the sealed trait); `EventKind::{ALL, intents, name}` are internal.
+- An event counts as covered when the client requests any of its intents. The warning is
+  one `tracing::warn!` listing the events and their intents: at `login()` for every
+  registered handler, route and running collector, at `Client::on` for a handler added
+  while running, and when a collector starts (its collected event: messages and reactions;
+  interactions need none).
+- `Client::required_intents()` unions the intents of the handlers, routes and the running
+  collectors' events (including the deletion events that end collectors, all `GUILDS`); it
+  never adds `MESSAGE_CONTENT`, which the docs explain separately.
+- The partials guide is a table in the `event` module documentation (and a README section),
+  one row per discord.js partial.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

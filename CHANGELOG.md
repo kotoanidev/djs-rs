@@ -17,6 +17,15 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `Context` by channel ID, and `interaction.component_collector` / `await_component` /
   `await_modal_submit`. Events reach them through an index by ID (D-264) and still reach the
   handlers and routes (D-266).
+- Intents and partials guidance in `djs-rs` (Phase 8 step 5, D-271–D-273, C-106): every
+  event's `Event::INTENTS`; a `tracing` warning at login (and for handlers or collectors
+  added later) about events none of the client's intents covers;
+  `Client::required_intents()`; a table from discord.js' partials to djs-rs in the `event`
+  module documentation.
+- Collector benchmarks and extreme-load tests (Phase 8 step 4c, C-105):
+  `djs-rs/tests/stress_collectors.rs`; the collectors leave the event path unchanged until
+  one wants the event (A/B within noise with 10 000 collectors alive), a busy collector
+  costs ≈ 0.33 µs per message; results in `docs/PERFORMANCE.md`.
 - Gateway requests in `djs-rs` (Phase 8 step 4b, D-270, C-104): `ctx.members(guild)
   .fetch_all()` / `.fetch_by_query(q)` / `.fetch_many(ids)` (`limit`, `presences`, `time`)
   gather the `GUILD_MEMBERS_CHUNK` answers of their nonce and cache the members;

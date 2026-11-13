@@ -5,7 +5,7 @@ use std::sync::{Arc, OnceLock, PoisonError, RwLock};
 use djs_cache::{Backend, Cache, DashMapBackend};
 use djs_gateway::MessageSender;
 use djs_model::{
-    gateway::ShardId,
+    gateway::{Intents, ShardId},
     id::{ApplicationId, GuildId},
 };
 use djs_rest::Rest;
@@ -21,6 +21,8 @@ pub(crate) struct Shared {
     pub(crate) collectors: Arc<Collectors>,
     /// Whether handlers run one after another (collectors then warn, D-267).
     pub(crate) sequential: bool,
+    /// The client's intents (collectors warn about missing ones, D-271).
+    pub(crate) intents: Intents,
     /// The senders of the running shards, by shard number (empty while not running).
     pub(crate) shards: RwLock<Vec<(u32, MessageSender)>>,
 }
@@ -93,6 +95,11 @@ impl<B: Backend> Context<B> {
     /// Whether handlers run one after another (D-267).
     pub(crate) fn is_sequential(&self) -> bool {
         self.inner.shared.sequential
+    }
+
+    /// The client's intents.
+    pub(crate) fn intents(&self) -> Intents {
+        self.inner.shared.intents
     }
 
     /// The sender of the shard that receives `guild`'s events, if it runs in this client.

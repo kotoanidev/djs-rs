@@ -86,6 +86,7 @@ use djs_collection::Collection;
 use djs_model::{
     component::ComponentType,
     emoji::PartialEmoji,
+    gateway::Intents,
     gateway::payload::{
         MessageCreate, MessageReactionAdd, MessageReactionRemove, MessageReactionRemoveAll,
     },
@@ -483,6 +484,7 @@ impl<T> fmt::Debug for Options<T> {
 pub struct CollectorBuilder<T: Collectable, M = mode::Stream> {
     collectors: Arc<Collectors>,
     sequential: bool,
+    intents: Intents,
     key: Key,
     guild: Option<GuildId>,
     channel: Option<ChannelId>,
@@ -509,6 +511,7 @@ impl<T: Collectable, M> CollectorBuilder<T, M> {
         Self {
             collectors: Arc::clone(ctx.collectors()),
             sequential: ctx.is_sequential(),
+            intents: ctx.intents(),
             key,
             guild,
             channel,
@@ -560,9 +563,12 @@ impl<T: Collectable, M> CollectorBuilder<T, M> {
             );
         }
         let (tx, rx) = mpsc::unbounded_channel();
-        let registration =
-            self.collectors
-                .register(self.key, self.guild, self.channel, T::sink(tx));
+        let sink = T::sink(tx);
+        // The event it collects (the first of its kinds) needs one of its intents (D-271).
+        crate::client::warn_missing_intents(self.intents, sink.kinds().first().copied());
+        let registration = self
+            .collectors
+            .register(self.key, self.guild, self.channel, sink);
         let now = Instant::now();
         let timer = |duration: Option<Duration>| {
             duration

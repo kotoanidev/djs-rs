@@ -42,6 +42,28 @@ fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
     mutex.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
+/// Logs a warning naming the events of `kinds` that none of `intents` covers: Discord never
+/// sends them to this client (D-271).
+pub(crate) fn warn_missing_intents(intents: Intents, kinds: impl IntoIterator<Item = EventKind>) {
+    use core::fmt::Write as _;
+
+    let mut missing = String::new();
+    for kind in kinds {
+        let needed = kind.intents();
+        if !needed.is_empty() && !intents.intersects(needed) {
+            let separator = if missing.is_empty() { "" } else { ", " };
+            let _ = write!(missing, "{separator}{} ({needed:?})", kind.name());
+        }
+    }
+    if !missing.is_empty() {
+        tracing::warn!(
+            events = %missing,
+            "these events are never received without one of their intents; add them with \
+             ClientBuilder::intents"
+        );
+    }
+}
+
 /// How event handlers are executed (D-028).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[non_exhaustive]
@@ -218,6 +240,10 @@ impl<B: Backend> Client<B> {
         Fut: Future<Output = Result<(), HandlerError>> + Send + 'static,
     {
         let _ = event;
+        if self.inner.running.load(Ordering::Acquire) {
+            // Registered while running: login already checked the others (D-271).
+            warn_missing_intents(self.inner.intents, [E::KIND]);
+        }
         let handler: Arc<dyn ErasedHandler<B>> = Arc::new(Handler::<E, F>::new(handler));
         let mut registry = self
             .inner
@@ -380,6 +406,42 @@ impl<B: Backend> Client<B> {
         let route = Arc::new(Route::new(name, handler));
         self.change_registry(|registry| {
             registry.routes.modals.insert(name.into(), route);
+        })
+    }
+
+    /// The intents the registered handlers, routes and running collectors need (D-272): the
+    /// union of their events' [`Event::INTENTS`], to print or compare with the client's.
+    ///
+    /// Requesting all of them receives every such event; a bot may still leave some out (for
+    /// example `DIRECT_MESSAGES` when it only reads guild messages). It does not include
+    /// [`Intents::MESSAGE_CONTENT`], which changes what message events contain rather than
+    /// which arrive. The client's intents stay what [`ClientBuilder::intents`] set; at login
+    /// it warns about events none of them covers (D-271).
+    ///
+    /// discord.js has no counterpart.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use djs_rs::prelude::*;
+    /// let client = Client::builder("token").intents(Intents::GUILDS).build();
+    /// client.on(Events::MessageReactionAdd, |_ctx, _reaction| async move { Ok(()) });
+    /// assert!(client.required_intents().contains(Intents::GUILD_MESSAGE_REACTIONS));
+    /// ```
+    #[must_use]
+    pub fn required_intents(&self) -> Intents {
+        self.listened()
+            .fold(Intents::empty(), |intents, kind| intents | kind.intents())
+    }
+
+    /// The events registered handlers, routes and running collectors listen to.
+    fn listened(&self) -> impl Iterator<Item = EventKind> {
+        let registry = self.registry();
+        let collectors = Arc::clone(&self.inner.shared.collectors);
+        EventKind::ALL.into_iter().filter(move |&kind| {
+            !registry.get(kind).is_empty()
+                || (kind == EventKind::InteractionCreate && !registry.routes.is_empty())
+                || collectors.wants(kind)
         })
     }
 
@@ -550,6 +612,7 @@ impl<B: Backend> Client<B> {
 
     async fn run(&self) -> Result<(), Error> {
         let inner = &*self.inner;
+        warn_missing_intents(inner.intents, self.listened());
         inner.shutdown.send_replace(false);
         // Subscribed before anything can wait, so a shutdown during start-up is not missed.
         let shutdown = inner.shutdown.subscribe();
@@ -849,13 +912,12 @@ impl<B: Backend> Client<B> {
                 .store(!subscribers.is_empty(), Ordering::Release);
         }
 
-        // The collectors watching the event's IDs (D-264); they do not take it from the
-        // handlers (D-266).
-        inner.shared.collectors.deliver(&dispatch);
-
         let Some(kind) = dispatch.kind() else {
             return;
         };
+        // The collectors watching the event's IDs (D-264); they do not take it from the
+        // handlers (D-266).
+        inner.shared.collectors.deliver(kind, &dispatch);
         let handlers = registry.get(kind);
         // The interaction routes run after the `InteractionCreate` handlers (D-255).
         let routed = match &dispatch {
@@ -1122,6 +1184,7 @@ impl<B: Backend> ClientBuilder<B> {
                 ready_shards: AtomicU32::new(0),
                 shared: Arc::new(Shared {
                     sequential: self.mode == HandlerMode::Sequential,
+                    intents: self.intents,
                     ..Shared::default()
                 }),
             }),
@@ -1155,8 +1218,60 @@ impl Stream for EventStream {
 #[cfg(test)]
 mod tests {
     use core::time::Duration;
+    use std::{
+        io,
+        sync::{Arc, Mutex},
+    };
 
-    use super::every;
+    use djs_model::gateway::Intents;
+
+    use super::{every, warn_missing_intents};
+    use crate::event::EventKind;
+
+    /// A log writer into a shared buffer.
+    #[derive(Clone, Default)]
+    struct Logs(Arc<Mutex<Vec<u8>>>);
+
+    impl io::Write for Logs {
+        fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+            self.0.lock().unwrap().extend_from_slice(bytes);
+            Ok(bytes.len())
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn events_without_their_intents_are_warned_about() {
+        let logs = Logs::default();
+        let writer = logs.clone();
+        let subscriber = tracing_subscriber::fmt()
+            .with_writer(move || writer.clone())
+            .with_ansi(false)
+            .finish();
+        tracing::subscriber::with_default(subscriber, || {
+            warn_missing_intents(
+                Intents::GUILDS | Intents::DIRECT_MESSAGES,
+                [
+                    EventKind::MessageReactionAdd,
+                    EventKind::GuildCreate,
+                    EventKind::InteractionCreate,
+                    // One of its two intents is enough.
+                    EventKind::MessageCreate,
+                    EventKind::PresenceUpdate,
+                ],
+            );
+            warn_missing_intents(Intents::GUILDS, [EventKind::GuildCreate]);
+        });
+        let logs = String::from_utf8(logs.0.lock().unwrap().clone()).unwrap();
+        assert_eq!(logs.lines().count(), 1, "{logs}");
+        assert!(logs.contains("messageReactionAdd"), "{logs}");
+        assert!(logs.contains("presenceUpdate"), "{logs}");
+        assert!(!logs.contains("guildCreate"), "{logs}");
+        assert!(!logs.contains("messageCreate"), "{logs}");
+    }
 
     #[tokio::test]
     async fn sweeps_that_cannot_be_scheduled_return_at_once() {

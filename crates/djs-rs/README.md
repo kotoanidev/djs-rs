@@ -89,6 +89,20 @@ Handlers run concurrently in their own tokio tasks by default (like discord.js);
 `HandlerMode::Sequential` for strictly ordered processing. If you prefer an explicit loop,
 `client.events()` returns a stream of every event (all but `Raw`).
 
+### Intents and partials
+
+Discord only sends an event if the client requests one of its intents (`Event::INTENTS`;
+`MessageCreate` comes with `GUILD_MESSAGES` for guilds and `DIRECT_MESSAGES` for DMs). At
+login the client warns about handlers, routes and collectors whose events none of its intents
+covers (D-271), and `client.required_intents()` shows what they need (D-272); the intents
+themselves stay explicit. Reading guild messages' content also needs the privileged
+`MESSAGE_CONTENT` intent.
+
+There is no `partials` option (D-273): every event arrives even when the cache does not hold
+its objects — `old` is `None` and payloads carry IDs — and the managers' `fetch` completes
+them. The documentation of the `djs_rs::event` module maps each discord.js partial to what
+djs-rs hands instead.
+
 ## Managers and structure methods
 
 The operations of a resource live on a manager reached from the handler `Context`:

@@ -534,10 +534,21 @@ fields with `Deref` to `new`). Steps:
       `GuildManager::fetch_soundboard_sounds`; the index's `MemberReply` (chunks and
       `RATE_LIMITED` by nonce); 4 tests in `tests/collectors.rs` (the scripted gateway answers
       opcodes 8 and 31).
-   c. **Next:** benchmarks + extreme-load tests (D-041): the cost of `deliver` / `wants`
-      with 0, 1 and 10 000 collectors on the event path (divan), a flood of 1M events with
-      many collectors, a component storm on one collector, and `fetch_all` of a large guild
-      (100 000 members in 1 000-member chunks); all through the guard, one at a time.
+   c. ✅ Benchmarks + extreme-load tests (D-041, C-105): `tests/stress_collectors.rs`; A/B
+      pinned to two P-cores against `4085a57`: within noise (452 000–465 000 vs 452 000–
+      461 000 messages/s), 10 000 collectors of the same or another kind cost nothing
+      measurable, a busy collector ≈ 0.33 µs per message; 1M clicks 110 000/s; register +
+      drop 263 ns; `fetch_all` of 100 000 members 77–117 ms (`docs/PERFORMANCE.md`,
+      "Phase 8 — collectors"). `deliver` now checks the per-kind counter before locking.
+5. ✅ **Intents and partials** (D-271–D-273, C-106): `[intents]` per entry of the `events!`
+   macro → `Event::INTENTS`, `EventKind::{ALL, intents, name}`; `client::warn_missing_intents`
+   at login, in `Client::on` while running and when a collector starts;
+   `Client::required_intents()`; `Shared::intents`; the partials table in the `event` module
+   docs and the README; tests: a unit test of the warning (captured `tracing` output) and
+   `required_intents_cover_handlers_routes_and_collectors`.
+6. **Next: examples** (ROADMAP Phase 8: "Examples directory covering common bot patterns"):
+   ask the owner first which examples (and whether they may run against the live test bot,
+   C-184-style approvals), then write them under `crates/djs-rs/examples/`.
 
 > **Heavy runs (D-257, D-259–D-262):** the owner's laptop hard-froze on 2026-11-13 under
 > assistant load. Every cargo build/test/bench/stress test goes through

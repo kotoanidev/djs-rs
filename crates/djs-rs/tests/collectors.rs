@@ -715,3 +715,31 @@ async fn soundboard_sounds_of_several_guilds() {
     assert_eq!(sounds[&GuildId::new(GUILD)].len(), 2);
     session.finish().await;
 }
+
+#[tokio::test]
+async fn required_intents_cover_handlers_routes_and_collectors() {
+    let reactions = Intents::GUILD_MESSAGE_REACTIONS | Intents::DIRECT_MESSAGE_REACTIONS;
+    let session = Session::start_with(|client| {
+        client.on(Events::MessageReactionAdd, |_ctx, _reaction| async move {
+            Ok(())
+        });
+        // Interactions need no intent.
+        client.command("ping", |_ctx, _command| async move { Ok(()) });
+        client
+    })
+    .await;
+    assert_eq!(session.client.required_intents(), reactions);
+
+    let messages = session
+        .ctx
+        .message_collector(ChannelId::new(CHANNEL))
+        .build();
+    let with_collector = session.client.required_intents();
+    assert!(
+        with_collector.contains(reactions | Intents::GUILD_MESSAGES | Intents::DIRECT_MESSAGES),
+        "{with_collector:?}"
+    );
+    drop(messages);
+    assert_eq!(session.client.required_intents(), reactions);
+    session.finish().await;
+}

@@ -1237,3 +1237,53 @@ performance-profile table above and are not comparable with it; the memory colum
   messages (≈ 1.2 µs); `perf` is blocked on this machine (SELinux, `perf_event_paranoid` 2),
   so the split between the cross-core hand-off and the allocator could only be bounded by the
   mimalloc A/B.
+
+## Phase 8 — collectors (2026-11-13)
+
+Step 4c of Phase 8 (D-041): the collectors (D-263–D-269) and the gateway member requests
+(D-270). Laptop i7-1355U in the **balanced** profile, every run through the resource guard
+(D-262) with the fan at full speed, one at a time; the mock gateway is in-process (nothing
+reaches Discord). `djs-rs/tests/stress_collectors.rs`; the A/B rows are pinned to two
+P-cores (`taskset -c 0,2`, C-072): unpinned, the shard's thread lands on a P-core or an
+E-core and one flood takes 2.1 or 4.1–4.5 µs per message.
+
+### The event path with collectors (1M `MESSAGE_CREATE`, a `Sequential` handler, 3 rounds)
+
+| Run | Per message | Messages/s |
+|---|---:|---:|
+| Before the collectors (commit `4085a57`, `stress.rs` `flood_1m_sequential_handlers`) | 2.15–2.21 µs | 452 000–465 000 |
+| After (the same test) | 2.17–2.21 µs | 452 000–461 000 |
+| After, no collector (`stress_collectors.rs`) | 2.18–2.21 µs | 452 000–458 000 |
+| 10 000 message collectors on other channels (each message misses them in the index) | 2.12–2.21 µs | 453 000–471 000 |
+| 10 000 component collectors (a kind messages do not need) | 2.12–2.19 µs | 456 000–472 000 |
+| One collector receiving every message, read by another task | 2.50–2.53 µs | 395 000–399 000 |
+
+- **The collectors cost nothing until one wants the event**: the client's `wants` and the
+  index's `deliver` first read per-kind counters (C-105), so 10 000 collectors of another
+  kind add no lock; 10 000 of the same kind elsewhere add one lock and a missed hash lookup,
+  below the noise.
+- **A busy collector costs ≈ 0.33 µs per collected message**: an `Arc` clone, the send on
+  its queue and the wake-up of the reading task.
+
+### Other loads
+
+| Test | Result |
+|---|---:|
+| 1M button clicks (1.6 KB `INTERACTION_CREATE`) into one component collector with `max_users`, `Concurrent` | 110 000/s (decoding dominates, see "Phase 8 — interactions") |
+| 1M collectors built and dropped (register + unregister) | 263 ns each; 277 ns with 10 000 others alive |
+| `fetch_all` of 100 000 members in 1 000-member chunks, into a members cache | 117 ms (857 000 members/s), RSS +45 MiB |
+| The same without a cache (members converted for the result) | 77 ms (1.3 M members/s), RSS +35 MiB |
+
+- Unpinned single runs (same day): no collector 222 000–242 000/s, one busy collector
+  167 000–170 000/s; peaks 41–56 °C.
+
+### Findings and optimization candidates (Phase 8, collectors)
+
+- Applied while measuring: `deliver` checks the per-kind counter before locking the index
+  (before, any collector made every event take the lock).
+- **Open, small:** with a members cache, `fetch_all` spends ≈ 40 ms more than without one,
+  storing the members (the cache's DashMap inserts while the chunk is handled); the result
+  then shares the cached `Arc`s.
+- The index is one `Mutex`; with one shard per core and thousands of busy collectors a
+  sharded index could reduce contention, but no measured load shows it.
+
