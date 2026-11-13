@@ -2659,6 +2659,52 @@ and why.
   Benchmarked before it is committed, like D-287.
 - **Alternatives:** stop after D-287 steps 1–2 (Claude's recommendation).
 
+### D-290 — Message bodies get chainable setters (ergonomics gaps 1 and 2)
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Context (C-107, D-283):** the message bodies are `#[non_exhaustive]`, so an ephemeral or
+  embed reply needs `let mut reply = MessageCallbackData::from(…); reply.flags = …;`, and
+  `EditWebhookMessage` lacks the `From<String>` of its siblings.
+- **Decision:** chainable, consuming setters on the body types themselves — `CreateMessage`,
+  `MessageCallbackData`, `EditMessage`, `EditWebhookMessage`, `ExecuteWebhook`,
+  `CreateFollowupMessage` — such as `.ephemeral()`, `.embed(…)`, `.component(…)`,
+  `.allowed_mentions(…)`, `.no_mentions()`, `.file(…)`, where the field exists on that type;
+  plus `From<&str>`, `From<String>` and `From<CompactString>` on every one of them. No new
+  types and no run-time cost; validation stays in `djs-builders` (`validate_embeds`,
+  `validate_components`).
+- **Alternatives:** a validating `MessageBuilder` in `djs-builders`; both.
+
+### D-291 — The body fields keep their types; the setters hide the difference (gap 3)
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Context:** `CreateMessage` holds `Vec`s (empty = not sent) where `MessageCallbackData`
+  holds `Option<Vec>`s, because an update-message response clears the embeds with
+  `Some(vec![])` and keeps them with `None`.
+- **Decision:** the field types stay as they are (they follow Discord's semantics); the D-290
+  setters behave the same on every body, so bot code does not see the difference. No breaking
+  change.
+- **Alternatives:** `Option<Vec>` everywhere (breaking for `CreateMessage`, `ExecuteWebhook`, …).
+
+### D-292 — Member permissions from the cache: model, cache and member methods (gap 4)
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Context:** a prefix command cannot check a moderator's rights: nothing computes a
+  member's permissions (discord.js `GuildMember#permissions`, `GuildMember#permissionsIn`,
+  `GuildChannel#permissionsFor`). Interactions already carry Discord's computed permissions.
+- **Decision:** three layers. A pure computation in `djs-model` (guild owner, `@everyone`,
+  the member's roles, a channel's overwrites, `ADMINISTRATOR` grants everything);
+  `Cache::member_permissions(guild, user)` and `Cache::member_permissions_in(channel, user)`
+  in `djs-cache`; and methods in `djs-rs` on the member (`member.permissions(&ctx)`,
+  `member.permissions_in(&ctx, channel)`). The cache and member methods return
+  `Option<Permissions>`: `None` when the cache lacks what the computation needs.
+- **Alternatives:** model + cache only; only the pure function.
+
+### D-293 — `Context::shutdown` (gap 5)
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Context:** shutting down from a handler needs a captured `Client` clone.
+- **Decision:** `ctx.shutdown()`, the same as `Client::shutdown`: every shard closes and
+  `login` returns `Ok(())`. The context holds a clone of the shutdown sender (no reference
+  cycle).
+- **Alternatives:** `ctx.client()` returning a client handle (through a `Weak`), as
+  discord.js's `message.client`; leaving it to a captured clone.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
@@ -4241,7 +4287,7 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   moving work into non-generic functions could help. Worth a measurement and a decision
   before 1.0, since it is what a bot author feels on every edit. **Measured and decided:
   D-287.**
-- **Ergonomics gaps found by the examples (C-107):** (1) an ephemeral or embed reply needs
+- **Ergonomics gaps found by the examples (C-107)** — decided 2026-11-13: D-290–D-293: (1) an ephemeral or embed reply needs
   `let mut reply = MessageCallbackData::from(…); reply.flags = Some(MessageFlags::EPHEMERAL);`
   — the body types are `#[non_exhaustive]`, so struct literals are impossible outside the
   crate; setters (`.ephemeral()`, `.embed(…)`, `.components(…)`) or a message builder in
