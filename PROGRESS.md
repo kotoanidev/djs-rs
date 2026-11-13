@@ -515,8 +515,10 @@ fields with `Deref` to `new`). Steps:
 > **Heavy runs (D-257, D-259, D-260):** the owner's laptop hard-froze on 2026-11-13 under
 > assistant load. Every cargo build/test/bench/stress test goes through
 > `.reference/tools/safe.sh` (git-ignored, persists): AC only, cool start, `MemoryMax=6G`
-> without swap, no core limit, a stop at 99 °C, and the fan forced to full speed during the run
-> (it refuses to start without fan control). The LAN monitor `.reference/tools/monitor.py`
+> without swap, no core limit, the fan forced to full speed during the run (it refuses to start
+> without fan control); AC unplugged is a warning, a stop (of the heavy command only) comes at
+> 99 °C, a battery < 80 %, < 1 GiB RAM or sustained throttling (D-261). Machine test 2026-11-13:
+> 12 threads × 2 min peaked at 83 °C with the fan at full speed. The LAN monitor `.reference/tools/monitor.py`
 > (http://192.168.0.20:8765) shows temperatures, load, the runs on a time axis and a comparison
 > table; it logs to `.reference/tools/monitor-log.csv`. Stress tests one at a time (D-258).
 
@@ -524,5 +526,4 @@ fields with `Deref` to `new`). Steps:
   body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").
 
 ## Blocked on the owner
-- **Fan control (D-260):** the guard needs write access to the ASUS fan's `pwm1_enable`; the
-  owner installs a udev rule once (2026-11-13). Until then no heavy run can start.
+- Nothing.

@@ -2343,6 +2343,18 @@ and why.
   gives the `wheel` group write access to that one file.
 - **Alternatives:** none (the owner's requirement).
 
+### D-261 — Power and degradation rules of the guard
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Decision:** AC power may be unplugged at times: unplugged for 30 s is only a warning (the
+  guard's output, the monitor). The guard stops the heavy command — never the workflow around
+  it — only on a significant deterioration: the package at 99 °C, a battery below 80 % without
+  AC, less than 1 GiB of available RAM, or sustained thermal throttling (100+ package
+  throttle events in 30 s). It starts on battery only at 80 % or more. Verified the same day:
+  12 threads at 100 % for 2 minutes with the fan forced to full speed peaked at 83 °C (77–79 °C
+  steady, P-cores 2.9–3.3 GHz, no throttling), against 94 °C at 4 threads with the fan on
+  automatic control.
+- **Alternatives:** stopping at once when AC is unplugged (the first rule of D-257).
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
