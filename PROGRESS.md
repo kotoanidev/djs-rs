@@ -550,10 +550,18 @@ fields with `Deref` to `new`). Steps:
    Ctrl+C, `DISCORD_TEST_GUILD_ID`, `--cleanup`), `ping.rs` on it, `slash_commands.rs`,
    `components.rs`, `moderation.rs`, `advanced.rs`; README "More examples", `.env.example`
    (`DISCORD_TEST_GUILD_ID`, `DISCORD_WEBHOOK_URL` optional). Gate passed.
-   **Next: the live runs** (D-275): one short run per example on the owner's test guild,
-   **asking the owner before each run** and saying what it does; afterwards
-   `cargo run --example <name> -- --cleanup` for the command examples and deleting the test
-   messages. Then tick "Examples directory" in ROADMAP and close Phase 8.
+   **Live runs (D-275, all four approved by the owner, 2026-11-13, 5 minutes each):**
+   `slash_commands` — login, 6 guild commands registered, `/slow` (defer → edit → follow-up)
+   and `/feedback` (modal via `await_modal_submit`) used by the owner, `--cleanup` removed the
+   commands; `moderation` — privileged intents accepted, edit (×2) and deletion logs with the
+   cached old content posted, `--cleanup` done; `components` and `advanced` — logged in and
+   shut down cleanly (Shard 0/1 ready, presence set), but **not exercised** (no messages in
+   their windows). No handler error in any run. The 5 bot messages were deleted with a
+   temporary `zz_` probe (deleted, never committed); the owner's 2 test messages were kept
+   (not approved for deletion).
+   **Next:** ask the owner whether to rerun `components` and `advanced` while they are at the
+   keyboard (and whether to delete their 2 messages); then tick "Examples directory" in
+   ROADMAP and close Phase 8.
 7. **After Phase 8 is closed: the serenity comparison** (D-277–D-280): `benches/vs-serenity/`
    outside the workspace (own `Cargo.lock`, serenity 0.12.5 with default features), reusing
    the mocks and payloads of `benches/vs-node/`; performance, resources and reliability
