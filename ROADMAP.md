@@ -122,7 +122,8 @@ just with narrow scope.
 ## Phase 9 — Multi-process sharding (D-018)
 - [x] `ClusterManager` starting processes of the same executable, IPC over `127.0.0.1`,
       shard assignment, shutdown (D-284, D-285, D-296, D-297, D-300–D-304, C-112)
-- [ ] The manager as the IDENTIFY queue across processes (D-299)
+- [x] The manager as the IDENTIFY queue across processes, one Get Gateway Bot (D-299,
+      D-305, C-113)
 - [ ] Restarts with a growing delay (D-298)
 - [ ] Built-in values and named typed commands instead of `broadcastEval` (D-286)
 - [ ] Benchmarks + extreme-load tests (D-041)

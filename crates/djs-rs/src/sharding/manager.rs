@@ -15,11 +15,13 @@ use std::{
     path::PathBuf,
     process::{ExitStatus, Stdio},
     sync::{
-        Arc, Mutex, MutexGuard, PoisonError,
+        Arc, Mutex,
         atomic::{AtomicBool, Ordering},
     },
 };
 
+use djs_gateway::{IdentifyQueue, LocalIdentifyQueue};
+use djs_model::gateway::ShardId;
 use djs_rest::Rest;
 use futures_core::Stream;
 use tokio::{
@@ -31,8 +33,9 @@ use tokio::{
 
 use super::{
     ClusterError,
-    cluster::{CLUSTER_ENV, ClusterAssignment},
+    cluster::{CLUSTER_ENV, ClusterAssignment, Gateway},
     ipc::{ToCluster, ToManager, Token, read_frame, write_frame},
+    lock,
 };
 use crate::Shards;
 
@@ -44,10 +47,6 @@ const HELLO_TIMEOUT: Duration = Duration::from_secs(10);
 const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(30);
 
 type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
-
-fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
-    mutex.lock().unwrap_or_else(PoisonError::into_inner)
-}
 
 /// Runs a bot's shards in several processes of the same executable, `shards_per_process`
 /// shards each (D-296, D-297).
@@ -114,8 +113,10 @@ struct State {
 }
 
 impl ClusterManager {
-    /// Starts building a manager for the bot with `token`, which it uses only to ask Discord
-    /// for the recommended shard count ([`Shards::Auto`]). The processes read their own token.
+    /// Starts building a manager for the bot with `token`, which it uses only for one
+    /// [Get Gateway Bot] request when it starts (D-305). The processes read their own token.
+    ///
+    /// [Get Gateway Bot]: https://docs.discord.com/developers/events/gateway#get-gateway-bot
     ///
     /// discord.js counterpart: `new ShardingManager(file, { token })`.
     pub fn builder(token: impl Into<String>) -> ClusterManagerBuilder {
@@ -134,14 +135,22 @@ impl ClusterManager {
     /// Starts the cluster processes and runs until every one of them has exited (after
     /// [`shutdown`](Self::shutdown), or on its own).
     ///
-    /// The shard count comes from [`ClusterManagerBuilder::shards`] (Discord's recommendation
-    /// by default, through [Get Gateway Bot]); the shards are split into processes of
+    /// The manager first asks Discord for the gateway's details once, for every process
+    /// ([Get Gateway Bot], D-305): the gateway URL, the recommended shard count (used with
+    /// the default [`Shards::Auto`], see [`ClusterManagerBuilder::shards`]), the session
+    /// starts left (enough for every shard, or nothing is started) and `max_concurrency`.
+    /// The shards are split into processes of
     /// [`shards_per_process`](ClusterManagerBuilder::shards_per_process) each, numbered from
     /// cluster 0. Each process is the same executable with the same arguments (unless
     /// configured otherwise), its standard output and error shared with the manager's and
-    /// its standard input closed; it learns its shards from the environment
+    /// its standard input closed; it learns its shards and the gateway from the environment
     /// ([`process`](super::process)) and connects back to the manager over `127.0.0.1`
     /// with a secret token (D-285). A process the manager did not start cannot connect.
+    ///
+    /// The manager is the IDENTIFY queue of every process (D-299): a shard asks it for a
+    /// turn before identifying, and it grants one per rate-limit bucket
+    /// (`shard % max_concurrency`) every 5 seconds over all the processes, so the shards
+    /// start as fast as Discord allows and none is refused for identifying too fast.
     ///
     /// [Get Gateway Bot]: https://docs.discord.com/developers/events/gateway#get-gateway-bot
     ///
@@ -150,9 +159,10 @@ impl ClusterManager {
     ///
     /// # Errors
     ///
-    /// [`ClusterError::Rest`] if the shard count cannot be fetched, [`ClusterError::Io`] if
-    /// the manager cannot listen or start a process, [`ClusterError::AlreadyRunning`] if the
-    /// manager is already running.
+    /// [`ClusterError::Rest`] if Get Gateway Bot fails, [`ClusterError::SessionStartLimit`]
+    /// if too few session starts are left for the shards, [`ClusterError::Io`] if the manager
+    /// cannot listen or start a process, [`ClusterError::AlreadyRunning`] if the manager is
+    /// already running.
     pub fn spawn(&self) -> impl Future<Output = Result<(), ClusterError>> + Send + '_ {
         boxed(self.run())
     }
@@ -213,18 +223,39 @@ impl ClusterManager {
         inner.shutdown.send_replace(false);
         let shutdown = inner.shutdown.subscribe();
 
+        // One request for every process (D-305).
+        let bot = inner.rest.get_gateway_bot().await?;
         let (range, total) = match &inner.shards {
             Shards::Count(count) => (0..*count, *count),
             Shards::Range { range, total } => (range.clone(), *total),
             Shards::Auto => {
-                let total = inner.rest.get_gateway_bot().await?.shards.max(1);
+                let total = bot.shards.max(1);
                 (0..total, total)
             }
+        };
+        let limit = &bot.session_start_limit;
+        let required = range.end - range.start;
+        if limit.remaining < required {
+            return Err(ClusterError::SessionStartLimit {
+                required,
+                remaining: limit.remaining,
+                reset_after: Duration::from_millis(limit.reset_after),
+            });
+        }
+        let gateway = Gateway {
+            url: bot.url.into(),
+            total,
+            max_concurrency: limit.max_concurrency.max(1),
         };
         let groups = split(range, inner.shards_per_process);
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0))
             .await
             .map_err(ClusterError::Io)?;
+        let session = Arc::new(Session {
+            token: Token::generate(),
+            identify: LocalIdentifyQueue::new(gateway.max_concurrency),
+            gateway,
+        });
         let launch = Launch {
             executable: match &inner.executable {
                 Some(path) => path.clone(),
@@ -235,8 +266,6 @@ impl ClusterManager {
                 .clone()
                 .unwrap_or_else(|| std::env::args_os().skip(1).collect()),
             address: listener.local_addr().map_err(ClusterError::Io)?,
-            token: Token::generate(),
-            total,
         };
         *lock(&inner.clusters) = groups
             .iter()
@@ -249,13 +278,14 @@ impl ClusterManager {
         tracing::info!(
             clusters = groups.len(),
             total,
+            max_concurrency = session.gateway.max_concurrency,
             "starting the cluster processes"
         );
 
-        let accepting = tokio::spawn(accept(self.clone(), listener, launch.token.clone()));
+        let accepting = tokio::spawn(accept(self.clone(), listener, Arc::clone(&session)));
         let (kill_tx, kill_rx) = watch::channel(false);
         let mut processes = JoinSet::new();
-        let started = self.start(&launch, &groups, &kill_rx, &mut processes);
+        let started = self.start(&launch, &session, &groups, &kill_rx, &mut processes);
         let waited = self.wait(processes, shutdown, &kill_tx).await;
         accepting.abort();
         started.and(waited)
@@ -266,6 +296,7 @@ impl ClusterManager {
     fn start(
         &self,
         launch: &Launch,
+        session: &Session,
         groups: &[Range<u32>],
         kill: &watch::Receiver<bool>,
         processes: &mut JoinSet<(u32, io::Result<ExitStatus>)>,
@@ -275,9 +306,9 @@ impl ClusterManager {
             let assignment = ClusterAssignment::new(
                 id,
                 shards.clone(),
-                launch.total,
+                &session.gateway,
                 launch.address,
-                launch.token.as_str().into(),
+                session.token.as_str().into(),
             );
             let mut command = Command::new(&launch.executable);
             command
@@ -390,8 +421,16 @@ struct Launch {
     executable: PathBuf,
     args: Vec<OsString>,
     address: SocketAddr,
+}
+
+/// What the connections of one [`ClusterManager::spawn`] share.
+#[derive(Debug)]
+struct Session {
+    /// The secret the processes present.
     token: Token,
-    total: u32,
+    gateway: Gateway,
+    /// The IDENTIFY turns of every process, by rate-limit bucket (D-299).
+    identify: LocalIdentifyQueue,
 }
 
 /// Boxes the manager's loop here, so that its code is compiled in djs-rs (D-287).
@@ -413,19 +452,19 @@ fn split(range: Range<u32>, size: u32) -> Vec<Range<u32>> {
 }
 
 /// Accepts the processes' connections until aborted.
-async fn accept(manager: ClusterManager, listener: TcpListener, token: Token) {
+async fn accept(manager: ClusterManager, listener: TcpListener, session: Arc<Session>) {
     loop {
         let Ok((stream, _)) = listener.accept().await else {
             // Out of file descriptors, say: try again a little later.
             tokio::time::sleep(Duration::from_millis(100)).await;
             continue;
         };
-        tokio::spawn(handshake(manager.clone(), stream, token.clone()));
+        tokio::spawn(handshake(manager.clone(), stream, Arc::clone(&session)));
     }
 }
 
 /// Checks a connection's [`ToManager::Hello`], then serves it.
-async fn handshake(manager: ClusterManager, stream: TcpStream, token: Token) {
+async fn handshake(manager: ClusterManager, stream: TcpStream, session: Arc<Session>) {
     let _ = stream.set_nodelay(true);
     let (mut reader, mut writer) = stream.into_split();
     let hello = tokio::time::timeout(HELLO_TIMEOUT, read_frame::<_, ToManager>(&mut reader)).await;
@@ -437,14 +476,14 @@ async fn handshake(manager: ClusterManager, stream: TcpStream, token: Token) {
         tracing::warn!("refused a connection that did not introduce itself");
         return;
     };
-    if !token.matches(&presented) {
+    if !session.token.matches(&presented) {
         tracing::warn!(cluster, "refused a connection with a wrong token");
         return;
     }
     let (tx, mut rx) = mpsc::unbounded_channel();
     // Queued before the cluster is registered: a shutdown sent to it cannot come first.
     let _ = tx.send(ToCluster::Welcome);
-    {
+    let shards = {
         let mut clusters = lock(&manager.inner.clusters);
         let Some(state) = clusters.get_mut(cluster as usize) else {
             tracing::warn!(cluster, "refused a connection for an unknown cluster");
@@ -455,7 +494,8 @@ async fn handshake(manager: ClusterManager, stream: TcpStream, token: Token) {
             return;
         }
         state.sender = Some(tx.clone());
-    }
+        state.shards.clone()
+    };
     manager.emit(&ClusterEvent::Connected { cluster });
     // Connected after a shutdown was asked: it stops at once.
     if *manager.inner.shutdown.borrow() {
@@ -468,8 +508,7 @@ async fn handshake(manager: ClusterManager, stream: TcpStream, token: Token) {
             }
         }
     });
-    // The process sends nothing else yet; the connection ends with the process.
-    while let Ok(Some(_)) = read_frame::<_, ToManager>(&mut reader).await {}
+    serve(cluster, &shards, reader, &tx, &session).await;
     writing.abort();
     let mut clusters = lock(&manager.inner.clusters);
     if let Some(state) = clusters.get_mut(cluster as usize)
@@ -480,6 +519,51 @@ async fn handshake(manager: ClusterManager, stream: TcpStream, token: Token) {
     {
         state.sender = None;
     }
+}
+
+/// Answers a connected process's requests until its connection ends. Its turns still
+/// waiting in the IDENTIFY queue are then dropped, so they do not hold up the others.
+async fn serve(
+    cluster: u32,
+    shards: &Range<u32>,
+    mut reader: tokio::net::tcp::OwnedReadHalf,
+    tx: &mpsc::UnboundedSender<ToCluster>,
+    session: &Session,
+) {
+    // Frames are read in their own task: reading one is not cancel-safe, and the turns are
+    // awaited next to it.
+    let (frames_tx, mut frames) = mpsc::unbounded_channel();
+    let reading = tokio::spawn(async move {
+        while let Ok(Some(frame)) = read_frame::<_, ToManager>(&mut reader).await {
+            if frames_tx.send(frame).is_err() {
+                break;
+            }
+        }
+    });
+    let mut turns = JoinSet::new();
+    loop {
+        tokio::select! {
+            frame = frames.recv() => match frame {
+                Some(ToManager::Identify { shard }) if shards.contains(&shard) => {
+                    let turn = session
+                        .identify
+                        .wait_turn(ShardId::new(shard, session.gateway.total));
+                    let tx = tx.clone();
+                    turns.spawn(async move {
+                        turn.await;
+                        let _ = tx.send(ToCluster::Identify { shard });
+                    });
+                }
+                Some(ToManager::Identify { shard }) => {
+                    tracing::warn!(cluster, shard, "ignored a turn asked for another cluster's shard");
+                }
+                Some(ToManager::Hello { .. }) => {}
+                None => break,
+            },
+            Some(_) = turns.join_next(), if !turns.is_empty() => {}
+        }
+    }
+    reading.abort();
 }
 
 /// Configures a [`ClusterManager`]. Created by [`ClusterManager::builder`].
@@ -668,12 +752,16 @@ mod tests {
 
     use tokio::net::TcpListener;
 
-    use super::{ClusterEvent, ClusterManager, State, Token, accept, lock, split};
+    use djs_gateway::LocalIdentifyQueue;
+    use djs_model::gateway::ShardId;
+
+    use super::{ClusterEvent, ClusterManager, Session, State, Token, accept, lock, split};
     use crate::{
         Shards,
         context::Shared,
         sharding::{
             ClusterAssignment, ClusterError,
+            cluster::Gateway,
             ipc::{ToCluster, ToManager, read_frame, write_frame},
         },
     };
@@ -686,6 +774,14 @@ mod tests {
         assert_eq!(split(0..10, 4), vec![0..4, 4..8, 8..10]);
         assert_eq!(split(8..16, 8), vec![8..16]);
         assert_eq!(split(0..3, 10), vec![0..3]);
+    }
+
+    fn gateway() -> Gateway {
+        Gateway {
+            url: "ws://127.0.0.1:9".into(),
+            total: 2,
+            max_concurrency: 1,
+        }
     }
 
     /// A manager with two clusters that accepts connections, without starting processes.
@@ -704,12 +800,23 @@ mod tests {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let address = listener.local_addr().unwrap();
         let token = Token::generate();
-        tokio::spawn(accept(manager.clone(), listener, token.clone()));
+        let session = Arc::new(Session {
+            token: token.clone(),
+            gateway: gateway(),
+            identify: LocalIdentifyQueue::new(1),
+        });
+        tokio::spawn(accept(manager.clone(), listener, session));
         (manager, address, token)
     }
 
     fn assignment(cluster: u32, address: SocketAddr, token: &str) -> ClusterAssignment {
-        ClusterAssignment::new(cluster, cluster..cluster + 1, 2, address, token.into())
+        ClusterAssignment::new(
+            cluster,
+            cluster..cluster + 1,
+            &gateway(),
+            address,
+            token.into(),
+        )
     }
 
     #[tokio::test]
@@ -767,6 +874,27 @@ mod tests {
             .connect(Arc::new(Shared::default()))
             .await;
         assert!(again.is_ok(), "{again:?}");
+    }
+
+    #[tokio::test]
+    async fn turns_are_granted_for_the_clusters_own_shards() {
+        let (_manager, address, token) = listening().await;
+        let connection = assignment(1, address, token.as_str())
+            .connect(Arc::new(Shared::default()))
+            .await
+            .unwrap();
+        let queue = connection.identify_queue();
+        // Shard 0 is cluster 0's: the manager does not answer.
+        let other = queue.wait_turn(ShardId::new(0, 2));
+        assert!(
+            tokio::time::timeout(Duration::from_millis(100), other)
+                .await
+                .is_err()
+        );
+        // Its own shard gets a turn at once: nothing has identified yet.
+        tokio::time::timeout(STEP, queue.wait_turn(ShardId::new(1, 2)))
+            .await
+            .unwrap();
     }
 
     #[tokio::test]

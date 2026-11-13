@@ -16,8 +16,13 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `clusters()`, and on `shutdown` asks every process to stop, killing those still running
   after `shutdown_timeout`. A process tells itself apart with `sharding::process()` and
   passes its `ClusterAssignment` to `ClientBuilder::cluster`; its client shuts down when the
-  manager asks or goes away. The manager does not coordinate IDENTIFY, restart processes or
-  run commands in them yet (the next steps).
+  manager asks or goes away. The manager does not restart processes or run commands in them
+  yet (the next steps).
+- The cluster manager is the IDENTIFY queue of every process (D-299, C-113): shards ask it
+  for a turn, granted per rate-limit bucket every 5 seconds over all the processes. It calls
+  Get Gateway Bot once (D-305), checks the session starts left for every shard
+  (`ClusterError::SessionStartLimit`) and passes the gateway URL and `max_concurrency` to
+  the processes, which no longer call Get Gateway Bot themselves.
 - Member permissions (D-292, D-294, D-295, C-111): `Permissions::guild_level`,
   `Permissions::in_channel` and `Permissions::during_timeout` compute them the way Discord
   does (owner, `@everyone`, roles, `ADMINISTRATOR`, channel overwrites, the implicit

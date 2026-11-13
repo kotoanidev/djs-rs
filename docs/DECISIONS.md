@@ -4476,14 +4476,30 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   shards, pid, connected }`); `ClientBuilder::cluster(assignment)` sets the process's shard
   range and connects to the manager in `login`. `ClusterError` is separate from `Error`
   (the manager has no client), and `Error::Cluster` wraps it for `login`.
-- **Until step 2 (D-299)** each process identifies through its own local queue: two
-  processes may start sessions in the same 5-second window of a `max_concurrency` bucket,
-  which Discord may reject (the shard then retries), so step 1 is not meant for production
-  bots with many processes yet.
+- **Until step 2 (D-299, done in C-113)** each process identified through its own local
+  queue: two processes could start sessions in the same 5-second window of a
+  `max_concurrency` bucket.
 - **Tests:** the cross-process tests start the test binary again with arguments that run
   only an `#[ignore]`d test (`cluster_process --exact --ignored`), which reads its
   assignment and connects to the mock REST API and gateway; `sleep` stands in for a process
   that never connects, to test the kill after the grace period (Unix only).
+
+### C-113 — The IDENTIFY queue across processes (D-299, D-305, step 2)
+- **The wire:** `{"op": "identify", "shard": n}` from a process asks a turn; the same frame
+  from the manager grants it. The manager grants turns with djs-gateway's
+  `LocalIdentifyQueue` (the same 5.1 s per bucket, first come first served within a bucket),
+  one queue for every process of a `spawn`, so a restarted process (step 3) shares it.
+- **Edge cases:** a turn asked for a shard outside the cluster's range is ignored (logged);
+  turns still waiting when a process's connection ends are dropped without using their
+  bucket's slot. In the process, a turn that arrives after its shard stopped waiting (its
+  connection closed) goes to the next waiter of that shard, or is dropped (delaying that
+  bucket once at most). If the manager is gone, a waiting shard never identifies: the client
+  is shutting down anyway, and identifying unthrottled could get the bot's sessions refused.
+- **D-305 details:** `ClusterError::SessionStartLimit` mirrors `Error::SessionStartLimit`;
+  `max_concurrency` 0 from Discord is treated as 1. The assignment carries `gateway_url` and
+  `max_concurrency` but only crate-private accessors (no public API for them yet). A
+  `ClientBuilder::gateway_url` set in a cluster process wins over the manager's URL (for a
+  proxy or tests).
 
 ---
 

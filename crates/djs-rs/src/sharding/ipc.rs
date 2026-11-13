@@ -18,6 +18,8 @@ pub(crate) enum ToManager {
     /// The first frame of a connection: who the process is, and the proof that the manager
     /// started it.
     Hello { cluster: u32, token: String },
+    /// Asks for a turn to send IDENTIFY for one of the process's shards (D-299).
+    Identify { shard: u32 },
 }
 
 /// What the manager sends to a cluster process.
@@ -28,6 +30,8 @@ pub(crate) enum ToCluster {
     Welcome,
     /// Stop the client; the process then exits.
     Shutdown,
+    /// The turn asked by a [`ToManager::Identify`]: the shard may identify now.
+    Identify { shard: u32 },
 }
 
 /// Writes `message` as one frame.
@@ -122,6 +126,9 @@ mod tests {
         };
         write_frame(&mut a, &hello).await.unwrap();
         write_frame(&mut a, &ToCluster::Shutdown).await.unwrap();
+        write_frame(&mut a, &ToManager::Identify { shard: 7 })
+            .await
+            .unwrap();
         assert_eq!(
             read_frame::<_, ToManager>(&mut b).await.unwrap(),
             Some(hello)
@@ -129,6 +136,10 @@ mod tests {
         assert_eq!(
             read_frame::<_, ToCluster>(&mut b).await.unwrap(),
             Some(ToCluster::Shutdown)
+        );
+        assert_eq!(
+            read_frame::<_, ToManager>(&mut b).await.unwrap(),
+            Some(ToManager::Identify { shard: 7 })
         );
         drop(a);
         assert_eq!(read_frame::<_, ToCluster>(&mut b).await.unwrap(), None);

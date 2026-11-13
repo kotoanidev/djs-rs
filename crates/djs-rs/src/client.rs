@@ -14,8 +14,8 @@ use std::{
 
 use djs_cache::{Backend, Cache, CacheConfig, DashMapBackend};
 use djs_gateway::{
-    Compression, Config, LocalIdentifyQueue, ReceiveErrorKind, SendError, Shard, ShardState,
-    create_shards,
+    Compression, Config, IdentifyQueue, LocalIdentifyQueue, ReceiveErrorKind, SendError, Shard,
+    ShardState, create_shards,
 };
 use djs_model::gateway::{DispatchEvent, GatewayEvent, Intents, payload::UpdatePresence};
 use djs_rest::Rest;
@@ -576,8 +576,10 @@ impl<B: Backend> Client<B> {
     /// The client asks Discord ([Get Gateway Bot]) for the gateway URL, the recommended shard
     /// count and `max_concurrency`, then runs every shard chosen with
     /// [`ClientBuilder::shards`] in its own task. A fatal error on any shard stops them all.
-    /// Get Gateway Bot is skipped only if both [`ClientBuilder::gateway_url`] and a fixed
-    /// shard count are configured; shards then identify one at a time.
+    /// Get Gateway Bot is skipped if both [`ClientBuilder::gateway_url`] and a fixed shard
+    /// count are configured (shards then identify one at a time), and in a cluster process
+    /// (`ClientBuilder::cluster`, with the `sharding` feature), which gets them from its
+    /// manager.
     ///
     /// [Get Gateway Bot]: https://docs.discord.com/developers/events/gateway#get-gateway-bot
     ///
@@ -677,7 +679,7 @@ impl<B: Backend> Client<B> {
         let shutdown = inner.shared.shutdown.subscribe();
         // A cluster process stays connected to its manager while it runs (D-300).
         #[cfg(feature = "sharding")]
-        let _manager = match &inner.cluster {
+        let manager = match &inner.cluster {
             Some(assignment) => Some(assignment.connect(Arc::clone(&inner.shared)).await?),
             None => None,
         };
@@ -689,10 +691,17 @@ impl<B: Backend> Client<B> {
             max_concurrency = plan.max_concurrency,
             "starting shards"
         );
+        let identify_queue: Arc<dyn IdentifyQueue> =
+            Arc::new(LocalIdentifyQueue::new(plan.max_concurrency));
+        // The manager is the IDENTIFY queue of every cluster process (D-299).
+        #[cfg(feature = "sharding")]
+        let identify_queue = manager
+            .as_ref()
+            .map_or(identify_queue, crate::sharding::Connection::identify_queue);
         let mut config = Config::builder(&*inner.token, inner.intents)
             .gateway_url(plan.url)
             .compression(inner.compression)
-            .identify_queue(Arc::new(LocalIdentifyQueue::new(plan.max_concurrency)));
+            .identify_queue(identify_queue);
         if let Some(presence) = &inner.presence {
             config = config.presence(presence.clone());
         }
@@ -899,6 +908,20 @@ impl<B: Backend> Client<B> {
     /// Discord unless both the URL and the shard count are configured.
     async fn plan(&self) -> Result<Plan, Error> {
         let inner = &*self.inner;
+        // A cluster process gets everything from its manager (D-305).
+        #[cfg(feature = "sharding")]
+        if let Some(assignment) = &inner.cluster {
+            return Ok(Plan {
+                url: inner
+                    .gateway_url
+                    .as_deref()
+                    .unwrap_or(assignment.gateway_url())
+                    .to_owned(),
+                range: assignment.shards(),
+                total: assignment.total_shards(),
+                max_concurrency: assignment.max_concurrency(),
+            });
+        }
         let fixed = match &inner.shards {
             Shards::Auto => None,
             Shards::Count(count) => Some((0..*count, *count)),
@@ -1133,6 +1156,10 @@ impl<B: Backend> ClientBuilder<B> {
     /// shards ([`Shards::Range`]), connects to the manager when it logs in, and shuts down
     /// when the manager asks or goes away. Get the assignment from
     /// [`sharding::process`](crate::sharding::process).
+    ///
+    /// The client then does not call Get Gateway Bot: the gateway URL and `max_concurrency`
+    /// come from the manager (D-305, a [`gateway_url`](Self::gateway_url) set here still
+    /// wins), and its shards wait for their IDENTIFY turns from the manager (D-299).
     ///
     /// discord.js counterpart: what `new Client()` reads from the environment in a shard
     /// process (`client.shard`).

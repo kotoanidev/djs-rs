@@ -31,7 +31,7 @@ extreme-load tests in `docs/PERFORMANCE.md`).
 **The serenity comparison: ✅ done 2026-11-13** (`docs/VS_SERENITY.md`, D-277–D-282, C-108,
 C-109). **Next: the fixes found by the comparison (D-283) — the rebuild time after an edit
 ✅ (D-287–D-289, `docs/VS_SERENITY.md` re-measured), the ergonomics gaps ✅ (D-290–D-295).
-**Phase 9 — multi-process sharding: in progress** (step 1 of 5 ✅ 2026-11-14), see "Next
+**Phase 9 — multi-process sharding: in progress** (steps 1–2 of 5 ✅ 2026-11-14), see "Next
 step".
 
 ## Done
@@ -638,7 +638,8 @@ fields with `Deref` to `new`). Steps:
    queue), D-300 (`sharding::process()` → assignment → `ClientBuilder::cluster`, else the
    manager), D-301 (`ClusterManager`, `Cluster`, `ClusterClient` via `client.cluster()`),
    D-302 (REST limits per process), D-303 (order: IPC + spawning → IDENTIFY queue →
-   restarts → values and commands → benchmarks), D-304 (`tokio` `process`). Steps, one
+   restarts → values and commands → benchmarks), D-304 (`tokio` `process`), D-305 (the
+   manager asks Get Gateway Bot once for every process). Steps, one
    commit each:
    1. ✅ IPC, starting the processes, shard assignment (D-285, D-296, D-297, D-300, C-112):
       `crates/djs-rs/src/sharding/{mod.rs (process(), ClusterError), ipc.rs (frames,
@@ -649,9 +650,16 @@ fields with `Deref` to `new`). Steps:
       `Client::run`; `Error::Cluster`. Tests: unit tests in the three modules, and
       `crates/djs-rs/tests/sharding.rs`, which starts the test binary again as the cluster
       processes (an `#[ignore]`d `cluster_process` test) against a mock REST API and gateway.
-   2. **Next:** the manager as the IDENTIFY queue (D-299): until then each process uses
-      its own `LocalIdentifyQueue` (C-112).
-   3. Restarts with a growing delay (D-298).
+   2. ✅ The manager as the IDENTIFY queue (D-299, D-305, C-113): `ToManager::Identify` /
+      `ToCluster::Identify`; `cluster.rs` `ManagerQueue` (the process's `IdentifyQueue`,
+      from `Connection::identify_queue`, used by `Client::run`); `manager.rs` `Session`
+      (token, `Gateway`, one `LocalIdentifyQueue`) and `serve` (turns per connection,
+      dropped with it); the manager's single Get Gateway Bot and the session-start check;
+      `Client::plan` takes the URL and `max_concurrency` from the assignment. Tests:
+      `tests/sharding.rs::processes_identify_in_turn_by_bucket` (4 shards, 2 processes,
+      `max_concurrency` 2: each bucket's shards ≥ 5 s apart across processes),
+      `too_few_session_starts_start_nothing`, unit tests in `cluster.rs` / `manager.rs`.
+   3. **Next:** restarts with a growing delay (D-298).
    4. Built-in values and named commands (D-286; ask the API details first).
    5. Benchmarks + extreme-load tests (D-041), then Phase 9 is done.
 
