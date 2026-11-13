@@ -21,18 +21,18 @@ mock Discord servers for both libraries. Ease of use and API coverage are not co
 
 | Scenario | djs-rs | serenity | Result |
 | --- | ---: | ---: | ---: |
-| Decode `MESSAGE_CREATE` | 1.61 µs | 7.94 µs | **4.9× faster** |
-| Decode `GUILD_CREATE` (1000 members) | 731.86 µs | 4.51 ms | **6.2× faster** |
-| Event flood, equal caches (events/s) | 243,081 | 61,228 | **4.0× more** |
-| CPU per event during the flood | 7.70 µs | 22.6 µs | **2.9× less** |
-| Memory, idle bot (RSS, connected, no guilds) | 6.6 MiB | 10.0 MiB | **1.5× less** |
-| Memory, 500,000 members (RSS) | 203.5 MiB | 998.4 MiB | **4.9× less** |
-| REST throughput (requests/s) | 255,872 | 114,124 | **2.2× more** |
-| REST p99 latency | 0.54 ms | 0.63 ms | **1.1× lower** |
+| Decode `MESSAGE_CREATE` | 1.52 µs | 7.98 µs | **5.2× faster** |
+| Decode `GUILD_CREATE` (1000 members) | 751.29 µs | 4.78 ms | **6.4× faster** |
+| Event flood, equal caches (events/s) | 239,027 | 57,387 | **4.2× more** |
+| CPU per event during the flood | 7.76 µs | 23.8 µs | **3.1× less** |
+| Memory, idle bot (RSS, connected, no guilds) | 6.7 MiB | 9.7 MiB | **1.4× less** |
+| Memory, 500,000 members (RSS) | 203.3 MiB | 997.8 MiB | **4.9× less** |
+| REST throughput (requests/s) | 229,242 | 110,078 | **2.1× more** |
+| REST p99 latency | 0.81 ms | 0.87 ms | **1.1× lower** |
 | Dependencies of a `!ping` bot | 85 | 152 | **1.8× fewer** |
-| Clean release build | 46.6 s | 73.7 s | **1.6× faster** |
-| Release rebuild after editing `main.rs` | 9.91 s | 4.95 s | serenity **2.0× faster** |
-| Release binary (stripped) | 8.7 MiB | 10.8 MiB | **1.2× smaller** |
+| Clean release build | 51.2 s | 76.4 s | **1.5× faster** |
+| Release rebuild after editing `main.rs` | 0.73 s | 5.32 s | **7.3× faster** |
+| Release binary (stripped) | 8.8 MiB | 10.8 MiB | **1.2× smaller** |
 <!-- vs-serenity:summary:end -->
 
 ### Reliability
@@ -54,14 +54,16 @@ sections [6](#6-reliability-gateway-faults) and [7](#7-reliability-api-faults).
 | 502 on the first attempt at every 4th message | 40/40 sent, 8 retried | 32/40 sent, 8 failed (no retry) |
 <!-- vs-serenity:reliability-summary:end -->
 
-In short: with the same data cached, a djs-rs bot decodes Discord's events **4.9–6.2×
-faster** than a serenity bot. It handles **4× the events at about a third of the CPU**. It
-starts in **1.5× less memory** and needs **4.9× less** for half a million cached members. Its
-REST client sends **2.2× more requests**, and still 1.6× more when serenity's TLS and rate
+In short: with the same data cached, a djs-rs bot decodes Discord's events **5.2–6.4×
+faster** than a serenity bot. It handles **4.2× the events at about a third of the CPU**. It
+starts in **1.4× less memory** and needs **4.9× less** for half a million cached members. Its
+REST client sends **2.1× more requests**, and still 1.5× more when serenity's TLS and rate
 limiter are taken out. A djs-rs bot pulls in 85 crates instead of 152, builds from scratch
-1.6× faster, and its binary is 1.2× smaller. **serenity rebuilds a bot about twice as fast
-after an edit.** That is the one place where serenity is ahead, and djs-rs has work to do
-there.
+1.5× faster, **rebuilds after an edit 7.3× faster** in release (about as fast in debug), and
+its binary is 1.2× smaller. The rebuild was the one place where serenity was ahead in the
+first measurement (9.91 against 4.95 s); D-287–D-289 moved the library's code out of the
+bot's crate (see [Building a bot](#5-building-a-bot)). serenity's unstripped debug binary
+is smaller.
 
 Under faults, both libraries handle a dropped connection, `RECONNECT` and the close codes
 correctly. djs-rs resumes a zombie connection without losing an event, while serenity starts
@@ -120,14 +122,14 @@ carries a whole guild at startup, here with 1000 members.
 
 | Payload | Implementation | Time per payload | Payloads/s | vs serenity |
 | --- | ---: | ---: | ---: | ---: |
-| `MESSAGE_CREATE` | djs-rs (djs-model) | 1.61 µs | 620,341 | **4.9× faster** |
-| `MESSAGE_CREATE` | serenity (GatewayEvent) | 7.94 µs | 125,977 | baseline |
-| `GUILD_CREATE` | djs-rs (djs-model) | 731.86 µs | 1,366 | **6.2× faster** |
-| `GUILD_CREATE` | serenity (GatewayEvent) | 4.51 ms | 222 | baseline |
+| `MESSAGE_CREATE` | djs-rs (djs-model) | 1.52 µs | 656,815 | **5.2× faster** |
+| `MESSAGE_CREATE` | serenity (GatewayEvent) | 7.98 µs | 125,367 | baseline |
+| `GUILD_CREATE` | djs-rs (djs-model) | 751.29 µs | 1,331 | **6.4× faster** |
+| `GUILD_CREATE` | serenity (GatewayEvent) | 4.78 ms | 209 | baseline |
 <!-- vs-serenity:decode:end -->
 
-- One core decodes 620,000 `MESSAGE_CREATE`s per second with djs-rs and 126,000 with
-  serenity. A 1000-member `GUILD_CREATE` takes 0.73 ms against 4.51 ms.
+- One core decodes 657,000 `MESSAGE_CREATE`s per second with djs-rs and 125,000 with
+  serenity. A 1000-member `GUILD_CREATE` takes 0.75 ms against 4.78 ms.
 - serenity's optional `simd_json` decoder is not used: both libraries run with their default
   features (D-280).
 
@@ -150,15 +152,15 @@ reaches a handler of the bot (`client.on(Events::MessageCreate, …)` in djs-rs,
 
 | Implementation | Events/s (range) | vs serenity | CPU per event | vs serenity | Peak RSS |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| djs-rs Client (default: no cache) | 247,507 (247,241–247,563) | **4.0× more** | 7.65 µs | **3.0× less** | 9.0 MiB |
-| djs-rs Client + serenity's cache | 243,081 (240,598–245,202) | **4.0× more** | 7.70 µs | **2.9× less** | 8.8 MiB |
-| serenity Client (default cache) | 61,228 (60,410–64,461) | baseline | 22.6 µs | baseline | 19.7 MiB |
+| djs-rs Client (default: no cache) | 242,243 (240,364–244,635) | **4.2× more** | 7.79 µs | **3.1× less** | 8.5 MiB |
+| djs-rs Client + serenity's cache | 239,027 (235,376–239,113) | **4.2× more** | 7.76 µs | **3.1× less** | 9.1 MiB |
+| serenity Client (default cache) | 57,387 (56,873–61,313) | baseline | 23.8 µs | baseline | 21.0 MiB |
 <!-- vs-serenity:flood:end -->
 
-- djs-rs delivers **4.0× the events per second** with serenity's cache and spends **2.9×
-  less CPU per event** (7.7 µs against 22.6 µs). Its memory peaks at less than half of
-  serenity's (8.8 against 19.7 MiB).
-- Keeping serenity's cache costs djs-rs 2 % of its throughput (243,081 against 247,507
+- djs-rs delivers **4.2× the events per second** with serenity's cache and spends **3.1×
+  less CPU per event** (7.8 µs against 23.8 µs). Its memory peaks at less than half of
+  serenity's (9.1 against 21.0 MiB).
+- Keeping serenity's cache costs djs-rs 1.3 % of its throughput (239,027 against 242,243
   events/s without a cache).
 - The mock gateway used about one CPU-second per run for either library, so it was never
   the limit.
@@ -176,17 +178,17 @@ presences) and caches them. Resident memory is measured once every guild is cach
 
 | Guilds | Implementation | RSS | vs serenity | RSS added per member |
 | --- | ---: | ---: | ---: | ---: |
-| connected, no guilds | djs-rs Client + serenity's cache | 6.6 MiB | **1.5× less** | — |
-| connected, no guilds | serenity Client (default cache) | 10.0 MiB | baseline | — |
-| 100 guilds · 100,000 members | djs-rs Client + serenity's cache | 43.9 MiB | **4.3× less** | 391 B |
-| 100 guilds · 100,000 members | serenity Client (default cache) | 187.8 MiB | baseline | 1,865 B |
-| 500 guilds · 500,000 members | djs-rs Client + serenity's cache | 203.5 MiB | **4.9× less** | 412 B |
-| 500 guilds · 500,000 members | serenity Client (default cache) | 998.4 MiB | baseline | 2,072 B |
+| connected, no guilds | djs-rs Client + serenity's cache | 6.7 MiB | **1.4× less** | — |
+| connected, no guilds | serenity Client (default cache) | 9.7 MiB | baseline | — |
+| 100 guilds · 100,000 members | djs-rs Client + serenity's cache | 43.9 MiB | **4.2× less** | 394 B |
+| 100 guilds · 100,000 members | serenity Client (default cache) | 186.1 MiB | baseline | 1,849 B |
+| 500 guilds · 500,000 members | djs-rs Client + serenity's cache | 203.3 MiB | **4.9× less** | 413 B |
+| 500 guilds · 500,000 members | serenity Client (default cache) | 997.8 MiB | baseline | 2,072 B |
 <!-- vs-serenity:memory:end -->
 
-- Connected with no guilds, a djs-rs bot uses 6.6 MiB and a serenity bot 10.0 MiB.
+- Connected with no guilds, a djs-rs bot uses 6.7 MiB and a serenity bot 9.7 MiB.
 - Each cached member adds about 0.4 KB with djs-rs and about 2 KB with serenity, including
-  the guild's share of roles, channels and presences. So the gap grows with the bot: 4.3× at
+  the guild's share of roles, channels and presences. So the gap grows with the bot: 4.2× at
   100,000 members and 4.9× at 500,000, where serenity needs nearly 1 GiB.
 
 ## 4. REST throughput
@@ -211,18 +213,18 @@ limiter, HTTP and decoding the response into a typed `Message`.
 
 | Implementation | Requests/s | vs serenity default | p50 | p99 | CPU per request | Peak RSS |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| djs-rest (default) | 255,872 | **2.2× more** | 0.24 ms | 0.54 ms | 13.7 µs | 12.6 MiB |
-| serenity Http (default, HTTPS) | 114,124 | baseline | 0.56 ms | 0.63 ms | 27.7 µs | 17.9 MiB |
-| serenity Http, limiter off, plain HTTP (bound) | 159,421 | 1.4× the default | 0.40 ms | 0.80 ms | 23.2 µs | 14.5 MiB |
+| djs-rest (default) | 229,242 | **2.1× more** | 0.26 ms | 0.81 ms | 14.1 µs | 12.3 MiB |
+| serenity Http (default, HTTPS) | 110,078 | baseline | 0.57 ms | 0.87 ms | 27.4 µs | 17.0 MiB |
+| serenity Http, limiter off, plain HTTP (bound) | 154,494 | 1.4× the default | 0.40 ms | 0.87 ms | 23.3 µs | 14.5 MiB |
 <!-- vs-serenity:rest:end -->
 
-- djs-rs sends **2.2× the requests per second** of serenity's default configuration, at
-  half the CPU per request (13.7 against 27.7 µs) and with a lower p99 (0.54 against
-  0.63 ms).
+- djs-rs sends **2.1× the requests per second** of serenity's default configuration, at
+  half the CPU per request (14.1 against 27.4 µs) and with a lower p99 (0.81 against
+  0.87 ms).
 - Part of that gap is TLS, which only serenity pays here (D-282). Without TLS and without
-  its rate limiter, serenity reaches 159,421 requests/s. djs-rs, with its rate limiter
-  working, still sends 1.6× more at 1.7× less CPU per request, and in that bound serenity's
-  p99 rises to 0.80 ms.
+  its rate limiter, serenity reaches 154,494 requests/s. djs-rs, with its rate limiter
+  working, still sends 1.5× more at 1.7× less CPU per request; serenity's p99 stays at
+  0.87 ms in that bound.
 - Against the real Discord both libraries use TLS, and the global rate limit caps a bot long
   before either library is busy. What carries over is the CPU and memory each request
   costs.
@@ -248,10 +250,10 @@ for on every change.
 
 | Profile | Bot | Clean build (range) | Rebuild (range) | Binary | Stripped |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| release | djs-rs | 46.6 s (46.6 s–46.8 s) | 9.91 s (9.91 s–9.92 s) | 12.2 MiB | 8.7 MiB |
-| release | serenity | 73.7 s (73.7 s–74.1 s) | 4.95 s (4.95 s–5.01 s) | 14.7 MiB | 10.8 MiB |
-| debug | djs-rs | 23.9 s (23.9 s–25.0 s) | 0.79 s (0.79 s–1.38 s) | 136.8 MiB | 17.0 MiB |
-| debug | serenity | 34.3 s (34.3 s–35.2 s) | 0.58 s (0.58 s–0.61 s) | 131.9 MiB | 22.3 MiB |
+| release | djs-rs | 51.2 s (51.2 s–53.0 s) | 0.73 s (0.73 s–0.80 s) | 12.3 MiB | 8.8 MiB |
+| release | serenity | 76.4 s (76.4 s–77.9 s) | 5.32 s (5.32 s–5.33 s) | 14.7 MiB | 10.8 MiB |
+| debug | djs-rs | 28.4 s (28.4 s–29.1 s) | 0.64 s (0.64 s–0.82 s) | 159.0 MiB | 18.2 MiB |
+| debug | serenity | 37.4 s (37.4 s–37.5 s) | 0.68 s (0.68 s–0.70 s) | 131.9 MiB | 22.3 MiB |
 
 | Bot | Dependencies (normal, this platform) |
 | --- | ---: |
@@ -260,14 +262,22 @@ for on every change.
 <!-- vs-serenity:build:end -->
 
 - A djs-rs bot depends on 85 crates and a serenity bot on 152. From an empty target
-  directory, djs-rs builds in 46.6 s (release) and 23.9 s (debug), serenity in 73.7 s and
-  34.3 s. The djs-rs release binary is smaller: 8.7 against 10.8 MiB stripped.
-- **serenity rebuilds faster after an edit:** 4.95 s against 9.91 s in release, and 0.58 s
-  against 0.79–1.38 s in debug. A rebuild recompiles the bot's own crate, and with djs-rs
-  that crate holds more code. A likely cause is that djs-rs's `Client` and its handlers are
-  generic, so they are compiled and optimized in the bot's crate rather than in the
-  library's. This still has to be measured. It is recorded as an open question in
-  [`DECISIONS.md`](DECISIONS.md), because it is the wait a bot author feels on every edit.
+  directory, djs-rs builds in 51.2 s (release) and 28.4 s (debug), serenity in 76.4 s and
+  37.4 s. The djs-rs release binary is smaller: 8.8 against 10.8 MiB stripped. Its
+  unstripped debug binary is larger (159.0 against 131.9 MiB).
+- **djs-rs rebuilds faster after an edit:** 0.73 s against 5.32 s in release; in debug the
+  two are about the same (0.64–0.82 s against 0.68–0.70 s). A rebuild recompiles the bot's
+  own crate. The first measurement had djs-rs at 9.91 s: the bodies of `async fn`s and
+  everything generic over the cache backend were compiled in the bot's crate. Since
+  D-287–D-289 the library builds the futures of its public methods (the REST calls,
+  `Client::login`, the managers) and compiles the client loop and the cache code for the
+  default backend itself, so the bot's crate holds little more than the bot. The method
+  and the steps are in [`PERFORMANCE.md`](PERFORMANCE.md#rebuild-time-after-an-edit-d-283-d-287d-289-2026-11-13).
+- The price is paid in the library: the clean build took 10 % longer than in the first
+  measurement (serenity's 4 % longer, so part of it is the laptop), most likely because the
+  library now compiles every REST method rather than only those a bot calls; and each REST
+  call allocates its future (about +0.25 µs of CPU per request, 2 % of djs-rest's
+  throughput in an A/B on the same binary profile).
 
 ## 6. Reliability: gateway faults
 

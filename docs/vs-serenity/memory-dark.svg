@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="840" height="324" viewBox="0 0 840 324" role="img" aria-labelledby="title desc" font-family="system-ui, -apple-system, &quot;Segoe UI&quot;, Roboto, sans-serif">
 <title id="title">Memory after receiving the guilds at startup</title>
-<desc id="desc">100 guilds · 100,000 members, djs-rs Client + serenity's cache: 43.9 MiB · 4.3× less; 100 guilds · 100,000 members, serenity Client (default cache): 187.8 MiB; 500 guilds · 500,000 members, djs-rs Client + serenity's cache: 203.5 MiB · 4.9× less; 500 guilds · 500,000 members, serenity Client (default cache): 998.4 MiB</desc>
+<desc id="desc">100 guilds · 100,000 members, djs-rs Client + serenity's cache: 43.9 MiB · 4.2× less; 100 guilds · 100,000 members, serenity Client (default cache): 186.1 MiB; 500 guilds · 500,000 members, djs-rs Client + serenity's cache: 203.3 MiB · 4.9× less; 500 guilds · 500,000 members, serenity Client (default cache): 997.8 MiB</desc>
 <rect x="0.5" y="0.5" width="839" height="323" rx="8" fill="#1a1a19" stroke="rgba(255,255,255,0.10)"/>
 <text x="24" y="34" font-size="16" font-weight="600" fill="#f0efec">Memory after receiving the guilds at startup</text>
 <text x="24" y="55" font-size="12.5" fill="#c3c2b7">resident memory (RSS) of the whole process, lower is better · equal caches</text>
@@ -20,16 +20,16 @@
 <text x="586" y="308" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">1000 MiB</text>
 <text x="24" y="119" font-size="12.5" font-weight="600" fill="#c3c2b7">100 guilds · 100,000 members</text>
 <text x="312" y="150.5" font-size="13" text-anchor="end" fill="#f0efec">djs-rs Client + serenity's cache</text>
-<path d="M324,136H331.50446093749997A4,4 0 0 1 335.50446093749997,140V152A4,4 0 0 1 331.50446093749997,156H324Z" fill="#3987e5"><title>djs-rs Client + serenity's cache: 43.9 MiB · 4.3× less</title></path>
-<text x="343.50446093749997" y="150.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">43.9 MiB · 4.3× less</text>
+<path d="M324,136H331.49934375A4,4 0 0 1 335.49934375,140V152A4,4 0 0 1 331.49934375,156H324Z" fill="#3987e5"><title>djs-rs Client + serenity's cache: 43.9 MiB · 4.2× less</title></path>
+<text x="343.49934375" y="150.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">43.9 MiB · 4.2× less</text>
 <text x="312" y="182.5" font-size="13" text-anchor="end" fill="#f0efec">serenity Client (default cache)</text>
-<path d="M324,168H369.196640625A4,4 0 0 1 373.196640625,172V184A4,4 0 0 1 369.196640625,188H324Z" fill="#d95926"><title>serenity Client (default cache): 187.8 MiB</title></path>
-<text x="381.196640625" y="182.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">187.8 MiB</text>
+<path d="M324,168H368.758609375A4,4 0 0 1 372.758609375,172V184A4,4 0 0 1 368.758609375,188H324Z" fill="#d95926"><title>serenity Client (default cache): 186.1 MiB</title></path>
+<text x="380.758609375" y="182.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">186.1 MiB</text>
 <text x="24" y="213" font-size="12.5" font-weight="600" fill="#c3c2b7">500 guilds · 500,000 members</text>
 <text x="312" y="244.5" font-size="13" text-anchor="end" fill="#f0efec">djs-rs Client + serenity's cache</text>
-<path d="M324,230H373.327234375A4,4 0 0 1 377.327234375,234V246A4,4 0 0 1 373.327234375,250H324Z" fill="#3987e5"><title>djs-rs Client + serenity's cache: 203.5 MiB · 4.9× less</title></path>
-<text x="385.327234375" y="244.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">203.5 MiB · 4.9× less</text>
+<path d="M324,230H373.2729921875A4,4 0 0 1 377.2729921875,234V246A4,4 0 0 1 373.2729921875,250H324Z" fill="#3987e5"><title>djs-rs Client + serenity's cache: 203.3 MiB · 4.9× less</title></path>
+<text x="385.2729921875" y="244.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">203.3 MiB · 4.9× less</text>
 <text x="312" y="276.5" font-size="13" text-anchor="end" fill="#f0efec">serenity Client (default cache)</text>
-<path d="M324,262H581.5793671875A4,4 0 0 1 585.5793671875,266V278A4,4 0 0 1 581.5793671875,282H324Z" fill="#d95926"><title>serenity Client (default cache): 998.4 MiB</title></path>
-<text x="593.5793671875" y="276.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">998.4 MiB</text>
+<path d="M324,262H581.4227812500001A4,4 0 0 1 585.4227812500001,266V278A4,4 0 0 1 581.4227812500001,282H324Z" fill="#d95926"><title>serenity Client (default cache): 997.8 MiB</title></path>
+<text x="593.4227812500001" y="276.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">997.8 MiB</text>
 </svg>

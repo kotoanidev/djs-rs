@@ -4285,8 +4285,9 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   faster. A likely cause is that the generic `Client` and the handler closures are
   monomorphized and optimized in the bot's crate; erasing types at the handler boundary or
   moving work into non-generic functions could help. Worth a measurement and a decision
-  before 1.0, since it is what a bot author feels on every edit. **Measured and decided:
-  D-287.**
+  before 1.0, since it is what a bot author feels on every edit. **Resolved (D-287–D-289):**
+  re-measured on 2026-11-13, a release rebuild takes 0.73 s against serenity's 5.32 s (debug:
+  about the same).
 - **Ergonomics gaps found by the examples (C-107)** — decided 2026-11-13: D-290–D-293: (1) an ephemeral or embed reply needs
   `let mut reply = MessageCallbackData::from(…); reply.flags = Some(MessageFlags::EPHEMERAL);`
   — the body types are `#[non_exhaustive]`, so struct literals are impossible outside the

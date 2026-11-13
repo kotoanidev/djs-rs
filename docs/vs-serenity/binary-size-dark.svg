@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="840" height="324" viewBox="0 0 840 324" role="img" aria-labelledby="title desc" font-family="system-ui, -apple-system, &quot;Segoe UI&quot;, Roboto, sans-serif">
 <title id="title">Size of the !ping bot</title>
-<desc id="desc">release, djs-rs: 8.7 MiB; release, serenity: 10.8 MiB; debug, djs-rs: 17.0 MiB; debug, serenity: 22.3 MiB</desc>
+<desc id="desc">release, djs-rs: 8.8 MiB; release, serenity: 10.8 MiB; debug, djs-rs: 18.2 MiB; debug, serenity: 22.3 MiB</desc>
 <rect x="0.5" y="0.5" width="839" height="323" rx="8" fill="#1a1a19" stroke="rgba(255,255,255,0.10)"/>
 <text x="24" y="34" font-size="16" font-weight="600" fill="#f0efec">Size of the !ping bot</text>
 <text x="24" y="55" font-size="12.5" fill="#c3c2b7">MiB of the executable, lower is better · stripped of symbols and debug info</text>
@@ -18,15 +18,15 @@
 <text x="586" y="308" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">30 MiB</text>
 <text x="24" y="119" font-size="12.5" font-weight="600" fill="#c3c2b7">release</text>
 <text x="312" y="150.5" font-size="13" text-anchor="end" fill="#f0efec">djs-rs</text>
-<path d="M324,136H396.3269826253255A4,4 0 0 1 400.3269826253255,140V152A4,4 0 0 1 396.3269826253255,156H324Z" fill="#3987e5"><title>djs-rs: 8.7 MiB</title></path>
-<text x="408.3269826253255" y="150.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">8.7 MiB</text>
+<path d="M324,136H396.7530151367188A4,4 0 0 1 400.7530151367188,140V152A4,4 0 0 1 396.7530151367188,156H324Z" fill="#3987e5"><title>djs-rs: 8.8 MiB</title></path>
+<text x="408.7530151367188" y="150.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">8.8 MiB</text>
 <text x="312" y="182.5" font-size="13" text-anchor="end" fill="#f0efec">serenity</text>
 <path d="M324,168H414.49679616292315A4,4 0 0 1 418.49679616292315,172V184A4,4 0 0 1 414.49679616292315,188H324Z" fill="#d95926"><title>serenity: 10.8 MiB</title></path>
 <text x="426.49679616292315" y="182.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">10.8 MiB</text>
 <text x="24" y="213" font-size="12.5" font-weight="600" fill="#c3c2b7">debug</text>
 <text x="312" y="244.5" font-size="13" text-anchor="end" fill="#f0efec">djs-rs</text>
-<path d="M324,230H468.81727396647136A4,4 0 0 1 472.81727396647136,234V246A4,4 0 0 1 468.81727396647136,250H324Z" fill="#3987e5"><title>djs-rs: 17.0 MiB</title></path>
-<text x="480.81727396647136" y="244.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">17.0 MiB</text>
+<path d="M324,230H478.9624979654948A4,4 0 0 1 482.9624979654948,234V246A4,4 0 0 1 478.9624979654948,250H324Z" fill="#3987e5"><title>djs-rs: 18.2 MiB</title></path>
+<text x="490.9624979654948" y="244.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">18.2 MiB</text>
 <text x="312" y="276.5" font-size="13" text-anchor="end" fill="#f0efec">serenity</text>
 <path d="M324,262H514.456856282552A4,4 0 0 1 518.456856282552,266V278A4,4 0 0 1 514.456856282552,282H324Z" fill="#d95926"><title>serenity: 22.3 MiB</title></path>
 <text x="526.456856282552" y="276.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">22.3 MiB</text>

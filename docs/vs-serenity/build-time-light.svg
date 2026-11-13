@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="840" height="512" viewBox="0 0 840 512" role="img" aria-labelledby="title desc" font-family="system-ui, -apple-system, &quot;Segoe UI&quot;, Roboto, sans-serif">
 <title id="title">Building the same !ping bot</title>
-<desc id="desc">release: clean build, djs-rs: 46.6 s; release: clean build, serenity: 73.7 s; release: rebuild after editing main.rs, djs-rs: 9.91 s; release: rebuild after editing main.rs, serenity: 4.95 s; debug: clean build, djs-rs: 23.9 s; debug: clean build, serenity: 34.3 s; debug: rebuild after editing main.rs, djs-rs: 0.79 s; debug: rebuild after editing main.rs, serenity: 0.58 s</desc>
+<desc id="desc">release: clean build, djs-rs: 51.2 s; release: clean build, serenity: 76.4 s; release: rebuild after editing main.rs, djs-rs: 0.73 s; release: rebuild after editing main.rs, serenity: 5.32 s; debug: clean build, djs-rs: 28.4 s; debug: clean build, serenity: 37.4 s; debug: rebuild after editing main.rs, djs-rs: 0.64 s; debug: rebuild after editing main.rs, serenity: 0.68 s</desc>
 <rect x="0.5" y="0.5" width="839" height="511" rx="8" fill="#fcfcfb" stroke="rgba(11,11,11,0.10)"/>
 <text x="24" y="34" font-size="16" font-weight="600" fill="#0b0b0b">Building the same !ping bot</text>
 <text x="24" y="55" font-size="12.5" fill="#52514e">seconds, lower is better · 12 parallel jobs · clean build, and the rebuild after editing main.rs</text>
@@ -20,30 +20,30 @@
 <text x="586" y="496" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">80 s</text>
 <text x="24" y="119" font-size="12.5" font-weight="600" fill="#52514e">release: clean build</text>
 <text x="312" y="150.5" font-size="13" text-anchor="end" fill="#0b0b0b">djs-rs</text>
-<path d="M324,136H472.5888A4,4 0 0 1 476.5888,140V152A4,4 0 0 1 472.5888,156H324Z" fill="#2a78d6"><title>djs-rs: 46.6 s</title></path>
-<text x="484.5888" y="150.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">46.6 s</text>
+<path d="M324,136H487.8241A4,4 0 0 1 491.8241,140V152A4,4 0 0 1 487.8241,156H324Z" fill="#2a78d6"><title>djs-rs: 51.2 s</title></path>
+<text x="499.8241" y="150.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">51.2 s</text>
 <text x="312" y="182.5" font-size="13" text-anchor="end" fill="#0b0b0b">serenity</text>
-<path d="M324,168H561.433A4,4 0 0 1 565.433,172V184A4,4 0 0 1 561.433,188H324Z" fill="#eb6834"><title>serenity: 73.7 s</title></path>
-<text x="573.433" y="182.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">73.7 s</text>
+<path d="M324,168H570.246025A4,4 0 0 1 574.246025,172V184A4,4 0 0 1 570.246025,188H324Z" fill="#eb6834"><title>serenity: 76.4 s</title></path>
+<text x="582.246025" y="182.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">76.4 s</text>
 <text x="24" y="213" font-size="12.5" font-weight="600" fill="#52514e">release: rebuild after editing main.rs</text>
 <text x="312" y="244.5" font-size="13" text-anchor="end" fill="#0b0b0b">djs-rs</text>
-<path d="M324,230H352.4618A4,4 0 0 1 356.4618,234V246A4,4 0 0 1 352.4618,250H324Z" fill="#2a78d6"><title>djs-rs: 9.91 s</title></path>
-<text x="364.4618" y="244.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">9.91 s</text>
+<path d="M324,230H325.2002875A1.2002875000000002,1.2002875000000002 0 0 1 326.400575,231.2002875V248.7997125A1.2002875000000002,1.2002875000000002 0 0 1 325.2002875,250H324Z" fill="#2a78d6"><title>djs-rs: 0.73 s</title></path>
+<text x="334.400575" y="244.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">0.73 s</text>
 <text x="312" y="276.5" font-size="13" text-anchor="end" fill="#0b0b0b">serenity</text>
-<path d="M324,262H336.194875A4,4 0 0 1 340.194875,266V278A4,4 0 0 1 336.194875,282H324Z" fill="#eb6834"><title>serenity: 4.95 s</title></path>
-<text x="348.194875" y="276.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">4.95 s</text>
+<path d="M324,262H337.4099A4,4 0 0 1 341.4099,266V278A4,4 0 0 1 337.4099,282H324Z" fill="#eb6834"><title>serenity: 5.32 s</title></path>
+<text x="349.4099" y="276.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">5.32 s</text>
 <text x="24" y="307" font-size="12.5" font-weight="600" fill="#52514e">debug: clean build</text>
 <text x="312" y="338.5" font-size="13" text-anchor="end" fill="#0b0b0b">djs-rs</text>
-<path d="M324,324H398.29215A4,4 0 0 1 402.29215,328V340A4,4 0 0 1 398.29215,344H324Z" fill="#2a78d6"><title>djs-rs: 23.9 s</title></path>
-<text x="410.29215" y="338.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">23.9 s</text>
+<path d="M324,324H413.006725A4,4 0 0 1 417.006725,328V340A4,4 0 0 1 413.006725,344H324Z" fill="#2a78d6"><title>djs-rs: 28.4 s</title></path>
+<text x="425.006725" y="338.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">28.4 s</text>
 <text x="312" y="370.5" font-size="13" text-anchor="end" fill="#0b0b0b">serenity</text>
-<path d="M324,356H432.414375A4,4 0 0 1 436.414375,360V372A4,4 0 0 1 432.414375,376H324Z" fill="#eb6834"><title>serenity: 34.3 s</title></path>
-<text x="444.414375" y="370.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">34.3 s</text>
+<path d="M324,356H442.616A4,4 0 0 1 446.616,360V372A4,4 0 0 1 442.616,376H324Z" fill="#eb6834"><title>serenity: 37.4 s</title></path>
+<text x="454.616" y="370.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">37.4 s</text>
 <text x="24" y="401" font-size="12.5" font-weight="600" fill="#52514e">debug: rebuild after editing main.rs</text>
 <text x="312" y="432.5" font-size="13" text-anchor="end" fill="#0b0b0b">djs-rs</text>
-<path d="M324,418H325.2854375A1.2854375,1.2854375 0 0 1 326.570875,419.2854375V436.7145625A1.2854375,1.2854375 0 0 1 325.2854375,438H324Z" fill="#2a78d6"><title>djs-rs: 0.79 s</title></path>
-<text x="334.570875" y="432.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">0.79 s</text>
+<path d="M324,418H325.04145A1.04145,1.04145 0 0 1 326.0829,419.04145V436.95855A1.04145,1.04145 0 0 1 325.04145,438H324Z" fill="#2a78d6"><title>djs-rs: 0.64 s</title></path>
+<text x="334.0829" y="432.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">0.64 s</text>
 <text x="312" y="464.5" font-size="13" text-anchor="end" fill="#0b0b0b">serenity</text>
-<path d="M324,450H324.9448375A0.9448374999999999,0.9448374999999999 0 0 1 325.889675,450.9448375V469.0551625A0.9448374999999999,0.9448374999999999 0 0 1 324.9448375,470H324Z" fill="#eb6834"><title>serenity: 0.58 s</title></path>
-<text x="333.889675" y="464.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">0.58 s</text>
+<path d="M324,450H325.10695000000004A1.10695,1.10695 0 0 1 326.2139,451.10695V468.89305A1.10695,1.10695 0 0 1 325.10695000000004,470H324Z" fill="#eb6834"><title>serenity: 0.68 s</title></path>
+<text x="334.2139" y="464.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">0.68 s</text>
 </svg>

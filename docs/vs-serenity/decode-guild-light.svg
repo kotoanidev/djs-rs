@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="840" height="200" viewBox="0 0 840 200" role="img" aria-labelledby="title desc" font-family="system-ui, -apple-system, &quot;Segoe UI&quot;, Roboto, sans-serif">
 <title id="title">Decoding GUILD_CREATE, 1000 members (508 KiB)</title>
-<desc id="desc">djs-rs (djs-model): 1,366/s · 6.2× faster; serenity (GatewayEvent): 222/s</desc>
+<desc id="desc">djs-rs (djs-model): 1,331/s · 6.4× faster; serenity (GatewayEvent): 209/s</desc>
 <rect x="0.5" y="0.5" width="839" height="199" rx="8" fill="#fcfcfb" stroke="rgba(11,11,11,0.10)"/>
 <text x="24" y="34" font-size="16" font-weight="600" fill="#0b0b0b">Decoding GUILD_CREATE, 1000 members (508 KiB)</text>
 <text x="24" y="55" font-size="12.5" fill="#52514e">payloads per second on one core, higher is better · median of 15 rounds</text>
@@ -17,9 +17,9 @@
 <line x1="586" y1="100" x2="586" y2="168" stroke="#e1e0d9" stroke-width="1"/>
 <text x="586" y="184" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">1,500</text>
 <text x="312" y="120.5" font-size="13" text-anchor="end" fill="#0b0b0b">djs-rs (djs-model)</text>
-<path d="M324,106H558.6622063401043A4,4 0 0 1 562.6622063401043,110V122A4,4 0 0 1 558.6622063401043,126H324Z" fill="#2a78d6"><title>djs-rs (djs-model): 1,366/s · 6.2× faster</title></path>
-<text x="570.6622063401043" y="120.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">1,366/s · 6.2× faster</text>
+<path d="M324,106H552.4888146783027A4,4 0 0 1 556.4888146783027,110V122A4,4 0 0 1 552.4888146783027,126H324Z" fill="#2a78d6"><title>djs-rs (djs-model): 1,331/s · 6.4× faster</title></path>
+<text x="564.4888146783027" y="120.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">1,331/s · 6.4× faster</text>
 <text x="312" y="152.5" font-size="13" text-anchor="end" fill="#0b0b0b">serenity (GatewayEvent)</text>
-<path d="M324,138H358.7389830598238A4,4 0 0 1 362.7389830598238,142V154A4,4 0 0 1 358.7389830598238,158H324Z" fill="#eb6834"><title>serenity (GatewayEvent): 222/s</title></path>
-<text x="370.7389830598238" y="152.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">222/s</text>
+<path d="M324,138H356.5051060845961A4,4 0 0 1 360.5051060845961,142V154A4,4 0 0 1 356.5051060845961,158H324Z" fill="#eb6834"><title>serenity (GatewayEvent): 209/s</title></path>
+<text x="368.5051060845961" y="152.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">209/s</text>
 </svg>

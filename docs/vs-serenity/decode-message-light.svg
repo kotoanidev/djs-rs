@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="840" height="200" viewBox="0 0 840 200" role="img" aria-labelledby="title desc" font-family="system-ui, -apple-system, &quot;Segoe UI&quot;, Roboto, sans-serif">
 <title id="title">Decoding MESSAGE_CREATE (1 KiB)</title>
-<desc id="desc">djs-rs (djs-model): 620 k/s · 4.9× faster; serenity (GatewayEvent): 126 k/s</desc>
+<desc id="desc">djs-rs (djs-model): 657 k/s · 5.2× faster; serenity (GatewayEvent): 125 k/s</desc>
 <rect x="0.5" y="0.5" width="839" height="199" rx="8" fill="#fcfcfb" stroke="rgba(11,11,11,0.10)"/>
 <text x="24" y="34" font-size="16" font-weight="600" fill="#0b0b0b">Decoding MESSAGE_CREATE (1 KiB)</text>
 <text x="24" y="55" font-size="12.5" fill="#52514e">payloads per second on one core, higher is better · median of 15 rounds</text>
@@ -19,9 +19,9 @@
 <line x1="586" y1="100" x2="586" y2="168" stroke="#e1e0d9" stroke-width="1"/>
 <text x="586" y="184" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">800 k</text>
 <text x="312" y="120.5" font-size="13" text-anchor="end" fill="#0b0b0b">djs-rs (djs-model)</text>
-<path d="M324,106H523.1617252255658A4,4 0 0 1 527.1617252255658,110V122A4,4 0 0 1 523.1617252255658,126H324Z" fill="#2a78d6"><title>djs-rs (djs-model): 620 k/s · 4.9× faster</title></path>
-<text x="535.1617252255658" y="120.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">620 k/s · 4.9× faster</text>
+<path d="M324,106H535.1068862223262A4,4 0 0 1 539.1068862223262,110V122A4,4 0 0 1 535.1068862223262,126H324Z" fill="#2a78d6"><title>djs-rs (djs-model): 657 k/s · 5.2× faster</title></path>
+<text x="547.1068862223262" y="120.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">657 k/s · 5.2× faster</text>
 <text x="312" y="152.5" font-size="13" text-anchor="end" fill="#0b0b0b">serenity (GatewayEvent)</text>
-<path d="M324,138H361.2575739180545A4,4 0 0 1 365.2575739180545,142V154A4,4 0 0 1 361.2575739180545,158H324Z" fill="#eb6834"><title>serenity (GatewayEvent): 126 k/s</title></path>
-<text x="373.2575739180545" y="152.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">126 k/s</text>
+<path d="M324,138H361.0576955320158A4,4 0 0 1 365.0576955320158,142V154A4,4 0 0 1 361.0576955320158,158H324Z" fill="#eb6834"><title>serenity (GatewayEvent): 125 k/s</title></path>
+<text x="373.0576955320158" y="152.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">125 k/s</text>
 </svg>

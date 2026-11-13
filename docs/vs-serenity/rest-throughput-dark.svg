@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="840" height="232" viewBox="0 0 840 232" role="img" aria-labelledby="title desc" font-family="system-ui, -apple-system, &quot;Segoe UI&quot;, Roboto, sans-serif">
 <title id="title">REST: concurrent Create Message calls against a mock API</title>
-<desc id="desc">djs-rest (default): 256 k/s · 2.2×; serenity Http (default, HTTPS): 114 k/s; serenity Http, limiter off, plain HTTP (bound): 159 k/s</desc>
+<desc id="desc">djs-rest (default): 229 k/s · 2.1×; serenity Http (default, HTTPS): 110 k/s; serenity Http, limiter off, plain HTTP (bound): 154 k/s</desc>
 <rect x="0.5" y="0.5" width="839" height="231" rx="8" fill="#1a1a19" stroke="rgba(255,255,255,0.10)"/>
 <text x="24" y="34" font-size="16" font-weight="600" fill="#f0efec">REST: concurrent Create Message calls against a mock API</text>
 <text x="24" y="55" font-size="12.5" fill="#c3c2b7">requests per second, higher is better · 64 in flight, 4 client CPUs</text>
@@ -17,12 +17,12 @@
 <line x1="586" y1="100" x2="586" y2="200" stroke="#2c2c2a" stroke-width="1"/>
 <text x="586" y="216" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">300 k</text>
 <text x="312" y="120.5" font-size="13" text-anchor="end" fill="#f0efec">djs-rest (default)</text>
-<path d="M324,106H543.4611595019853A4,4 0 0 1 547.4611595019853,110V122A4,4 0 0 1 543.4611595019853,126H324Z" fill="#3987e5"><title>djs-rest (default): 256 k/s · 2.2×</title></path>
-<text x="555.4611595019853" y="120.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">256 k/s · 2.2×</text>
+<path d="M324,106H520.2046680094822A4,4 0 0 1 524.2046680094822,110V122A4,4 0 0 1 520.2046680094822,126H324Z" fill="#3987e5"><title>djs-rest (default): 229 k/s · 2.1×</title></path>
+<text x="532.2046680094822" y="120.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">229 k/s · 2.1×</text>
 <text x="312" y="152.5" font-size="13" text-anchor="end" fill="#f0efec">serenity Http (default, HTTPS)</text>
-<path d="M324,138H419.6684808350177A4,4 0 0 1 423.6684808350177,142V154A4,4 0 0 1 419.6684808350177,158H324Z" fill="#d95926"><title>serenity Http (default, HTTPS): 114 k/s</title></path>
-<text x="431.6684808350177" y="152.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">114 k/s</text>
+<path d="M324,138H416.13488770340115A4,4 0 0 1 420.13488770340115,142V154A4,4 0 0 1 416.13488770340115,158H324Z" fill="#d95926"><title>serenity Http (default, HTTPS): 110 k/s</title></path>
+<text x="428.13488770340115" y="152.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">110 k/s</text>
 <text x="312" y="184.5" font-size="13" text-anchor="end" fill="#f0efec">serenity Http, limiter off, plain HTTP (bound)</text>
-<path d="M324,170H459.22730171800083A4,4 0 0 1 463.22730171800083,174V186A4,4 0 0 1 459.22730171800083,190H324Z" fill="#d95926"><title>serenity Http, limiter off, plain HTTP (bound): 159 k/s</title></path>
-<text x="471.22730171800083" y="184.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">159 k/s</text>
+<path d="M324,170H454.9245922958747A4,4 0 0 1 458.9245922958747,174V186A4,4 0 0 1 454.9245922958747,190H324Z" fill="#d95926"><title>serenity Http, limiter off, plain HTTP (bound): 154 k/s</title></path>
+<text x="466.9245922958747" y="184.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">154 k/s</text>
 </svg>

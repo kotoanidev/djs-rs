@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="840" height="232" viewBox="0 0 840 232" role="img" aria-labelledby="title desc" font-family="system-ui, -apple-system, &quot;Segoe UI&quot;, Roboto, sans-serif">
 <title id="title">CPU time per event during the flood</title>
-<desc id="desc">djs-rs Client (default: no cache): 7.65 µs; djs-rs Client + serenity's cache: 7.70 µs; serenity Client (default cache): 22.6 µs</desc>
+<desc id="desc">djs-rs Client + serenity's cache: 7.76 µs; djs-rs Client (default: no cache): 7.79 µs; serenity Client (default cache): 23.8 µs</desc>
 <rect x="0.5" y="0.5" width="839" height="231" rx="8" fill="#1a1a19" stroke="rgba(255,255,255,0.10)"/>
 <text x="24" y="34" font-size="16" font-weight="600" fill="#f0efec">CPU time per event during the flood</text>
 <text x="24" y="55" font-size="12.5" fill="#c3c2b7">microseconds of CPU (all threads) per event, lower is better</text>
@@ -16,13 +16,13 @@
 <text x="498.66666666666663" y="216" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">20 µs</text>
 <line x1="586" y1="100" x2="586" y2="200" stroke="#2c2c2a" stroke-width="1"/>
 <text x="586" y="216" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">30 µs</text>
-<text x="312" y="120.5" font-size="13" text-anchor="end" fill="#f0efec">djs-rs Client (default: no cache)</text>
-<path d="M324,106H386.8100668100668A4,4 0 0 1 390.8100668100668,110V122A4,4 0 0 1 386.8100668100668,126H324Z" fill="#3987e5"><title>djs-rs Client (default: no cache): 7.65 µs</title></path>
-<text x="398.8100668100668" y="120.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">7.65 µs</text>
-<text x="312" y="152.5" font-size="13" text-anchor="end" fill="#f0efec">djs-rs Client + serenity's cache</text>
-<path d="M324,138H387.2467339134006A4,4 0 0 1 391.2467339134006,142V154A4,4 0 0 1 387.2467339134006,158H324Z" fill="#3987e5"><title>djs-rs Client + serenity's cache: 7.70 µs</title></path>
-<text x="399.2467339134006" y="152.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">7.70 µs</text>
+<text x="312" y="120.5" font-size="13" text-anchor="end" fill="#f0efec">djs-rs Client + serenity's cache</text>
+<path d="M324,106H387.7707344374011A4,4 0 0 1 391.7707344374011,110V122A4,4 0 0 1 387.7707344374011,126H324Z" fill="#3987e5"><title>djs-rs Client + serenity's cache: 7.76 µs</title></path>
+<text x="399.7707344374011" y="120.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">7.76 µs</text>
+<text x="312" y="152.5" font-size="13" text-anchor="end" fill="#f0efec">djs-rs Client (default: no cache)</text>
+<path d="M324,138H388.0327346994014A4,4 0 0 1 392.0327346994014,142V154A4,4 0 0 1 388.0327346994014,158H324Z" fill="#3987e5"><title>djs-rs Client (default: no cache): 7.79 µs</title></path>
+<text x="400.0327346994014" y="152.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">7.79 µs</text>
 <text x="312" y="184.5" font-size="13" text-anchor="end" fill="#f0efec">serenity Client (default cache)</text>
-<path d="M324,170H517.6355309688643A4,4 0 0 1 521.6355309688643,174V186A4,4 0 0 1 517.6355309688643,190H324Z" fill="#d95926"><title>serenity Client (default cache): 22.6 µs</title></path>
-<text x="529.6355309688643" y="184.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">22.6 µs</text>
+<path d="M324,170H527.678874345541A4,4 0 0 1 531.678874345541,174V186A4,4 0 0 1 527.678874345541,190H324Z" fill="#d95926"><title>serenity Client (default cache): 23.8 µs</title></path>
+<text x="539.678874345541" y="184.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">23.8 µs</text>
 </svg>

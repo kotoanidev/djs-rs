@@ -30,8 +30,9 @@ requests, intents and partials guidance, example bots run on the test bot; bench
 extreme-load tests in `docs/PERFORMANCE.md`).
 **The serenity comparison: ✅ done 2026-11-13** (`docs/VS_SERENITY.md`, D-277–D-282, C-108,
 C-109). **Next: the fixes found by the comparison (D-283) — the rebuild time after an edit
-✅ (D-287–D-289; the serenity page's build numbers still to re-measure), then the
-ergonomics gaps — and then Phase 9** (D-284–D-286 already decided), see "Next step".
+✅ (D-287–D-289, `docs/VS_SERENITY.md` re-measured), then the ergonomics gaps (decided:
+D-290–D-293, in progress) — and then Phase 9** (D-284–D-286 already decided), see "Next
+step".
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-075 in `docs/DECISIONS.md`; Claude defaults C-001 …
@@ -607,10 +608,11 @@ fields with `Deref` to `new`). Steps:
      LTO). The handler spawn stays unboxed (D-288: boxing would give 1.7 s but −1.9 % flood
      with a cache). The scratch workspace for these measurements is the git-ignored
      `.reference/tmp-ab/` (`rebuild.sh`, `ir.sh`, `flood.sh`, `rest.sh`, `build*.sh`).
-     **Left:** re-run `benches/vs-serenity/build.sh` (offline, under the guard, inside
-     `unshare -rn` per C-108) and regenerate `docs/VS_SERENITY.md` with
-     `node benches/vs-serenity/report.mjs benches/vs-serenity/out`; close the open question
-     about the rebuild time.
+     `docs/VS_SERENITY.md` re-measured on 2026-11-13 after D-289 (`run.sh` and `build.sh`,
+     both under the guard; the laptop ran warmer, so both libraries lost 3–10 %): release
+     rebuild 0.73 s against serenity's 5.32 s (7.3×), debug about the same; clean release
+     build 51.2 against 76.4 s; REST 2.1× (a same-session fat A/B of `b0bb7c6` against
+     D-289: −2.1 %, +0.25 µs CPU per request).
    - **Ergonomics gaps** (open question of C-107, in `docs/DECISIONS.md`): setters for the
      `#[non_exhaustive]` message bodies, `From<String>` for `EditWebhookMessage`, `Vec` vs
      `Option<Vec>`, member permissions from the cache, shutting down from a handler — ask the

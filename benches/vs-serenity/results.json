@@ -18,60 +18,60 @@
         "allocator": "system",
         "bytes": 1022,
         "library": "djs-rs",
-        "median_ns": 1612.0162379817568,
-        "min_ns": 1605.2615909277672,
+        "median_ns": 1522.4989108972952,
+        "min_ns": 1518.3568417588617,
         "payload": "MESSAGE_CREATE",
         "scenario": "decode",
         "variant": "djs-model typed decode",
         "runs": 1,
         "range": [
-          1612.0162379817568,
-          1612.0162379817568
+          1522.4989108972952,
+          1522.4989108972952
         ]
       },
       {
         "allocator": "system",
         "bytes": 519762,
         "library": "djs-rs",
-        "median_ns": 731857.2527472527,
-        "min_ns": 730035.5787545787,
+        "median_ns": 751290.6240601504,
+        "min_ns": 748860.2255639097,
         "payload": "GUILD_CREATE",
         "scenario": "decode",
         "variant": "djs-model typed decode",
         "runs": 1,
         "range": [
-          731857.2527472527,
-          731857.2527472527
+          751290.6240601504,
+          751290.6240601504
         ]
       },
       {
         "allocator": "system",
         "bytes": 1022,
         "library": "serenity",
-        "median_ns": 7937.936453812771,
-        "min_ns": 7919.132090824551,
+        "median_ns": 7976.5801698398545,
+        "min_ns": 7937.901198185273,
         "payload": "MESSAGE_CREATE",
         "scenario": "decode",
         "variant": "serenity GatewayEvent",
         "runs": 1,
         "range": [
-          7937.936453812771,
-          7937.936453812771
+          7976.5801698398545,
+          7976.5801698398545
         ]
       },
       {
         "allocator": "system",
         "bytes": 519762,
         "library": "serenity",
-        "median_ns": 4508808.7727272725,
-        "min_ns": 4483921.840909091,
+        "median_ns": 4784718.780487805,
+        "min_ns": 4688905.634146341,
         "payload": "GUILD_CREATE",
         "scenario": "decode",
         "variant": "serenity GatewayEvent",
         "runs": 1,
         "range": [
-          4508808.7727272725,
-          4508808.7727272725
+          4784718.780487805,
+          4784718.780487805
         ]
       }
     ],
@@ -79,55 +79,55 @@
       {
         "server_cpu_ms": 1060,
         "allocator": "system",
-        "cpu_ms": 7700,
-        "cpu_us_per_event": 7.7000077000077,
+        "cpu_ms": 7760,
+        "cpu_us_per_event": 7.76000776000776,
         "events": 1000000,
-        "events_per_sec": 243080.71357365756,
+        "events_per_sec": 239026.70778155155,
         "library": "djs-rs",
-        "peak_rss_kib": 8992,
+        "peak_rss_kib": 9340,
         "scenario": "flood",
-        "seconds": 4.113855786,
+        "seconds": 4.183628722,
         "variant": "Client + messageCreate handler, serenity's default cache",
         "runs": 3,
         "range": [
-          240598.1365543571,
-          245201.72876003134
+          235376.36061115426,
+          239113.32346779626
         ]
       },
       {
-        "server_cpu_ms": 1040,
+        "server_cpu_ms": 1070,
         "allocator": "system",
-        "cpu_ms": 7650,
-        "cpu_us_per_event": 7.65000765000765,
+        "cpu_ms": 7790,
+        "cpu_us_per_event": 7.79000779000779,
         "events": 1000000,
-        "events_per_sec": 247506.6165935728,
+        "events_per_sec": 242243.28903158524,
         "library": "djs-rs",
-        "peak_rss_kib": 9208,
+        "peak_rss_kib": 8736,
         "scenario": "flood",
-        "seconds": 4.040291988,
+        "seconds": 4.128077207,
         "variant": "Client + messageCreate handler",
         "runs": 3,
         "range": [
-          247241.15080251277,
-          247562.90459194896
+          240364.2397569714,
+          244635.27443603455
         ]
       },
       {
-        "server_cpu_ms": 1080,
+        "server_cpu_ms": 1070,
         "allocator": "system",
-        "cpu_ms": 22630,
-        "cpu_us_per_event": 22.63002263002263,
+        "cpu_ms": 23780,
+        "cpu_us_per_event": 23.78002378002378,
         "events": 1000000,
-        "events_per_sec": 61227.603218906836,
+        "events_per_sec": 57386.72042864462,
         "library": "serenity",
-        "peak_rss_kib": 20160,
+        "peak_rss_kib": 21468,
         "scenario": "flood",
-        "seconds": 16.332486451,
+        "seconds": 17.425616807,
         "variant": "Client + message handler, default cache",
         "runs": 3,
         "range": [
-          60409.684298449436,
-          64461.11640493187
+          56872.625296831546,
+          61312.947846052986
         ]
       }
     ],
@@ -135,168 +135,168 @@
       {
         "server_cpu_ms": 0,
         "allocator": "system",
-        "connected_rss_kib": 6784,
+        "connected_rss_kib": 6888,
         "guilds": 0,
         "library": "djs-rs",
         "members": 0,
-        "peak_rss_kib": 6788,
-        "rss_kib": 6788,
+        "peak_rss_kib": 6892,
+        "rss_kib": 6892,
         "scenario": "memory",
         "variant": "Client + serenity's default cache",
         "runs": 3,
         "range": [
-          6716,
-          6792
+          6556,
+          6900
         ]
       },
       {
         "server_cpu_ms": 0,
         "allocator": "system",
-        "connected_rss_kib": 10232,
+        "connected_rss_kib": 9976,
         "guilds": 0,
         "library": "serenity",
         "members": 0,
-        "peak_rss_kib": 10232,
-        "rss_kib": 10232,
+        "peak_rss_kib": 9976,
+        "rss_kib": 9976,
         "scenario": "memory",
         "variant": "Client + default cache",
         "runs": 3,
         "range": [
-          10004,
-          10396
+          9852,
+          10024
         ]
       },
       {
         "server_cpu_ms": 60,
         "allocator": "system",
-        "connected_rss_kib": 6764,
+        "connected_rss_kib": 6500,
         "guilds": 100,
         "library": "djs-rs",
         "members": 100000,
-        "peak_rss_kib": 44964,
-        "rss_kib": 44964,
+        "peak_rss_kib": 44944,
+        "rss_kib": 44944,
         "scenario": "memory",
         "variant": "Client + serenity's default cache",
         "runs": 3,
         "range": [
-          44944,
-          45024
+          44840,
+          45012
         ]
       },
       {
         "server_cpu_ms": 60,
         "allocator": "system",
-        "connected_rss_kib": 10180,
+        "connected_rss_kib": 10020,
         "guilds": 100,
         "library": "serenity",
         "members": 100000,
-        "peak_rss_kib": 192280,
-        "rss_kib": 192280,
+        "peak_rss_kib": 190568,
+        "rss_kib": 190568,
         "scenario": "memory",
         "variant": "Client + default cache",
         "runs": 3,
         "range": [
-          190904,
-          204776
+          190512,
+          191916
         ]
       },
       {
-        "server_cpu_ms": 260,
+        "server_cpu_ms": 280,
         "allocator": "system",
-        "connected_rss_kib": 7076,
+        "connected_rss_kib": 6612,
         "guilds": 500,
         "library": "djs-rs",
         "members": 500000,
-        "peak_rss_kib": 208424,
-        "rss_kib": 208424,
+        "peak_rss_kib": 208212,
+        "rss_kib": 208212,
         "scenario": "memory",
         "variant": "Client + serenity's default cache",
         "runs": 3,
         "range": [
-          208360,
-          208464
+          208084,
+          208304
         ]
       },
       {
-        "server_cpu_ms": 300,
+        "server_cpu_ms": 340,
         "allocator": "system",
-        "connected_rss_kib": 10768,
+        "connected_rss_kib": 10244,
         "guilds": 500,
         "library": "serenity",
         "members": 500000,
-        "peak_rss_kib": 1022356,
-        "rss_kib": 1022356,
+        "peak_rss_kib": 1021744,
+        "rss_kib": 1021744,
         "scenario": "memory",
         "variant": "Client + default cache",
         "runs": 3,
         "range": [
-          1001948,
-          1022928
+          1001396,
+          1023300
         ]
       }
     ],
     "rest": [
       {
-        "server_cpu_ms": 5080,
+        "server_cpu_ms": 4850,
         "allocator": "system",
         "concurrency": 64,
-        "cpu_ms": 4100,
-        "cpu_us_per_request": 13.666666666666666,
+        "cpu_ms": 4240,
+        "cpu_us_per_request": 14.133333333333333,
         "library": "djs-rs",
-        "p50_us": 242,
-        "p99_us": 544,
-        "peak_rss_kib": 12900,
+        "p50_us": 257,
+        "p99_us": 814,
+        "peak_rss_kib": 12596,
         "requests": 300000,
-        "requests_per_sec": 255871.5566816626,
+        "requests_per_sec": 229241.98627039944,
         "scenario": "rest",
-        "seconds": 1.172463262,
+        "seconds": 1.308660795,
         "variant": "djs-rest create_message",
         "runs": 3,
         "range": [
-          252810.6791869122,
-          256614.00990807734
+          227705.62360889793,
+          231107.0901353427
         ]
       },
       {
-        "server_cpu_ms": 6710,
+        "server_cpu_ms": 6840,
         "allocator": "system",
         "concurrency": 64,
-        "cpu_ms": 8320,
-        "cpu_us_per_request": 27.733333333333334,
+        "cpu_ms": 8230,
+        "cpu_us_per_request": 27.433333333333334,
         "library": "serenity",
-        "p50_us": 559,
-        "p99_us": 625,
-        "peak_rss_kib": 18288,
+        "p50_us": 572,
+        "p99_us": 870,
+        "peak_rss_kib": 17360,
         "requests": 300000,
-        "requests_per_sec": 114124.21469658517,
+        "requests_per_sec": 110078.11569091734,
         "scenario": "rest",
-        "seconds": 2.628714693,
+        "seconds": 2.725337349,
         "variant": "Http::send_message, default configuration",
         "runs": 3,
         "range": [
-          113654.57686840874,
-          114424.21540477857
+          108538.92782166763,
+          110095.94429969617
         ]
       },
       {
-        "server_cpu_ms": 5470,
+        "server_cpu_ms": 5410,
         "allocator": "system",
         "concurrency": 64,
-        "cpu_ms": 6960,
-        "cpu_us_per_request": 23.2,
+        "cpu_ms": 6990,
+        "cpu_us_per_request": 23.3,
         "library": "serenity",
-        "p50_us": 395,
-        "p99_us": 803,
-        "peak_rss_kib": 14852,
+        "p50_us": 404,
+        "p99_us": 868,
+        "peak_rss_kib": 14832,
         "requests": 300000,
-        "requests_per_sec": 159420.57448626048,
+        "requests_per_sec": 154493.8079723756,
         "scenario": "rest",
-        "seconds": 1.881814822,
+        "seconds": 1.9418253970000001,
         "variant": "Http::send_message, rate limiter disabled, plain HTTP proxy",
         "runs": 3,
         "range": [
-          158454.2069560256,
-          160324.0087507495
+          147032.8328815029,
+          154638.2680731294
         ]
       }
     ],
@@ -305,76 +305,76 @@
         "scenario": "build",
         "library": "djs-rs",
         "profile": "release",
-        "clean_ms": 46592,
-        "rebuild_ms": 9912,
-        "binary_bytes": 12768248,
-        "stripped_bytes": 9164272,
+        "clean_ms": 51244,
+        "rebuild_ms": 733,
+        "binary_bytes": 12915992,
+        "stripped_bytes": 9215424,
         "jobs": 12,
         "runs": 2,
         "range": [
-          46592,
-          46830
+          51244,
+          52966
         ],
         "rebuild_range": [
-          9912,
-          9923
+          733,
+          800
         ]
       },
       {
         "scenario": "build",
         "library": "serenity",
         "profile": "release",
-        "clean_ms": 73720,
-        "rebuild_ms": 4945,
+        "clean_ms": 76411,
+        "rebuild_ms": 5316,
         "binary_bytes": 15403376,
         "stripped_bytes": 11345848,
         "jobs": 12,
         "runs": 2,
         "range": [
-          73720,
-          74134
+          76411,
+          77932
         ],
         "rebuild_range": [
-          4945,
-          5011
+          5316,
+          5325
         ]
       },
       {
         "scenario": "build",
         "library": "djs-rs",
         "profile": "debug",
-        "clean_ms": 23906,
-        "rebuild_ms": 785,
-        "binary_bytes": 143452360,
-        "stripped_bytes": 17867888,
+        "clean_ms": 28399,
+        "rebuild_ms": 636,
+        "binary_bytes": 166730664,
+        "stripped_bytes": 19085984,
         "jobs": 12,
         "runs": 2,
         "range": [
-          23906,
-          24963
+          28399,
+          29118
         ],
         "rebuild_range": [
-          785,
-          1378
+          636,
+          819
         ]
       },
       {
         "scenario": "build",
         "library": "serenity",
         "profile": "debug",
-        "clean_ms": 34325,
-        "rebuild_ms": 577,
+        "clean_ms": 37440,
+        "rebuild_ms": 676,
         "binary_bytes": 138279096,
         "stripped_bytes": 23347648,
         "jobs": 12,
         "runs": 2,
         "range": [
-          34325,
-          35171
+          37440,
+          37533
         ],
         "rebuild_range": [
-          577,
-          615
+          676,
+          701
         ]
       }
     ],

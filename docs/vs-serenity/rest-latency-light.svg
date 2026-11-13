@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="840" height="388" viewBox="0 0 840 388" role="img" aria-labelledby="title desc" font-family="system-ui, -apple-system, &quot;Segoe UI&quot;, Roboto, sans-serif">
 <title id="title">REST: latency of each call under that load</title>
-<desc id="desc">p50 (median), djs-rest (default): 0.24 ms; p50 (median), serenity Http (default, HTTPS): 0.56 ms; p50 (median), serenity Http, limiter off, plain HTTP (bound): 0.40 ms; p99, djs-rest (default): 0.54 ms; p99, serenity Http (default, HTTPS): 0.63 ms; p99, serenity Http, limiter off, plain HTTP (bound): 0.80 ms</desc>
+<desc id="desc">p50 (median), djs-rest (default): 0.26 ms; p50 (median), serenity Http (default, HTTPS): 0.57 ms; p50 (median), serenity Http, limiter off, plain HTTP (bound): 0.40 ms; p99, djs-rest (default): 0.81 ms; p99, serenity Http (default, HTTPS): 0.87 ms; p99, serenity Http, limiter off, plain HTTP (bound): 0.87 ms</desc>
 <rect x="0.5" y="0.5" width="839" height="387" rx="8" fill="#fcfcfb" stroke="rgba(11,11,11,0.10)"/>
 <text x="24" y="34" font-size="16" font-weight="600" fill="#0b0b0b">REST: latency of each call under that load</text>
 <text x="24" y="55" font-size="12.5" fill="#52514e">milliseconds from the call to the decoded response, lower is better</text>
@@ -20,22 +20,22 @@
 <text x="586" y="372" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">1 ms</text>
 <text x="24" y="119" font-size="12.5" font-weight="600" fill="#52514e">p50 (median)</text>
 <text x="312" y="150.5" font-size="13" text-anchor="end" fill="#0b0b0b">djs-rest (default)</text>
-<path d="M324,136H383.404A4,4 0 0 1 387.404,140V152A4,4 0 0 1 383.404,156H324Z" fill="#2a78d6"><title>djs-rest (default): 0.24 ms</title></path>
-<text x="395.404" y="150.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">0.24 ms</text>
+<path d="M324,136H387.334A4,4 0 0 1 391.334,140V152A4,4 0 0 1 387.334,156H324Z" fill="#2a78d6"><title>djs-rest (default): 0.26 ms</title></path>
+<text x="399.334" y="150.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">0.26 ms</text>
 <text x="312" y="182.5" font-size="13" text-anchor="end" fill="#0b0b0b">serenity Http (default, HTTPS)</text>
-<path d="M324,168H466.458A4,4 0 0 1 470.458,172V184A4,4 0 0 1 466.458,188H324Z" fill="#eb6834"><title>serenity Http (default, HTTPS): 0.56 ms</title></path>
-<text x="478.458" y="182.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">0.56 ms</text>
+<path d="M324,168H469.864A4,4 0 0 1 473.864,172V184A4,4 0 0 1 469.864,188H324Z" fill="#eb6834"><title>serenity Http (default, HTTPS): 0.57 ms</title></path>
+<text x="481.864" y="182.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">0.57 ms</text>
 <text x="312" y="214.5" font-size="13" text-anchor="end" fill="#0b0b0b">serenity Http, limiter off, plain HTTP (bound)</text>
-<path d="M324,200H423.49A4,4 0 0 1 427.49,204V216A4,4 0 0 1 423.49,220H324Z" fill="#eb6834"><title>serenity Http, limiter off, plain HTTP (bound): 0.40 ms</title></path>
-<text x="435.49" y="214.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">0.40 ms</text>
+<path d="M324,200H425.848A4,4 0 0 1 429.848,204V216A4,4 0 0 1 425.848,220H324Z" fill="#eb6834"><title>serenity Http, limiter off, plain HTTP (bound): 0.40 ms</title></path>
+<text x="437.848" y="214.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">0.40 ms</text>
 <text x="24" y="245" font-size="12.5" font-weight="600" fill="#52514e">p99</text>
 <text x="312" y="276.5" font-size="13" text-anchor="end" fill="#0b0b0b">djs-rest (default)</text>
-<path d="M324,262H462.528A4,4 0 0 1 466.528,266V278A4,4 0 0 1 462.528,282H324Z" fill="#2a78d6"><title>djs-rest (default): 0.54 ms</title></path>
-<text x="474.528" y="276.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">0.54 ms</text>
+<path d="M324,262H533.268A4,4 0 0 1 537.268,266V278A4,4 0 0 1 533.268,282H324Z" fill="#2a78d6"><title>djs-rest (default): 0.81 ms</title></path>
+<text x="545.268" y="276.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">0.81 ms</text>
 <text x="312" y="308.5" font-size="13" text-anchor="end" fill="#0b0b0b">serenity Http (default, HTTPS)</text>
-<path d="M324,294H483.75A4,4 0 0 1 487.75,298V310A4,4 0 0 1 483.75,314H324Z" fill="#eb6834"><title>serenity Http (default, HTTPS): 0.63 ms</title></path>
-<text x="495.75" y="308.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">0.63 ms</text>
+<path d="M324,294H547.94A4,4 0 0 1 551.94,298V310A4,4 0 0 1 547.94,314H324Z" fill="#eb6834"><title>serenity Http (default, HTTPS): 0.87 ms</title></path>
+<text x="559.94" y="308.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">0.87 ms</text>
 <text x="312" y="340.5" font-size="13" text-anchor="end" fill="#0b0b0b">serenity Http, limiter off, plain HTTP (bound)</text>
-<path d="M324,326H530.386A4,4 0 0 1 534.386,330V342A4,4 0 0 1 530.386,346H324Z" fill="#eb6834"><title>serenity Http, limiter off, plain HTTP (bound): 0.80 ms</title></path>
-<text x="542.386" y="340.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">0.80 ms</text>
+<path d="M324,326H547.4159999999999A4,4 0 0 1 551.4159999999999,330V342A4,4 0 0 1 547.4159999999999,346H324Z" fill="#eb6834"><title>serenity Http, limiter off, plain HTTP (bound): 0.87 ms</title></path>
+<text x="559.4159999999999" y="340.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">0.87 ms</text>
 </svg>
