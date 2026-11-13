@@ -410,7 +410,7 @@ function restSection(all) {
   const rows = results.map((r) => [
     r.name,
     grouped(r.requests_per_sec),
-    r === base ? 'baseline' : verdict(r.requests_per_sec / base.requests_per_sec, 'more'),
+    r === base ? 'baseline' : isRust(r) ? verdict(r.requests_per_sec / base.requests_per_sec, 'more') : `${times(r.requests_per_sec / base.requests_per_sec)} the default`,
     millis(r.p50_us),
     millis(r.p99_us),
     micros(r.cpu_us_per_request),

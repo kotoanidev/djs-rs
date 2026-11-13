@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="200" viewBox="0 0 840 200" role="img" aria-labelledby="title desc" font-family="system-ui, -apple-system, &quot;Segoe UI&quot;, Roboto, sans-serif">
+<title id="title">Decoding GUILD_CREATE, 1000 members (508 KiB)</title>
+<desc id="desc">djs-rs (djs-model): 1,366/s · 6.2× faster; serenity (GatewayEvent): 222/s</desc>
+<rect x="0.5" y="0.5" width="839" height="199" rx="8" fill="#1a1a19" stroke="rgba(255,255,255,0.10)"/>
+<text x="24" y="34" font-size="16" font-weight="600" fill="#f0efec">Decoding GUILD_CREATE, 1000 members (508 KiB)</text>
+<text x="24" y="55" font-size="12.5" fill="#c3c2b7">payloads per second on one core, higher is better · median of 15 rounds</text>
+<rect x="24" y="68" width="12" height="12" rx="3" fill="#3987e5"/>
+<text x="42" y="78.5" font-size="12.5" fill="#c3c2b7">djs-rs (Rust)</text>
+<rect x="150" y="68" width="12" height="12" rx="3" fill="#d95926"/>
+<text x="168" y="78.5" font-size="12.5" fill="#c3c2b7">serenity</text>
+<line x1="324" y1="100" x2="324" y2="168" stroke="#383835" stroke-width="1"/>
+<text x="324" y="184" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">0</text>
+<line x1="411.3333333333333" y1="100" x2="411.3333333333333" y2="168" stroke="#2c2c2a" stroke-width="1"/>
+<text x="411.3333333333333" y="184" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">500</text>
+<line x1="498.66666666666663" y1="100" x2="498.66666666666663" y2="168" stroke="#2c2c2a" stroke-width="1"/>
+<text x="498.66666666666663" y="184" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">1,000</text>
+<line x1="586" y1="100" x2="586" y2="168" stroke="#2c2c2a" stroke-width="1"/>
+<text x="586" y="184" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">1,500</text>
+<text x="312" y="120.5" font-size="13" text-anchor="end" fill="#f0efec">djs-rs (djs-model)</text>
+<path d="M324,106H558.6622063401043A4,4 0 0 1 562.6622063401043,110V122A4,4 0 0 1 558.6622063401043,126H324Z" fill="#3987e5"><title>djs-rs (djs-model): 1,366/s · 6.2× faster</title></path>
+<text x="570.6622063401043" y="120.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">1,366/s · 6.2× faster</text>
+<text x="312" y="152.5" font-size="13" text-anchor="end" fill="#f0efec">serenity (GatewayEvent)</text>
+<path d="M324,138H358.7389830598238A4,4 0 0 1 362.7389830598238,142V154A4,4 0 0 1 358.7389830598238,158H324Z" fill="#d95926"><title>serenity (GatewayEvent): 222/s</title></path>
+<text x="370.7389830598238" y="152.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">222/s</text>
+</svg>

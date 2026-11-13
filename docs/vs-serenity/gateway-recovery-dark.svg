@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="606" viewBox="0 0 840 606" role="img" aria-labelledby="title desc" font-family="system-ui, -apple-system, &quot;Segoe UI&quot;, Roboto, sans-serif">
+<title id="title">Time without events after a gateway fault</title>
+<desc id="desc">Connection dropped (no close frame), djs-rs: 3.0 ms; Connection dropped (no close frame), serenity: 2.9 ms; Opcode 7 RECONNECT, djs-rs: 2.2 ms; Opcode 7 RECONNECT, serenity: 3.8 ms; Opcode 9 INVALID_SESSION, not resumable, djs-rs: 3.10 s; Opcode 9 INVALID_SESSION, not resumable, serenity: 5.00 s; Zombie connection (no heartbeat ACK), djs-rs: 1.77 s; Zombie connection (no heartbeat ACK), serenity: 6.02 s; Close code 4000 (resumable), djs-rs: 2.7 ms; Close code 4000 (resumable), serenity: 3.0 ms</desc>
+<rect x="0.5" y="0.5" width="839" height="605" rx="8" fill="#1a1a19" stroke="rgba(255,255,255,0.10)"/>
+<text x="24" y="34" font-size="16" font-weight="600" fill="#f0efec">Time without events after a gateway fault</text>
+<text x="24" y="55" font-size="12.5" fill="#c3c2b7">from the fault to the first READY or RESUMED, lower is better · the mock's 1 s heartbeat interval</text>
+<rect x="24" y="68" width="12" height="12" rx="3" fill="#3987e5"/>
+<text x="42" y="78.5" font-size="12.5" fill="#c3c2b7">djs-rs (Rust)</text>
+<rect x="150" y="68" width="12" height="12" rx="3" fill="#d95926"/>
+<text x="168" y="78.5" font-size="12.5" fill="#c3c2b7">serenity</text>
+<line x1="324" y1="100" x2="324" y2="574" stroke="#383835" stroke-width="1"/>
+<text x="324" y="590" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">0 s</text>
+<line x1="389.5" y1="100" x2="389.5" y2="574" stroke="#2c2c2a" stroke-width="1"/>
+<text x="389.5" y="590" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">2 s</text>
+<line x1="455" y1="100" x2="455" y2="574" stroke="#2c2c2a" stroke-width="1"/>
+<text x="455" y="590" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">4 s</text>
+<line x1="520.5" y1="100" x2="520.5" y2="574" stroke="#2c2c2a" stroke-width="1"/>
+<text x="520.5" y="590" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">6 s</text>
+<line x1="586" y1="100" x2="586" y2="574" stroke="#2c2c2a" stroke-width="1"/>
+<text x="586" y="590" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">8 s</text>
+<text x="24" y="119" font-size="12.5" font-weight="600" fill="#c3c2b7">Connection dropped (no close frame)</text>
+<text x="312" y="150.5" font-size="13" text-anchor="end" fill="#f0efec">djs-rs</text>
+<path d="M324,136H324.0496161845A0.049616184499996,0.049616184499996 0 0 1 324.099232369,136.0496161845V155.9503838155A0.049616184499996,0.049616184499996 0 0 1 324.0496161845,156H324Z" fill="#3987e5"><title>djs-rs: 3.0 ms</title></path>
+<text x="332.099232369" y="150.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">3.0 ms</text>
+<text x="312" y="182.5" font-size="13" text-anchor="end" fill="#f0efec">serenity</text>
+<path d="M324,168H324.04693510575004A0.04693510574999993,0.04693510574999993 0 0 1 324.0938702115,168.04693510575V187.95306489425A0.04693510574999993,0.04693510574999993 0 0 1 324.04693510575004,188H324Z" fill="#d95926"><title>serenity: 2.9 ms</title></path>
+<text x="332.0938702115" y="182.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">2.9 ms</text>
+<text x="24" y="213" font-size="12.5" font-weight="600" fill="#c3c2b7">Opcode 7 RECONNECT</text>
+<text x="312" y="244.5" font-size="13" text-anchor="end" fill="#f0efec">djs-rs</text>
+<path d="M324,230H324.035323085625A0.03532308562499878,0.03532308562499878 0 0 1 324.07064617125,230.035323085625V249.964676914375A0.03532308562499878,0.03532308562499878 0 0 1 324.035323085625,250H324Z" fill="#3987e5"><title>djs-rs: 2.2 ms</title></path>
+<text x="332.07064617125" y="244.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">2.2 ms</text>
+<text x="312" y="276.5" font-size="13" text-anchor="end" fill="#f0efec">serenity</text>
+<path d="M324,262H324.06156615187496A0.06156615187499653,0.06156615187499653 0 0 1 324.12313230374997,262.061566151875V281.938433848125A0.06156615187499653,0.06156615187499653 0 0 1 324.06156615187496,282H324Z" fill="#d95926"><title>serenity: 3.8 ms</title></path>
+<text x="332.12313230374997" y="276.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">3.8 ms</text>
+<text x="24" y="307" font-size="12.5" font-weight="600" fill="#c3c2b7">Opcode 9 INVALID_SESSION, not resumable</text>
+<text x="312" y="338.5" font-size="13" text-anchor="end" fill="#f0efec">djs-rs</text>
+<path d="M324,324H421.56857508675A4,4 0 0 1 425.56857508675,328V340A4,4 0 0 1 421.56857508675,344H324Z" fill="#3987e5"><title>djs-rs: 3.10 s</title></path>
+<text x="433.56857508675" y="338.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">3.10 s</text>
+<text x="312" y="370.5" font-size="13" text-anchor="end" fill="#f0efec">serenity</text>
+<path d="M324,356H483.87698927125A4,4 0 0 1 487.87698927125,360V372A4,4 0 0 1 483.87698927125,376H324Z" fill="#d95926"><title>serenity: 5.00 s</title></path>
+<text x="495.87698927125" y="370.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">5.00 s</text>
+<text x="24" y="401" font-size="12.5" font-weight="600" fill="#c3c2b7">Zombie connection (no heartbeat ACK)</text>
+<text x="312" y="432.5" font-size="13" text-anchor="end" fill="#f0efec">djs-rs</text>
+<path d="M324,418H377.87383739075A4,4 0 0 1 381.87383739075,422V434A4,4 0 0 1 377.87383739075,438H324Z" fill="#3987e5"><title>djs-rs: 1.77 s</title></path>
+<text x="389.87383739075" y="432.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">1.77 s</text>
+<text x="312" y="464.5" font-size="13" text-anchor="end" fill="#f0efec">serenity</text>
+<path d="M324,450H517.05996719625A4,4 0 0 1 521.05996719625,454V466A4,4 0 0 1 517.05996719625,470H324Z" fill="#d95926"><title>serenity: 6.02 s</title></path>
+<text x="529.05996719625" y="464.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">6.02 s</text>
+<text x="24" y="495" font-size="12.5" font-weight="600" fill="#c3c2b7">Close code 4000 (resumable)</text>
+<text x="312" y="526.5" font-size="13" text-anchor="end" fill="#f0efec">djs-rs</text>
+<path d="M324,512H324.04426490000003A0.04426489999999876,0.04426489999999876 0 0 1 324.0885298,512.0442649V531.9557351A0.04426489999999876,0.04426489999999876 0 0 1 324.04426490000003,532H324Z" fill="#3987e5"><title>djs-rs: 2.7 ms</title></path>
+<text x="332.0885298" y="526.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">2.7 ms</text>
+<text x="312" y="558.5" font-size="13" text-anchor="end" fill="#f0efec">serenity</text>
+<path d="M324,544H324.04873589725A0.04873589724999573,0.04873589724999573 0 0 1 324.0974717945,544.04873589725V563.95126410275A0.04873589724999573,0.04873589724999573 0 0 1 324.04873589725,564H324Z" fill="#d95926"><title>serenity: 3.0 ms</title></path>
+<text x="332.0974717945" y="558.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">3.0 ms</text>
+</svg>

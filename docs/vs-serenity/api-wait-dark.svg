@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="324" viewBox="0 0 840 324" role="img" aria-labelledby="title desc" font-family="system-ui, -apple-system, &quot;Segoe UI&quot;, Roboto, sans-serif">
+<title id="title">Waiting out a 429 that asks for 0.5 s</title>
+<desc id="desc">Route 429, retry_after 0.5 s, djs-rs: 552 ms; Route 429, retry_after 0.5 s, serenity: 1.00 s; Global 429, retry_after 0.5 s, djs-rs: 552 ms; Global 429, retry_after 0.5 s, serenity: 1.00 s</desc>
+<rect x="0.5" y="0.5" width="839" height="323" rx="8" fill="#1a1a19" stroke="rgba(255,255,255,0.10)"/>
+<text x="24" y="34" font-size="16" font-weight="600" fill="#f0efec">Waiting out a 429 that asks for 0.5 s</text>
+<text x="24" y="55" font-size="12.5" fill="#c3c2b7">from the 429 to the next request the client sends, closer to 0.5 s is better (none was early)</text>
+<rect x="24" y="68" width="12" height="12" rx="3" fill="#3987e5"/>
+<text x="42" y="78.5" font-size="12.5" fill="#c3c2b7">djs-rs (Rust)</text>
+<rect x="150" y="68" width="12" height="12" rx="3" fill="#d95926"/>
+<text x="168" y="78.5" font-size="12.5" fill="#c3c2b7">serenity</text>
+<line x1="324" y1="100" x2="324" y2="292" stroke="#383835" stroke-width="1"/>
+<text x="324" y="308" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">0 s</text>
+<line x1="411.3333333333333" y1="100" x2="411.3333333333333" y2="292" stroke="#2c2c2a" stroke-width="1"/>
+<text x="411.3333333333333" y="308" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">0.5 s</text>
+<line x1="498.66666666666663" y1="100" x2="498.66666666666663" y2="292" stroke="#2c2c2a" stroke-width="1"/>
+<text x="498.66666666666663" y="308" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">1 s</text>
+<line x1="586" y1="100" x2="586" y2="292" stroke="#2c2c2a" stroke-width="1"/>
+<text x="586" y="308" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">1.5 s</text>
+<text x="24" y="119" font-size="12.5" font-weight="600" fill="#c3c2b7">Route 429, retry_after 0.5 s</text>
+<text x="312" y="150.5" font-size="13" text-anchor="end" fill="#f0efec">djs-rs</text>
+<path d="M324,136H416.491555036A4,4 0 0 1 420.491555036,140V152A4,4 0 0 1 416.491555036,156H324Z" fill="#3987e5"><title>djs-rs: 552 ms</title></path>
+<text x="428.491555036" y="150.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">552 ms</text>
+<text x="312" y="182.5" font-size="13" text-anchor="end" fill="#f0efec">serenity</text>
+<path d="M324,168H495.02121345066666A4,4 0 0 1 499.02121345066666,172V184A4,4 0 0 1 495.02121345066666,188H324Z" fill="#d95926"><title>serenity: 1.00 s</title></path>
+<text x="507.02121345066666" y="182.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">1.00 s</text>
+<text x="24" y="213" font-size="12.5" font-weight="600" fill="#c3c2b7">Global 429, retry_after 0.5 s</text>
+<text x="312" y="244.5" font-size="13" text-anchor="end" fill="#f0efec">djs-rs</text>
+<path d="M324,230H416.48988906533333A4,4 0 0 1 420.48988906533333,234V246A4,4 0 0 1 416.48988906533333,250H324Z" fill="#3987e5"><title>djs-rs: 552 ms</title></path>
+<text x="428.48988906533333" y="244.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">552 ms</text>
+<text x="312" y="276.5" font-size="13" text-anchor="end" fill="#f0efec">serenity</text>
+<path d="M324,262H495.0339578293333A4,4 0 0 1 499.0339578293333,266V278A4,4 0 0 1 495.0339578293333,282H324Z" fill="#d95926"><title>serenity: 1.00 s</title></path>
+<text x="507.0339578293333" y="276.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">1.00 s</text>
+</svg>

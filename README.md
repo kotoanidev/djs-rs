@@ -20,6 +20,18 @@ same mock Discord servers — [the full results, method and caveats](docs/VS_NOD
   <img alt="How many times better djs-rs is than discord.js, per scenario; the numbers are in docs/VS_NODE.md" src="docs/vs-node/summary-light.svg">
 </picture>
 
+## How it compares with serenity
+
+Measured the same way against [serenity](https://github.com/serenity-rs/serenity) 0.12.5,
+a long-standing, widely used Rust library, in its default configuration: performance, resources and
+reliability under injected gateway and API faults, including where serenity does better —
+[the full results, method and caveats](docs/VS_SERENITY.md):
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/vs-serenity/summary-dark.svg">
+  <img alt="djs-rs vs serenity, scenario by scenario: how many times better the winner is; the numbers are in docs/VS_SERENITY.md" src="docs/vs-serenity/summary-light.svg">
+</picture>
+
 ## Planned example
 
 ```rust,ignore

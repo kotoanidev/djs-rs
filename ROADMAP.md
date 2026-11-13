@@ -116,8 +116,8 @@ just with narrow scope.
   warning, `required_intents()`, a partials table)
 - [x] Examples directory covering common bot patterns (D-274–D-276, D-281: slash commands,
       components and collectors, moderation, an advanced setup; run on the test bot)
-- [ ] A comparison with serenity: performance, resources, reliability (D-277–D-280;
-      `benches/vs-serenity/`, `docs/VS_SERENITY.md`), once the steps above are done
+- [x] A comparison with serenity: performance, resources, reliability (D-277–D-282,
+      C-108, C-109; `benches/vs-serenity/`, `docs/VS_SERENITY.md`)
 
 ## Phase 9 — Multi-process sharding (D-018)
 - [ ] `ShardingManager` spawning processes, IPC, `broadcastEval`-style messaging, respawn
@@ -129,7 +129,8 @@ just with narrow scope.
 ## Cross-cutting (continuous)
 - [ ] Guide / book (format TBD with owner)
 - [ ] discord.js → djs-rs migration guide (API mapping table)
-- [ ] Benchmarks vs discord.js / serenity / twilight
+- [ ] Benchmarks vs discord.js / serenity / twilight (discord.js: `docs/VS_NODE.md`; serenity:
+      `docs/VS_SERENITY.md`; twilight not yet)
 - [ ] First crates.io release (D-022)
 
 > Phase 7 crates are independent and may be pulled earlier if the owner wants.
