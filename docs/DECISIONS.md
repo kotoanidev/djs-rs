@@ -2475,6 +2475,33 @@ and why.
 - **Alternatives:** a discord.js-like `ClientBuilder::partials(…)` dropping events about
   uncached objects unless enabled.
 
+### D-274 — Four groups of examples
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Decision:** Phase 8 step 6 adds examples of: slash commands with the router (guild
+  command registration, subcommands, autocomplete, a modal with `await_modal_submit`,
+  ephemeral and deferred replies); components and collectors (a paginated button menu, a
+  quiz with `await_messages`, a reaction poll with `await_reactions`); moderation and the
+  cache (welcomes, an edit and deletion log with the previous state, timeouts and bans,
+  `fetch_all`, cache and intents configuration); advanced use (sharding and presence, the
+  `client.events()` loop, `WebhookClient` without a bot, `HandlerMode::Sequential`, mimalloc
+  as the global allocator).
+- **Alternatives:** any subset.
+
+### D-275 — Examples are verified briefly on the test bot
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Decision:** each example is run once against the owner's test guild with the token from
+  `.env`, after asking the owner each time and saying what it will do (some need the owner's
+  clicks in Discord). Commands are registered as guild commands and removed afterwards; test
+  messages are deleted (as for D-184 / D-195).
+- **Alternatives:** compile only and test the logic on mocks; the owner runs them.
+
+### D-276 — Single-file examples
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Decision:** every example is one file `crates/djs-rs/examples/<name>.rs`
+  (`cargo run --example <name>`), like `ping.rs`, with how to run it in its header; the
+  shared `.env` reading lives in a small module included with `#[path]`.
+- **Alternatives:** also a template bot crate in the workspace, split into modules.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
