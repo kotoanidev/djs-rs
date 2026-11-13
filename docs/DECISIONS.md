@@ -2762,6 +2762,52 @@ and why.
 - **Alternatives:** starting processes one after another with a fixed delay (~5.5 s, as
   discord.js) and letting each identify on its own.
 
+### D-300 — The entry point: recognize the role, then a normal `Client`
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Decision:** a function of `djs_rs::sharding` reads the environment of D-296. In a shard
+  process it returns the process's assignment (its shards, the IPC connection), which is
+  given to the `Client` builder; the bot is then written as usual. In the manager process it
+  returns `None` and the code builds the manager, with full access to it and its events.
+  ```rust,ignore
+  match sharding::process()? {
+      Some(assignment) => {
+          let client = Client::builder(&token).cluster(assignment).build();
+          client.on(Events::MessageCreate, …);
+          client.login().await
+      }
+      None => ClusterManager::builder(&token).shards_per_process(1).build().spawn().await,
+  }
+  ```
+- **Alternatives:** one `run(|client| …)` call that does both, with the manager's code given
+  as options.
+
+### D-301 — Phase 9's types are named after clusters
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Decision:** `ClusterManager` (the manager, ≈ discord.js `ShardingManager`), `Cluster`
+  (one process and its shards, ≈ `Shard`) and `ClusterClient`, reached with
+  `client.cluster()` (≈ `ShardClientUtil` / `client.shard`), as in discord-hybrid-sharding:
+  the names say that a process can hold several shards (D-297). The module and the feature
+  stay `sharding` (D-284).
+- **Alternatives:** discord.js's names (`ShardingManager`, `ShardProcess`, `ShardingClient`).
+
+### D-302 — REST rate limits stay per process
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Context:** the global limit (50 requests/s per token) and the route buckets are shared by
+  every process of a bot, while each process has its own REST client.
+- **Decision:** each process limits itself, as in discord.js; what goes over ends in a 429,
+  which the REST client already waits out and retries. Documented; a shared limiter can be
+  added later if measurements show the need.
+- **Alternatives:** splitting the global budget (50/N per process); a limiter in the manager
+  asked over IPC for every request.
+
+### D-303 — Phase 9's order
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Decision:** one commit per step: (1) the IPC protocol, starting processes and assigning
+  shards (D-285, D-296, D-297, D-300); (2) the manager's IDENTIFY queue (D-299); (3) restarts
+  with a growing delay (D-298); (4) built-in values and named commands (D-286); (5)
+  benchmarks and extreme-load tests (D-041).
+- **Alternatives:** values and commands right after step 1.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)

@@ -635,8 +635,10 @@ fields with `Deref` to `new`). Steps:
    respawn policy, IDENTIFY coordination across processes. **Decided 2026-11-14:** D-296
    (the same executable, role from an environment variable), D-297 (`shards_per_process`,
    default 1), D-298 (restart with a growing delay), D-299 (the manager is the IDENTIFY
-   queue). Still to ask before coding: the public API shape (names and entry point), the
-   REST global rate limit across processes, and the step order.
+   queue), D-300 (`sharding::process()` → assignment → `ClientBuilder::cluster`, else the
+   manager), D-301 (`ClusterManager`, `Cluster`, `ClusterClient` via `client.cluster()`),
+   D-302 (REST limits per process), D-303 (order: IPC + spawning → IDENTIFY queue →
+   restarts → values and commands → benchmarks). **Next: step 1.**
 
 > **Heavy runs (D-257, D-259–D-262):** the owner's laptop hard-froze on 2026-11-13 under
 > assistant load. Every cargo build/test/bench/stress test goes through
