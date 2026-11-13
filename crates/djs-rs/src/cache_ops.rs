@@ -22,6 +22,7 @@ use djs_model::{
         StickerId, UserId,
     },
     message::Message,
+    permissions::Permissions,
     soundboard::SoundboardSound,
     stage_instance::StageInstance,
     sticker::Sticker,
@@ -77,6 +78,16 @@ pub(crate) trait CacheOps: Send + Sync {
         guild_id: GuildId,
         sound_id: SoundboardSoundId,
     ) -> Option<Arc<SoundboardSound>>;
+
+    /// [`Cache::member_permissions`].
+    fn member_permissions(&self, guild_id: GuildId, user_id: UserId) -> Option<Permissions>;
+    /// [`Cache::member_permissions_in`] for a cached channel or thread of `guild_id`.
+    fn member_permissions_in(
+        &self,
+        guild_id: GuildId,
+        channel_id: ChannelId,
+        user_id: UserId,
+    ) -> Option<Permissions>;
 }
 
 impl<B: Backend> CacheOps for Cache<B> {
@@ -189,6 +200,27 @@ impl<B: Backend> CacheOps for Cache<B> {
         sound_id: SoundboardSoundId,
     ) -> Option<Arc<SoundboardSound>> {
         self.soundboard_sounds(guild_id).get(sound_id)
+    }
+
+    fn member_permissions(&self, guild_id: GuildId, user_id: UserId) -> Option<Permissions> {
+        Cache::member_permissions(self, guild_id, user_id)
+    }
+
+    fn member_permissions_in(
+        &self,
+        guild_id: GuildId,
+        channel_id: ChannelId,
+        user_id: UserId,
+    ) -> Option<Permissions> {
+        let channel = self
+            .channels()
+            .get(channel_id)
+            .or_else(|| self.threads(guild_id).get(channel_id))?;
+        // A channel of another guild: the member has no permissions there.
+        if channel.guild_id() != Some(guild_id) {
+            return None;
+        }
+        Cache::member_permissions_in(self, &channel, user_id)
     }
 }
 

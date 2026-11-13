@@ -859,6 +859,68 @@ pub trait MemberExt: sealed::Member {
         let (guild_id, user_id) = self.ids();
         ctx.members(guild_id).ban(user_id, body, reason)
     }
+
+    /// This member's permissions in its guild, computed from the cache as Discord applies
+    /// them now, a timeout included ([`Cache::member_permissions`](djs_cache::Cache::member_permissions),
+    /// D-292, D-294). The cache's current state of the member is used, not this value's.
+    ///
+    /// `None` without a cache, or when the cache lacks the guild, the member or one of its
+    /// roles (members are not cached by default: enable them in the
+    /// [`CacheConfig`](djs_cache::CacheConfig)). Interactions carry Discord's own
+    /// computation instead ([`Interaction::member`](djs_model::interaction::Interaction::member)'s
+    /// `permissions`).
+    ///
+    /// discord.js counterpart: `GuildMember#permissions`.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use djs_rs::{model::permissions::Permissions, prelude::*};
+    ///
+    /// # fn register(client: &Client) {
+    /// // A prefix command for moderators only.
+    /// client.on(Events::MessageCreate, |ctx, msg| async move {
+    ///     let Some(guild_id) = msg.guild_id else { return Ok(()) };
+    ///     if msg.content.starts_with("!kick ") {
+    ///         let author = ctx.members(guild_id).fetch(msg.author.id).await?;
+    ///         let allowed = author
+    ///             .permissions(&ctx)
+    ///             .is_some_and(|permissions| permissions.contains(Permissions::KICK_MEMBERS));
+    ///         if !allowed {
+    ///             msg.reply(&ctx, "You may not kick members.").await?;
+    ///             return Ok(());
+    ///         }
+    ///         // …
+    ///     }
+    ///     Ok(())
+    /// });
+    /// # }
+    /// ```
+    fn permissions<B: Backend>(&self, ctx: &Context<B>) -> Option<Permissions> {
+        let (guild_id, user_id) = self.ids();
+        ctx.ops().member_permissions(guild_id, user_id)
+    }
+
+    /// This member's permissions in the channel or thread `channel_id` of its guild, computed
+    /// from the cache as Discord applies them now: the channel's overwrites (a thread's
+    /// parent's), the implicit denials (no `VIEW_CHANNEL`: nothing; no `SEND_MESSAGES`: no
+    /// mentions of everyone, TTS, files or embeds, D-295) and a timeout (D-294)
+    /// ([`Cache::member_permissions_in`](djs_cache::Cache::member_permissions_in)).
+    ///
+    /// `None` without a cache, or when the cache lacks the channel (and for a thread, its
+    /// parent), the guild, the member or one of its roles; also for a channel of another
+    /// guild.
+    ///
+    /// discord.js counterpart: `GuildMember#permissionsIn(channel)`.
+    fn permissions_in<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+        channel_id: ChannelId,
+    ) -> Option<Permissions> {
+        let (guild_id, user_id) = self.ids();
+        ctx.ops()
+            .member_permissions_in(guild_id, channel_id, user_id)
+    }
 }
 
 impl MemberExt for CachedMember {}

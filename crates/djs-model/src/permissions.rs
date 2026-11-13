@@ -9,6 +9,11 @@ use serde::{
     de::{Error as DeError, Unexpected, Visitor},
 };
 
+use crate::{
+    channel::Overwrite,
+    id::{GuildId, RoleId, UserId},
+};
+
 bitflags! {
     /// A set of [permission flags](https://docs.discord.com/developers/topics/permissions#permissions-bitwise-permission-flags).
     ///
@@ -158,6 +163,152 @@ bitflags! {
         const PIN_MESSAGES = 1 << 51;
         /// Bypass slowmode. Text, voice and stage channels.
         const BYPASS_SLOWMODE = 1 << 52;
+    }
+}
+
+/// Computing a member's permissions, following [Discord's
+/// algorithm](https://docs.discord.com/developers/topics/permissions#permission-overwrites)
+/// (D-292). Three steps, each usable alone:
+///
+/// 1. [`guild_level`](Self::guild_level): the owner, `@everyone`, the member's roles and
+///    `ADMINISTRATOR`;
+/// 2. [`in_channel`](Self::in_channel): a channel's overwrites, then the implicit denials
+///    (D-295);
+/// 3. [`during_timeout`](Self::during_timeout): what a timed-out member keeps (D-294).
+///
+/// `djs_cache::Cache::member_permissions` and `member_permissions_in` run them on cached data.
+///
+/// # Examples
+///
+/// ```
+/// use djs_model::{
+///     channel::Overwrite,
+///     id::{GuildId, RoleId, UserId},
+///     permissions::Permissions,
+/// };
+///
+/// let (guild, moderator, user) = (GuildId::new(1), RoleId::new(2), UserId::new(3));
+/// let everyone = Permissions::VIEW_CHANNEL | Permissions::SEND_MESSAGES;
+/// let base = Permissions::guild_level(false, everyone, [Permissions::BAN_MEMBERS]);
+/// assert!(base.contains(Permissions::BAN_MEMBERS));
+///
+/// // A read-only channel for `@everyone` (its overwrite has the guild's ID).
+/// let overwrites = [Overwrite::role(guild.cast(), Permissions::empty(), Permissions::SEND_MESSAGES)];
+/// let in_channel = base.in_channel(guild, user, &[moderator], &overwrites);
+/// assert!(!in_channel.contains(Permissions::SEND_MESSAGES));
+///
+/// // Timed out: only viewing and reading the history remain.
+/// assert_eq!(in_channel.during_timeout(), Permissions::VIEW_CHANNEL);
+/// ```
+impl Permissions {
+    /// The permissions that implicitly depend on [`SEND_MESSAGES`](Self::SEND_MESSAGES): a
+    /// member without it cannot use them in that channel.
+    pub const NEEDS_SEND_MESSAGES: Self = Self::MENTION_EVERYONE
+        .union(Self::SEND_TTS_MESSAGES)
+        .union(Self::ATTACH_FILES)
+        .union(Self::EMBED_LINKS);
+
+    /// What a timed-out member keeps (D-294).
+    pub const DURING_TIMEOUT: Self = Self::VIEW_CHANNEL.union(Self::READ_MESSAGE_HISTORY);
+
+    /// A member's permissions in its guild: every permission for the guild's owner;
+    /// otherwise the permissions of the `@everyone` role and of the member's `roles` together,
+    /// and every permission when they include [`ADMINISTRATOR`](Self::ADMINISTRATOR).
+    ///
+    /// This is Discord's `compute_base_permissions`; a timeout is applied with
+    /// [`during_timeout`](Self::during_timeout).
+    ///
+    /// discord.js counterpart: `GuildMember#permissions` (which leaves `ADMINISTRATOR` to
+    /// `has`).
+    #[must_use]
+    pub fn guild_level(owner: bool, everyone: Self, roles: impl IntoIterator<Item = Self>) -> Self {
+        if owner {
+            return Self::all();
+        }
+        let permissions = roles.into_iter().fold(everyone, Self::union);
+        if permissions.contains(Self::ADMINISTRATOR) {
+            Self::all()
+        } else {
+            permissions
+        }
+    }
+
+    /// Applies a channel's `overwrites` to guild-level permissions (from
+    /// [`guild_level`](Self::guild_level)) of the member `user_id` of `guild_id`, who has the
+    /// roles `role_ids` (without `@everyone`): the `@everyone` overwrite, then the role
+    /// overwrites together, then the member's own; `ADMINISTRATOR` keeps every permission.
+    ///
+    /// Then the implicit denials (D-295): without [`VIEW_CHANNEL`](Self::VIEW_CHANNEL) the
+    /// member can do nothing in the channel (the result is empty), and without
+    /// [`SEND_MESSAGES`](Self::SEND_MESSAGES) the [`NEEDS_SEND_MESSAGES`](Self::NEEDS_SEND_MESSAGES)
+    /// permissions are removed. Discord also ignores some permissions in a voice channel
+    /// without [`CONNECT`](Self::CONNECT) (`MANAGE_CHANNELS`, for example) but gives no
+    /// complete list, so that rule is not applied.
+    ///
+    /// A thread has no overwrites of its own: pass its parent channel's.
+    ///
+    /// discord.js counterpart: `GuildChannel#permissionsFor(member)` (without the implicit
+    /// denials).
+    #[must_use]
+    pub fn in_channel(
+        self,
+        guild_id: GuildId,
+        user_id: UserId,
+        role_ids: &[RoleId],
+        overwrites: &[Overwrite],
+    ) -> Self {
+        if self.contains(Self::ADMINISTRATOR) {
+            return Self::all();
+        }
+        let mut everyone = None;
+        let mut member = None;
+        let (mut allow, mut deny) = (Self::empty(), Self::empty());
+        for overwrite in overwrites {
+            if let Some(role_id) = overwrite.role_id() {
+                if role_id.get() == guild_id.get() {
+                    everyone = Some(overwrite);
+                } else if role_ids.contains(&role_id) {
+                    allow |= overwrite.allow;
+                    deny |= overwrite.deny;
+                }
+            } else if overwrite.user_id() == Some(user_id) {
+                member = Some(overwrite);
+            }
+        }
+        let mut permissions = self;
+        if let Some(everyone) = everyone {
+            permissions = permissions.difference(everyone.deny).union(everyone.allow);
+        }
+        permissions = permissions.difference(deny).union(allow);
+        if let Some(member) = member {
+            permissions = permissions.difference(member.deny).union(member.allow);
+        }
+        // An overwrite cannot grant `ADMINISTRATOR`.
+        permissions.remove(Self::ADMINISTRATOR);
+        if !permissions.contains(Self::VIEW_CHANNEL) {
+            return Self::empty();
+        }
+        if !permissions.contains(Self::SEND_MESSAGES) {
+            permissions.remove(Self::NEEDS_SEND_MESSAGES);
+        }
+        permissions
+    }
+
+    /// What a timed-out member keeps of these permissions: only
+    /// [`VIEW_CHANNEL`](Self::VIEW_CHANNEL) and
+    /// [`READ_MESSAGE_HISTORY`](Self::READ_MESSAGE_HISTORY) (D-294). The owner and members
+    /// with [`ADMINISTRATOR`](Self::ADMINISTRATOR) are exempt (their permissions are
+    /// returned unchanged).
+    ///
+    /// See [Permissions for Timed Out
+    /// Members](https://docs.discord.com/developers/topics/permissions#permissions-for-timed-out-members).
+    #[must_use]
+    pub const fn during_timeout(self) -> Self {
+        if self.contains(Self::ADMINISTRATOR) {
+            self
+        } else {
+            self.intersection(Self::DURING_TIMEOUT)
+        }
     }
 }
 

@@ -1334,3 +1334,19 @@ mocks):
   `dyn CacheOps` table compiles every cache operation of the default backend, used or not.
 - Unpinned `fetch_all` runs without a cache take 77–92 ms on this laptop (the shard's thread
   lands on a P-core or an E-core); only the pinned A/B above compares the code.
+
+## Member permissions (D-292, 2026-11-14)
+
+`djs-cache/benches/cache.rs`, module `permissions` (divan with `AllocProfiler`; the
+discord.js cache of the 1000-member benchmark guild plus an `@everyone` role). Laptop
+i7-1355U, balanced profile, under the resource guard.
+
+| Benchmark | Median | Allocations |
+|---|---:|---:|
+| `Cache::member_permissions` (guild, member, `@everyone` and 2 roles read from the cache) | 111 ns | 0 |
+| `Cache::member_permissions_in` (the same, a channel with 2 overwrites) | 111 ns | 0 |
+| The computation alone: `guild_level` (5 roles) + `in_channel` (10 overwrites) | 37 ns | 0 |
+
+- The cache reads (about 20 ns per DashMap lookup) are most of the time; the overwrites cost
+  little more than the guild-level step. These are the cache reads measured under load in
+  Phase 5, so no separate extreme-load test was added.

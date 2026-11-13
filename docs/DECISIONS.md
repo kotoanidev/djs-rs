@@ -4319,6 +4319,28 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - The examples (`slash_commands`, `moderation`, `components`, `advanced`) and the rustdoc
   examples use the setters; their `ephemeral` helpers are gone.
 
+### C-111 — The shape of the permission computation (D-292, D-294, D-295)
+- **`djs-model`:** three composable steps on `Permissions`: `Permissions::guild_level(owner,
+  everyone, roles)` (Discord's `compute_base_permissions`), `.in_channel(guild_id, user_id,
+  role_ids, overwrites)` (`compute_overwrites` + the implicit denials) and
+  `.during_timeout()`, plus the constants `NEEDS_SEND_MESSAGES` and `DURING_TIMEOUT`. The
+  timeout is a separate last step because overwrites must not give a timed-out member
+  anything back; the owner and `ADMINISTRATOR` are recognized by the `ADMINISTRATOR` bit
+  (`guild_level` returns `Permissions::all()` for both).
+- **Without `VIEW_CHANNEL` the channel result is empty**, guild-wide permissions such as
+  `KICK_MEMBERS` included (they are not "in the channel"; use the guild-level result for
+  them). Overwrites cannot grant `ADMINISTRATOR` (its bit is dropped after them).
+- **`djs-cache`:** `Cache::member_permissions(guild_id, user_id)` and
+  `Cache::member_permissions_in(&Channel, user_id)`: the channel is passed as a value
+  because threads are cached per guild (an ID alone cannot find one) and the bot often holds
+  the channel; a thread uses its cached parent's overwrites. Any missing piece (guild,
+  member, one of its roles, `@everyone`, a thread's parent) gives `None`, never a partial
+  result. The current time comes from `Timestamp::now()`.
+- **`djs-rs`:** `MemberExt::permissions(&ctx)` and `MemberExt::permissions_in(&ctx,
+  ChannelId)` (the member's guild finds threads), through `CacheOps` so that their code is
+  compiled in djs-rs (D-289); they read the cache's current member, not the value they are
+  called on.
+
 ---
 
 ## Open questions (to ask the owner when relevant)
@@ -4332,7 +4354,7 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   before 1.0, since it is what a bot author feels on every edit. **Resolved (D-287–D-289):**
   re-measured on 2026-11-13, a release rebuild takes 0.73 s against serenity's 5.32 s (debug:
   about the same).
-- **Ergonomics gaps found by the examples (C-107)** — decided 2026-11-13: D-290–D-293: (1) an ephemeral or embed reply needs
+- **Ergonomics gaps found by the examples (C-107)** — decided 2026-11-13: D-290–D-295, all implemented: (1) an ephemeral or embed reply needs
   `let mut reply = MessageCallbackData::from(…); reply.flags = Some(MessageFlags::EPHEMERAL);`
   — the body types are `#[non_exhaustive]`, so struct literals are impossible outside the
   crate; setters (`.ephemeral()`, `.embed(…)`, `.components(…)`) or a message builder in

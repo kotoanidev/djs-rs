@@ -24,7 +24,10 @@ use djs_rs::{
     cache::{Backend, CacheConfig, DashMapStore, Limit, Resource, Sweep},
     event::Dispatch,
     gateway::Compression,
-    model::id::{ChannelId, GuildId, UserId},
+    model::{
+        id::{ChannelId, GuildId, UserId},
+        permissions::Permissions,
+    },
     prelude::*,
     rest::Rest,
 };
@@ -608,6 +611,10 @@ fn guild_create(sequence: u64) -> Value {
 }
 
 const GUILD: GuildId = GuildId::new(payloads::GUILD);
+/// The guild's owner and another member, and a channel, in [`guild_create`].
+const OWNER: UserId = UserId::new(1_000_000_000_000_000_000);
+const OTHER: UserId = UserId::new(1_000_000_000_000_000_001);
+const CHANNEL: ChannelId = ChannelId::new(1_200_000_000_000_000_000);
 
 #[tokio::test]
 async fn the_cache_is_filled_before_handlers_run() {
@@ -636,7 +643,18 @@ async fn the_cache_is_filled_before_handlers_run() {
         let seen_tx = seen_tx.clone();
         async move {
             let cache = ctx.cache().ok_or("no cache")?;
+            // D-292: the owner has every permission; another member's roles need the
+            // `@everyone` role, which this guild's payload does not carry, so `None`.
+            let owner = cache.members(GUILD).get(OWNER).ok_or("no owner")?;
+            let other = cache.members(GUILD).get(OTHER).ok_or("no member")?;
+            let permissions = (
+                owner.permissions(&ctx),
+                owner.permissions_in(&ctx, CHANNEL),
+                other.permissions(&ctx),
+                owner.permissions_in(&ctx, ChannelId::new(77)),
+            );
             seen_tx.send((
+                permissions,
                 cache.current_user().map(|user| user.id),
                 cache
                     .guilds()
@@ -660,6 +678,12 @@ async fn the_cache_is_filled_before_handlers_run() {
     assert_eq!(
         seen,
         (
+            (
+                Some(Permissions::all()),
+                Some(Permissions::all()),
+                None,
+                None
+            ),
             Some(UserId::new(1)),
             Some("Big Guild".to_owned()),
             3,

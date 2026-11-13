@@ -30,9 +30,9 @@ requests, intents and partials guidance, example bots run on the test bot; bench
 extreme-load tests in `docs/PERFORMANCE.md`).
 **The serenity comparison: ✅ done 2026-11-13** (`docs/VS_SERENITY.md`, D-277–D-282, C-108,
 C-109). **Next: the fixes found by the comparison (D-283) — the rebuild time after an edit
-✅ (D-287–D-289, `docs/VS_SERENITY.md` re-measured), then the ergonomics gaps (decided:
-D-290–D-293, in progress) — and then Phase 9** (D-284–D-286 already decided), see "Next
-step".
+✅ (D-287–D-289, `docs/VS_SERENITY.md` re-measured), the ergonomics gaps ✅ (D-290–D-295).
+Next: Phase 9** (D-284–D-286 already decided; the remaining questions are asked first),
+see "Next step".
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-075 in `docs/DECISIONS.md`; Claude defaults C-001 …
@@ -620,10 +620,14 @@ fields with `Deref` to `new`). Steps:
      b. ✅ `ctx.shutdown()` (D-293): the shutdown `watch::Sender` moved from the client's
         `Inner` into `context::Shared`, which the client and every context share; test
         `end_to_end.rs::a_handler_shuts_the_client_down`.
-     c. Next: member permissions (D-292): a pure computation in `djs-model`,
+     c. ✅ Member permissions (D-292, D-294 timeouts, D-295 implicit denials, C-111): a pure computation in `djs-model`,
         `Cache::member_permissions(guild, user)` / `member_permissions_in(channel, user)`,
         and `member.permissions(&ctx)` / `permissions_in(&ctx, channel)` in `djs-rs`
-        (`Option<Permissions>`); benchmark the computation (D-041).
+        (`Option<Permissions>`). `crates/djs-model/src/permissions.rs`,
+        `crates/djs-cache/src/permissions.rs`, `MemberExt` in `crates/djs-rs/src/ext.rs` +
+        `CacheOps`; tests `djs-model/tests/permissions.rs`, `djs-cache/tests/permissions.rs`,
+        `end_to_end.rs`; benchmark in `docs/PERFORMANCE.md` ("Member permissions").
+   - **D-283 is done.** Next: Phase 9.
 9. **Then Phase 9 — multi-process sharding** (D-018, D-284–D-286): `djs_rs::sharding`
    behind the `sharding` feature, TCP 127.0.0.1 + length-prefixed JSON with a per-process
    token, built-in values + named typed commands instead of `broadcastEval`. Still to ask:

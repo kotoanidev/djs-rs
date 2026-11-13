@@ -7,6 +7,7 @@ mod config;
 mod dashmap_store;
 mod limits;
 mod model;
+mod permissions;
 mod update;
 mod view;
 

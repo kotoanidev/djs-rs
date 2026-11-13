@@ -313,6 +313,90 @@ mod read {
     }
 }
 
+/// Members' permissions from the cache (D-292): the guild, the member and its roles read from
+/// the cache, then the computation; and the computation alone.
+mod permissions {
+    use super::{Bencher, DashMapBackend, FIRST_USER, GUILD, black_box, discord_js_cache};
+    use djs_cache::Cache;
+    use djs_model::{
+        channel::Overwrite,
+        guild::Role,
+        id::{ChannelId, RoleId, UserId},
+        permissions::Permissions,
+    };
+
+    /// A member who is not the owner (the owner short-cuts the computation).
+    const MEMBER: UserId = UserId::new(FIRST_USER.get() + 500);
+
+    /// The discord.js cache of the benchmark guild, plus the `@everyone` role its payload
+    /// lacks.
+    fn cache() -> Cache {
+        let cache = discord_js_cache(DashMapBackend::new());
+        let everyone: Role = serde_json::from_value(serde_json::json!({
+            "id": GUILD.to_string(), "name": "@everyone", "color": 0, "hoist": false,
+            "position": 0, "permissions": "1024", "managed": false, "mentionable": false,
+            "flags": 0,
+            "colors": { "primary_color": 0, "secondary_color": null, "tertiary_color": null }
+        }))
+        .unwrap();
+        cache.store_role(GUILD, &everyone);
+        cache
+    }
+
+    #[divan::bench]
+    fn member_permissions(bencher: Bencher<'_, '_>) {
+        let cache = cache();
+        assert!(cache.member_permissions(GUILD, MEMBER).is_some());
+        bencher.bench(|| cache.member_permissions(black_box(GUILD), black_box(MEMBER)));
+    }
+
+    /// In a channel with a role and a member overwrite.
+    #[divan::bench]
+    fn member_permissions_in(bencher: Bencher<'_, '_>) {
+        let cache = cache();
+        let channel = cache
+            .channels()
+            .get(ChannelId::new(1_200_000_000_000_000_003))
+            .unwrap();
+        assert!(cache.member_permissions_in(&channel, MEMBER).is_some());
+        bencher.bench(|| cache.member_permissions_in(black_box(&channel), black_box(MEMBER)));
+    }
+
+    /// `guild_level` and `in_channel` alone: 5 roles, 10 overwrites (`@everyone`, 8 roles of
+    /// which the member has 3, and the member).
+    #[divan::bench]
+    fn computation(bencher: Bencher<'_, '_>) {
+        let guild = GUILD;
+        let roles: Vec<RoleId> = (1..=5).map(RoleId::new).collect();
+        let mut overwrites = vec![Overwrite::role(
+            guild.cast(),
+            Permissions::empty(),
+            Permissions::SEND_MESSAGES,
+        )];
+        overwrites.extend((3..=10).map(|id| {
+            Overwrite::role(
+                RoleId::new(id),
+                Permissions::SEND_MESSAGES,
+                Permissions::empty(),
+            )
+        }));
+        overwrites.push(Overwrite::member(
+            MEMBER,
+            Permissions::empty(),
+            Permissions::ATTACH_FILES,
+        ));
+        let role_permissions = [Permissions::KICK_MEMBERS; 5];
+        bencher.bench(|| {
+            Permissions::guild_level(
+                false,
+                black_box(Permissions::VIEW_CHANNEL),
+                black_box(role_permissions),
+            )
+            .in_channel(guild, MEMBER, black_box(&roles), black_box(&overwrites))
+        });
+    }
+}
+
 /// Sweeping: scanning without removing anything (repeatable), and removing everything.
 mod sweep {
     use super::{Bencher, CacheConfig, DashMapBackend, Duration, discord_js_cache, message};

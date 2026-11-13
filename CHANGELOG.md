@@ -8,6 +8,13 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Member permissions (D-292, D-294, D-295, C-111): `Permissions::guild_level`,
+  `Permissions::in_channel` and `Permissions::during_timeout` compute them the way Discord
+  does (owner, `@everyone`, roles, `ADMINISTRATOR`, channel overwrites, the implicit
+  `VIEW_CHANNEL` / `SEND_MESSAGES` denials, timeouts); `Cache::member_permissions` and
+  `Cache::member_permissions_in` run them on cached data (`None` when a piece is missing);
+  `MemberExt::permissions` and `MemberExt::permissions_in` in `djs-rs`. 111 ns from the cache,
+  37 ns for the computation alone, no allocation.
 - `Context::shutdown` (D-293): a handler stops the client the way `Client::shutdown` does,
   without capturing a `Client` clone; the examples' `--cleanup` paths use it.
 - Chainable setters on the message bodies (D-290, D-291, C-110): `CreateMessage`,
