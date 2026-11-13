@@ -1400,8 +1400,11 @@ pub trait InteractionExt: sealed::Interaction {
         ctx: &Context<B>,
     ) -> impl Future<Output = Result<(), Error>> + Send {
         let (_, application_id, token) = self.interaction_parts();
-        ctx.rest()
-            .delete_original_interaction_response(application_id, token)
+        async move {
+            ctx.rest()
+                .delete_original_interaction_response(application_id, token)
+                .await
+        }
     }
 
     /// Sends another message for the interaction
@@ -1492,8 +1495,11 @@ pub trait InteractionExt: sealed::Interaction {
         message_id: MessageId,
     ) -> impl Future<Output = Result<(), Error>> + Send {
         let (_, application_id, token) = self.interaction_parts();
-        ctx.rest()
-            .delete_followup_message(application_id, token, message_id)
+        async move {
+            ctx.rest()
+                .delete_followup_message(application_id, token, message_id)
+                .await
+        }
     }
 
     /// A collector of the component interactions on this interaction's reply (and its

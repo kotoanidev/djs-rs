@@ -12,6 +12,7 @@ use djs_model::{
     user::{ApplicationRoleConnection, Connection, CurrentUser, User},
 };
 
+use crate::client::boxed;
 use crate::{Error, Request, Rest, Route};
 
 impl Rest {
@@ -24,8 +25,8 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `401 Unauthorized` for an invalid token.
-    pub async fn get_current_user(&self) -> Result<CurrentUser, Error> {
-        self.request(Request::new(Route::GetCurrentUser)).await
+    pub fn get_current_user(&self) -> impl Future<Output = Result<CurrentUser, Error>> + Send + '_ {
+        boxed(async move { self.call(Request::new(Route::GetCurrentUser)).await })
     }
 
     /// [Get User](https://docs.discord.com/developers/resources/user#get-user): returns any
@@ -36,8 +37,11 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10013` Unknown User.
-    pub async fn get_user(&self, user_id: UserId) -> Result<User, Error> {
-        self.request(Request::new(Route::GetUser { user_id })).await
+    pub fn get_user(
+        &self,
+        user_id: UserId,
+    ) -> impl Future<Output = Result<User, Error>> + Send + '_ {
+        boxed(async move { self.call(Request::new(Route::GetUser { user_id })).await })
     }
 
     /// [Modify Current User](https://docs.discord.com/developers/resources/user#modify-current-user):
@@ -61,12 +65,14 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `50035` when the username is taken or changed too often.
-    pub async fn modify_current_user(
-        &self,
-        body: &ModifyCurrentUser,
-    ) -> Result<CurrentUser, Error> {
-        self.request(Request::new(Route::ModifyCurrentUser).json(body)?)
-            .await
+    pub fn modify_current_user<'a>(
+        &'a self,
+        body: &'a ModifyCurrentUser,
+    ) -> impl Future<Output = Result<CurrentUser, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::ModifyCurrentUser).json(body)?)
+                .await
+        })
     }
 
     /// [Get Current User Guilds](https://docs.discord.com/developers/resources/user#get-current-user-guilds):
@@ -80,12 +86,14 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn get_current_user_guilds(
-        &self,
-        query: &GetCurrentUserGuilds,
-    ) -> Result<Vec<CurrentUserGuild>, Error> {
-        self.request(Request::new(Route::GetCurrentUserGuilds).query(query))
-            .await
+    pub fn get_current_user_guilds<'a>(
+        &'a self,
+        query: &'a GetCurrentUserGuilds,
+    ) -> impl Future<Output = Result<Vec<CurrentUserGuild>, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::GetCurrentUserGuilds).query(query))
+                .await
+        })
     }
 
     /// [Get Current User Guild Member](https://docs.discord.com/developers/resources/user#get-current-user-guild-member):
@@ -97,9 +105,14 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10004` Unknown Guild when the user is not in it.
-    pub async fn get_current_user_guild_member(&self, guild_id: GuildId) -> Result<Member, Error> {
-        self.request(Request::new(Route::GetCurrentUserGuildMember { guild_id }))
-            .await
+    pub fn get_current_user_guild_member(
+        &self,
+        guild_id: GuildId,
+    ) -> impl Future<Output = Result<Member, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetCurrentUserGuildMember { guild_id }))
+                .await
+        })
     }
 
     /// [Leave Guild](https://docs.discord.com/developers/resources/user#leave-guild): makes
@@ -110,9 +123,14 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10004` Unknown Guild.
-    pub async fn leave_guild(&self, guild_id: GuildId) -> Result<(), Error> {
-        self.request(Request::new(Route::LeaveGuild { guild_id }))
-            .await
+    pub fn leave_guild(
+        &self,
+        guild_id: GuildId,
+    ) -> impl Future<Output = Result<(), Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::LeaveGuild { guild_id }))
+                .await
+        })
     }
 
     /// [Create DM](https://docs.discord.com/developers/resources/user#create-dm): opens (or
@@ -141,9 +159,11 @@ impl Rest {
     ///
     /// See [`Rest::request`]; `50007` when the user does not accept DMs from the bot (on
     /// the message, not here).
-    pub async fn create_dm(&self, body: &CreateDm) -> Result<Channel, Error> {
-        self.request(Request::new(Route::CreateDm).json(body)?)
-            .await
+    pub fn create_dm<'a>(
+        &'a self,
+        body: &'a CreateDm,
+    ) -> impl Future<Output = Result<Channel, Error>> + Send + 'a {
+        boxed(async move { self.call(Request::new(Route::CreateDm).json(body)?).await })
     }
 
     /// [Create Group DM](https://docs.discord.com/developers/resources/user#create-group-dm):
@@ -155,9 +175,14 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn create_group_dm(&self, body: &CreateGroupDm) -> Result<Channel, Error> {
-        self.request(Request::new(Route::CreateGroupDm).json(body)?)
-            .await
+    pub fn create_group_dm<'a>(
+        &'a self,
+        body: &'a CreateGroupDm,
+    ) -> impl Future<Output = Result<Channel, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::CreateGroupDm).json(body)?)
+                .await
+        })
     }
 
     /// [Get Current User Connections](https://docs.discord.com/developers/resources/user#get-current-user-connections):
@@ -169,9 +194,13 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn get_current_user_connections(&self) -> Result<Vec<Connection>, Error> {
-        self.request(Request::new(Route::GetCurrentUserConnections))
-            .await
+    pub fn get_current_user_connections(
+        &self,
+    ) -> impl Future<Output = Result<Vec<Connection>, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetCurrentUserConnections))
+                .await
+        })
     }
 
     /// [Get Current User Application Role Connection](https://docs.discord.com/developers/resources/user#get-current-user-application-role-connection):
@@ -184,14 +213,16 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn get_current_user_application_role_connection(
+    pub fn get_current_user_application_role_connection(
         &self,
         application_id: ApplicationId,
-    ) -> Result<ApplicationRoleConnection, Error> {
-        self.request(Request::new(
-            Route::GetCurrentUserApplicationRoleConnection { application_id },
-        ))
-        .await
+    ) -> impl Future<Output = Result<ApplicationRoleConnection, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(
+                Route::GetCurrentUserApplicationRoleConnection { application_id },
+            ))
+            .await
+        })
     }
 
     /// [Update Current User Application Role Connection](https://docs.discord.com/developers/resources/user#update-current-user-application-role-connection):
@@ -222,16 +253,18 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn update_current_user_application_role_connection(
-        &self,
+    pub fn update_current_user_application_role_connection<'a>(
+        &'a self,
         application_id: ApplicationId,
-        body: &ApplicationRoleConnection,
-    ) -> Result<ApplicationRoleConnection, Error> {
-        self.request(
-            Request::new(Route::UpdateCurrentUserApplicationRoleConnection { application_id })
-                .json(body)?,
-        )
-        .await
+        body: &'a ApplicationRoleConnection,
+    ) -> impl Future<Output = Result<ApplicationRoleConnection, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::UpdateCurrentUserApplicationRoleConnection { application_id })
+                    .json(body)?,
+            )
+            .await
+        })
     }
 
     /// [Delete Current User Application Role Connection](https://docs.discord.com/developers/resources/user#delete-current-user-application-role-connection):
@@ -244,13 +277,15 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn delete_current_user_application_role_connection(
+    pub fn delete_current_user_application_role_connection(
         &self,
         application_id: ApplicationId,
-    ) -> Result<(), Error> {
-        self.request_ignoring_body(Request::new(
-            Route::DeleteCurrentUserApplicationRoleConnection { application_id },
-        ))
-        .await
+    ) -> impl Future<Output = Result<(), Error>> + Send + '_ {
+        boxed(async move {
+            self.request_ignoring_body(Request::new(
+                Route::DeleteCurrentUserApplicationRoleConnection { application_id },
+            ))
+            .await
+        })
     }
 }

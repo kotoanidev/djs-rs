@@ -10,6 +10,7 @@ use djs_model::{
     oauth2::{AccessTokenResponse, CurrentAuthorizationInformation, Scope},
 };
 
+use crate::client::boxed;
 use crate::{
     Error, Request, Rest, Route,
     oauth2::{OAuth2Credentials, TokenForm, TokenTypeHint},
@@ -25,9 +26,13 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn get_current_bot_application_information(&self) -> Result<Application, Error> {
-        self.request(Request::new(Route::GetCurrentBotApplicationInformation))
-            .await
+    pub fn get_current_bot_application_information(
+        &self,
+    ) -> impl Future<Output = Result<Application, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetCurrentBotApplicationInformation))
+                .await
+        })
     }
 
     /// [Get Current Authorization Information](https://docs.discord.com/developers/topics/oauth2#get-current-authorization-information):
@@ -40,11 +45,13 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `401` for a bot token or an invalid access token.
-    pub async fn get_current_authorization_information(
+    pub fn get_current_authorization_information(
         &self,
-    ) -> Result<CurrentAuthorizationInformation, Error> {
-        self.request(Request::new(Route::GetCurrentAuthorizationInformation))
-            .await
+    ) -> impl Future<Output = Result<CurrentAuthorizationInformation, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetCurrentAuthorizationInformation))
+                .await
+        })
     }
 
     /// Exchanges the `code` of an [authorization code grant](https://docs.discord.com/developers/topics/oauth2#authorization-code-grant)
@@ -63,18 +70,20 @@ impl Rest {
     /// mismatched redirect URI, `401` for wrong credentials. Discord's `OAuth2` error bodies
     /// (`{"error": "invalid_grant", …}`) are not parsed into an
     /// [`ApiError`](crate::ApiError).
-    pub async fn exchange_code(
-        &self,
-        credentials: &OAuth2Credentials,
-        code: &str,
-        redirect_uri: &str,
-    ) -> Result<AccessTokenResponse, Error> {
-        let form = TokenForm::new("grant_type", "authorization_code")
-            .field("code", code)
-            .field("redirect_uri", redirect_uri)
-            .finish(credentials);
-        self.request(Request::new(Route::OAuth2TokenExchange).form_urlencoded(form))
-            .await
+    pub fn exchange_code<'a>(
+        &'a self,
+        credentials: &'a OAuth2Credentials,
+        code: &'a str,
+        redirect_uri: &'a str,
+    ) -> impl Future<Output = Result<AccessTokenResponse, Error>> + Send + 'a {
+        boxed(async move {
+            let form = TokenForm::new("grant_type", "authorization_code")
+                .field("code", code)
+                .field("redirect_uri", redirect_uri)
+                .finish(credentials);
+            self.call(Request::new(Route::OAuth2TokenExchange).form_urlencoded(form))
+                .await
+        })
     }
 
     /// [Refreshes](https://docs.discord.com/developers/topics/oauth2#authorization-code-grant-refresh-token-exchange-example)
@@ -85,16 +94,18 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `400` for an invalid or revoked refresh token.
-    pub async fn refresh_access_token(
-        &self,
-        credentials: &OAuth2Credentials,
-        refresh_token: &str,
-    ) -> Result<AccessTokenResponse, Error> {
-        let form = TokenForm::new("grant_type", "refresh_token")
-            .field("refresh_token", refresh_token)
-            .finish(credentials);
-        self.request(Request::new(Route::OAuth2TokenExchange).form_urlencoded(form))
-            .await
+    pub fn refresh_access_token<'a>(
+        &'a self,
+        credentials: &'a OAuth2Credentials,
+        refresh_token: &'a str,
+    ) -> impl Future<Output = Result<AccessTokenResponse, Error>> + Send + 'a {
+        boxed(async move {
+            let form = TokenForm::new("grant_type", "refresh_token")
+                .field("refresh_token", refresh_token)
+                .finish(credentials);
+            self.call(Request::new(Route::OAuth2TokenExchange).form_urlencoded(form))
+                .await
+        })
     }
 
     /// The [client credentials grant](https://docs.discord.com/developers/topics/oauth2#client-credentials-grant):
@@ -107,21 +118,23 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `400` for a scope that is not allowed.
-    pub async fn client_credentials_grant(
-        &self,
-        credentials: &OAuth2Credentials,
-        scopes: &[Scope],
-    ) -> Result<AccessTokenResponse, Error> {
-        let scope = scopes
-            .iter()
-            .map(Scope::as_str)
-            .collect::<Vec<_>>()
-            .join(" ");
-        let form = TokenForm::new("grant_type", "client_credentials")
-            .field("scope", &scope)
-            .finish(credentials);
-        self.request(Request::new(Route::OAuth2TokenExchange).form_urlencoded(form))
-            .await
+    pub fn client_credentials_grant<'a>(
+        &'a self,
+        credentials: &'a OAuth2Credentials,
+        scopes: &'a [Scope],
+    ) -> impl Future<Output = Result<AccessTokenResponse, Error>> + Send + 'a {
+        boxed(async move {
+            let scope = scopes
+                .iter()
+                .map(Scope::as_str)
+                .collect::<Vec<_>>()
+                .join(" ");
+            let form = TokenForm::new("grant_type", "client_credentials")
+                .field("scope", &scope)
+                .finish(credentials);
+            self.call(Request::new(Route::OAuth2TokenExchange).form_urlencoded(form))
+                .await
+        })
     }
 
     /// [Revokes](https://docs.discord.com/developers/topics/oauth2#authorization-code-grant-token-revocation-example)
@@ -133,19 +146,22 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn revoke_token(
-        &self,
-        credentials: &OAuth2Credentials,
-        token: &str,
+    pub fn revoke_token<'a>(
+        &'a self,
+        credentials: &'a OAuth2Credentials,
+        token: &'a str,
         hint: Option<TokenTypeHint>,
-    ) -> Result<(), Error> {
-        let mut form = TokenForm::new("token", token);
-        if let Some(hint) = hint {
-            form = form.field("token_type_hint", hint.as_str());
-        }
-        self.request_ignoring_body(
-            Request::new(Route::OAuth2TokenRevocation).form_urlencoded(form.finish(credentials)),
-        )
-        .await
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
+        boxed(async move {
+            let mut form = TokenForm::new("token", token);
+            if let Some(hint) = hint {
+                form = form.field("token_type_hint", hint.as_str());
+            }
+            self.request_ignoring_body(
+                Request::new(Route::OAuth2TokenRevocation)
+                    .form_urlencoded(form.finish(credentials)),
+            )
+            .await
+        })
     }
 }

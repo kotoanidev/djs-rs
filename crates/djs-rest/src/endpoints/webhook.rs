@@ -12,6 +12,7 @@ use djs_model::{
     webhook::Webhook,
 };
 
+use crate::client::boxed;
 use crate::{
     Error, Request, Rest, Route,
     query::{Query, QueryWriter},
@@ -78,18 +79,20 @@ impl Rest {
     ///
     /// See [`Rest::request`]; `30007` at the maximum number of webhooks (15), `50035` for an
     /// invalid name.
-    pub async fn create_webhook(
-        &self,
+    pub fn create_webhook<'a>(
+        &'a self,
         channel_id: ChannelId,
-        body: &CreateWebhook,
-        reason: Option<&str>,
-    ) -> Result<Webhook, Error> {
-        self.request(
-            Request::new(Route::CreateWebhook { channel_id })
-                .json(body)?
-                .reason(reason),
-        )
-        .await
+        body: &'a CreateWebhook,
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<Webhook, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::CreateWebhook { channel_id })
+                    .json(body)?
+                    .reason(reason),
+            )
+            .await
+        })
     }
 
     /// [Get Channel Webhooks](https://docs.discord.com/developers/resources/webhook#get-channel-webhooks):
@@ -100,9 +103,14 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn get_channel_webhooks(&self, channel_id: ChannelId) -> Result<Vec<Webhook>, Error> {
-        self.request(Request::new(Route::GetChannelWebhooks { channel_id }))
-            .await
+    pub fn get_channel_webhooks(
+        &self,
+        channel_id: ChannelId,
+    ) -> impl Future<Output = Result<Vec<Webhook>, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetChannelWebhooks { channel_id }))
+                .await
+        })
     }
 
     /// [Get Guild Webhooks](https://docs.discord.com/developers/resources/webhook#get-guild-webhooks):
@@ -113,9 +121,14 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn get_guild_webhooks(&self, guild_id: GuildId) -> Result<Vec<Webhook>, Error> {
-        self.request(Request::new(Route::GetGuildWebhooks { guild_id }))
-            .await
+    pub fn get_guild_webhooks(
+        &self,
+        guild_id: GuildId,
+    ) -> impl Future<Output = Result<Vec<Webhook>, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetGuildWebhooks { guild_id }))
+                .await
+        })
     }
 
     /// [Get Webhook](https://docs.discord.com/developers/resources/webhook#get-webhook):
@@ -126,9 +139,14 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10015` Unknown Webhook.
-    pub async fn get_webhook(&self, webhook_id: WebhookId) -> Result<Webhook, Error> {
-        self.request(Request::new(Route::GetWebhook { webhook_id }))
-            .await
+    pub fn get_webhook(
+        &self,
+        webhook_id: WebhookId,
+    ) -> impl Future<Output = Result<Webhook, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetWebhook { webhook_id }))
+                .await
+        })
     }
 
     /// [Get Webhook with Token](https://docs.discord.com/developers/resources/webhook#get-webhook-with-token):
@@ -139,16 +157,18 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `50027` Invalid Webhook Token.
-    pub async fn get_webhook_with_token(
-        &self,
+    pub fn get_webhook_with_token<'a>(
+        &'a self,
         webhook_id: WebhookId,
-        webhook_token: &str,
-    ) -> Result<Webhook, Error> {
-        self.request(Request::new(Route::GetWebhookWithToken {
-            webhook_id,
-            webhook_token,
-        }))
-        .await
+        webhook_token: &'a str,
+    ) -> impl Future<Output = Result<Webhook, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::GetWebhookWithToken {
+                webhook_id,
+                webhook_token,
+            }))
+            .await
+        })
     }
 
     /// [Modify Webhook](https://docs.discord.com/developers/resources/webhook#modify-webhook):
@@ -162,18 +182,20 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn modify_webhook(
-        &self,
+    pub fn modify_webhook<'a>(
+        &'a self,
         webhook_id: WebhookId,
-        body: &ModifyWebhook,
-        reason: Option<&str>,
-    ) -> Result<Webhook, Error> {
-        self.request(
-            Request::new(Route::ModifyWebhook { webhook_id })
-                .json(body)?
-                .reason(reason),
-        )
-        .await
+        body: &'a ModifyWebhook,
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<Webhook, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::ModifyWebhook { webhook_id })
+                    .json(body)?
+                    .reason(reason),
+            )
+            .await
+        })
     }
 
     /// [Modify Webhook with Token](https://docs.discord.com/developers/resources/webhook#modify-webhook-with-token):
@@ -185,20 +207,22 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn modify_webhook_with_token(
-        &self,
+    pub fn modify_webhook_with_token<'a>(
+        &'a self,
         webhook_id: WebhookId,
-        webhook_token: &str,
-        body: &ModifyWebhook,
-    ) -> Result<Webhook, Error> {
-        self.request(
-            Request::new(Route::ModifyWebhookWithToken {
-                webhook_id,
-                webhook_token,
-            })
-            .json(body)?,
-        )
-        .await
+        webhook_token: &'a str,
+        body: &'a ModifyWebhook,
+    ) -> impl Future<Output = Result<Webhook, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::ModifyWebhookWithToken {
+                    webhook_id,
+                    webhook_token,
+                })
+                .json(body)?,
+            )
+            .await
+        })
     }
 
     /// [Delete Webhook](https://docs.discord.com/developers/resources/webhook#delete-webhook):
@@ -211,13 +235,15 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10015` Unknown Webhook.
-    pub async fn delete_webhook(
-        &self,
+    pub fn delete_webhook<'a>(
+        &'a self,
         webhook_id: WebhookId,
-        reason: Option<&str>,
-    ) -> Result<(), Error> {
-        self.request(Request::new(Route::DeleteWebhook { webhook_id }).reason(reason))
-            .await
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::DeleteWebhook { webhook_id }).reason(reason))
+                .await
+        })
     }
 
     /// [Delete Webhook with Token](https://docs.discord.com/developers/resources/webhook#delete-webhook-with-token):
@@ -228,16 +254,18 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn delete_webhook_with_token(
-        &self,
+    pub fn delete_webhook_with_token<'a>(
+        &'a self,
         webhook_id: WebhookId,
-        webhook_token: &str,
-    ) -> Result<(), Error> {
-        self.request(Request::new(Route::DeleteWebhookWithToken {
-            webhook_id,
-            webhook_token,
-        }))
-        .await
+        webhook_token: &'a str,
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::DeleteWebhookWithToken {
+                webhook_id,
+                webhook_token,
+            }))
+            .await
+        })
     }
 }
 
@@ -271,23 +299,25 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `50027` Invalid Webhook Token.
-    pub async fn execute_webhook(
-        &self,
+    pub fn execute_webhook<'a>(
+        &'a self,
         webhook_id: WebhookId,
-        webhook_token: &str,
-        body: &ExecuteWebhook,
-    ) -> Result<(), Error> {
-        let query = WebhookQuery::of_execute(body, false);
-        self.request_ignoring_body(
-            Request::new(Route::ExecuteWebhook {
-                webhook_id,
-                webhook_token,
-            })
-            .query(&query)
-            .json(body)?
-            .files(&body.files),
-        )
-        .await
+        webhook_token: &'a str,
+        body: &'a ExecuteWebhook,
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
+        boxed(async move {
+            let query = WebhookQuery::of_execute(body, false);
+            self.request_ignoring_body(
+                Request::new(Route::ExecuteWebhook {
+                    webhook_id,
+                    webhook_token,
+                })
+                .query(&query)
+                .json(body)?
+                .files(&body.files),
+            )
+            .await
+        })
     }
 
     /// [Execute Webhook](https://docs.discord.com/developers/resources/webhook#execute-webhook)
@@ -298,23 +328,25 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `50006` for an empty message, `50027` Invalid Webhook Token.
-    pub async fn execute_webhook_and_wait(
-        &self,
+    pub fn execute_webhook_and_wait<'a>(
+        &'a self,
         webhook_id: WebhookId,
-        webhook_token: &str,
-        body: &ExecuteWebhook,
-    ) -> Result<Message, Error> {
-        let query = WebhookQuery::of_execute(body, true);
-        self.request(
-            Request::new(Route::ExecuteWebhook {
-                webhook_id,
-                webhook_token,
-            })
-            .query(&query)
-            .json(body)?
-            .files(&body.files),
-        )
-        .await
+        webhook_token: &'a str,
+        body: &'a ExecuteWebhook,
+    ) -> impl Future<Output = Result<Message, Error>> + Send + 'a {
+        boxed(async move {
+            let query = WebhookQuery::of_execute(body, true);
+            self.call(
+                Request::new(Route::ExecuteWebhook {
+                    webhook_id,
+                    webhook_token,
+                })
+                .query(&query)
+                .json(body)?
+                .files(&body.files),
+            )
+            .await
+        })
     }
 
     /// [Get Webhook Message](https://docs.discord.com/developers/resources/webhook#get-webhook-message):
@@ -325,23 +357,25 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10008` Unknown Message.
-    pub async fn get_webhook_message(
-        &self,
+    pub fn get_webhook_message<'a>(
+        &'a self,
         webhook_id: WebhookId,
-        webhook_token: &str,
+        webhook_token: &'a str,
         message_id: MessageId,
         thread_id: Option<ChannelId>,
-    ) -> Result<Message, Error> {
-        let query = WebhookQuery::thread(thread_id);
-        self.request(
-            Request::new(Route::GetWebhookMessage {
-                webhook_id,
-                webhook_token,
-                message_id,
-            })
-            .query(&query),
-        )
-        .await
+    ) -> impl Future<Output = Result<Message, Error>> + Send + 'a {
+        boxed(async move {
+            let query = WebhookQuery::thread(thread_id);
+            self.call(
+                Request::new(Route::GetWebhookMessage {
+                    webhook_id,
+                    webhook_token,
+                    message_id,
+                })
+                .query(&query),
+            )
+            .await
+        })
     }
 
     /// [Edit Webhook Message](https://docs.discord.com/developers/resources/webhook#edit-webhook-message):
@@ -353,25 +387,27 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10008` Unknown Message.
-    pub async fn edit_webhook_message(
-        &self,
+    pub fn edit_webhook_message<'a>(
+        &'a self,
         webhook_id: WebhookId,
-        webhook_token: &str,
+        webhook_token: &'a str,
         message_id: MessageId,
-        body: &EditWebhookMessage,
-    ) -> Result<Message, Error> {
-        let query = WebhookQuery::of_edit(body);
-        self.request(
-            Request::new(Route::EditWebhookMessage {
-                webhook_id,
-                webhook_token,
-                message_id,
-            })
-            .query(&query)
-            .json(body)?
-            .files(&body.files),
-        )
-        .await
+        body: &'a EditWebhookMessage,
+    ) -> impl Future<Output = Result<Message, Error>> + Send + 'a {
+        boxed(async move {
+            let query = WebhookQuery::of_edit(body);
+            self.call(
+                Request::new(Route::EditWebhookMessage {
+                    webhook_id,
+                    webhook_token,
+                    message_id,
+                })
+                .query(&query)
+                .json(body)?
+                .files(&body.files),
+            )
+            .await
+        })
     }
 
     /// [Delete Webhook Message](https://docs.discord.com/developers/resources/webhook#delete-webhook-message):
@@ -382,22 +418,24 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10008` Unknown Message.
-    pub async fn delete_webhook_message(
-        &self,
+    pub fn delete_webhook_message<'a>(
+        &'a self,
         webhook_id: WebhookId,
-        webhook_token: &str,
+        webhook_token: &'a str,
         message_id: MessageId,
         thread_id: Option<ChannelId>,
-    ) -> Result<(), Error> {
-        let query = WebhookQuery::thread(thread_id);
-        self.request(
-            Request::new(Route::DeleteWebhookMessage {
-                webhook_id,
-                webhook_token,
-                message_id,
-            })
-            .query(&query),
-        )
-        .await
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
+        boxed(async move {
+            let query = WebhookQuery::thread(thread_id);
+            self.call(
+                Request::new(Route::DeleteWebhookMessage {
+                    webhook_id,
+                    webhook_token,
+                    message_id,
+                })
+                .query(&query),
+            )
+            .await
+        })
     }
 }

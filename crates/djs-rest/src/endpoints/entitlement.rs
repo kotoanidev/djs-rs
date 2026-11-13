@@ -8,6 +8,7 @@ use djs_model::{
     rest::{CreateTestEntitlement, ListEntitlements},
 };
 
+use crate::client::boxed;
 use crate::{Error, Request, Rest, Route};
 
 impl Rest {
@@ -36,13 +37,15 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn list_entitlements(
-        &self,
+    pub fn list_entitlements<'a>(
+        &'a self,
         application_id: ApplicationId,
-        query: &ListEntitlements,
-    ) -> Result<Vec<Entitlement>, Error> {
-        self.request(Request::new(Route::ListEntitlements { application_id }).query(query))
-            .await
+        query: &'a ListEntitlements,
+    ) -> impl Future<Output = Result<Vec<Entitlement>, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::ListEntitlements { application_id }).query(query))
+                .await
+        })
     }
 
     /// [Get Entitlement](https://docs.discord.com/developers/resources/entitlement#get-entitlement):
@@ -53,16 +56,18 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10029` Unknown Entitlement.
-    pub async fn get_entitlement(
+    pub fn get_entitlement(
         &self,
         application_id: ApplicationId,
         entitlement_id: EntitlementId,
-    ) -> Result<Entitlement, Error> {
-        self.request(Request::new(Route::GetEntitlement {
-            application_id,
-            entitlement_id,
-        }))
-        .await
+    ) -> impl Future<Output = Result<Entitlement, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetEntitlement {
+                application_id,
+                entitlement_id,
+            }))
+            .await
+        })
     }
 
     /// [Consume an Entitlement](https://docs.discord.com/developers/resources/entitlement#consume-an-entitlement):
@@ -75,16 +80,18 @@ impl Rest {
     ///
     /// See [`Rest::request`]; `10029` Unknown Entitlement; `40018` for an entitlement to an
     /// SKU that is not consumable.
-    pub async fn consume_entitlement(
+    pub fn consume_entitlement(
         &self,
         application_id: ApplicationId,
         entitlement_id: EntitlementId,
-    ) -> Result<(), Error> {
-        self.request(Request::new(Route::ConsumeEntitlement {
-            application_id,
-            entitlement_id,
-        }))
-        .await
+    ) -> impl Future<Output = Result<(), Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::ConsumeEntitlement {
+                application_id,
+                entitlement_id,
+            }))
+            .await
+        })
     }
 
     /// [Create Test Entitlement](https://docs.discord.com/developers/resources/entitlement#create-test-entitlement):
@@ -110,13 +117,15 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `40074` when the owner already has the entitlement.
-    pub async fn create_test_entitlement(
-        &self,
+    pub fn create_test_entitlement<'a>(
+        &'a self,
         application_id: ApplicationId,
-        body: &CreateTestEntitlement,
-    ) -> Result<Entitlement, Error> {
-        self.request(Request::new(Route::CreateTestEntitlement { application_id }).json(body)?)
-            .await
+        body: &'a CreateTestEntitlement,
+    ) -> impl Future<Output = Result<Entitlement, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::CreateTestEntitlement { application_id }).json(body)?)
+                .await
+        })
     }
 
     /// [Delete Test Entitlement](https://docs.discord.com/developers/resources/entitlement#delete-test-entitlement):
@@ -128,15 +137,17 @@ impl Rest {
     ///
     /// See [`Rest::request`]; `10029` Unknown Entitlement; `40019` for an entitlement that is
     /// not a test entitlement.
-    pub async fn delete_test_entitlement(
+    pub fn delete_test_entitlement(
         &self,
         application_id: ApplicationId,
         entitlement_id: EntitlementId,
-    ) -> Result<(), Error> {
-        self.request(Request::new(Route::DeleteTestEntitlement {
-            application_id,
-            entitlement_id,
-        }))
-        .await
+    ) -> impl Future<Output = Result<(), Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::DeleteTestEntitlement {
+                application_id,
+                entitlement_id,
+            }))
+            .await
+        })
     }
 }

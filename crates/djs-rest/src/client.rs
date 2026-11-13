@@ -1,6 +1,6 @@
 //! The [`Rest`] client and its builder.
 
-use core::{fmt, time::Duration};
+use core::{fmt, pin::Pin, time::Duration};
 use std::sync::Arc;
 
 use bytes::Bytes;
@@ -34,6 +34,22 @@ const AUDIT_LOG_REASON: HeaderName = HeaderName::from_static("x-audit-log-reason
 pub const DEFAULT_API: &str = "https://discord.com/api";
 
 type Connector = HttpsConnector<HttpConnector>;
+
+/// Boxes a future built in this crate, so that its body is compiled here once instead of in
+/// every crate that awaits it (D-287): the public async methods return what this returns.
+pub(crate) fn boxed<'a, T>(
+    future: impl Future<Output = T> + Send + 'a,
+) -> Pin<Box<dyn Future<Output = T> + Send + 'a>> {
+    Box::pin(future)
+}
+
+/// Decodes a response body; an empty body (204 No Content) decodes like `null`, which fits
+/// `()` and `Option`.
+fn decode<T: DeserializeOwned>(body: &[u8]) -> Result<T, Error> {
+    let body: &[u8] = if body.is_empty() { b"null" } else { body };
+    serde_json::from_slice(body)
+        .map_err(|source| Error::with_source(ErrorKind::Deserialize, source))
+}
 
 /// A client for the Discord REST API.
 ///
@@ -203,8 +219,9 @@ impl Rest {
 
     /// Sends a request and deserializes the JSON response into `T`.
     ///
-    /// This is the low-level entry point used by every typed method. Use `T = ()` for endpoints
-    /// that return `204 No Content`.
+    /// This is the low-level entry point for endpoints without a typed method; the typed
+    /// methods send their requests the same way. Use `T = ()` for endpoints that return
+    /// `204 No Content`.
     ///
     /// Requests are rate limited and retried automatically:
     ///
@@ -219,12 +236,22 @@ impl Rest {
     ///
     /// Returns an [`Error`] if the request cannot be built or sent, Discord responds with an error
     /// status, or the response body does not match `T`.
-    pub async fn request<T: DeserializeOwned>(&self, request: Request<'_>) -> Result<T, Error> {
+    pub fn request<'a, T: DeserializeOwned + 'a>(
+        &'a self,
+        request: Request<'a>,
+    ) -> impl Future<Output = Result<T, Error>> + Send + 'a {
+        // Sending is built here, so a caller's crate compiles only the decoding of its `T`.
+        let response = boxed(self.execute(request));
+        async move {
+            let (_, body) = response.await?;
+            decode(&body)
+        }
+    }
+
+    /// [`request`](Self::request) for the typed methods, which are boxed already (D-287).
+    pub(crate) async fn call<T: DeserializeOwned>(&self, request: Request<'_>) -> Result<T, Error> {
         let (_, body) = self.execute(request).await?;
-        // An empty body (204 No Content) deserializes like `null`, which fits `()` and `Option`.
-        let body: &[u8] = if body.is_empty() { b"null" } else { &body };
-        serde_json::from_slice(body)
-            .map_err(|source| Error::with_source(ErrorKind::Deserialize, source))
+        decode(&body)
     }
 
     /// Sends a request and returns the raw response body on success.

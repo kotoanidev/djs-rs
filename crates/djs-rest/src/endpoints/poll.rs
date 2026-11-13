@@ -12,6 +12,7 @@ use djs_model::{
 };
 use serde::Deserialize;
 
+use crate::client::boxed;
 use crate::{Error, Request, Rest, Route};
 
 /// The response of Get Answer Voters, unwrapped by the method (C-060).
@@ -46,24 +47,26 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10008` Unknown Message.
-    pub async fn get_answer_voters(
-        &self,
+    pub fn get_answer_voters<'a>(
+        &'a self,
         channel_id: ChannelId,
         message_id: MessageId,
         answer_id: u32,
-        query: &GetAnswerVoters,
-    ) -> Result<Vec<User>, Error> {
-        let voters: Voters = self
-            .request(
-                Request::new(Route::GetAnswerVoters {
-                    channel_id,
-                    message_id,
-                    answer_id,
-                })
-                .query(query),
-            )
-            .await?;
-        Ok(voters.users)
+        query: &'a GetAnswerVoters,
+    ) -> impl Future<Output = Result<Vec<User>, Error>> + Send + 'a {
+        boxed(async move {
+            let voters: Voters = self
+                .request(
+                    Request::new(Route::GetAnswerVoters {
+                        channel_id,
+                        message_id,
+                        answer_id,
+                    })
+                    .query(query),
+                )
+                .await?;
+            Ok(voters.users)
+        })
     }
 
     /// [End Poll](https://docs.discord.com/developers/resources/poll#end-poll): ends a poll
@@ -75,15 +78,17 @@ impl Rest {
     ///
     /// See [`Rest::request`]; `10008` Unknown Message; `520001` for a poll that has already
     /// ended.
-    pub async fn end_poll(
+    pub fn end_poll(
         &self,
         channel_id: ChannelId,
         message_id: MessageId,
-    ) -> Result<Message, Error> {
-        self.request(Request::new(Route::EndPoll {
-            channel_id,
-            message_id,
-        }))
-        .await
+    ) -> impl Future<Output = Result<Message, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::EndPoll {
+                channel_id,
+                message_id,
+            }))
+            .await
+        })
     }
 }

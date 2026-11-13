@@ -7,6 +7,7 @@ use djs_model::{
     subscription::Subscription,
 };
 
+use crate::client::boxed;
 use crate::{Error, Request, Rest, Route};
 
 impl Rest {
@@ -34,13 +35,15 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10027` Unknown SKU.
-    pub async fn list_sku_subscriptions(
-        &self,
+    pub fn list_sku_subscriptions<'a>(
+        &'a self,
         sku_id: SkuId,
-        query: &ListSkuSubscriptions,
-    ) -> Result<Vec<Subscription>, Error> {
-        self.request(Request::new(Route::ListSkuSubscriptions { sku_id }).query(query))
-            .await
+        query: &'a ListSkuSubscriptions,
+    ) -> impl Future<Output = Result<Vec<Subscription>, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::ListSkuSubscriptions { sku_id }).query(query))
+                .await
+        })
     }
 
     /// [Get SKU Subscription](https://docs.discord.com/developers/resources/subscription#get-sku-subscription):
@@ -51,15 +54,17 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10027` Unknown SKU.
-    pub async fn get_sku_subscription(
+    pub fn get_sku_subscription(
         &self,
         sku_id: SkuId,
         subscription_id: SubscriptionId,
-    ) -> Result<Subscription, Error> {
-        self.request(Request::new(Route::GetSkuSubscription {
-            sku_id,
-            subscription_id,
-        }))
-        .await
+    ) -> impl Future<Output = Result<Subscription, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetSkuSubscription {
+                sku_id,
+                subscription_id,
+            }))
+            .await
+        })
     }
 }

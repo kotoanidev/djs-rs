@@ -33,6 +33,7 @@ use djs_model::{
 };
 use serde::Deserialize;
 
+use crate::client::boxed;
 use crate::{Error, Request, Rest, Route};
 
 /// The response of the computed permission endpoints (channel and guild), unwrapped by the
@@ -59,8 +60,8 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn get_gateway(&self) -> Result<Gateway, Error> {
-        self.request(Request::new(Route::GetGateway)).await
+    pub fn get_gateway(&self) -> impl Future<Output = Result<Gateway, Error>> + Send + '_ {
+        boxed(async move { self.call(Request::new(Route::GetGateway)).await })
     }
 
     /// [Get Gateway Bot](https://docs.discord.com/developers/events/gateway#get-gateway-bot):
@@ -71,14 +72,14 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn get_gateway_bot(&self) -> Result<GatewayBot, Error> {
-        self.request(Request::new(Route::GetGatewayBot)).await
+    pub fn get_gateway_bot(&self) -> impl Future<Output = Result<GatewayBot, Error>> + Send + '_ {
+        boxed(async move { self.call(Request::new(Route::GetGatewayBot)).await })
     }
 
     /// Sends `request` and discards the response body, whatever it is: for endpoints whose
     /// docs do not describe their response.
     pub(crate) async fn request_ignoring_body(&self, request: Request<'_>) -> Result<(), Error> {
-        let _: serde::de::IgnoredAny = self.request(request).await?;
+        let _: serde::de::IgnoredAny = self.call(request).await?;
         Ok(())
     }
 }

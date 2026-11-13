@@ -8,6 +8,7 @@ use djs_model::{
     rest::{CreateAutoModerationRule, ModifyAutoModerationRule},
 };
 
+use crate::client::boxed;
 use crate::{Error, Request, Rest, Route};
 
 impl Rest {
@@ -19,14 +20,16 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn list_auto_moderation_rules_for_guild(
+    pub fn list_auto_moderation_rules_for_guild(
         &self,
         guild_id: GuildId,
-    ) -> Result<Vec<Rule>, Error> {
-        self.request(Request::new(Route::ListAutoModerationRulesForGuild {
-            guild_id,
-        }))
-        .await
+    ) -> impl Future<Output = Result<Vec<Rule>, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::ListAutoModerationRulesForGuild {
+                guild_id,
+            }))
+            .await
+        })
     }
 
     /// [Get Auto Moderation Rule](https://docs.discord.com/developers/resources/auto-moderation#get-auto-moderation-rule):
@@ -37,16 +40,18 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn get_auto_moderation_rule(
+    pub fn get_auto_moderation_rule(
         &self,
         guild_id: GuildId,
         rule_id: AutoModerationRuleId,
-    ) -> Result<Rule, Error> {
-        self.request(Request::new(Route::GetAutoModerationRule {
-            guild_id,
-            rule_id,
-        }))
-        .await
+    ) -> impl Future<Output = Result<Rule, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetAutoModerationRule {
+                guild_id,
+                rule_id,
+            }))
+            .await
+        })
     }
 
     /// [Create Auto Moderation Rule](https://docs.discord.com/developers/resources/auto-moderation#create-auto-moderation-rule):
@@ -80,18 +85,20 @@ impl Rest {
     ///
     /// See [`Rest::request`]; `400` when the guild already has the most rules of that trigger
     /// type, or for metadata or actions the trigger type does not accept.
-    pub async fn create_auto_moderation_rule(
-        &self,
+    pub fn create_auto_moderation_rule<'a>(
+        &'a self,
         guild_id: GuildId,
-        body: &CreateAutoModerationRule,
-        reason: Option<&str>,
-    ) -> Result<Rule, Error> {
-        self.request(
-            Request::new(Route::CreateAutoModerationRule { guild_id })
-                .json(body)?
-                .reason(reason),
-        )
-        .await
+        body: &'a CreateAutoModerationRule,
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<Rule, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::CreateAutoModerationRule { guild_id })
+                    .json(body)?
+                    .reason(reason),
+            )
+            .await
+        })
     }
 
     /// [Modify Auto Moderation Rule](https://docs.discord.com/developers/resources/auto-moderation#modify-auto-moderation-rule):
@@ -119,19 +126,21 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn modify_auto_moderation_rule(
-        &self,
+    pub fn modify_auto_moderation_rule<'a>(
+        &'a self,
         guild_id: GuildId,
         rule_id: AutoModerationRuleId,
-        body: &ModifyAutoModerationRule,
-        reason: Option<&str>,
-    ) -> Result<Rule, Error> {
-        self.request(
-            Request::new(Route::ModifyAutoModerationRule { guild_id, rule_id })
-                .json(body)?
-                .reason(reason),
-        )
-        .await
+        body: &'a ModifyAutoModerationRule,
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<Rule, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::ModifyAutoModerationRule { guild_id, rule_id })
+                    .json(body)?
+                    .reason(reason),
+            )
+            .await
+        })
     }
 
     /// [Delete Auto Moderation Rule](https://docs.discord.com/developers/resources/auto-moderation#delete-auto-moderation-rule):
@@ -145,15 +154,17 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn delete_auto_moderation_rule(
-        &self,
+    pub fn delete_auto_moderation_rule<'a>(
+        &'a self,
         guild_id: GuildId,
         rule_id: AutoModerationRuleId,
-        reason: Option<&str>,
-    ) -> Result<(), Error> {
-        self.request(
-            Request::new(Route::DeleteAutoModerationRule { guild_id, rule_id }).reason(reason),
-        )
-        .await
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::DeleteAutoModerationRule { guild_id, rule_id }).reason(reason),
+            )
+            .await
+        })
     }
 }

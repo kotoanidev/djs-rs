@@ -8,6 +8,7 @@ use djs_model::{
 };
 use serde::Deserialize;
 
+use crate::client::boxed;
 use crate::{Error, Request, Rest, Route};
 
 /// The response of List Sticker Packs, unwrapped by the method (C-053).
@@ -26,9 +27,14 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10060` Unknown Sticker.
-    pub async fn get_sticker(&self, sticker_id: StickerId) -> Result<Sticker, Error> {
-        self.request(Request::new(Route::GetSticker { sticker_id }))
-            .await
+    pub fn get_sticker(
+        &self,
+        sticker_id: StickerId,
+    ) -> impl Future<Output = Result<Sticker, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetSticker { sticker_id }))
+                .await
+        })
     }
 
     /// [List Sticker Packs](https://docs.discord.com/developers/resources/sticker#list-sticker-packs):
@@ -40,9 +46,13 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn list_sticker_packs(&self) -> Result<Vec<StickerPack>, Error> {
-        let list: StickerPacks = self.request(Request::new(Route::ListStickerPacks)).await?;
-        Ok(list.sticker_packs)
+    pub fn list_sticker_packs(
+        &self,
+    ) -> impl Future<Output = Result<Vec<StickerPack>, Error>> + Send + '_ {
+        boxed(async move {
+            let list: StickerPacks = self.call(Request::new(Route::ListStickerPacks)).await?;
+            Ok(list.sticker_packs)
+        })
     }
 
     /// [Get Sticker Pack](https://docs.discord.com/developers/resources/sticker#get-sticker-pack):
@@ -53,9 +63,14 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10061` Unknown Sticker Pack.
-    pub async fn get_sticker_pack(&self, pack_id: StickerPackId) -> Result<StickerPack, Error> {
-        self.request(Request::new(Route::GetStickerPack { pack_id }))
-            .await
+    pub fn get_sticker_pack(
+        &self,
+        pack_id: StickerPackId,
+    ) -> impl Future<Output = Result<StickerPack, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetStickerPack { pack_id }))
+                .await
+        })
     }
 }
 
@@ -70,9 +85,14 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn list_guild_stickers(&self, guild_id: GuildId) -> Result<Vec<Sticker>, Error> {
-        self.request(Request::new(Route::ListGuildStickers { guild_id }))
-            .await
+    pub fn list_guild_stickers(
+        &self,
+        guild_id: GuildId,
+    ) -> impl Future<Output = Result<Vec<Sticker>, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::ListGuildStickers { guild_id }))
+                .await
+        })
     }
 
     /// [Get Guild Sticker](https://docs.discord.com/developers/resources/sticker#get-guild-sticker):
@@ -83,16 +103,18 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10060` Unknown Sticker.
-    pub async fn get_guild_sticker(
+    pub fn get_guild_sticker(
         &self,
         guild_id: GuildId,
         sticker_id: StickerId,
-    ) -> Result<Sticker, Error> {
-        self.request(Request::new(Route::GetGuildSticker {
-            guild_id,
-            sticker_id,
-        }))
-        .await
+    ) -> impl Future<Output = Result<Sticker, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetGuildSticker {
+                guild_id,
+                sticker_id,
+            }))
+            .await
+        })
     }
 
     /// [Create Guild Sticker](https://docs.discord.com/developers/resources/sticker#create-guild-sticker):
@@ -123,24 +145,26 @@ impl Rest {
     ///
     /// See [`Rest::request`]; `30039` when the guild has no free sticker slot; `50045` when
     /// the file is too large; `50081` for an invalid file.
-    pub async fn create_guild_sticker(
-        &self,
+    pub fn create_guild_sticker<'a>(
+        &'a self,
         guild_id: GuildId,
-        body: &CreateGuildSticker,
-        reason: Option<&str>,
-    ) -> Result<Sticker, Error> {
-        let fields = [
-            ("name", body.name.as_str()),
-            ("description", body.description.as_str()),
-            ("tags", body.tags.as_str()),
-        ];
-        self.request(
-            Request::new(Route::CreateGuildSticker { guild_id })
-                .form_file("file", &body.file)
-                .form_text(&fields)
-                .reason(reason),
-        )
-        .await
+        body: &'a CreateGuildSticker,
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<Sticker, Error>> + Send + 'a {
+        boxed(async move {
+            let fields = [
+                ("name", body.name.as_str()),
+                ("description", body.description.as_str()),
+                ("tags", body.tags.as_str()),
+            ];
+            self.call(
+                Request::new(Route::CreateGuildSticker { guild_id })
+                    .form_file("file", &body.file)
+                    .form_text(&fields)
+                    .reason(reason),
+            )
+            .await
+        })
     }
 
     /// [Modify Guild Sticker](https://docs.discord.com/developers/resources/sticker#modify-guild-sticker):
@@ -154,22 +178,24 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10060` Unknown Sticker.
-    pub async fn modify_guild_sticker(
-        &self,
+    pub fn modify_guild_sticker<'a>(
+        &'a self,
         guild_id: GuildId,
         sticker_id: StickerId,
-        body: &ModifyGuildSticker,
-        reason: Option<&str>,
-    ) -> Result<Sticker, Error> {
-        self.request(
-            Request::new(Route::ModifyGuildSticker {
-                guild_id,
-                sticker_id,
-            })
-            .json(body)?
-            .reason(reason),
-        )
-        .await
+        body: &'a ModifyGuildSticker,
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<Sticker, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::ModifyGuildSticker {
+                    guild_id,
+                    sticker_id,
+                })
+                .json(body)?
+                .reason(reason),
+            )
+            .await
+        })
     }
 
     /// [Delete Guild Sticker](https://docs.discord.com/developers/resources/sticker#delete-guild-sticker):
@@ -183,19 +209,21 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10060` Unknown Sticker.
-    pub async fn delete_guild_sticker(
-        &self,
+    pub fn delete_guild_sticker<'a>(
+        &'a self,
         guild_id: GuildId,
         sticker_id: StickerId,
-        reason: Option<&str>,
-    ) -> Result<(), Error> {
-        self.request(
-            Request::new(Route::DeleteGuildSticker {
-                guild_id,
-                sticker_id,
-            })
-            .reason(reason),
-        )
-        .await
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::DeleteGuildSticker {
+                    guild_id,
+                    sticker_id,
+                })
+                .reason(reason),
+            )
+            .await
+        })
     }
 }

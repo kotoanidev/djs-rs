@@ -9,6 +9,7 @@ use djs_model::{
     application_role_connection_metadata::ApplicationRoleConnectionMetadata, id::ApplicationId,
 };
 
+use crate::client::boxed;
 use crate::{Error, Request, Rest, Route};
 
 impl Rest {
@@ -20,14 +21,17 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn get_application_role_connection_metadata_records(
+    pub fn get_application_role_connection_metadata_records(
         &self,
         application_id: ApplicationId,
-    ) -> Result<Vec<ApplicationRoleConnectionMetadata>, Error> {
-        self.request(Request::new(
-            Route::GetApplicationRoleConnectionMetadataRecords { application_id },
-        ))
-        .await
+    ) -> impl Future<Output = Result<Vec<ApplicationRoleConnectionMetadata>, Error>> + Send + '_
+    {
+        boxed(async move {
+            self.call(Request::new(
+                Route::GetApplicationRoleConnectionMetadataRecords { application_id },
+            ))
+            .await
+        })
     }
 
     /// [Update Application Role Connection Metadata Records](https://docs.discord.com/developers/resources/application-role-connection-metadata#update-application-role-connection-metadata-records):
@@ -58,15 +62,20 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `50035` for more than 5 records or an invalid key.
-    pub async fn update_application_role_connection_metadata_records(
-        &self,
+    pub fn update_application_role_connection_metadata_records<'a>(
+        &'a self,
         application_id: ApplicationId,
-        records: &[ApplicationRoleConnectionMetadata],
-    ) -> Result<Vec<ApplicationRoleConnectionMetadata>, Error> {
-        self.request(
-            Request::new(Route::UpdateApplicationRoleConnectionMetadataRecords { application_id })
+        records: &'a [ApplicationRoleConnectionMetadata],
+    ) -> impl Future<Output = Result<Vec<ApplicationRoleConnectionMetadata>, Error>> + Send + 'a
+    {
+        boxed(async move {
+            self.call(
+                Request::new(Route::UpdateApplicationRoleConnectionMetadataRecords {
+                    application_id,
+                })
                 .json(records)?,
-        )
-        .await
+            )
+            .await
+        })
     }
 }

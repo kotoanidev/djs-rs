@@ -16,6 +16,7 @@ use djs_model::{
 };
 use serde::Serialize;
 
+use crate::client::boxed;
 use crate::{Error, Request, Rest, Route};
 
 /// The body of Link Channel to Lobby; without a channel it unlinks.
@@ -50,9 +51,14 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn create_lobby(&self, body: &CreateLobby) -> Result<Lobby, Error> {
-        self.request(Request::new(Route::CreateLobby).json(body)?)
-            .await
+    pub fn create_lobby<'a>(
+        &'a self,
+        body: &'a CreateLobby,
+    ) -> impl Future<Output = Result<Lobby, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::CreateLobby).json(body)?)
+                .await
+        })
     }
 
     /// [Create or Join Lobby](https://docs.discord.com/developers/resources/lobby#create-or-join-lobby):
@@ -64,9 +70,14 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn create_or_join_lobby(&self, body: &CreateOrJoinLobby) -> Result<Lobby, Error> {
-        self.request(Request::new(Route::CreateOrJoinLobby).json(body)?)
-            .await
+    pub fn create_or_join_lobby<'a>(
+        &'a self,
+        body: &'a CreateOrJoinLobby,
+    ) -> impl Future<Output = Result<Lobby, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::CreateOrJoinLobby).json(body)?)
+                .await
+        })
     }
 
     /// [Get Lobby](https://docs.discord.com/developers/resources/lobby#get-lobby): returns a
@@ -77,9 +88,11 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn get_lobby(&self, lobby_id: LobbyId) -> Result<Lobby, Error> {
-        self.request(Request::new(Route::GetLobby { lobby_id }))
-            .await
+    pub fn get_lobby(
+        &self,
+        lobby_id: LobbyId,
+    ) -> impl Future<Output = Result<Lobby, Error>> + Send + '_ {
+        boxed(async move { self.call(Request::new(Route::GetLobby { lobby_id })).await })
     }
 
     /// [Modify Lobby](https://docs.discord.com/developers/resources/lobby#modify-lobby):
@@ -90,13 +103,15 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn modify_lobby(
-        &self,
+    pub fn modify_lobby<'a>(
+        &'a self,
         lobby_id: LobbyId,
-        body: &ModifyLobby,
-    ) -> Result<Lobby, Error> {
-        self.request(Request::new(Route::ModifyLobby { lobby_id }).json(body)?)
-            .await
+        body: &'a ModifyLobby,
+    ) -> impl Future<Output = Result<Lobby, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::ModifyLobby { lobby_id }).json(body)?)
+                .await
+        })
     }
 
     /// [Delete Lobby](https://docs.discord.com/developers/resources/lobby#delete-lobby):
@@ -107,9 +122,14 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn delete_lobby(&self, lobby_id: LobbyId) -> Result<(), Error> {
-        self.request_ignoring_body(Request::new(Route::DeleteLobby { lobby_id }))
-            .await
+    pub fn delete_lobby(
+        &self,
+        lobby_id: LobbyId,
+    ) -> impl Future<Output = Result<(), Error>> + Send + '_ {
+        boxed(async move {
+            self.request_ignoring_body(Request::new(Route::DeleteLobby { lobby_id }))
+                .await
+        })
     }
 }
 
@@ -123,14 +143,16 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn add_lobby_member(
-        &self,
+    pub fn add_lobby_member<'a>(
+        &'a self,
         lobby_id: LobbyId,
         user_id: UserId,
-        body: &AddLobbyMember,
-    ) -> Result<LobbyMember, Error> {
-        self.request(Request::new(Route::AddLobbyMember { lobby_id, user_id }).json(body)?)
-            .await
+        body: &'a AddLobbyMember,
+    ) -> impl Future<Output = Result<LobbyMember, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::AddLobbyMember { lobby_id, user_id }).json(body)?)
+                .await
+        })
     }
 
     /// [Bulk Update Lobby Members](https://docs.discord.com/developers/resources/lobby#bulk-update-lobby-members):
@@ -161,13 +183,15 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10013` Unknown User for a user Discord does not know.
-    pub async fn bulk_update_lobby_members(
-        &self,
+    pub fn bulk_update_lobby_members<'a>(
+        &'a self,
         lobby_id: LobbyId,
-        members: &[BulkLobbyMember],
-    ) -> Result<Vec<LobbyMember>, Error> {
-        self.request(Request::new(Route::BulkUpdateLobbyMembers { lobby_id }).json(members)?)
-            .await
+        members: &'a [BulkLobbyMember],
+    ) -> impl Future<Output = Result<Vec<LobbyMember>, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::BulkUpdateLobbyMembers { lobby_id }).json(members)?)
+                .await
+        })
     }
 
     /// [Remove a Member from a Lobby](https://docs.discord.com/developers/resources/lobby#remove-a-member-from-a-lobby):
@@ -178,13 +202,15 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; an error for a lobby that does not exist.
-    pub async fn remove_lobby_member(
+    pub fn remove_lobby_member(
         &self,
         lobby_id: LobbyId,
         user_id: UserId,
-    ) -> Result<(), Error> {
-        self.request_ignoring_body(Request::new(Route::RemoveLobbyMember { lobby_id, user_id }))
-            .await
+    ) -> impl Future<Output = Result<(), Error>> + Send + '_ {
+        boxed(async move {
+            self.request_ignoring_body(Request::new(Route::RemoveLobbyMember { lobby_id, user_id }))
+                .await
+        })
     }
 
     /// [Leave Lobby](https://docs.discord.com/developers/resources/lobby#leave-lobby): removes
@@ -195,9 +221,14 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; an error for a lobby that does not exist.
-    pub async fn leave_lobby(&self, lobby_id: LobbyId) -> Result<(), Error> {
-        self.request_ignoring_body(Request::new(Route::LeaveLobby { lobby_id }))
-            .await
+    pub fn leave_lobby(
+        &self,
+        lobby_id: LobbyId,
+    ) -> impl Future<Output = Result<(), Error>> + Send + '_ {
+        boxed(async move {
+            self.request_ignoring_body(Request::new(Route::LeaveLobby { lobby_id }))
+                .await
+        })
     }
 }
 
@@ -212,16 +243,18 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn link_channel_to_lobby(
+    pub fn link_channel_to_lobby(
         &self,
         lobby_id: LobbyId,
         channel_id: ChannelId,
-    ) -> Result<Lobby, Error> {
-        let body = ChannelLinking {
-            channel_id: Some(channel_id),
-        };
-        self.request(Request::new(Route::LinkChannelToLobby { lobby_id }).json(&body)?)
-            .await
+    ) -> impl Future<Output = Result<Lobby, Error>> + Send + '_ {
+        boxed(async move {
+            let body = ChannelLinking {
+                channel_id: Some(channel_id),
+            };
+            self.call(Request::new(Route::LinkChannelToLobby { lobby_id }).json(&body)?)
+                .await
+        })
     }
 
     /// [Unlink Channel from Lobby](https://docs.discord.com/developers/resources/lobby#unlink-channel-from-lobby):
@@ -233,10 +266,15 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn unlink_channel_from_lobby(&self, lobby_id: LobbyId) -> Result<Lobby, Error> {
-        let body = ChannelLinking { channel_id: None };
-        self.request(Request::new(Route::UnlinkChannelFromLobby { lobby_id }).json(&body)?)
-            .await
+    pub fn unlink_channel_from_lobby(
+        &self,
+        lobby_id: LobbyId,
+    ) -> impl Future<Output = Result<Lobby, Error>> + Send + '_ {
+        boxed(async move {
+            let body = ChannelLinking { channel_id: None };
+            self.call(Request::new(Route::UnlinkChannelFromLobby { lobby_id }).json(&body)?)
+                .await
+        })
     }
 
     /// [Create Lobby Channel Invite for Self](https://docs.discord.com/developers/resources/lobby#create-lobby-channel-invite-for-self):
@@ -248,14 +286,16 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; an error when the lobby has no linked channel.
-    pub async fn create_lobby_channel_invite_for_self(
+    pub fn create_lobby_channel_invite_for_self(
         &self,
         lobby_id: LobbyId,
-    ) -> Result<LobbyInvite, Error> {
-        self.request(Request::new(Route::CreateLobbyChannelInviteForSelf {
-            lobby_id,
-        }))
-        .await
+    ) -> impl Future<Output = Result<LobbyInvite, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::CreateLobbyChannelInviteForSelf {
+                lobby_id,
+            }))
+            .await
+        })
     }
 
     /// [Create Lobby Channel Invite for User](https://docs.discord.com/developers/resources/lobby#create-lobby-channel-invite-for-user):
@@ -267,16 +307,18 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; an error when the lobby has no linked channel.
-    pub async fn create_lobby_channel_invite_for_user(
+    pub fn create_lobby_channel_invite_for_user(
         &self,
         lobby_id: LobbyId,
         user_id: UserId,
-    ) -> Result<LobbyInvite, Error> {
-        self.request(Request::new(Route::CreateLobbyChannelInviteForUser {
-            lobby_id,
-            user_id,
-        }))
-        .await
+    ) -> impl Future<Output = Result<LobbyInvite, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::CreateLobbyChannelInviteForUser {
+                lobby_id,
+                user_id,
+            }))
+            .await
+        })
     }
 }
 
@@ -291,13 +333,15 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn send_lobby_message(
-        &self,
+    pub fn send_lobby_message<'a>(
+        &'a self,
         lobby_id: LobbyId,
-        body: &SendLobbyMessage,
-    ) -> Result<LobbyMessage, Error> {
-        self.request(Request::new(Route::SendLobbyMessage { lobby_id }).json(body)?)
-            .await
+        body: &'a SendLobbyMessage,
+    ) -> impl Future<Output = Result<LobbyMessage, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::SendLobbyMessage { lobby_id }).json(body)?)
+                .await
+        })
     }
 
     /// [Get Lobby Messages](https://docs.discord.com/developers/resources/lobby#get-lobby-messages):
@@ -309,13 +353,15 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn get_lobby_messages(
-        &self,
+    pub fn get_lobby_messages<'a>(
+        &'a self,
         lobby_id: LobbyId,
-        query: &GetLobbyMessages,
-    ) -> Result<Vec<LobbyMessage>, Error> {
-        self.request(Request::new(Route::GetLobbyMessages { lobby_id }).query(query))
-            .await
+        query: &'a GetLobbyMessages,
+    ) -> impl Future<Output = Result<Vec<LobbyMessage>, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::GetLobbyMessages { lobby_id }).query(query))
+                .await
+        })
     }
 
     /// [Update Lobby Message Moderation Metadata](https://docs.discord.com/developers/resources/lobby#update-lobby-message-moderation-metadata):
@@ -327,19 +373,21 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn update_lobby_message_moderation_metadata(
-        &self,
+    pub fn update_lobby_message_moderation_metadata<'a>(
+        &'a self,
         lobby_id: LobbyId,
         message_id: MessageId,
-        metadata: &LobbyMetadata,
-    ) -> Result<(), Error> {
-        self.request_ignoring_body(
-            Request::new(Route::UpdateLobbyMessageModerationMetadata {
-                lobby_id,
-                message_id,
-            })
-            .json(metadata)?,
-        )
-        .await
+        metadata: &'a LobbyMetadata,
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
+        boxed(async move {
+            self.request_ignoring_body(
+                Request::new(Route::UpdateLobbyMessageModerationMetadata {
+                    lobby_id,
+                    message_id,
+                })
+                .json(metadata)?,
+            )
+            .await
+        })
     }
 }

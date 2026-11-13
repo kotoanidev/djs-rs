@@ -3,6 +3,7 @@
 
 use djs_model::{id::ApplicationId, sku::Sku};
 
+use crate::client::boxed;
 use crate::{Error, Request, Rest, Route};
 
 impl Rest {
@@ -15,8 +16,13 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn list_skus(&self, application_id: ApplicationId) -> Result<Vec<Sku>, Error> {
-        self.request(Request::new(Route::ListSkus { application_id }))
-            .await
+    pub fn list_skus(
+        &self,
+        application_id: ApplicationId,
+    ) -> impl Future<Output = Result<Vec<Sku>, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::ListSkus { application_id }))
+                .await
+        })
     }
 }

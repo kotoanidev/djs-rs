@@ -17,6 +17,7 @@ use djs_model::{
     },
 };
 
+use crate::client::boxed;
 use crate::{Error, Request, Rest, Route};
 
 impl Rest {
@@ -28,15 +29,17 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn get_global_application_commands(
-        &self,
+    pub fn get_global_application_commands<'a>(
+        &'a self,
         application_id: ApplicationId,
-        query: &GetApplicationCommands,
-    ) -> Result<Vec<ApplicationCommand>, Error> {
-        self.request(
-            Request::new(Route::GetGlobalApplicationCommands { application_id }).query(query),
-        )
-        .await
+        query: &'a GetApplicationCommands,
+    ) -> impl Future<Output = Result<Vec<ApplicationCommand>, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::GetGlobalApplicationCommands { application_id }).query(query),
+            )
+            .await
+        })
     }
 
     /// [Create Global Application Command](https://docs.discord.com/developers/interactions/application-commands#create-global-application-command):
@@ -64,15 +67,18 @@ impl Rest {
     ///
     /// See [`Rest::request`]; `30032` at the maximum number of commands, `50035` for an
     /// invalid command (see [`ApiError::field_errors`](crate::ApiError::field_errors)).
-    pub async fn create_global_application_command(
-        &self,
+    pub fn create_global_application_command<'a>(
+        &'a self,
         application_id: ApplicationId,
-        body: &CreateApplicationCommand,
-    ) -> Result<ApplicationCommand, Error> {
-        self.request(
-            Request::new(Route::CreateGlobalApplicationCommand { application_id }).json(body)?,
-        )
-        .await
+        body: &'a CreateApplicationCommand,
+    ) -> impl Future<Output = Result<ApplicationCommand, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::CreateGlobalApplicationCommand { application_id })
+                    .json(body)?,
+            )
+            .await
+        })
     }
 
     /// [Get Global Application Command](https://docs.discord.com/developers/interactions/application-commands#get-global-application-command):
@@ -83,16 +89,18 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10063` Unknown Application Command.
-    pub async fn get_global_application_command(
+    pub fn get_global_application_command(
         &self,
         application_id: ApplicationId,
         command_id: CommandId,
-    ) -> Result<ApplicationCommand, Error> {
-        self.request(Request::new(Route::GetGlobalApplicationCommand {
-            application_id,
-            command_id,
-        }))
-        .await
+    ) -> impl Future<Output = Result<ApplicationCommand, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetGlobalApplicationCommand {
+                application_id,
+                command_id,
+            }))
+            .await
+        })
     }
 
     /// [Edit Global Application Command](https://docs.discord.com/developers/interactions/application-commands#edit-global-application-command):
@@ -103,20 +111,22 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn edit_global_application_command(
-        &self,
+    pub fn edit_global_application_command<'a>(
+        &'a self,
         application_id: ApplicationId,
         command_id: CommandId,
-        body: &EditApplicationCommand,
-    ) -> Result<ApplicationCommand, Error> {
-        self.request(
-            Request::new(Route::EditGlobalApplicationCommand {
-                application_id,
-                command_id,
-            })
-            .json(body)?,
-        )
-        .await
+        body: &'a EditApplicationCommand,
+    ) -> impl Future<Output = Result<ApplicationCommand, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::EditGlobalApplicationCommand {
+                    application_id,
+                    command_id,
+                })
+                .json(body)?,
+            )
+            .await
+        })
     }
 
     /// [Delete Global Application Command](https://docs.discord.com/developers/interactions/application-commands#delete-global-application-command):
@@ -127,16 +137,18 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn delete_global_application_command(
+    pub fn delete_global_application_command(
         &self,
         application_id: ApplicationId,
         command_id: CommandId,
-    ) -> Result<(), Error> {
-        self.request(Request::new(Route::DeleteGlobalApplicationCommand {
-            application_id,
-            command_id,
-        }))
-        .await
+    ) -> impl Future<Output = Result<(), Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::DeleteGlobalApplicationCommand {
+                application_id,
+                command_id,
+            }))
+            .await
+        })
     }
 
     /// [Bulk Overwrite Global Application Commands](https://docs.discord.com/developers/interactions/application-commands#bulk-overwrite-global-application-commands):
@@ -167,16 +179,18 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn bulk_overwrite_global_application_commands(
-        &self,
+    pub fn bulk_overwrite_global_application_commands<'a>(
+        &'a self,
         application_id: ApplicationId,
-        commands: &[CreateApplicationCommand],
-    ) -> Result<Vec<ApplicationCommand>, Error> {
-        self.request(
-            Request::new(Route::BulkOverwriteGlobalApplicationCommands { application_id })
-                .json(commands)?,
-        )
-        .await
+        commands: &'a [CreateApplicationCommand],
+    ) -> impl Future<Output = Result<Vec<ApplicationCommand>, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::BulkOverwriteGlobalApplicationCommands { application_id })
+                    .json(commands)?,
+            )
+            .await
+        })
     }
 
     /// [Get Guild Application Commands](https://docs.discord.com/developers/interactions/application-commands#get-guild-application-commands):
@@ -187,20 +201,22 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn get_guild_application_commands(
-        &self,
+    pub fn get_guild_application_commands<'a>(
+        &'a self,
         application_id: ApplicationId,
         guild_id: GuildId,
-        query: &GetApplicationCommands,
-    ) -> Result<Vec<ApplicationCommand>, Error> {
-        self.request(
-            Request::new(Route::GetGuildApplicationCommands {
-                application_id,
-                guild_id,
-            })
-            .query(query),
-        )
-        .await
+        query: &'a GetApplicationCommands,
+    ) -> impl Future<Output = Result<Vec<ApplicationCommand>, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::GetGuildApplicationCommands {
+                    application_id,
+                    guild_id,
+                })
+                .query(query),
+            )
+            .await
+        })
     }
 
     /// [Create Guild Application Command](https://docs.discord.com/developers/interactions/application-commands#create-guild-application-command):
@@ -213,20 +229,22 @@ impl Rest {
     ///
     /// See [`Rest::request`]; `50001` Missing Access when the application is not in the guild
     /// with the `applications.commands` scope.
-    pub async fn create_guild_application_command(
-        &self,
+    pub fn create_guild_application_command<'a>(
+        &'a self,
         application_id: ApplicationId,
         guild_id: GuildId,
-        body: &CreateApplicationCommand,
-    ) -> Result<ApplicationCommand, Error> {
-        self.request(
-            Request::new(Route::CreateGuildApplicationCommand {
-                application_id,
-                guild_id,
-            })
-            .json(body)?,
-        )
-        .await
+        body: &'a CreateApplicationCommand,
+    ) -> impl Future<Output = Result<ApplicationCommand, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::CreateGuildApplicationCommand {
+                    application_id,
+                    guild_id,
+                })
+                .json(body)?,
+            )
+            .await
+        })
     }
 
     /// [Get Guild Application Command](https://docs.discord.com/developers/interactions/application-commands#get-guild-application-command):
@@ -237,18 +255,20 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10063` Unknown Application Command.
-    pub async fn get_guild_application_command(
+    pub fn get_guild_application_command(
         &self,
         application_id: ApplicationId,
         guild_id: GuildId,
         command_id: CommandId,
-    ) -> Result<ApplicationCommand, Error> {
-        self.request(Request::new(Route::GetGuildApplicationCommand {
-            application_id,
-            guild_id,
-            command_id,
-        }))
-        .await
+    ) -> impl Future<Output = Result<ApplicationCommand, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetGuildApplicationCommand {
+                application_id,
+                guild_id,
+                command_id,
+            }))
+            .await
+        })
     }
 
     /// [Edit Guild Application Command](https://docs.discord.com/developers/interactions/application-commands#edit-guild-application-command):
@@ -259,22 +279,24 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn edit_guild_application_command(
-        &self,
+    pub fn edit_guild_application_command<'a>(
+        &'a self,
         application_id: ApplicationId,
         guild_id: GuildId,
         command_id: CommandId,
-        body: &EditApplicationCommand,
-    ) -> Result<ApplicationCommand, Error> {
-        self.request(
-            Request::new(Route::EditGuildApplicationCommand {
-                application_id,
-                guild_id,
-                command_id,
-            })
-            .json(body)?,
-        )
-        .await
+        body: &'a EditApplicationCommand,
+    ) -> impl Future<Output = Result<ApplicationCommand, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::EditGuildApplicationCommand {
+                    application_id,
+                    guild_id,
+                    command_id,
+                })
+                .json(body)?,
+            )
+            .await
+        })
     }
 
     /// [Delete Guild Application Command](https://docs.discord.com/developers/interactions/application-commands#delete-guild-application-command):
@@ -285,18 +307,20 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn delete_guild_application_command(
+    pub fn delete_guild_application_command(
         &self,
         application_id: ApplicationId,
         guild_id: GuildId,
         command_id: CommandId,
-    ) -> Result<(), Error> {
-        self.request(Request::new(Route::DeleteGuildApplicationCommand {
-            application_id,
-            guild_id,
-            command_id,
-        }))
-        .await
+    ) -> impl Future<Output = Result<(), Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::DeleteGuildApplicationCommand {
+                application_id,
+                guild_id,
+                command_id,
+            }))
+            .await
+        })
     }
 
     /// [Bulk Overwrite Guild Application Commands](https://docs.discord.com/developers/interactions/application-commands#bulk-overwrite-guild-application-commands):
@@ -309,20 +333,22 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn bulk_overwrite_guild_application_commands(
-        &self,
+    pub fn bulk_overwrite_guild_application_commands<'a>(
+        &'a self,
         application_id: ApplicationId,
         guild_id: GuildId,
-        commands: &[CreateApplicationCommand],
-    ) -> Result<Vec<ApplicationCommand>, Error> {
-        self.request(
-            Request::new(Route::BulkOverwriteGuildApplicationCommands {
-                application_id,
-                guild_id,
-            })
-            .json(commands)?,
-        )
-        .await
+        commands: &'a [CreateApplicationCommand],
+    ) -> impl Future<Output = Result<Vec<ApplicationCommand>, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::BulkOverwriteGuildApplicationCommands {
+                    application_id,
+                    guild_id,
+                })
+                .json(commands)?,
+            )
+            .await
+        })
     }
 
     /// [Get Guild Application Command Permissions](https://docs.discord.com/developers/interactions/application-commands#get-guild-application-command-permissions):
@@ -334,16 +360,18 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn get_guild_application_command_permissions(
+    pub fn get_guild_application_command_permissions(
         &self,
         application_id: ApplicationId,
         guild_id: GuildId,
-    ) -> Result<Vec<GuildCommandPermissions>, Error> {
-        self.request(Request::new(Route::GetGuildApplicationCommandPermissions {
-            application_id,
-            guild_id,
-        }))
-        .await
+    ) -> impl Future<Output = Result<Vec<GuildCommandPermissions>, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetGuildApplicationCommandPermissions {
+                application_id,
+                guild_id,
+            }))
+            .await
+        })
     }
 
     /// [Get Application Command Permissions](https://docs.discord.com/developers/interactions/application-commands#get-application-command-permissions):
@@ -358,18 +386,20 @@ impl Rest {
     ///
     /// See [`Rest::request`]; `10066` Unknown Application Command Permissions when the
     /// command has none.
-    pub async fn get_application_command_permissions(
+    pub fn get_application_command_permissions(
         &self,
         application_id: ApplicationId,
         guild_id: GuildId,
         command_id: CommandId,
-    ) -> Result<GuildCommandPermissions, Error> {
-        self.request(Request::new(Route::GetApplicationCommandPermissions {
-            application_id,
-            guild_id,
-            command_id,
-        }))
-        .await
+    ) -> impl Future<Output = Result<GuildCommandPermissions, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetApplicationCommandPermissions {
+                application_id,
+                guild_id,
+                command_id,
+            }))
+            .await
+        })
     }
 
     /// [Edit Application Command Permissions](https://docs.discord.com/developers/interactions/application-commands#edit-application-command-permissions):
@@ -405,21 +435,23 @@ impl Rest {
     ///
     /// See [`Rest::request`]; `401 Unauthorized` with a bot token, `50001` Missing Access
     /// when the user cannot manage the guild.
-    pub async fn edit_application_command_permissions(
-        &self,
+    pub fn edit_application_command_permissions<'a>(
+        &'a self,
         application_id: ApplicationId,
         guild_id: GuildId,
         command_id: CommandId,
-        body: &EditApplicationCommandPermissions,
-    ) -> Result<GuildCommandPermissions, Error> {
-        self.request(
-            Request::new(Route::EditApplicationCommandPermissions {
-                application_id,
-                guild_id,
-                command_id,
-            })
-            .json(body)?,
-        )
-        .await
+        body: &'a EditApplicationCommandPermissions,
+    ) -> impl Future<Output = Result<GuildCommandPermissions, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::EditApplicationCommandPermissions {
+                    application_id,
+                    guild_id,
+                    command_id,
+                })
+                .json(body)?,
+            )
+            .await
+        })
     }
 }

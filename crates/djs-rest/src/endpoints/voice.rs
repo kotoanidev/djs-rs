@@ -7,6 +7,7 @@ use djs_model::{
     voice::{VoiceRegion, VoiceState},
 };
 
+use crate::client::boxed;
 use crate::{Error, Request, Rest, Route};
 
 impl Rest {
@@ -18,8 +19,10 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn list_voice_regions(&self) -> Result<Vec<VoiceRegion>, Error> {
-        self.request(Request::new(Route::ListVoiceRegions)).await
+    pub fn list_voice_regions(
+        &self,
+    ) -> impl Future<Output = Result<Vec<VoiceRegion>, Error>> + Send + '_ {
+        boxed(async move { self.call(Request::new(Route::ListVoiceRegions)).await })
     }
 
     /// [Get Current User Voice State](https://docs.discord.com/developers/resources/voice#get-current-user-voice-state):
@@ -31,12 +34,14 @@ impl Rest {
     ///
     /// See [`Rest::request`]; `10065` Unknown Voice State when the bot is not in a voice
     /// channel of the guild.
-    pub async fn get_current_user_voice_state(
+    pub fn get_current_user_voice_state(
         &self,
         guild_id: GuildId,
-    ) -> Result<VoiceState, Error> {
-        self.request(Request::new(Route::GetCurrentUserVoiceState { guild_id }))
-            .await
+    ) -> impl Future<Output = Result<VoiceState, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetCurrentUserVoiceState { guild_id }))
+                .await
+        })
     }
 
     /// [Get User Voice State](https://docs.discord.com/developers/resources/voice#get-user-voice-state):
@@ -49,13 +54,15 @@ impl Rest {
     ///
     /// See [`Rest::request`]; `10065` Unknown Voice State when the user is not in a voice
     /// channel of the guild.
-    pub async fn get_user_voice_state(
+    pub fn get_user_voice_state(
         &self,
         guild_id: GuildId,
         user_id: UserId,
-    ) -> Result<VoiceState, Error> {
-        self.request(Request::new(Route::GetUserVoiceState { guild_id, user_id }))
-            .await
+    ) -> impl Future<Output = Result<VoiceState, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetUserVoiceState { guild_id, user_id }))
+                .await
+        })
     }
 
     /// [Modify Current User Voice State](https://docs.discord.com/developers/resources/voice#modify-current-user-voice-state):
@@ -82,15 +89,17 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn modify_current_user_voice_state(
-        &self,
+    pub fn modify_current_user_voice_state<'a>(
+        &'a self,
         guild_id: GuildId,
-        body: &ModifyCurrentUserVoiceState,
-    ) -> Result<(), Error> {
-        self.request_ignoring_body(
-            Request::new(Route::ModifyCurrentUserVoiceState { guild_id }).json(body)?,
-        )
-        .await
+        body: &'a ModifyCurrentUserVoiceState,
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
+        boxed(async move {
+            self.request_ignoring_body(
+                Request::new(Route::ModifyCurrentUserVoiceState { guild_id }).json(body)?,
+            )
+            .await
+        })
     }
 
     /// [Modify User Voice State](https://docs.discord.com/developers/resources/voice#modify-user-voice-state):
@@ -102,15 +111,17 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn modify_user_voice_state(
-        &self,
+    pub fn modify_user_voice_state<'a>(
+        &'a self,
         guild_id: GuildId,
         user_id: UserId,
-        body: &ModifyUserVoiceState,
-    ) -> Result<(), Error> {
-        self.request_ignoring_body(
-            Request::new(Route::ModifyUserVoiceState { guild_id, user_id }).json(body)?,
-        )
-        .await
+        body: &'a ModifyUserVoiceState,
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
+        boxed(async move {
+            self.request_ignoring_body(
+                Request::new(Route::ModifyUserVoiceState { guild_id, user_id }).json(body)?,
+            )
+            .await
+        })
     }
 }

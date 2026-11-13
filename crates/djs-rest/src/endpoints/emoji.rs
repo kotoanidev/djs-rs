@@ -11,6 +11,7 @@ use djs_model::{
 };
 
 use super::Items;
+use crate::client::boxed;
 use crate::{Error, Request, Rest, Route};
 
 /// Guild emojis.
@@ -24,9 +25,14 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn list_guild_emojis(&self, guild_id: GuildId) -> Result<Vec<Emoji>, Error> {
-        self.request(Request::new(Route::ListGuildEmojis { guild_id }))
-            .await
+    pub fn list_guild_emojis(
+        &self,
+        guild_id: GuildId,
+    ) -> impl Future<Output = Result<Vec<Emoji>, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::ListGuildEmojis { guild_id }))
+                .await
+        })
     }
 
     /// [Get Guild Emoji](https://docs.discord.com/developers/resources/emoji#get-guild-emoji):
@@ -37,13 +43,15 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10014` Unknown Emoji.
-    pub async fn get_guild_emoji(
+    pub fn get_guild_emoji(
         &self,
         guild_id: GuildId,
         emoji_id: EmojiId,
-    ) -> Result<Emoji, Error> {
-        self.request(Request::new(Route::GetGuildEmoji { guild_id, emoji_id }))
-            .await
+    ) -> impl Future<Output = Result<Emoji, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetGuildEmoji { guild_id, emoji_id }))
+                .await
+        })
     }
 
     /// [Create Guild Emoji](https://docs.discord.com/developers/resources/emoji#create-guild-emoji):
@@ -72,18 +80,20 @@ impl Rest {
     ///
     /// See [`Rest::request`]; `30008` or `30018` when the guild has no free (animated) emoji
     /// slot; a `400` without a JSON error code when the image is larger than 256 KiB.
-    pub async fn create_guild_emoji(
-        &self,
+    pub fn create_guild_emoji<'a>(
+        &'a self,
         guild_id: GuildId,
-        body: &CreateGuildEmoji,
-        reason: Option<&str>,
-    ) -> Result<Emoji, Error> {
-        self.request(
-            Request::new(Route::CreateGuildEmoji { guild_id })
-                .json(body)?
-                .reason(reason),
-        )
-        .await
+        body: &'a CreateGuildEmoji,
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<Emoji, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::CreateGuildEmoji { guild_id })
+                    .json(body)?
+                    .reason(reason),
+            )
+            .await
+        })
     }
 
     /// [Modify Guild Emoji](https://docs.discord.com/developers/resources/emoji#modify-guild-emoji):
@@ -97,19 +107,21 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10014` Unknown Emoji.
-    pub async fn modify_guild_emoji(
-        &self,
+    pub fn modify_guild_emoji<'a>(
+        &'a self,
         guild_id: GuildId,
         emoji_id: EmojiId,
-        body: &ModifyGuildEmoji,
-        reason: Option<&str>,
-    ) -> Result<Emoji, Error> {
-        self.request(
-            Request::new(Route::ModifyGuildEmoji { guild_id, emoji_id })
-                .json(body)?
-                .reason(reason),
-        )
-        .await
+        body: &'a ModifyGuildEmoji,
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<Emoji, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::ModifyGuildEmoji { guild_id, emoji_id })
+                    .json(body)?
+                    .reason(reason),
+            )
+            .await
+        })
     }
 
     /// [Delete Guild Emoji](https://docs.discord.com/developers/resources/emoji#delete-guild-emoji):
@@ -123,14 +135,16 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10014` Unknown Emoji.
-    pub async fn delete_guild_emoji(
-        &self,
+    pub fn delete_guild_emoji<'a>(
+        &'a self,
         guild_id: GuildId,
         emoji_id: EmojiId,
-        reason: Option<&str>,
-    ) -> Result<(), Error> {
-        self.request(Request::new(Route::DeleteGuildEmoji { guild_id, emoji_id }).reason(reason))
-            .await
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::DeleteGuildEmoji { guild_id, emoji_id }).reason(reason))
+                .await
+        })
     }
 }
 
@@ -145,16 +159,18 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn list_application_emojis(
+    pub fn list_application_emojis(
         &self,
         application_id: ApplicationId,
-    ) -> Result<Vec<Emoji>, Error> {
-        let list: Items<Emoji> = self
-            .request(Request::new(Route::ListApplicationEmojis {
-                application_id,
-            }))
-            .await?;
-        Ok(list.items)
+    ) -> impl Future<Output = Result<Vec<Emoji>, Error>> + Send + '_ {
+        boxed(async move {
+            let list: Items<Emoji> = self
+                .request(Request::new(Route::ListApplicationEmojis {
+                    application_id,
+                }))
+                .await?;
+            Ok(list.items)
+        })
     }
 
     /// [Get Application Emoji](https://docs.discord.com/developers/resources/emoji#get-application-emoji):
@@ -165,16 +181,18 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10014` Unknown Emoji.
-    pub async fn get_application_emoji(
+    pub fn get_application_emoji(
         &self,
         application_id: ApplicationId,
         emoji_id: EmojiId,
-    ) -> Result<Emoji, Error> {
-        self.request(Request::new(Route::GetApplicationEmoji {
-            application_id,
-            emoji_id,
-        }))
-        .await
+    ) -> impl Future<Output = Result<Emoji, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetApplicationEmoji {
+                application_id,
+                emoji_id,
+            }))
+            .await
+        })
     }
 
     /// [Create Application Emoji](https://docs.discord.com/developers/resources/emoji#create-application-emoji):
@@ -201,13 +219,15 @@ impl Rest {
     ///
     /// See [`Rest::request`]; `30008` when the application has no free emoji slot; a `400`
     /// without a JSON error code when the image is larger than 256 KiB.
-    pub async fn create_application_emoji(
-        &self,
+    pub fn create_application_emoji<'a>(
+        &'a self,
         application_id: ApplicationId,
-        body: &CreateApplicationEmoji,
-    ) -> Result<Emoji, Error> {
-        self.request(Request::new(Route::CreateApplicationEmoji { application_id }).json(body)?)
-            .await
+        body: &'a CreateApplicationEmoji,
+    ) -> impl Future<Output = Result<Emoji, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::CreateApplicationEmoji { application_id }).json(body)?)
+                .await
+        })
     }
 
     /// [Modify Application Emoji](https://docs.discord.com/developers/resources/emoji#modify-application-emoji):
@@ -218,20 +238,22 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10014` Unknown Emoji.
-    pub async fn modify_application_emoji(
-        &self,
+    pub fn modify_application_emoji<'a>(
+        &'a self,
         application_id: ApplicationId,
         emoji_id: EmojiId,
-        body: &ModifyApplicationEmoji,
-    ) -> Result<Emoji, Error> {
-        self.request(
-            Request::new(Route::ModifyApplicationEmoji {
-                application_id,
-                emoji_id,
-            })
-            .json(body)?,
-        )
-        .await
+        body: &'a ModifyApplicationEmoji,
+    ) -> impl Future<Output = Result<Emoji, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::ModifyApplicationEmoji {
+                    application_id,
+                    emoji_id,
+                })
+                .json(body)?,
+            )
+            .await
+        })
     }
 
     /// [Delete Application Emoji](https://docs.discord.com/developers/resources/emoji#delete-application-emoji):
@@ -242,15 +264,17 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10014` Unknown Emoji.
-    pub async fn delete_application_emoji(
+    pub fn delete_application_emoji(
         &self,
         application_id: ApplicationId,
         emoji_id: EmojiId,
-    ) -> Result<(), Error> {
-        self.request(Request::new(Route::DeleteApplicationEmoji {
-            application_id,
-            emoji_id,
-        }))
-        .await
+    ) -> impl Future<Output = Result<(), Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::DeleteApplicationEmoji {
+                application_id,
+                emoji_id,
+            }))
+            .await
+        })
     }
 }

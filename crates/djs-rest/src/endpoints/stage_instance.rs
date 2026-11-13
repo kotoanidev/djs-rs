@@ -10,6 +10,7 @@ use djs_model::{
     stage_instance::StageInstance,
 };
 
+use crate::client::boxed;
 use crate::{Error, Request, Rest, Route};
 
 impl Rest {
@@ -35,17 +36,19 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `150006` when the stage is already open.
-    pub async fn create_stage_instance(
-        &self,
-        body: &CreateStageInstance,
-        reason: Option<&str>,
-    ) -> Result<StageInstance, Error> {
-        self.request(
-            Request::new(Route::CreateStageInstance)
-                .json(body)?
-                .reason(reason),
-        )
-        .await
+    pub fn create_stage_instance<'a>(
+        &'a self,
+        body: &'a CreateStageInstance,
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<StageInstance, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::CreateStageInstance)
+                    .json(body)?
+                    .reason(reason),
+            )
+            .await
+        })
     }
 
     /// [Get Stage Instance](https://docs.discord.com/developers/resources/stage-instance#get-stage-instance):
@@ -56,9 +59,14 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10067` Unknown Stage Instance when no stage is open.
-    pub async fn get_stage_instance(&self, channel_id: ChannelId) -> Result<StageInstance, Error> {
-        self.request(Request::new(Route::GetStageInstance { channel_id }))
-            .await
+    pub fn get_stage_instance(
+        &self,
+        channel_id: ChannelId,
+    ) -> impl Future<Output = Result<StageInstance, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetStageInstance { channel_id }))
+                .await
+        })
     }
 
     /// [Modify Stage Instance](https://docs.discord.com/developers/resources/stage-instance#modify-stage-instance):
@@ -71,18 +79,20 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10067` Unknown Stage Instance.
-    pub async fn modify_stage_instance(
-        &self,
+    pub fn modify_stage_instance<'a>(
+        &'a self,
         channel_id: ChannelId,
-        body: &ModifyStageInstance,
-        reason: Option<&str>,
-    ) -> Result<StageInstance, Error> {
-        self.request(
-            Request::new(Route::ModifyStageInstance { channel_id })
-                .json(body)?
-                .reason(reason),
-        )
-        .await
+        body: &'a ModifyStageInstance,
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<StageInstance, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::ModifyStageInstance { channel_id })
+                    .json(body)?
+                    .reason(reason),
+            )
+            .await
+        })
     }
 
     /// [Delete Stage Instance](https://docs.discord.com/developers/resources/stage-instance#delete-stage-instance):
@@ -95,12 +105,14 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10067` Unknown Stage Instance.
-    pub async fn delete_stage_instance(
-        &self,
+    pub fn delete_stage_instance<'a>(
+        &'a self,
         channel_id: ChannelId,
-        reason: Option<&str>,
-    ) -> Result<(), Error> {
-        self.request(Request::new(Route::DeleteStageInstance { channel_id }).reason(reason))
-            .await
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::DeleteStageInstance { channel_id }).reason(reason))
+                .await
+        })
     }
 }

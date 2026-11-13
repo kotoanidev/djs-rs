@@ -7,6 +7,7 @@ use djs_model::{
     rest::EditCurrentApplication,
 };
 
+use crate::client::boxed;
 use crate::{Error, Request, Rest, Route};
 
 impl Rest {
@@ -32,9 +33,10 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn get_current_application(&self) -> Result<Application, Error> {
-        self.request(Request::new(Route::GetCurrentApplication))
-            .await
+    pub fn get_current_application(
+        &self,
+    ) -> impl Future<Output = Result<Application, Error>> + Send + '_ {
+        boxed(async move { self.call(Request::new(Route::GetCurrentApplication)).await })
     }
 
     /// [Edit Current Application](https://docs.discord.com/developers/resources/application#edit-current-application):
@@ -46,12 +48,14 @@ impl Rest {
     ///
     /// See [`Rest::request`]; `50035` for a field Discord does not accept (for example an
     /// interactions endpoint URL that fails validation).
-    pub async fn edit_current_application(
-        &self,
-        body: &EditCurrentApplication,
-    ) -> Result<Application, Error> {
-        self.request(Request::new(Route::EditCurrentApplication).json(body)?)
-            .await
+    pub fn edit_current_application<'a>(
+        &'a self,
+        body: &'a EditCurrentApplication,
+    ) -> impl Future<Output = Result<Application, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::EditCurrentApplication).json(body)?)
+                .await
+        })
     }
 
     /// [Get Application Activity Instance](https://docs.discord.com/developers/resources/application#get-application-activity-instance):
@@ -63,15 +67,17 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `404` when the instance does not exist (anymore).
-    pub async fn get_application_activity_instance(
-        &self,
+    pub fn get_application_activity_instance<'a>(
+        &'a self,
         application_id: ApplicationId,
-        instance_id: &str,
-    ) -> Result<ActivityInstance, Error> {
-        self.request(Request::new(Route::GetApplicationActivityInstance {
-            application_id,
-            instance_id,
-        }))
-        .await
+        instance_id: &'a str,
+    ) -> impl Future<Output = Result<ActivityInstance, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::GetApplicationActivityInstance {
+                application_id,
+                instance_id,
+            }))
+            .await
+        })
     }
 }

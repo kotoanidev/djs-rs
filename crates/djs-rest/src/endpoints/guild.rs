@@ -30,6 +30,7 @@ use djs_model::{
 use serde::Deserialize;
 
 use super::PermissionsResponse;
+use crate::client::boxed;
 use crate::{Error, Request, Rest, Route};
 
 /// The response of the prune endpoints, unwrapped by the methods.
@@ -49,9 +50,15 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10004` Unknown Guild.
-    pub async fn get_guild(&self, guild_id: GuildId, query: &GetGuild) -> Result<Guild, Error> {
-        self.request(Request::new(Route::GetGuild { guild_id }).query(query))
-            .await
+    pub fn get_guild<'a>(
+        &'a self,
+        guild_id: GuildId,
+        query: &'a GetGuild,
+    ) -> impl Future<Output = Result<Guild, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::GetGuild { guild_id }).query(query))
+                .await
+        })
     }
 
     /// [Get Guild Preview](https://docs.discord.com/developers/resources/guild#get-guild-preview):
@@ -62,9 +69,14 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10004` Unknown Guild.
-    pub async fn get_guild_preview(&self, guild_id: GuildId) -> Result<Preview, Error> {
-        self.request(Request::new(Route::GetGuildPreview { guild_id }))
-            .await
+    pub fn get_guild_preview(
+        &self,
+        guild_id: GuildId,
+    ) -> impl Future<Output = Result<Preview, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetGuildPreview { guild_id }))
+                .await
+        })
     }
 
     /// [Modify Guild](https://docs.discord.com/developers/resources/guild#modify-guild):
@@ -78,18 +90,20 @@ impl Rest {
     ///
     /// See [`Rest::request`]; `50035` for an invalid field (see
     /// [`ApiError::field_errors`](crate::ApiError::field_errors)).
-    pub async fn modify_guild(
-        &self,
+    pub fn modify_guild<'a>(
+        &'a self,
         guild_id: GuildId,
-        body: &ModifyGuild,
-        reason: Option<&str>,
-    ) -> Result<Guild, Error> {
-        self.request(
-            Request::new(Route::ModifyGuild { guild_id })
-                .json(body)?
-                .reason(reason),
-        )
-        .await
+        body: &'a ModifyGuild,
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<Guild, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::ModifyGuild { guild_id })
+                    .json(body)?
+                    .reason(reason),
+            )
+            .await
+        })
     }
 
     /// [Get Guild Channels](https://docs.discord.com/developers/resources/guild#get-guild-channels):
@@ -101,9 +115,14 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn get_guild_channels(&self, guild_id: GuildId) -> Result<Vec<Channel>, Error> {
-        self.request(Request::new(Route::GetGuildChannels { guild_id }))
-            .await
+    pub fn get_guild_channels(
+        &self,
+        guild_id: GuildId,
+    ) -> impl Future<Output = Result<Vec<Channel>, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetGuildChannels { guild_id }))
+                .await
+        })
     }
 
     /// [Create Guild Channel](https://docs.discord.com/developers/resources/guild#create-guild-channel):
@@ -137,18 +156,20 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `30013` at the maximum number of channels (500).
-    pub async fn create_guild_channel(
-        &self,
+    pub fn create_guild_channel<'a>(
+        &'a self,
         guild_id: GuildId,
-        body: &CreateGuildChannel,
-        reason: Option<&str>,
-    ) -> Result<Channel, Error> {
-        self.request(
-            Request::new(Route::CreateGuildChannel { guild_id })
-                .json(body)?
-                .reason(reason),
-        )
-        .await
+        body: &'a CreateGuildChannel,
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<Channel, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::CreateGuildChannel { guild_id })
+                    .json(body)?
+                    .reason(reason),
+            )
+            .await
+        })
     }
 
     /// [Modify Guild Channel Positions](https://docs.discord.com/developers/resources/guild#modify-guild-channel-positions):
@@ -162,18 +183,20 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `40009` when more than one entry changes its parent.
-    pub async fn modify_guild_channel_positions(
-        &self,
+    pub fn modify_guild_channel_positions<'a>(
+        &'a self,
         guild_id: GuildId,
-        positions: &[ModifyGuildChannelPosition],
-        reason: Option<&str>,
-    ) -> Result<(), Error> {
-        self.request(
-            Request::new(Route::ModifyGuildChannelPositions { guild_id })
-                .json(positions)?
-                .reason(reason),
-        )
-        .await
+        positions: &'a [ModifyGuildChannelPosition],
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::ModifyGuildChannelPositions { guild_id })
+                    .json(positions)?
+                    .reason(reason),
+            )
+            .await
+        })
     }
 
     /// [List Active Guild Threads](https://docs.discord.com/developers/resources/guild#list-active-guild-threads):
@@ -184,12 +207,14 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn list_active_guild_threads(
+    pub fn list_active_guild_threads(
         &self,
         guild_id: GuildId,
-    ) -> Result<ActiveThreads, Error> {
-        self.request(Request::new(Route::ListActiveGuildThreads { guild_id }))
-            .await
+    ) -> impl Future<Output = Result<ActiveThreads, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::ListActiveGuildThreads { guild_id }))
+                .await
+        })
     }
 }
 
@@ -203,13 +228,15 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10007` Unknown Member.
-    pub async fn get_guild_member(
+    pub fn get_guild_member(
         &self,
         guild_id: GuildId,
         user_id: UserId,
-    ) -> Result<Member, Error> {
-        self.request(Request::new(Route::GetGuildMember { guild_id, user_id }))
-            .await
+    ) -> impl Future<Output = Result<Member, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetGuildMember { guild_id, user_id }))
+                .await
+        })
     }
 
     /// [List Guild Members](https://docs.discord.com/developers/resources/guild#list-guild-members):
@@ -224,13 +251,15 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `50001` Missing Access without the intent.
-    pub async fn list_guild_members(
-        &self,
+    pub fn list_guild_members<'a>(
+        &'a self,
         guild_id: GuildId,
-        query: &ListGuildMembers,
-    ) -> Result<Vec<Member>, Error> {
-        self.request(Request::new(Route::ListGuildMembers { guild_id }).query(query))
-            .await
+        query: &'a ListGuildMembers,
+    ) -> impl Future<Output = Result<Vec<Member>, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::ListGuildMembers { guild_id }).query(query))
+                .await
+        })
     }
 
     /// [Search Guild Members](https://docs.discord.com/developers/resources/guild#search-guild-members):
@@ -241,13 +270,15 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn search_guild_members(
-        &self,
+    pub fn search_guild_members<'a>(
+        &'a self,
         guild_id: GuildId,
-        query: &SearchGuildMembers,
-    ) -> Result<Vec<Member>, Error> {
-        self.request(Request::new(Route::SearchGuildMembers { guild_id }).query(query))
-            .await
+        query: &'a SearchGuildMembers,
+    ) -> impl Future<Output = Result<Vec<Member>, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::SearchGuildMembers { guild_id }).query(query))
+                .await
+        })
     }
 
     /// [Get Guild Member Permissions](https://docs.discord.com/developers/resources/guild#get-guild-member-permissions):
@@ -258,18 +289,20 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10007` Unknown Member.
-    pub async fn get_guild_member_permissions(
+    pub fn get_guild_member_permissions(
         &self,
         guild_id: GuildId,
         user_id: UserId,
-    ) -> Result<Permissions, Error> {
-        let response: PermissionsResponse = self
-            .request(Request::new(Route::GetGuildMemberPermissions {
-                guild_id,
-                user_id,
-            }))
-            .await?;
-        Ok(response.permissions)
+    ) -> impl Future<Output = Result<Permissions, Error>> + Send + '_ {
+        boxed(async move {
+            let response: PermissionsResponse = self
+                .request(Request::new(Route::GetGuildMemberPermissions {
+                    guild_id,
+                    user_id,
+                }))
+                .await?;
+            Ok(response.permissions)
+        })
     }
 
     /// [Add Guild Member](https://docs.discord.com/developers/resources/guild#add-guild-member):
@@ -283,14 +316,16 @@ impl Rest {
     ///
     /// See [`Rest::request`]; `40007` when the user is banned, `30001` when they are in 100
     /// guilds.
-    pub async fn add_guild_member(
-        &self,
+    pub fn add_guild_member<'a>(
+        &'a self,
         guild_id: GuildId,
         user_id: UserId,
-        body: &AddGuildMember,
-    ) -> Result<Option<Member>, Error> {
-        self.request(Request::new(Route::AddGuildMember { guild_id, user_id }).json(body)?)
-            .await
+        body: &'a AddGuildMember,
+    ) -> impl Future<Output = Result<Option<Member>, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::AddGuildMember { guild_id, user_id }).json(body)?)
+                .await
+        })
     }
 
     /// [Modify Guild Member](https://docs.discord.com/developers/resources/guild#modify-guild-member):
@@ -322,19 +357,21 @@ impl Rest {
     ///
     /// See [`Rest::request`]; `50013` Missing Permissions (also for members above the bot's
     /// highest role).
-    pub async fn modify_guild_member(
-        &self,
+    pub fn modify_guild_member<'a>(
+        &'a self,
         guild_id: GuildId,
         user_id: UserId,
-        body: &ModifyGuildMember,
-        reason: Option<&str>,
-    ) -> Result<Member, Error> {
-        self.request(
-            Request::new(Route::ModifyGuildMember { guild_id, user_id })
-                .json(body)?
-                .reason(reason),
-        )
-        .await
+        body: &'a ModifyGuildMember,
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<Member, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::ModifyGuildMember { guild_id, user_id })
+                    .json(body)?
+                    .reason(reason),
+            )
+            .await
+        })
     }
 
     /// [Modify Current Member](https://docs.discord.com/developers/resources/guild#modify-current-member):
@@ -347,18 +384,20 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn modify_current_member(
-        &self,
+    pub fn modify_current_member<'a>(
+        &'a self,
         guild_id: GuildId,
-        body: &ModifyCurrentMember,
-        reason: Option<&str>,
-    ) -> Result<Member, Error> {
-        self.request(
-            Request::new(Route::ModifyCurrentMember { guild_id })
-                .json(body)?
-                .reason(reason),
-        )
-        .await
+        body: &'a ModifyCurrentMember,
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<Member, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::ModifyCurrentMember { guild_id })
+                    .json(body)?
+                    .reason(reason),
+            )
+            .await
+        })
     }
 
     /// [Add Guild Member Role](https://docs.discord.com/developers/resources/guild#add-guild-member-role):
@@ -371,22 +410,24 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10011` Unknown Role.
-    pub async fn add_guild_member_role(
-        &self,
+    pub fn add_guild_member_role<'a>(
+        &'a self,
         guild_id: GuildId,
         user_id: UserId,
         role_id: RoleId,
-        reason: Option<&str>,
-    ) -> Result<(), Error> {
-        self.request(
-            Request::new(Route::AddGuildMemberRole {
-                guild_id,
-                user_id,
-                role_id,
-            })
-            .reason(reason),
-        )
-        .await
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::AddGuildMemberRole {
+                    guild_id,
+                    user_id,
+                    role_id,
+                })
+                .reason(reason),
+            )
+            .await
+        })
     }
 
     /// [Remove Guild Member Role](https://docs.discord.com/developers/resources/guild#remove-guild-member-role):
@@ -399,22 +440,24 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn remove_guild_member_role(
-        &self,
+    pub fn remove_guild_member_role<'a>(
+        &'a self,
         guild_id: GuildId,
         user_id: UserId,
         role_id: RoleId,
-        reason: Option<&str>,
-    ) -> Result<(), Error> {
-        self.request(
-            Request::new(Route::RemoveGuildMemberRole {
-                guild_id,
-                user_id,
-                role_id,
-            })
-            .reason(reason),
-        )
-        .await
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::RemoveGuildMemberRole {
+                    guild_id,
+                    user_id,
+                    role_id,
+                })
+                .reason(reason),
+            )
+            .await
+        })
     }
 
     /// [Remove Guild Member](https://docs.discord.com/developers/resources/guild#remove-guild-member):
@@ -427,14 +470,16 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `50013` Missing Permissions.
-    pub async fn remove_guild_member(
-        &self,
+    pub fn remove_guild_member<'a>(
+        &'a self,
         guild_id: GuildId,
         user_id: UserId,
-        reason: Option<&str>,
-    ) -> Result<(), Error> {
-        self.request(Request::new(Route::RemoveGuildMember { guild_id, user_id }).reason(reason))
-            .await
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::RemoveGuildMember { guild_id, user_id }).reason(reason))
+                .await
+        })
     }
 }
 
@@ -448,13 +493,15 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn get_guild_bans(
-        &self,
+    pub fn get_guild_bans<'a>(
+        &'a self,
         guild_id: GuildId,
-        query: &GetGuildBans,
-    ) -> Result<Vec<Ban>, Error> {
-        self.request(Request::new(Route::GetGuildBans { guild_id }).query(query))
-            .await
+        query: &'a GetGuildBans,
+    ) -> impl Future<Output = Result<Vec<Ban>, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::GetGuildBans { guild_id }).query(query))
+                .await
+        })
     }
 
     /// [Get Guild Ban](https://docs.discord.com/developers/resources/guild#get-guild-ban):
@@ -465,9 +512,15 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10026` Unknown Ban.
-    pub async fn get_guild_ban(&self, guild_id: GuildId, user_id: UserId) -> Result<Ban, Error> {
-        self.request(Request::new(Route::GetGuildBan { guild_id, user_id }))
-            .await
+    pub fn get_guild_ban(
+        &self,
+        guild_id: GuildId,
+        user_id: UserId,
+    ) -> impl Future<Output = Result<Ban, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetGuildBan { guild_id, user_id }))
+                .await
+        })
     }
 
     /// [Create Guild Ban](https://docs.discord.com/developers/resources/guild#create-guild-ban):
@@ -495,19 +548,21 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `50013` Missing Permissions.
-    pub async fn create_guild_ban(
-        &self,
+    pub fn create_guild_ban<'a>(
+        &'a self,
         guild_id: GuildId,
         user_id: UserId,
-        body: &CreateGuildBan,
-        reason: Option<&str>,
-    ) -> Result<(), Error> {
-        self.request(
-            Request::new(Route::CreateGuildBan { guild_id, user_id })
-                .json(body)?
-                .reason(reason),
-        )
-        .await
+        body: &'a CreateGuildBan,
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::CreateGuildBan { guild_id, user_id })
+                    .json(body)?
+                    .reason(reason),
+            )
+            .await
+        })
     }
 
     /// [Remove Guild Ban](https://docs.discord.com/developers/resources/guild#remove-guild-ban):
@@ -520,14 +575,16 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10026` Unknown Ban.
-    pub async fn remove_guild_ban(
-        &self,
+    pub fn remove_guild_ban<'a>(
+        &'a self,
         guild_id: GuildId,
         user_id: UserId,
-        reason: Option<&str>,
-    ) -> Result<(), Error> {
-        self.request(Request::new(Route::RemoveGuildBan { guild_id, user_id }).reason(reason))
-            .await
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::RemoveGuildBan { guild_id, user_id }).reason(reason))
+                .await
+        })
     }
 
     /// [Bulk Guild Ban](https://docs.discord.com/developers/resources/guild#bulk-guild-ban):
@@ -541,18 +598,20 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `500000` when none of the users could be banned.
-    pub async fn bulk_guild_ban(
-        &self,
+    pub fn bulk_guild_ban<'a>(
+        &'a self,
         guild_id: GuildId,
-        body: &BulkGuildBan,
-        reason: Option<&str>,
-    ) -> Result<BulkBanResponse, Error> {
-        self.request(
-            Request::new(Route::BulkGuildBan { guild_id })
-                .json(body)?
-                .reason(reason),
-        )
-        .await
+        body: &'a BulkGuildBan,
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<BulkBanResponse, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::BulkGuildBan { guild_id })
+                    .json(body)?
+                    .reason(reason),
+            )
+            .await
+        })
     }
 }
 
@@ -566,9 +625,14 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn get_guild_roles(&self, guild_id: GuildId) -> Result<Vec<Role>, Error> {
-        self.request(Request::new(Route::GetGuildRoles { guild_id }))
-            .await
+    pub fn get_guild_roles(
+        &self,
+        guild_id: GuildId,
+    ) -> impl Future<Output = Result<Vec<Role>, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetGuildRoles { guild_id }))
+                .await
+        })
     }
 
     /// [Get Guild Role](https://docs.discord.com/developers/resources/guild#get-guild-role):
@@ -579,9 +643,15 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10011` Unknown Role.
-    pub async fn get_guild_role(&self, guild_id: GuildId, role_id: RoleId) -> Result<Role, Error> {
-        self.request(Request::new(Route::GetGuildRole { guild_id, role_id }))
-            .await
+    pub fn get_guild_role(
+        &self,
+        guild_id: GuildId,
+        role_id: RoleId,
+    ) -> impl Future<Output = Result<Role, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetGuildRole { guild_id, role_id }))
+                .await
+        })
     }
 
     /// [Get Guild Role Permissions](https://docs.discord.com/developers/resources/guild#get-guild-role-permissions):
@@ -592,18 +662,20 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10011` Unknown Role.
-    pub async fn get_guild_role_permissions(
+    pub fn get_guild_role_permissions(
         &self,
         guild_id: GuildId,
         role_id: RoleId,
-    ) -> Result<Permissions, Error> {
-        let response: PermissionsResponse = self
-            .request(Request::new(Route::GetGuildRolePermissions {
-                guild_id,
-                role_id,
-            }))
-            .await?;
-        Ok(response.permissions)
+    ) -> impl Future<Output = Result<Permissions, Error>> + Send + '_ {
+        boxed(async move {
+            let response: PermissionsResponse = self
+                .request(Request::new(Route::GetGuildRolePermissions {
+                    guild_id,
+                    role_id,
+                }))
+                .await?;
+            Ok(response.permissions)
+        })
     }
 
     /// [Get Guild Role Member Counts](https://docs.discord.com/developers/resources/guild#get-guild-role-member-counts):
@@ -614,12 +686,14 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn get_guild_role_member_counts(
+    pub fn get_guild_role_member_counts(
         &self,
         guild_id: GuildId,
-    ) -> Result<HashMap<RoleId, u32>, Error> {
-        self.request(Request::new(Route::GetGuildRoleMemberCounts { guild_id }))
-            .await
+    ) -> impl Future<Output = Result<HashMap<RoleId, u32>, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetGuildRoleMemberCounts { guild_id }))
+                .await
+        })
     }
 
     /// [Create Guild Role](https://docs.discord.com/developers/resources/guild#create-guild-role):
@@ -647,18 +721,20 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `30005` at the maximum number of roles (250).
-    pub async fn create_guild_role(
-        &self,
+    pub fn create_guild_role<'a>(
+        &'a self,
         guild_id: GuildId,
-        body: &CreateGuildRole,
-        reason: Option<&str>,
-    ) -> Result<Role, Error> {
-        self.request(
-            Request::new(Route::CreateGuildRole { guild_id })
-                .json(body)?
-                .reason(reason),
-        )
-        .await
+        body: &'a CreateGuildRole,
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<Role, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::CreateGuildRole { guild_id })
+                    .json(body)?
+                    .reason(reason),
+            )
+            .await
+        })
     }
 
     /// [Modify Guild Role Positions](https://docs.discord.com/developers/resources/guild#modify-guild-role-positions):
@@ -671,18 +747,20 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn modify_guild_role_positions(
-        &self,
+    pub fn modify_guild_role_positions<'a>(
+        &'a self,
         guild_id: GuildId,
-        positions: &[ModifyGuildRolePosition],
-        reason: Option<&str>,
-    ) -> Result<Vec<Role>, Error> {
-        self.request(
-            Request::new(Route::ModifyGuildRolePositions { guild_id })
-                .json(positions)?
-                .reason(reason),
-        )
-        .await
+        positions: &'a [ModifyGuildRolePosition],
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<Vec<Role>, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::ModifyGuildRolePositions { guild_id })
+                    .json(positions)?
+                    .reason(reason),
+            )
+            .await
+        })
     }
 
     /// [Modify Guild Role](https://docs.discord.com/developers/resources/guild#modify-guild-role):
@@ -695,19 +773,21 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn modify_guild_role(
-        &self,
+    pub fn modify_guild_role<'a>(
+        &'a self,
         guild_id: GuildId,
         role_id: RoleId,
-        body: &ModifyGuildRole,
-        reason: Option<&str>,
-    ) -> Result<Role, Error> {
-        self.request(
-            Request::new(Route::ModifyGuildRole { guild_id, role_id })
-                .json(body)?
-                .reason(reason),
-        )
-        .await
+        body: &'a ModifyGuildRole,
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<Role, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::ModifyGuildRole { guild_id, role_id })
+                    .json(body)?
+                    .reason(reason),
+            )
+            .await
+        })
     }
 
     /// [Delete Guild Role](https://docs.discord.com/developers/resources/guild#delete-guild-role):
@@ -720,14 +800,16 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10011` Unknown Role.
-    pub async fn delete_guild_role(
-        &self,
+    pub fn delete_guild_role<'a>(
+        &'a self,
         guild_id: GuildId,
         role_id: RoleId,
-        reason: Option<&str>,
-    ) -> Result<(), Error> {
-        self.request(Request::new(Route::DeleteGuildRole { guild_id, role_id }).reason(reason))
-            .await
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::DeleteGuildRole { guild_id, role_id }).reason(reason))
+                .await
+        })
     }
 }
 
@@ -742,15 +824,17 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn get_guild_prune_count(
-        &self,
+    pub fn get_guild_prune_count<'a>(
+        &'a self,
         guild_id: GuildId,
-        query: &GetGuildPruneCount,
-    ) -> Result<u32, Error> {
-        let response: PruneResponse = self
-            .request(Request::new(Route::GetGuildPruneCount { guild_id }).query(query))
-            .await?;
-        Ok(response.pruned.unwrap_or(0))
+        query: &'a GetGuildPruneCount,
+    ) -> impl Future<Output = Result<u32, Error>> + Send + 'a {
+        boxed(async move {
+            let response: PruneResponse = self
+                .request(Request::new(Route::GetGuildPruneCount { guild_id }).query(query))
+                .await?;
+            Ok(response.pruned.unwrap_or(0))
+        })
     }
 
     /// [Begin Guild Prune](https://docs.discord.com/developers/resources/guild#begin-guild-prune):
@@ -765,20 +849,22 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn begin_guild_prune(
-        &self,
+    pub fn begin_guild_prune<'a>(
+        &'a self,
         guild_id: GuildId,
-        body: &BeginGuildPrune,
-        reason: Option<&str>,
-    ) -> Result<Option<u32>, Error> {
-        let response: PruneResponse = self
-            .request(
-                Request::new(Route::BeginGuildPrune { guild_id })
-                    .json(body)?
-                    .reason(reason),
-            )
-            .await?;
-        Ok(response.pruned)
+        body: &'a BeginGuildPrune,
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<Option<u32>, Error>> + Send + 'a {
+        boxed(async move {
+            let response: PruneResponse = self
+                .request(
+                    Request::new(Route::BeginGuildPrune { guild_id })
+                        .json(body)?
+                        .reason(reason),
+                )
+                .await?;
+            Ok(response.pruned)
+        })
     }
 
     /// [Get Guild Voice Regions](https://docs.discord.com/developers/resources/guild#get-guild-voice-regions):
@@ -789,12 +875,14 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn get_guild_voice_regions(
+    pub fn get_guild_voice_regions(
         &self,
         guild_id: GuildId,
-    ) -> Result<Vec<VoiceRegion>, Error> {
-        self.request(Request::new(Route::GetGuildVoiceRegions { guild_id }))
-            .await
+    ) -> impl Future<Output = Result<Vec<VoiceRegion>, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetGuildVoiceRegions { guild_id }))
+                .await
+        })
     }
 
     /// [Get Guild Invites](https://docs.discord.com/developers/resources/guild#get-guild-invites):
@@ -807,12 +895,14 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn get_guild_invites(
+    pub fn get_guild_invites(
         &self,
         guild_id: GuildId,
-    ) -> Result<Vec<InviteWithMetadata>, Error> {
-        self.request(Request::new(Route::GetGuildInvites { guild_id }))
-            .await
+    ) -> impl Future<Output = Result<Vec<InviteWithMetadata>, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetGuildInvites { guild_id }))
+                .await
+        })
     }
 
     /// [Get Guild Integrations](https://docs.discord.com/developers/resources/guild#get-guild-integrations):
@@ -823,12 +913,14 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn get_guild_integrations(
+    pub fn get_guild_integrations(
         &self,
         guild_id: GuildId,
-    ) -> Result<Vec<Integration>, Error> {
-        self.request(Request::new(Route::GetGuildIntegrations { guild_id }))
-            .await
+    ) -> impl Future<Output = Result<Vec<Integration>, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetGuildIntegrations { guild_id }))
+                .await
+        })
     }
 
     /// [Delete Guild Integration](https://docs.discord.com/developers/resources/guild#delete-guild-integration):
@@ -841,20 +933,22 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn delete_guild_integration(
-        &self,
+    pub fn delete_guild_integration<'a>(
+        &'a self,
         guild_id: GuildId,
         integration_id: IntegrationId,
-        reason: Option<&str>,
-    ) -> Result<(), Error> {
-        self.request(
-            Request::new(Route::DeleteGuildIntegration {
-                guild_id,
-                integration_id,
-            })
-            .reason(reason),
-        )
-        .await
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::DeleteGuildIntegration {
+                    guild_id,
+                    integration_id,
+                })
+                .reason(reason),
+            )
+            .await
+        })
     }
 }
 
@@ -868,12 +962,14 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn get_guild_widget_settings(
+    pub fn get_guild_widget_settings(
         &self,
         guild_id: GuildId,
-    ) -> Result<WidgetSettings, Error> {
-        self.request(Request::new(Route::GetGuildWidgetSettings { guild_id }))
-            .await
+    ) -> impl Future<Output = Result<WidgetSettings, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetGuildWidgetSettings { guild_id }))
+                .await
+        })
     }
 
     /// [Modify Guild Widget](https://docs.discord.com/developers/resources/guild#modify-guild-widget):
@@ -886,18 +982,20 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn modify_guild_widget(
-        &self,
+    pub fn modify_guild_widget<'a>(
+        &'a self,
         guild_id: GuildId,
-        body: &ModifyGuildWidget,
-        reason: Option<&str>,
-    ) -> Result<WidgetSettings, Error> {
-        self.request(
-            Request::new(Route::ModifyGuildWidget { guild_id })
-                .json(body)?
-                .reason(reason),
-        )
-        .await
+        body: &'a ModifyGuildWidget,
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<WidgetSettings, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::ModifyGuildWidget { guild_id })
+                    .json(body)?
+                    .reason(reason),
+            )
+            .await
+        })
     }
 
     /// [Get Guild Widget](https://docs.discord.com/developers/resources/guild#get-guild-widget):
@@ -908,9 +1006,14 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `50004` when the widget is disabled.
-    pub async fn get_guild_widget(&self, guild_id: GuildId) -> Result<Widget, Error> {
-        self.request(Request::new(Route::GetGuildWidget { guild_id }))
-            .await
+    pub fn get_guild_widget(
+        &self,
+        guild_id: GuildId,
+    ) -> impl Future<Output = Result<Widget, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetGuildWidget { guild_id }))
+                .await
+        })
     }
 
     /// [Get Guild Vanity URL](https://docs.discord.com/developers/resources/guild#get-guild-vanity-url):
@@ -921,9 +1024,14 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn get_guild_vanity_url(&self, guild_id: GuildId) -> Result<VanityUrl, Error> {
-        self.request(Request::new(Route::GetGuildVanityUrl { guild_id }))
-            .await
+    pub fn get_guild_vanity_url(
+        &self,
+        guild_id: GuildId,
+    ) -> impl Future<Output = Result<VanityUrl, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetGuildVanityUrl { guild_id }))
+                .await
+        })
     }
 
     /// [Get Guild Welcome Screen](https://docs.discord.com/developers/resources/guild#get-guild-welcome-screen):
@@ -934,12 +1042,14 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn get_guild_welcome_screen(
+    pub fn get_guild_welcome_screen(
         &self,
         guild_id: GuildId,
-    ) -> Result<WelcomeScreen, Error> {
-        self.request(Request::new(Route::GetGuildWelcomeScreen { guild_id }))
-            .await
+    ) -> impl Future<Output = Result<WelcomeScreen, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetGuildWelcomeScreen { guild_id }))
+                .await
+        })
     }
 
     /// [Modify Guild Welcome Screen](https://docs.discord.com/developers/resources/guild#modify-guild-welcome-screen):
@@ -952,18 +1062,20 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn modify_guild_welcome_screen(
-        &self,
+    pub fn modify_guild_welcome_screen<'a>(
+        &'a self,
         guild_id: GuildId,
-        body: &ModifyGuildWelcomeScreen,
-        reason: Option<&str>,
-    ) -> Result<WelcomeScreen, Error> {
-        self.request(
-            Request::new(Route::ModifyGuildWelcomeScreen { guild_id })
-                .json(body)?
-                .reason(reason),
-        )
-        .await
+        body: &'a ModifyGuildWelcomeScreen,
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<WelcomeScreen, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::ModifyGuildWelcomeScreen { guild_id })
+                    .json(body)?
+                    .reason(reason),
+            )
+            .await
+        })
     }
 
     /// [Get Guild Onboarding](https://docs.discord.com/developers/resources/guild#get-guild-onboarding):
@@ -974,9 +1086,14 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn get_guild_onboarding(&self, guild_id: GuildId) -> Result<Onboarding, Error> {
-        self.request(Request::new(Route::GetGuildOnboarding { guild_id }))
-            .await
+    pub fn get_guild_onboarding(
+        &self,
+        guild_id: GuildId,
+    ) -> impl Future<Output = Result<Onboarding, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetGuildOnboarding { guild_id }))
+                .await
+        })
     }
 
     /// [Modify Guild Onboarding](https://docs.discord.com/developers/resources/guild#modify-guild-onboarding):
@@ -990,18 +1107,20 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `50035` when the enabled flow lacks default channels.
-    pub async fn modify_guild_onboarding(
-        &self,
+    pub fn modify_guild_onboarding<'a>(
+        &'a self,
         guild_id: GuildId,
-        body: &ModifyGuildOnboarding,
-        reason: Option<&str>,
-    ) -> Result<Onboarding, Error> {
-        self.request(
-            Request::new(Route::ModifyGuildOnboarding { guild_id })
-                .json(body)?
-                .reason(reason),
-        )
-        .await
+        body: &'a ModifyGuildOnboarding,
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<Onboarding, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::ModifyGuildOnboarding { guild_id })
+                    .json(body)?
+                    .reason(reason),
+            )
+            .await
+        })
     }
 
     /// [Modify Guild Incident Actions](https://docs.discord.com/developers/resources/guild#modify-guild-incident-actions):
@@ -1013,12 +1132,14 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn modify_guild_incident_actions(
-        &self,
+    pub fn modify_guild_incident_actions<'a>(
+        &'a self,
         guild_id: GuildId,
-        body: &ModifyGuildIncidentActions,
-    ) -> Result<IncidentsData, Error> {
-        self.request(Request::new(Route::ModifyGuildIncidentActions { guild_id }).json(body)?)
-            .await
+        body: &'a ModifyGuildIncidentActions,
+    ) -> impl Future<Output = Result<IncidentsData, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::ModifyGuildIncidentActions { guild_id }).json(body)?)
+                .await
+        })
     }
 }

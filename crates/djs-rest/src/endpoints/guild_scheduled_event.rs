@@ -10,6 +10,7 @@ use djs_model::{
     },
 };
 
+use crate::client::boxed;
 use crate::{Error, Request, Rest, Route};
 
 impl Rest {
@@ -21,13 +22,15 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn list_scheduled_events_for_guild(
-        &self,
+    pub fn list_scheduled_events_for_guild<'a>(
+        &'a self,
         guild_id: GuildId,
-        query: &ListScheduledEventsForGuild,
-    ) -> Result<Vec<GuildScheduledEvent>, Error> {
-        self.request(Request::new(Route::ListScheduledEventsForGuild { guild_id }).query(query))
-            .await
+        query: &'a ListScheduledEventsForGuild,
+    ) -> impl Future<Output = Result<Vec<GuildScheduledEvent>, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::ListScheduledEventsForGuild { guild_id }).query(query))
+                .await
+        })
     }
 
     /// [Create Guild Scheduled Event](https://docs.discord.com/developers/resources/guild-scheduled-event#create-guild-scheduled-event):
@@ -61,18 +64,20 @@ impl Rest {
     ///
     /// See [`Rest::request`]; `30038` at 100 events that have not ended; `50035` for a
     /// combination of fields Discord does not accept.
-    pub async fn create_guild_scheduled_event(
-        &self,
+    pub fn create_guild_scheduled_event<'a>(
+        &'a self,
         guild_id: GuildId,
-        body: &CreateGuildScheduledEvent,
-        reason: Option<&str>,
-    ) -> Result<GuildScheduledEvent, Error> {
-        self.request(
-            Request::new(Route::CreateGuildScheduledEvent { guild_id })
-                .json(body)?
-                .reason(reason),
-        )
-        .await
+        body: &'a CreateGuildScheduledEvent,
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<GuildScheduledEvent, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::CreateGuildScheduledEvent { guild_id })
+                    .json(body)?
+                    .reason(reason),
+            )
+            .await
+        })
     }
 
     /// [Get Guild Scheduled Event](https://docs.discord.com/developers/resources/guild-scheduled-event#get-guild-scheduled-event):
@@ -83,16 +88,18 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10070` Unknown Guild Scheduled Event.
-    pub async fn get_guild_scheduled_event(
-        &self,
+    pub fn get_guild_scheduled_event<'a>(
+        &'a self,
         guild_id: GuildId,
         event_id: ScheduledEventId,
-        query: &GetGuildScheduledEvent,
-    ) -> Result<GuildScheduledEvent, Error> {
-        self.request(
-            Request::new(Route::GetGuildScheduledEvent { guild_id, event_id }).query(query),
-        )
-        .await
+        query: &'a GetGuildScheduledEvent,
+    ) -> impl Future<Output = Result<GuildScheduledEvent, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::GetGuildScheduledEvent { guild_id, event_id }).query(query),
+            )
+            .await
+        })
     }
 
     /// [Modify Guild Scheduled Event](https://docs.discord.com/developers/resources/guild-scheduled-event#modify-guild-scheduled-event):
@@ -123,19 +130,21 @@ impl Rest {
     ///
     /// See [`Rest::request`]; `10070` Unknown Guild Scheduled Event; `180000` for an event that
     /// has already ended.
-    pub async fn modify_guild_scheduled_event(
-        &self,
+    pub fn modify_guild_scheduled_event<'a>(
+        &'a self,
         guild_id: GuildId,
         event_id: ScheduledEventId,
-        body: &ModifyGuildScheduledEvent,
-        reason: Option<&str>,
-    ) -> Result<GuildScheduledEvent, Error> {
-        self.request(
-            Request::new(Route::ModifyGuildScheduledEvent { guild_id, event_id })
-                .json(body)?
-                .reason(reason),
-        )
-        .await
+        body: &'a ModifyGuildScheduledEvent,
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<GuildScheduledEvent, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::ModifyGuildScheduledEvent { guild_id, event_id })
+                    .json(body)?
+                    .reason(reason),
+            )
+            .await
+        })
     }
 
     /// [Delete Guild Scheduled Event](https://docs.discord.com/developers/resources/guild-scheduled-event#delete-guild-scheduled-event):
@@ -148,16 +157,18 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10070` Unknown Guild Scheduled Event.
-    pub async fn delete_guild_scheduled_event(
+    pub fn delete_guild_scheduled_event(
         &self,
         guild_id: GuildId,
         event_id: ScheduledEventId,
-    ) -> Result<(), Error> {
-        self.request(Request::new(Route::DeleteGuildScheduledEvent {
-            guild_id,
-            event_id,
-        }))
-        .await
+    ) -> impl Future<Output = Result<(), Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::DeleteGuildScheduledEvent {
+                guild_id,
+                event_id,
+            }))
+            .await
+        })
     }
 
     /// [Get Guild Scheduled Event Users](https://docs.discord.com/developers/resources/guild-scheduled-event#get-guild-scheduled-event-users):
@@ -170,15 +181,18 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10070` Unknown Guild Scheduled Event.
-    pub async fn get_guild_scheduled_event_users(
-        &self,
+    pub fn get_guild_scheduled_event_users<'a>(
+        &'a self,
         guild_id: GuildId,
         event_id: ScheduledEventId,
-        query: &GetGuildScheduledEventUsers,
-    ) -> Result<Vec<GuildScheduledEventUser>, Error> {
-        self.request(
-            Request::new(Route::GetGuildScheduledEventUsers { guild_id, event_id }).query(query),
-        )
-        .await
+        query: &'a GetGuildScheduledEventUsers,
+    ) -> impl Future<Output = Result<Vec<GuildScheduledEventUser>, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::GetGuildScheduledEventUsers { guild_id, event_id })
+                    .query(query),
+            )
+            .await
+        })
     }
 }

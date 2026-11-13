@@ -13,6 +13,7 @@ use djs_model::{
 };
 
 use super::webhook::WebhookQuery;
+use crate::client::boxed;
 use crate::{
     Error, Request, Rest, Route,
     query::{Query, QueryWriter},
@@ -58,14 +59,16 @@ impl Rest {
     ///
     /// See [`Rest::request`]; `40060` if the interaction was already acknowledged, `10062`
     /// Unknown Interaction once it expired.
-    pub async fn create_interaction_response(
-        &self,
+    pub fn create_interaction_response<'a>(
+        &'a self,
         interaction_id: InteractionId,
-        interaction_token: &str,
-        response: &InteractionResponse,
-    ) -> Result<(), Error> {
-        self.request(callback(interaction_id, interaction_token, response)?)
-            .await
+        interaction_token: &'a str,
+        response: &'a InteractionResponse,
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
+        boxed(async move {
+            self.call(callback(interaction_id, interaction_token, response)?)
+                .await
+        })
     }
 
     /// [Create Interaction Response](https://docs.discord.com/developers/interactions/receiving-and-responding#create-interaction-response)
@@ -78,14 +81,16 @@ impl Rest {
     /// # Errors
     ///
     /// See [`create_interaction_response`](Self::create_interaction_response).
-    pub async fn create_interaction_response_with_response(
-        &self,
+    pub fn create_interaction_response_with_response<'a>(
+        &'a self,
         interaction_id: InteractionId,
-        interaction_token: &str,
-        response: &InteractionResponse,
-    ) -> Result<InteractionCallbackResponse, Error> {
-        self.request(callback(interaction_id, interaction_token, response)?.query(&WithResponse))
-            .await
+        interaction_token: &'a str,
+        response: &'a InteractionResponse,
+    ) -> impl Future<Output = Result<InteractionCallbackResponse, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(callback(interaction_id, interaction_token, response)?.query(&WithResponse))
+                .await
+        })
     }
 
     /// [Get Original Interaction Response](https://docs.discord.com/developers/interactions/receiving-and-responding#get-original-interaction-response):
@@ -96,16 +101,18 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn get_original_interaction_response(
-        &self,
+    pub fn get_original_interaction_response<'a>(
+        &'a self,
         application_id: ApplicationId,
-        interaction_token: &str,
-    ) -> Result<Message, Error> {
-        self.request(Request::new(Route::GetOriginalInteractionResponse {
-            application_id,
-            interaction_token,
-        }))
-        .await
+        interaction_token: &'a str,
+    ) -> impl Future<Output = Result<Message, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::GetOriginalInteractionResponse {
+                application_id,
+                interaction_token,
+            }))
+            .await
+        })
     }
 
     /// [Edit Original Interaction Response](https://docs.discord.com/developers/interactions/receiving-and-responding#edit-original-interaction-response):
@@ -117,23 +124,25 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn edit_original_interaction_response(
-        &self,
+    pub fn edit_original_interaction_response<'a>(
+        &'a self,
         application_id: ApplicationId,
-        interaction_token: &str,
-        body: &EditWebhookMessage,
-    ) -> Result<Message, Error> {
-        let query = WebhookQuery::of_edit(body);
-        self.request(
-            Request::new(Route::EditOriginalInteractionResponse {
-                application_id,
-                interaction_token,
-            })
-            .query(&query)
-            .json(body)?
-            .files(&body.files),
-        )
-        .await
+        interaction_token: &'a str,
+        body: &'a EditWebhookMessage,
+    ) -> impl Future<Output = Result<Message, Error>> + Send + 'a {
+        boxed(async move {
+            let query = WebhookQuery::of_edit(body);
+            self.call(
+                Request::new(Route::EditOriginalInteractionResponse {
+                    application_id,
+                    interaction_token,
+                })
+                .query(&query)
+                .json(body)?
+                .files(&body.files),
+            )
+            .await
+        })
     }
 
     /// [Delete Original Interaction Response](https://docs.discord.com/developers/interactions/receiving-and-responding#delete-original-interaction-response):
@@ -144,16 +153,18 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn delete_original_interaction_response(
-        &self,
+    pub fn delete_original_interaction_response<'a>(
+        &'a self,
         application_id: ApplicationId,
-        interaction_token: &str,
-    ) -> Result<(), Error> {
-        self.request(Request::new(Route::DeleteOriginalInteractionResponse {
-            application_id,
-            interaction_token,
-        }))
-        .await
+        interaction_token: &'a str,
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::DeleteOriginalInteractionResponse {
+                application_id,
+                interaction_token,
+            }))
+            .await
+        })
     }
 
     /// [Create Followup Message](https://docs.discord.com/developers/interactions/receiving-and-responding#create-followup-message):
@@ -167,21 +178,23 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `40094` once the maximum number of follow-ups is reached.
-    pub async fn create_followup_message(
-        &self,
+    pub fn create_followup_message<'a>(
+        &'a self,
         application_id: ApplicationId,
-        interaction_token: &str,
-        body: &CreateFollowupMessage,
-    ) -> Result<Message, Error> {
-        self.request(
-            Request::new(Route::CreateFollowupMessage {
-                application_id,
-                interaction_token,
-            })
-            .json(body)?
-            .files(&body.files),
-        )
-        .await
+        interaction_token: &'a str,
+        body: &'a CreateFollowupMessage,
+    ) -> impl Future<Output = Result<Message, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::CreateFollowupMessage {
+                    application_id,
+                    interaction_token,
+                })
+                .json(body)?
+                .files(&body.files),
+            )
+            .await
+        })
     }
 
     /// [Get Followup Message](https://docs.discord.com/developers/interactions/receiving-and-responding#get-followup-message):
@@ -192,18 +205,20 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn get_followup_message(
-        &self,
+    pub fn get_followup_message<'a>(
+        &'a self,
         application_id: ApplicationId,
-        interaction_token: &str,
+        interaction_token: &'a str,
         message_id: MessageId,
-    ) -> Result<Message, Error> {
-        self.request(Request::new(Route::GetFollowupMessage {
-            application_id,
-            interaction_token,
-            message_id,
-        }))
-        .await
+    ) -> impl Future<Output = Result<Message, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::GetFollowupMessage {
+                application_id,
+                interaction_token,
+                message_id,
+            }))
+            .await
+        })
     }
 
     /// [Edit Followup Message](https://docs.discord.com/developers/interactions/receiving-and-responding#edit-followup-message):
@@ -214,25 +229,27 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn edit_followup_message(
-        &self,
+    pub fn edit_followup_message<'a>(
+        &'a self,
         application_id: ApplicationId,
-        interaction_token: &str,
+        interaction_token: &'a str,
         message_id: MessageId,
-        body: &EditWebhookMessage,
-    ) -> Result<Message, Error> {
-        let query = WebhookQuery::of_edit(body);
-        self.request(
-            Request::new(Route::EditFollowupMessage {
-                application_id,
-                interaction_token,
-                message_id,
-            })
-            .query(&query)
-            .json(body)?
-            .files(&body.files),
-        )
-        .await
+        body: &'a EditWebhookMessage,
+    ) -> impl Future<Output = Result<Message, Error>> + Send + 'a {
+        boxed(async move {
+            let query = WebhookQuery::of_edit(body);
+            self.call(
+                Request::new(Route::EditFollowupMessage {
+                    application_id,
+                    interaction_token,
+                    message_id,
+                })
+                .query(&query)
+                .json(body)?
+                .files(&body.files),
+            )
+            .await
+        })
     }
 
     /// [Delete Followup Message](https://docs.discord.com/developers/interactions/receiving-and-responding#delete-followup-message):
@@ -243,18 +260,20 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn delete_followup_message(
-        &self,
+    pub fn delete_followup_message<'a>(
+        &'a self,
         application_id: ApplicationId,
-        interaction_token: &str,
+        interaction_token: &'a str,
         message_id: MessageId,
-    ) -> Result<(), Error> {
-        self.request(Request::new(Route::DeleteFollowupMessage {
-            application_id,
-            interaction_token,
-            message_id,
-        }))
-        .await
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::DeleteFollowupMessage {
+                application_id,
+                interaction_token,
+                message_id,
+            }))
+            .await
+        })
     }
 }
 

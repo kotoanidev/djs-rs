@@ -12,7 +12,9 @@ use djs_model::{
 };
 use http::StatusCode;
 
-use crate::{Error, ErrorKind, ReactionEmoji, Request, Rest, Route, error::not_yet_indexed};
+use crate::{
+    Error, ErrorKind, ReactionEmoji, Request, Rest, Route, client::boxed, error::not_yet_indexed,
+};
 
 impl Rest {
     /// [Get Channel Messages](https://docs.discord.com/developers/resources/message#get-channel-messages):
@@ -41,13 +43,15 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn get_channel_messages(
-        &self,
+    pub fn get_channel_messages<'a>(
+        &'a self,
         channel_id: ChannelId,
-        query: &GetChannelMessages,
-    ) -> Result<Vec<Message>, Error> {
-        self.request(Request::new(Route::GetChannelMessages { channel_id }).query(query))
-            .await
+        query: &'a GetChannelMessages,
+    ) -> impl Future<Output = Result<Vec<Message>, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::GetChannelMessages { channel_id }).query(query))
+                .await
+        })
     }
 
     /// [Search Guild Messages](https://docs.discord.com/developers/resources/message#search-guild-messages):
@@ -88,18 +92,20 @@ impl Rest {
     ///
     /// [`ErrorKind::NotYetIndexed`] while the guild is not indexed yet (D-104); otherwise see
     /// [`Rest::request`].
-    pub async fn search_guild_messages(
-        &self,
+    pub fn search_guild_messages<'a>(
+        &'a self,
         guild_id: GuildId,
-        query: &SearchGuildMessages,
-    ) -> Result<MessageSearchResults, Error> {
-        let request = Request::new(Route::SearchGuildMessages { guild_id }).query(query);
-        let (status, body) = self.execute(request).await?;
-        if status == StatusCode::ACCEPTED {
-            return Err(not_yet_indexed(&body));
-        }
-        serde_json::from_slice(&body)
-            .map_err(|source| Error::with_source(ErrorKind::Deserialize, source))
+        query: &'a SearchGuildMessages,
+    ) -> impl Future<Output = Result<MessageSearchResults, Error>> + Send + 'a {
+        boxed(async move {
+            let request = Request::new(Route::SearchGuildMessages { guild_id }).query(query);
+            let (status, body) = self.execute(request).await?;
+            if status == StatusCode::ACCEPTED {
+                return Err(not_yet_indexed(&body));
+            }
+            serde_json::from_slice(&body)
+                .map_err(|source| Error::with_source(ErrorKind::Deserialize, source))
+        })
     }
 
     /// [Get Channel Message](https://docs.discord.com/developers/resources/message#get-channel-message):
@@ -112,16 +118,18 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10008` Unknown Message if it does not exist.
-    pub async fn get_channel_message(
+    pub fn get_channel_message(
         &self,
         channel_id: ChannelId,
         message_id: MessageId,
-    ) -> Result<Message, Error> {
-        self.request(Request::new(Route::GetChannelMessage {
-            channel_id,
-            message_id,
-        }))
-        .await
+    ) -> impl Future<Output = Result<Message, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::GetChannelMessage {
+                channel_id,
+                message_id,
+            }))
+            .await
+        })
     }
 
     /// [Create Message](https://docs.discord.com/developers/resources/message#create-message):
@@ -138,17 +146,19 @@ impl Rest {
     ///
     /// See [`Rest::request`]. Common API errors: `50001` Missing Access, `50013` Missing
     /// Permissions, `50035` Invalid Form Body.
-    pub async fn create_message(
-        &self,
+    pub fn create_message<'a>(
+        &'a self,
         channel_id: ChannelId,
-        body: &CreateMessage,
-    ) -> Result<Message, Error> {
-        self.request(
-            Request::new(Route::CreateMessage { channel_id })
-                .json(body)?
-                .files(&body.files),
-        )
-        .await
+        body: &'a CreateMessage,
+    ) -> impl Future<Output = Result<Message, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::CreateMessage { channel_id })
+                    .json(body)?
+                    .files(&body.files),
+            )
+            .await
+        })
     }
 
     /// [Crosspost Message](https://docs.discord.com/developers/resources/message#crosspost-message):
@@ -161,16 +171,18 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `40033` if the message was already published.
-    pub async fn crosspost_message(
+    pub fn crosspost_message(
         &self,
         channel_id: ChannelId,
         message_id: MessageId,
-    ) -> Result<Message, Error> {
-        self.request(Request::new(Route::CrosspostMessage {
-            channel_id,
-            message_id,
-        }))
-        .await
+    ) -> impl Future<Output = Result<Message, Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::CrosspostMessage {
+                channel_id,
+                message_id,
+            }))
+            .await
+        })
     }
 
     /// [Create Reaction](https://docs.discord.com/developers/resources/message#create-reaction):
@@ -196,18 +208,20 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10014` Unknown Emoji for an emoji the bot cannot use.
-    pub async fn create_reaction(
-        &self,
+    pub fn create_reaction<'a>(
+        &'a self,
         channel_id: ChannelId,
         message_id: MessageId,
-        emoji: ReactionEmoji<'_>,
-    ) -> Result<(), Error> {
-        self.request(Request::new(Route::CreateReaction {
-            channel_id,
-            message_id,
-            emoji,
-        }))
-        .await
+        emoji: ReactionEmoji<'a>,
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::CreateReaction {
+                channel_id,
+                message_id,
+                emoji,
+            }))
+            .await
+        })
     }
 
     /// [Delete Own Reaction](https://docs.discord.com/developers/resources/message#delete-own-reaction):
@@ -218,18 +232,20 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn delete_own_reaction(
-        &self,
+    pub fn delete_own_reaction<'a>(
+        &'a self,
         channel_id: ChannelId,
         message_id: MessageId,
-        emoji: ReactionEmoji<'_>,
-    ) -> Result<(), Error> {
-        self.request(Request::new(Route::DeleteOwnReaction {
-            channel_id,
-            message_id,
-            emoji,
-        }))
-        .await
+        emoji: ReactionEmoji<'a>,
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::DeleteOwnReaction {
+                channel_id,
+                message_id,
+                emoji,
+            }))
+            .await
+        })
     }
 
     /// [Delete User Reaction](https://docs.discord.com/developers/resources/message#delete-user-reaction):
@@ -240,20 +256,22 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn delete_user_reaction(
-        &self,
+    pub fn delete_user_reaction<'a>(
+        &'a self,
         channel_id: ChannelId,
         message_id: MessageId,
-        emoji: ReactionEmoji<'_>,
+        emoji: ReactionEmoji<'a>,
         user_id: UserId,
-    ) -> Result<(), Error> {
-        self.request(Request::new(Route::DeleteUserReaction {
-            channel_id,
-            message_id,
-            emoji,
-            user_id,
-        }))
-        .await
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::DeleteUserReaction {
+                channel_id,
+                message_id,
+                emoji,
+                user_id,
+            }))
+            .await
+        })
     }
 
     /// [Get Reactions](https://docs.discord.com/developers/resources/message#get-reactions):
@@ -264,22 +282,24 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn get_reactions(
-        &self,
+    pub fn get_reactions<'a>(
+        &'a self,
         channel_id: ChannelId,
         message_id: MessageId,
-        emoji: ReactionEmoji<'_>,
-        query: &GetReactions,
-    ) -> Result<Vec<User>, Error> {
-        self.request(
-            Request::new(Route::GetReactions {
-                channel_id,
-                message_id,
-                emoji,
-            })
-            .query(query),
-        )
-        .await
+        emoji: ReactionEmoji<'a>,
+        query: &'a GetReactions,
+    ) -> impl Future<Output = Result<Vec<User>, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::GetReactions {
+                    channel_id,
+                    message_id,
+                    emoji,
+                })
+                .query(query),
+            )
+            .await
+        })
     }
 
     /// [Delete All Reactions](https://docs.discord.com/developers/resources/message#delete-all-reactions):
@@ -290,16 +310,18 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn delete_all_reactions(
+    pub fn delete_all_reactions(
         &self,
         channel_id: ChannelId,
         message_id: MessageId,
-    ) -> Result<(), Error> {
-        self.request(Request::new(Route::DeleteAllReactions {
-            channel_id,
-            message_id,
-        }))
-        .await
+    ) -> impl Future<Output = Result<(), Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::DeleteAllReactions {
+                channel_id,
+                message_id,
+            }))
+            .await
+        })
     }
 
     /// [Delete All Reactions for Emoji](https://docs.discord.com/developers/resources/message#delete-all-reactions-for-emoji):
@@ -310,18 +332,20 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn delete_all_reactions_for_emoji(
-        &self,
+    pub fn delete_all_reactions_for_emoji<'a>(
+        &'a self,
         channel_id: ChannelId,
         message_id: MessageId,
-        emoji: ReactionEmoji<'_>,
-    ) -> Result<(), Error> {
-        self.request(Request::new(Route::DeleteAllReactionsForEmoji {
-            channel_id,
-            message_id,
-            emoji,
-        }))
-        .await
+        emoji: ReactionEmoji<'a>,
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::DeleteAllReactionsForEmoji {
+                channel_id,
+                message_id,
+                emoji,
+            }))
+            .await
+        })
     }
 
     /// [Edit Message](https://docs.discord.com/developers/resources/message#edit-message):
@@ -335,21 +359,23 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `50005` when editing someone else's content.
-    pub async fn edit_message(
-        &self,
+    pub fn edit_message<'a>(
+        &'a self,
         channel_id: ChannelId,
         message_id: MessageId,
-        body: &EditMessage,
-    ) -> Result<Message, Error> {
-        self.request(
-            Request::new(Route::EditMessage {
-                channel_id,
-                message_id,
-            })
-            .json(body)?
-            .files(&body.files),
-        )
-        .await
+        body: &'a EditMessage,
+    ) -> impl Future<Output = Result<Message, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::EditMessage {
+                    channel_id,
+                    message_id,
+                })
+                .json(body)?
+                .files(&body.files),
+            )
+            .await
+        })
     }
 
     /// [Delete Message](https://docs.discord.com/developers/resources/message#delete-message):
@@ -363,16 +389,18 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn delete_message(
+    pub fn delete_message(
         &self,
         channel_id: ChannelId,
         message_id: MessageId,
-    ) -> Result<(), Error> {
-        self.request(Request::new(Route::DeleteMessage {
-            channel_id,
-            message_id,
-        }))
-        .await
+    ) -> impl Future<Output = Result<(), Error>> + Send + '_ {
+        boxed(async move {
+            self.call(Request::new(Route::DeleteMessage {
+                channel_id,
+                message_id,
+            }))
+            .await
+        })
     }
 
     /// [Bulk Delete Messages](https://docs.discord.com/developers/resources/message#bulk-delete-messages):
@@ -387,18 +415,20 @@ impl Rest {
     ///
     /// See [`Rest::request`]; `50034` if a message is too old, `50016` for fewer than 2 or
     /// more than 100 messages.
-    pub async fn bulk_delete_messages(
-        &self,
+    pub fn bulk_delete_messages<'a>(
+        &'a self,
         channel_id: ChannelId,
-        body: &BulkDeleteMessages,
-        reason: Option<&str>,
-    ) -> Result<(), Error> {
-        self.request(
-            Request::new(Route::BulkDeleteMessages { channel_id })
-                .json(body)?
-                .reason(reason),
-        )
-        .await
+        body: &'a BulkDeleteMessages,
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::BulkDeleteMessages { channel_id })
+                    .json(body)?
+                    .reason(reason),
+            )
+            .await
+        })
     }
 
     /// [Get Channel Pins](https://docs.discord.com/developers/resources/message#get-channel-pins):
@@ -411,13 +441,15 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn get_channel_pins(
-        &self,
+    pub fn get_channel_pins<'a>(
+        &'a self,
         channel_id: ChannelId,
-        query: &GetChannelPins,
-    ) -> Result<ChannelPins, Error> {
-        self.request(Request::new(Route::GetChannelPins { channel_id }).query(query))
-            .await
+        query: &'a GetChannelPins,
+    ) -> impl Future<Output = Result<ChannelPins, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::GetChannelPins { channel_id }).query(query))
+                .await
+        })
     }
 
     /// [Pin Message](https://docs.discord.com/developers/resources/message#pin-message):
@@ -430,20 +462,22 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `30003` when the channel has the maximum number of pins.
-    pub async fn pin_message(
-        &self,
+    pub fn pin_message<'a>(
+        &'a self,
         channel_id: ChannelId,
         message_id: MessageId,
-        reason: Option<&str>,
-    ) -> Result<(), Error> {
-        self.request(
-            Request::new(Route::PinMessage {
-                channel_id,
-                message_id,
-            })
-            .reason(reason),
-        )
-        .await
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::PinMessage {
+                    channel_id,
+                    message_id,
+                })
+                .reason(reason),
+            )
+            .await
+        })
     }
 
     /// [Unpin Message](https://docs.discord.com/developers/resources/message#unpin-message):
@@ -456,19 +490,21 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn unpin_message(
-        &self,
+    pub fn unpin_message<'a>(
+        &'a self,
         channel_id: ChannelId,
         message_id: MessageId,
-        reason: Option<&str>,
-    ) -> Result<(), Error> {
-        self.request(
-            Request::new(Route::UnpinMessage {
-                channel_id,
-                message_id,
-            })
-            .reason(reason),
-        )
-        .await
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
+        boxed(async move {
+            self.call(
+                Request::new(Route::UnpinMessage {
+                    channel_id,
+                    message_id,
+                })
+                .reason(reason),
+            )
+            .await
+        })
     }
 }

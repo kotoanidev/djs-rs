@@ -12,6 +12,7 @@ use djs_model::{
     rest::{BulkTargetUsers, FileUpload, GetInvite},
 };
 
+use crate::client::boxed;
 use crate::{Error, ErrorKind, Request, Rest, Route};
 
 /// Invites.
@@ -38,9 +39,15 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10006` Unknown Invite.
-    pub async fn get_invite(&self, invite_code: &str, query: &GetInvite) -> Result<Invite, Error> {
-        self.request(Request::new(Route::GetInvite { invite_code }).query(query))
-            .await
+    pub fn get_invite<'a>(
+        &'a self,
+        invite_code: &'a str,
+        query: &'a GetInvite,
+    ) -> impl Future<Output = Result<Invite, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::GetInvite { invite_code }).query(query))
+                .await
+        })
     }
 
     /// [Delete Invite](https://docs.discord.com/developers/resources/invite#delete-invite):
@@ -54,13 +61,15 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10006` Unknown Invite.
-    pub async fn delete_invite(
-        &self,
-        invite_code: &str,
-        reason: Option<&str>,
-    ) -> Result<Invite, Error> {
-        self.request(Request::new(Route::DeleteInvite { invite_code }).reason(reason))
-            .await
+    pub fn delete_invite<'a>(
+        &'a self,
+        invite_code: &'a str,
+        reason: Option<&'a str>,
+    ) -> impl Future<Output = Result<Invite, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::DeleteInvite { invite_code }).reason(reason))
+                .await
+        })
     }
 }
 
@@ -77,11 +86,16 @@ impl Rest {
     ///
     /// See [`Rest::request`]; [`ErrorKind::Deserialize`] when a line of the file is not a user
     /// ID; `10129` when the invite has no target users.
-    pub async fn get_target_users(&self, invite_code: &str) -> Result<Vec<UserId>, Error> {
-        let (_, body) = self
-            .execute(Request::new(Route::GetTargetUsers { invite_code }))
-            .await?;
-        parse_target_users(&body)
+    pub fn get_target_users<'a>(
+        &'a self,
+        invite_code: &'a str,
+    ) -> impl Future<Output = Result<Vec<UserId>, Error>> + Send + 'a {
+        boxed(async move {
+            let (_, body) = self
+                .execute(Request::new(Route::GetTargetUsers { invite_code }))
+                .await?;
+            parse_target_users(&body)
+        })
     }
 
     /// [Add Target User](https://docs.discord.com/developers/resources/invite#add-target-user):
@@ -92,12 +106,18 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `30084` at the limit of target users.
-    pub async fn add_target_user(&self, invite_code: &str, user_id: UserId) -> Result<(), Error> {
-        self.request(Request::new(Route::AddTargetUser {
-            invite_code,
-            user_id,
-        }))
-        .await
+    pub fn add_target_user<'a>(
+        &'a self,
+        invite_code: &'a str,
+        user_id: UserId,
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::AddTargetUser {
+                invite_code,
+                user_id,
+            }))
+            .await
+        })
     }
 
     /// [Remove Target User](https://docs.discord.com/developers/resources/invite#remove-target-user):
@@ -108,16 +128,18 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn remove_target_user(
-        &self,
-        invite_code: &str,
+    pub fn remove_target_user<'a>(
+        &'a self,
+        invite_code: &'a str,
         user_id: UserId,
-    ) -> Result<(), Error> {
-        self.request(Request::new(Route::RemoveTargetUser {
-            invite_code,
-            user_id,
-        }))
-        .await
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::RemoveTargetUser {
+                invite_code,
+                user_id,
+            }))
+            .await
+        })
     }
 
     /// [Update Target Users](https://docs.discord.com/developers/resources/invite#update-target-users):
@@ -143,16 +165,18 @@ impl Rest {
     ///
     /// See [`Rest::request`]; `400` listing the invalid lines of the file; `40114` while a
     /// previous file is still being processed.
-    pub async fn update_target_users(
-        &self,
-        invite_code: &str,
-        file: &FileUpload,
-    ) -> Result<(), Error> {
-        self.request_ignoring_body(
-            Request::new(Route::UpdateTargetUsers { invite_code })
-                .form_file("target_users_file", file),
-        )
-        .await
+    pub fn update_target_users<'a>(
+        &'a self,
+        invite_code: &'a str,
+        file: &'a FileUpload,
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
+        boxed(async move {
+            self.request_ignoring_body(
+                Request::new(Route::UpdateTargetUsers { invite_code })
+                    .form_file("target_users_file", file),
+            )
+            .await
+        })
     }
 
     /// [Bulk-Add Target Users](https://docs.discord.com/developers/resources/invite#bulk-add-target-users):
@@ -163,13 +187,15 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `30084` at the limit of target users.
-    pub async fn bulk_add_target_users(
-        &self,
-        invite_code: &str,
-        body: &BulkTargetUsers,
-    ) -> Result<(), Error> {
-        self.request(Request::new(Route::BulkAddTargetUsers { invite_code }).json(body)?)
-            .await
+    pub fn bulk_add_target_users<'a>(
+        &'a self,
+        invite_code: &'a str,
+        body: &'a BulkTargetUsers,
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::BulkAddTargetUsers { invite_code }).json(body)?)
+                .await
+        })
     }
 
     /// [Bulk-Delete Target Users](https://docs.discord.com/developers/resources/invite#bulk-delete-target-users):
@@ -180,13 +206,15 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`].
-    pub async fn bulk_delete_target_users(
-        &self,
-        invite_code: &str,
-        body: &BulkTargetUsers,
-    ) -> Result<(), Error> {
-        self.request(Request::new(Route::BulkDeleteTargetUsers { invite_code }).json(body)?)
-            .await
+    pub fn bulk_delete_target_users<'a>(
+        &'a self,
+        invite_code: &'a str,
+        body: &'a BulkTargetUsers,
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::BulkDeleteTargetUsers { invite_code }).json(body)?)
+                .await
+        })
     }
 
     /// [Get Target Users Job Status](https://docs.discord.com/developers/resources/invite#get-target-users-job-status):
@@ -197,12 +225,14 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `10124` when there is no job for the invite.
-    pub async fn get_target_users_job_status(
-        &self,
-        invite_code: &str,
-    ) -> Result<InviteTargetUsersJobStatus, Error> {
-        self.request(Request::new(Route::GetTargetUsersJobStatus { invite_code }))
-            .await
+    pub fn get_target_users_job_status<'a>(
+        &'a self,
+        invite_code: &'a str,
+    ) -> impl Future<Output = Result<InviteTargetUsersJobStatus, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::GetTargetUsersJobStatus { invite_code }))
+                .await
+        })
     }
 }
 

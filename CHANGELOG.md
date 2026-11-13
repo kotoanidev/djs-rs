@@ -140,6 +140,15 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   fires once per login. Payloads are only built for events someone listens to.
 
 ### Changed
+- Every REST method of `djs-rest` (`Rest::create_message`, …, 245 of them) returns
+  `impl Future<Output = …> + Send` built inside the crate (D-287), instead of being an
+  `async fn`: their bodies — sending, rate limiting, retries, hyper, serde for the model types
+  — are compiled once in `djs-rest` rather than in every crate that awaits them. Calls do not
+  change (`rest.create_message(id, &body).await`); a method's borrowed arguments now share
+  one lifetime with `&self`. `Rest::request` keeps decoding the caller's `T` in the caller's
+  crate but sends through the crate-built path. Each call costs one allocation (REST runner:
+  the same throughput, +0.27 µs CPU per request); a `!ping` bot that replies rebuilds in
+  6.4 s instead of 7.8 s after an edit.
 - **Breaking:** the six maps of interaction `Resolved` data box their values
   (`BTreeMap<Id, Box<V>>`, D-256): an interaction takes 3.14 KB of heap instead of 8.72 KB
   at the same decoding time. Field access and method calls work through the box; the getters

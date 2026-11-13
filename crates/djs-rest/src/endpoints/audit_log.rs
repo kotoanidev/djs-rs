@@ -3,6 +3,7 @@
 
 use djs_model::{audit_log::AuditLog, id::GuildId, rest::GetGuildAuditLog};
 
+use crate::client::boxed;
 use crate::{Error, Request, Rest, Route};
 
 impl Rest {
@@ -34,12 +35,14 @@ impl Rest {
     /// # Errors
     ///
     /// See [`Rest::request`]; `50013` Missing Permissions without `VIEW_AUDIT_LOG`.
-    pub async fn get_guild_audit_log(
-        &self,
+    pub fn get_guild_audit_log<'a>(
+        &'a self,
         guild_id: GuildId,
-        query: &GetGuildAuditLog,
-    ) -> Result<AuditLog, Error> {
-        self.request(Request::new(Route::GetGuildAuditLog { guild_id }).query(query))
-            .await
+        query: &'a GetGuildAuditLog,
+    ) -> impl Future<Output = Result<AuditLog, Error>> + Send + 'a {
+        boxed(async move {
+            self.call(Request::new(Route::GetGuildAuditLog { guild_id }).query(query))
+                .await
+        })
     }
 }
