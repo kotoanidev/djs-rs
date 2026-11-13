@@ -500,18 +500,32 @@ fields with `Deref` to `new`). Steps:
       (+ `_mimalloc`); results in `docs/PERFORMANCE.md` ("Phase 8 — interactions"). Getters
       2–22 ns without allocations; the router ≈ 1 % over a `match`; decoding (4.8 µs of shard
       CPU per 1.9 KB interaction) dominates.
-   e. **Next:** box the values of `Resolved` (D-256, decided 2026-11-13; prototype: 8.72 →
-      3.14 KB per interaction, same speed): the code is in the working tree (data.rs,
-      getters.rs); run the gate and one decode benchmark **through the guard (D-257)**,
-      reduce the 16-shard reply flood to 50 000 (D-258), commit, then step 4.
+   e. 🟡 **In progress, paused (wip commit):** box the values of `Resolved` (D-256): the code
+      is committed (`data.rs`, `getters.rs` with private unboxing helpers on `Resolved`; the
+      16-shard reply flood reduced to 50 000 per D-258; CHANGELOG and PERFORMANCE updated).
+      **Verified:** `cargo fmt` and `cargo clippy --workspace --all-targets --all-features`
+      (which type-checks every test, bench and example). **Not yet run:** `cargo test` and
+      `cargo doc` — the guard stopped the gate at 94 °C. **Next, once the owner allows heavy
+      work again:** run `.reference/tools/gate.sh` through `.reference/tools/safe.sh` (with the
+      limits the owner then chooses), then one decode benchmark
+      (`cargo bench -p djs-model --bench interaction -- decode_dispatch`, pinned to one core),
+      record it in `docs/PERFORMANCE.md`, and commit without the `wip` mark; then step 4.
 
-> **Heavy runs (D-257, D-258):** the owner's laptop froze on 2026-11-13 under assistant load.
-> Every cargo build/test/bench goes through the resource guard (4 CPUs, 6 GB, no swap,
-> 70 °C start / 90 °C stop, AC only); stress tests only after asking the owner.
+> **Heavy runs are PAUSED by the owner (2026-11-13).** The laptop hard-froze at 03:55 under
+> assistant load, and the resource guard (D-257) then stopped the quality gate at 94 °C even
+> at 4 CPUs (one rustc on the P-cores, turbo 5 GHz). Do not compile, test or benchmark until
+> the owner says the computer was checked; then ask how to run (proposed: the guard pinned to
+> the E-cores, `AllowedCPUs=4-11`, 4 threads, a reading every second, stop at 88 °C; or the
+> owner switches the platform profile to balanced/quiet). The guard and the gate script are in
+> `.reference/tools/` (git-ignored, persists across reboots; `/tmp` does not). Stress tests
+> only after asking (D-258).
 4. Collectors and `await_*`. 5. Partials and intents guidance. 6. Examples.
 
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON
   body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").
 
 ## Blocked on the owner
-- Nothing.
+- **All CPU-heavy work (builds, tests, benchmarks) is paused** until the owner has checked the
+  computer (overheating: 94 °C at 4 CPUs; a hard freeze on 2026-11-13). Then: ask how heavy
+  runs may proceed (E-core pinning / lower stop temperature / platform profile), finish step
+  3e (gate + one benchmark), and only then continue with step 4.

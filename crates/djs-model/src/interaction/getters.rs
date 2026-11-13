@@ -16,7 +16,7 @@ use super::{
 use crate::{
     guild::Role,
     id::{
-        GenericId, Id, RoleId, UserId,
+        AttachmentId, GenericId, Id, MessageId, RoleId, UserId,
         marker::{ChannelMarker, RoleMarker, UserMarker},
     },
     message::{Attachment, Message},
@@ -52,22 +52,49 @@ impl Mentionable<'_> {
     }
 }
 
+/// The resolved objects by ID, unboxed (D-256).
+impl Resolved {
+    fn user(&self, id: UserId) -> Option<&User> {
+        self.users.get(&id).map(|user| &**user)
+    }
+
+    fn member(&self, id: UserId) -> Option<&InteractionMember> {
+        self.members.get(&id).map(|member| &**member)
+    }
+
+    fn role(&self, id: RoleId) -> Option<&Role> {
+        self.roles.get(&id).map(|role| &**role)
+    }
+
+    fn channel(&self, id: Id<ChannelMarker>) -> Option<&InteractionChannel> {
+        self.channels.get(&id).map(|channel| &**channel)
+    }
+
+    fn message(&self, id: MessageId) -> Option<&Message> {
+        self.messages.get(&id).map(|message| &**message)
+    }
+
+    fn attachment(&self, id: AttachmentId) -> Option<&Attachment> {
+        self.attachments.get(&id).map(|attachment| &**attachment)
+    }
+}
+
 /// The resolved user `id` and their member data, if both are present.
-fn member(resolved: Option<&Resolved>, id: UserId) -> Option<(&User, &InteractionMember)> {
+fn user_and_member(resolved: Option<&Resolved>, id: UserId) -> Option<(&User, &InteractionMember)> {
     let resolved = resolved?;
-    Some((resolved.users.get(&id)?, resolved.members.get(&id)?))
+    Some((resolved.user(id)?, resolved.member(id)?))
 }
 
 /// The resolved user or role `id`.
 fn mentionable(resolved: Option<&Resolved>, id: GenericId) -> Option<Mentionable<'_>> {
     let resolved = resolved?;
-    if let Some(user) = resolved.users.get(&id.cast()) {
+    if let Some(user) = resolved.user(id.cast()) {
         return Some(Mentionable::User {
             user,
-            member: resolved.members.get(&id.cast()),
+            member: resolved.member(id.cast()),
         });
     }
-    resolved.roles.get(&id.cast()).map(Mentionable::Role)
+    resolved.role(id.cast()).map(Mentionable::Role)
 }
 
 /// The subcommand option among `options` (a subcommand is always the only option).
@@ -234,7 +261,7 @@ impl CommandData {
     /// discord.js counterpart: `CommandInteractionOptionResolver#getUser`.
     #[must_use]
     pub fn get_user(&self, name: &str) -> Option<&User> {
-        self.resolved.as_deref()?.users.get(&self.user_id(name)?)
+        self.resolved.as_deref()?.user(self.user_id(name)?)
     }
 
     /// Returns the user chosen in the user (or mentionable) option `name` with their member
@@ -243,7 +270,7 @@ impl CommandData {
     /// discord.js counterpart: `CommandInteractionOptionResolver#getMember`.
     #[must_use]
     pub fn get_member(&self, name: &str) -> Option<(&User, &InteractionMember)> {
-        member(self.resolved.as_deref(), self.user_id(name)?)
+        user_and_member(self.resolved.as_deref(), self.user_id(name)?)
     }
 
     /// Returns the role chosen in the role (or mentionable) option `name`.
@@ -256,7 +283,7 @@ impl CommandData {
             CommandOptionValue::Mentionable(id) => id.cast(),
             _ => return None,
         };
-        self.resolved.as_deref()?.roles.get(&id)
+        self.resolved.as_deref()?.role(id)
     }
 
     /// Returns the channel chosen in the channel option `name` (a partial channel with the
@@ -268,7 +295,7 @@ impl CommandData {
         let CommandOptionValue::Channel(id) = self.get(name)? else {
             return None;
         };
-        self.resolved.as_deref()?.channels.get(id)
+        self.resolved.as_deref()?.channel(*id)
     }
 
     /// Returns the file uploaded in the attachment option `name`.
@@ -279,7 +306,7 @@ impl CommandData {
         let CommandOptionValue::Attachment(id) = self.get(name)? else {
             return None;
         };
-        self.resolved.as_deref()?.attachments.get(id)
+        self.resolved.as_deref()?.attachment(*id)
     }
 
     /// Returns the user or role chosen in the mentionable option `name`.
@@ -310,7 +337,7 @@ impl CommandData {
     /// discord.js counterpart: `UserContextMenuCommandInteraction#targetUser`.
     #[must_use]
     pub fn target_user(&self) -> Option<&User> {
-        self.resolved.as_deref()?.users.get(&self.target_id?.cast())
+        self.resolved.as_deref()?.user(self.target_id?.cast())
     }
 
     /// Returns the user a user command was used on with their member data (in guilds).
@@ -318,7 +345,7 @@ impl CommandData {
     /// discord.js counterpart: `UserContextMenuCommandInteraction#targetMember`.
     #[must_use]
     pub fn target_member(&self) -> Option<(&User, &InteractionMember)> {
-        member(self.resolved.as_deref(), self.target_id?.cast())
+        user_and_member(self.resolved.as_deref(), self.target_id?.cast())
     }
 
     /// Returns the message a message command was used on.
@@ -326,10 +353,7 @@ impl CommandData {
     /// discord.js counterpart: `MessageContextMenuCommandInteraction#targetMessage`.
     #[must_use]
     pub fn target_message(&self) -> Option<&Message> {
-        self.resolved
-            .as_deref()?
-            .messages
-            .get(&self.target_id?.cast())
+        self.resolved.as_deref()?.message(self.target_id?.cast())
     }
 }
 
@@ -345,7 +369,7 @@ impl ComponentData {
     pub fn users(&self) -> impl Iterator<Item = &User> + '_ {
         let resolved = self.resolved.as_deref();
         self.ids::<UserMarker>()
-            .filter_map(move |id| resolved?.users.get(&id))
+            .filter_map(move |id| resolved?.user(id))
     }
 
     /// Returns the users chosen in a user or mentionable select menu in a guild, with their
@@ -355,7 +379,7 @@ impl ComponentData {
     pub fn members(&self) -> impl Iterator<Item = (&User, &InteractionMember)> + '_ {
         let resolved = self.resolved.as_deref();
         self.ids::<UserMarker>()
-            .filter_map(move |id| member(resolved, id))
+            .filter_map(move |id| user_and_member(resolved, id))
     }
 
     /// Returns the roles chosen in a role or mentionable select menu.
@@ -364,7 +388,7 @@ impl ComponentData {
     pub fn roles(&self) -> impl Iterator<Item = &Role> + '_ {
         let resolved = self.resolved.as_deref();
         self.ids::<RoleMarker>()
-            .filter_map(move |id| resolved?.roles.get(&id))
+            .filter_map(move |id| resolved?.role(id))
     }
 
     /// Returns the channels chosen in a channel select menu.
@@ -373,7 +397,7 @@ impl ComponentData {
     pub fn channels(&self) -> impl Iterator<Item = &InteractionChannel> + '_ {
         let resolved = self.resolved.as_deref();
         self.ids::<ChannelMarker>()
-            .filter_map(move |id| resolved?.channels.get(&id))
+            .filter_map(move |id| resolved?.channel(id))
     }
 
     /// Returns the users and roles chosen in a mentionable select menu.
@@ -466,7 +490,7 @@ impl ModalSubmitData {
         let resolved = self.resolved.as_deref();
         Some(
             self.user_ids(custom_id)?
-                .filter_map(move |id| resolved?.users.get(&id)),
+                .filter_map(move |id| resolved?.user(id)),
         )
     }
 
@@ -482,7 +506,7 @@ impl ModalSubmitData {
         let resolved = self.resolved.as_deref();
         Some(
             self.user_ids(custom_id)?
-                .filter_map(move |id| member(resolved, id)),
+                .filter_map(move |id| user_and_member(resolved, id)),
         )
     }
 
@@ -505,7 +529,7 @@ impl ModalSubmitData {
                 .iter()
                 .copied()
                 .chain(mentionables.iter().map(|id| id.cast()))
-                .filter_map(move |id| resolved?.roles.get(&id)),
+                .filter_map(move |id| resolved?.role(id)),
         )
     }
 
@@ -525,7 +549,7 @@ impl ModalSubmitData {
             select
                 .values
                 .iter()
-                .filter_map(move |id: &Id<ChannelMarker>| resolved?.channels.get(id)),
+                .filter_map(move |id: &Id<ChannelMarker>| resolved?.channel(*id)),
         )
     }
 
@@ -565,7 +589,7 @@ impl ModalSubmitData {
             upload
                 .values
                 .iter()
-                .filter_map(move |id| resolved?.attachments.get(id)),
+                .filter_map(move |id| resolved?.attachment(*id)),
         )
     }
 }

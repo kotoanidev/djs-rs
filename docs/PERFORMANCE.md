@@ -1193,12 +1193,17 @@ hash lookup), an `Arc` clone and the route's name for error logs.
 
 ### Findings and optimization candidates (Phase 8, interactions)
 
-- **Open, asked:** boxing the values of `Resolved`'s maps (`BTreeMap<Id, Box<V>>`, a change of
-  D-058) was prototyped locally and not committed: 15 → 18 allocations but **8.72 → 3.14 KB
-  (−64 %) per interaction** at the same decoding time (3.53 vs 3.61 µs). The 16-shard reply
-  backlog fell from 2.16 to 1.22 GiB (system allocator) and from 2.2 to 1.24 GiB (mimalloc),
-  and with mimalloc 16 shards routed 523 000/s instead of 449 000/s. A compact sorted
-  `Vec` map would save ≈ 0.5 KB more (estimate) but is a new public type.
+- **Applied (D-256): the values of `Resolved`'s maps are boxed** (`BTreeMap<Id, Box<V>>`).
+  A/B of the prototype (system allocator; the final code decodes identically): 15 → 18
+  allocations but **8.72 → 3.14 KB (−64 %) per interaction** at the same decoding time
+  (3.53 vs 3.61 µs). The 16-shard reply backlog of 200 000 fell from 2.16 to 1.22 GiB (system
+  allocator) and from 2.2 to 1.24 GiB (mimalloc), and with mimalloc 16 shards routed 523 000/s
+  instead of 449 000/s. A compact sorted `Vec` map would save ≈ 0.5 KB more (estimate) but
+  would be a new public type.
+- **The 16-shard reply flood now sends 50 000 interactions** (D-258): at 200 000 its backlog
+  peaked at 2.2 GiB. Since 2026-11-13 every assistant run goes through a resource guard
+  (D-257: 4 CPUs, 6 GB, no swap, stop at 90 °C), so later numbers state when they were
+  measured under it.
 - `Concurrent` dispatch of interactions costs ≈ 5 µs more than `Sequential`, far more than for
   messages (≈ 1.2 µs); `perf` is blocked on this machine (SELinux, `perf_event_paranoid` 2),
   so the split between the cross-core hand-off and the allocator could only be bounded by the

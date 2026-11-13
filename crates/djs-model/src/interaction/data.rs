@@ -983,7 +983,11 @@ impl Serialize for SubmittedComponent {
 /// of an interaction: the objects behind the IDs in options, select menus and file uploads,
 /// keyed by ID (D-058).
 ///
-/// A member's user is in [`users`](Self::users) under the same ID.
+/// A member's user is in [`users`](Self::users) under the same ID. The values are boxed
+/// (D-256): a B-tree leaf reserves room for 11 entries, so a one-entry map of plain values
+/// would hold kilobytes of empty space; boxed, an interaction takes a third of the memory.
+/// Fields and methods work through the box as usual (`resolved.users[&id].username`), and
+/// the getters of [`CommandData`] and the other data types return plain references.
 ///
 /// discord.js counterpart: the resolved structures of `CommandInteractionOptionResolver` and
 /// the select menu interactions (`users`, `members`, `roles`, `channels`).
@@ -992,22 +996,22 @@ impl Serialize for SubmittedComponent {
 pub struct Resolved {
     /// Users.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub users: BTreeMap<UserId, User>,
+    pub users: BTreeMap<UserId, Box<User>>,
     /// Members (without user; with their permissions in the channel).
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub members: BTreeMap<UserId, InteractionMember>,
+    pub members: BTreeMap<UserId, Box<InteractionMember>>,
     /// Roles.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub roles: BTreeMap<RoleId, Role>,
+    pub roles: BTreeMap<RoleId, Box<Role>>,
     /// Partial channels (with the invoking member's permissions in them).
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub channels: BTreeMap<ChannelId, InteractionChannel>,
+    pub channels: BTreeMap<ChannelId, Box<InteractionChannel>>,
     /// Messages (the target of message commands).
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub messages: BTreeMap<MessageId, Message>,
+    pub messages: BTreeMap<MessageId, Box<Message>>,
     /// Attachments (attachment options, file uploads).
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub attachments: BTreeMap<AttachmentId, Attachment>,
+    pub attachments: BTreeMap<AttachmentId, Box<Attachment>>,
 }
 
 /// Every field of every kind of interaction data, decoded in one pass; converted by the

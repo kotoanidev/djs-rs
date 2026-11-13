@@ -2,7 +2,8 @@
 //! event handler and through the router (D-251), and floods of replies through a mock REST
 //! API.
 //!
-//! Ignored by default; run them in release mode and read the printed numbers:
+//! Ignored by default; run them in release mode, one at a time with pauses (they load every
+//! core), and read the printed numbers:
 //!
 //! ```text
 //! cargo test -p djs-rs --release --test stress_interactions -- --ignored --nocapture --test-threads 1
@@ -401,14 +402,17 @@ async fn replies_200k_64_in_flight() {
     .await;
 }
 
+/// The 16 shards decode faster than the replies are answered, so the interactions wait in
+/// memory: kept at 50 000 (a peak below 0.5 GiB, D-258) since this flood at 200 000 peaked at
+/// 2.2 GiB.
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "stress test; run with --release --ignored"]
-async fn replies_200k_64_in_flight_over_16_shards() {
+async fn replies_50k_64_in_flight_over_16_shards() {
     measure(
         "replies, 64 in flight, 16 shards",
         Handle::Reply(64),
         16,
-        200_000,
+        50_000,
         HandlerMode::Concurrent,
     )
     .await;

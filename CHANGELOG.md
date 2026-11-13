@@ -95,6 +95,12 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   fires once per login. Payloads are only built for events someone listens to.
 
 ### Changed
+- **Breaking:** the six maps of interaction `Resolved` data box their values
+  (`BTreeMap<Id, Box<V>>`, D-256): an interaction takes 3.14 KB of heap instead of 8.72 KB
+  at the same decoding time. Field access and method calls work through the box; the getters
+  (`get_user`, `selected_roles`, …) still return plain references.
+- The 16-shard reply flood of `djs-rs/tests/stress_interactions.rs` sends 50 000 interactions
+  instead of 200 000 (D-258).
 - `djs-rs` (breaking): `MessageExt::reply` returns the sent message as cached,
   `Arc<CachedMessage>`, instead of `Message` (C-093).
 - `djs-rs`: `Dispatch` has one variant per event (replacing `Ready` / `MessageCreate` /

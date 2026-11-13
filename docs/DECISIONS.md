@@ -3750,9 +3750,15 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 
 ## Open questions (to ask the owner when relevant)
 
-- **Committing the resource guard** (D-257): the guard script lives in the assistant's
-  scratchpad (`/tmp`, wiped on reboot) and is recreated from the `safe-heavy-runs` memory;
-  committing it (for example `scripts/safe.sh`) would keep it with the repository.
+- **How heavy runs proceed after the hardware check** (D-257): on 2026-11-13 the guard stopped
+  the gate at 94 °C even at `CPUQuota=400%` (a rustc on the P-cores, turbo 5 GHz), and the
+  owner paused all heavy work until the computer is checked. Proposed: pin the guard's scope
+  to the E-cores (`AllowedCPUs=4-11`, max 3.7 GHz), sample every second and stop at 88 °C; or
+  the owner switches the platform profile from "performance" to "balanced"/"quiet" while the
+  assistant works.
+- **Committing the resource guard** (D-257): the guard script is kept in the git-ignored
+  `.reference/tools/safe.sh` (with `gate.sh`), outside the repository's history; committing it
+  (for example `scripts/safe.sh`) would share it with the repository.
 - **Removing parts with the builders**: discord.js can clear a part (`setTitle(null)`) and
   replace or splice fields (`setFields`, `spliceFields`). `EmbedBuilder` only sets and adds;
   clearing (for example `clear_footer()` or `Option` setters) would matter when editing a
