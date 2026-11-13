@@ -2449,6 +2449,32 @@ and why.
 - **Alternatives:** one `fetch_with(FetchMembers { … })` method with options, like
   discord.js' `guild.members.fetch({ … })`.
 
+### D-271 — Missing intents are warned about at login
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Decision:** every event carries the intents Discord sends it under (an `INTENTS`
+  constant from the `events!` macro, following Discord's documentation). At `login()` the
+  client logs a `tracing` warning naming the events that registered handlers, collectors and
+  routes listen to but whose intents the client does not request. The bot still starts and
+  nothing is added to the event path.
+- **Alternatives:** an `Error::MissingIntents` from `login()`; documentation only.
+
+### D-272 — `required_intents()` shows the intents, setting them stays explicit
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Decision:** `client.required_intents()` returns the intents the registered handlers,
+  collectors and routes need, to print or compare; the intents are still set explicitly
+  with `ClientBuilder::intents`, as in discord.js.
+- **Alternatives:** an automatic mode computing the intents at login (`intents_auto()`, with
+  privileged intents allowed separately); no helper.
+
+### D-273 — No `partials` option; a guide maps discord.js' partials
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Decision:** djs-rs keeps delivering every event whether or not its objects are cached
+  (the previous state is `old: None` when unknown, D-227/D-228). The documentation gains a
+  table from each discord.js partial to what djs-rs gives instead (`old: None`, the partial
+  payload type) and how to complete it (`fetch()`).
+- **Alternatives:** a discord.js-like `ClientBuilder::partials(…)` dropping events about
+  uncached objects unless enabled.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
