@@ -2502,6 +2502,48 @@ and why.
   shared `.env` reading lives in a small module included with `#[path]`.
 - **Alternatives:** also a template bot crate in the workspace, split into modules.
 
+### D-277 — A comparison with serenity, after Phase 8
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Decision:** djs-rs is compared with [serenity](https://github.com/serenity-rs/serenity),
+  the Rust library the owner wants djs-rs to beat, in a step of its own started once
+  Phase 8 is closed (examples included, with their live runs), before Phase 9.
+- **Alternatives:** right after the examples are committed, before their live runs; at once,
+  setting the last example aside.
+
+### D-278 — The serenity comparison is a crate outside the workspace and `docs/VS_SERENITY.md`
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Decision:** the harness is `benches/vs-serenity/`, a `publish = false` crate kept out of
+  the workspace (its own `Cargo.lock`, serenity pinned at 0.12.5, the latest release), so
+  the quality gate never builds serenity. It reuses the mock Discord servers and the
+  payload generator of `benches/vs-node/` (D-123): the same input byte for byte, the mock in
+  its own process, pinned CPUs, the same `/proc` metrics. The results go to
+  `docs/VS_SERENITY.md` (linked from the main README), with tables and SVG charts generated
+  from the measured results; every number is measured, never estimated, and where serenity
+  wins it is written down as it is.
+- **Alternatives:** a workspace member like `benches/vs-node` (serenity in the main lockfile,
+  built by every gate); a third column in `docs/VS_NODE.md`.
+
+### D-279 — What is compared with serenity: performance, resources, reliability
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Decision:** three groups. **Performance:** decoding `MESSAGE_CREATE` and a 1000-member
+  `GUILD_CREATE`, an event flood through the mock gateway (events/s, CPU), REST throughput
+  and p50/p99 latency against the mock API. **Resources:** the memory of an idle bot and of
+  500 000 cached members, the binary size, the build time and the number of dependencies.
+  **Reliability:** failure scenarios of the mock gateway (a dropped connection, `RESUME`,
+  `INVALID_SESSION`, a missing heartbeat ACK) and of the mock API (429, 5xx), counting lost
+  and duplicated events and the time to recover. Ease of use and API coverage are not part
+  of it.
+- **Alternatives:** also ease of use and availability (the same bot in both libraries, a
+  coverage table of Discord's features, documentation coverage, MSRV).
+
+### D-280 — serenity is measured with its default configuration
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Decision:** serenity 0.12.5 runs with its default features and settings, as most bots
+  use it; djs-rs is measured with a cache equal to serenity's default cache and with its own
+  defaults, as in `docs/VS_NODE.md` (D-174).
+- **Alternatives:** also serenity's fastest configuration (`simd_json`, a tuned cache); also
+  its unreleased `next` branch.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)

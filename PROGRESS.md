@@ -546,9 +546,18 @@ fields with `Deref` to `new`). Steps:
    `Client::required_intents()`; `Shared::intents`; the partials table in the `event` module
    docs and the README; tests: a unit test of the warning (captured `tracing` output) and
    `required_intents_cover_handlers_routes_and_collectors`.
-6. **Next: examples** (ROADMAP Phase 8: "Examples directory covering common bot patterns"):
-   ask the owner first which examples (and whether they may run against the live test bot,
-   C-184-style approvals), then write them under `crates/djs-rs/examples/`.
+6. **In progress: examples** (D-274–D-276; ROADMAP Phase 8: "Examples directory covering
+   common bot patterns"): `examples/common/mod.rs` (`.env`, logging, Ctrl+C, the test guild,
+   `--cleanup`), `slash_commands.rs`, `components.rs` and `moderation.rs` are written (not yet
+   committed if this line is still here); `advanced.rs` (Shards::Auto + presence, the
+   `events()` loop, `WebhookClient`, `HandlerMode::Sequential`, mimalloc) is next. Then the
+   gate, a commit, and one short live run per example on the test guild, **asking the owner
+   before each run** (D-275), removing the guild commands (`-- --cleanup`) and the test
+   messages afterwards.
+7. **After Phase 8 is closed: the serenity comparison** (D-277–D-280): `benches/vs-serenity/`
+   outside the workspace (own `Cargo.lock`, serenity 0.12.5 with default features), reusing
+   the mocks and payloads of `benches/vs-node/`; performance, resources and reliability
+   (gateway and REST failure scenarios); results in `docs/VS_SERENITY.md`.
 
 > **Heavy runs (D-257, D-259–D-262):** the owner's laptop hard-froze on 2026-11-13 under
 > assistant load. Every cargo build/test/bench/stress test goes through

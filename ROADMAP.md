@@ -115,6 +115,8 @@ just with narrow scope.
 - [x] Partials, intents/privileged intents guidance (D-271–D-273: `Event::INTENTS`, a login
   warning, `required_intents()`, a partials table)
 - [ ] Examples directory covering common bot patterns
+- [ ] A comparison with serenity: performance, resources, reliability (D-277–D-280;
+      `benches/vs-serenity/`, `docs/VS_SERENITY.md`), once the steps above are done
 
 ## Phase 9 — Multi-process sharding (D-018)
 - [ ] `ShardingManager` spawning processes, IPC, `broadcastEval`-style messaging, respawn
