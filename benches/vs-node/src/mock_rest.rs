@@ -1,4 +1,5 @@
-//! The mock Discord HTTP API: `GET /gateway/bot` (for the gateway scenarios) and a Create
+//! The mock Discord HTTP API: `GET /gateway` and `GET /gateway/bot` (for the gateway
+//! scenarios) and a Create
 //! Message endpoint answering with a message and rate-limit headers that never block.
 
 use std::{
@@ -62,7 +63,15 @@ fn json_response(status: u16, body: String) -> Response<Full<Bytes>> {
         .expect("a valid response")
 }
 
-async fn respond(
+/// Answers one request of the mock API: `GET /gateway` and `GET /gateway/bot` with `gateway`
+/// (when given), Create Message with a message and rate-limit headers, anything else with
+/// 404. `sequence` numbers the created messages. Also used by the HTTPS mock of
+/// `benches/vs-serenity` (D-282), so both mocks answer the same bytes.
+///
+/// # Panics
+///
+/// Panics if the system clock is before 1970.
+pub async fn respond(
     request: Request<Incoming>,
     gateway: Option<&str>,
     sequence: &AtomicU64,
@@ -72,6 +81,11 @@ async fn respond(
     // Read the whole body, as a real server does before answering.
     let _ = request.into_body().collect().await;
 
+    // Get Gateway, which serenity asks at start-up (it falls back to the real gateway when
+    // this fails, so the mock must answer it).
+    if let (&Method::GET, "/api/v10/gateway", Some(url)) = (&method, path.as_str(), gateway) {
+        return json_response(200, json!({ "url": url }).to_string());
+    }
     if let (&Method::GET, "/api/v10/gateway/bot", Some(url)) = (&method, path.as_str(), gateway) {
         return json_response(
             200,

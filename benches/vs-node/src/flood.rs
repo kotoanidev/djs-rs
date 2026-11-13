@@ -3,86 +3,16 @@
 //! The measured window runs from the first counted event to the last one, so connecting,
 //! `READY` and the `GUILD_CREATE` before the flood are not part of it.
 
-use std::{
-    hint::black_box,
-    sync::{
-        Arc, OnceLock,
-        atomic::{AtomicU64, Ordering},
-    },
-    time::Instant,
-};
+use std::{hint::black_box, sync::Arc};
 
+use crate::{Options, TOKEN, metrics::Window, serenity_cache};
 use djs_gateway::{Compression, Config, Shard};
 use djs_model::gateway::{DispatchEvent, GatewayEvent, Intents, ShardId};
 use djs_rs::{Client, Events, HandlerMode, Shards, cache::CacheConfig};
-use serde_json::{Value, json};
-use tokio::sync::Notify;
-
-use crate::{
-    Options, TOKEN,
-    metrics::{cpu_ms, status_kib},
-};
 
 const INTENTS: Intents = Intents::GUILDS
     .union(Intents::GUILD_MESSAGES)
     .union(Intents::MESSAGE_CONTENT);
-
-/// Counts events and records when the window opened and closed.
-struct Window {
-    count: AtomicU64,
-    target: u64,
-    opened: OnceLock<(Instant, f64)>,
-    done: Notify,
-}
-
-impl Window {
-    fn new(target: u64) -> Self {
-        assert!(target >= 2, "--events must be at least 2");
-        Self {
-            count: AtomicU64::new(0),
-            target,
-            opened: OnceLock::new(),
-            done: Notify::new(),
-        }
-    }
-
-    /// Counts one event; returns true for the last one.
-    fn hit(&self) -> bool {
-        let count = self.count.fetch_add(1, Ordering::Relaxed) + 1;
-        if count == 1 {
-            self.opened.get_or_init(|| (Instant::now(), cpu_ms()));
-        }
-        let last = count == self.target;
-        if last {
-            self.done.notify_one();
-        }
-        last
-    }
-
-    /// The result line for the closed window.
-    fn result(&self, library: &str, variant: &str, allocator: &str) -> Value {
-        let (opened, cpu_before) = *self.opened.get().expect("the window opened");
-        let seconds = opened.elapsed().as_secs_f64();
-        let cpu = cpu_ms() - cpu_before;
-        #[expect(
-            clippy::cast_precision_loss,
-            reason = "event counts are far below 2^52"
-        )]
-        let events = (self.target - 1) as f64;
-        json!({
-            "scenario": "flood",
-            "library": library,
-            "variant": variant,
-            "allocator": allocator,
-            "events": self.target,
-            "seconds": seconds,
-            "events_per_sec": events / seconds,
-            "cpu_ms": cpu,
-            "cpu_us_per_event": cpu * 1000.0 / events,
-            "peak_rss_kib": status_kib("VmHWM"),
-        })
-    }
-}
 
 /// A djs-rs [`Client`] with one `MESSAGE_CREATE` handler, as a bot would register it;
 /// `--cache discord-js` gives it the cache discord.js keeps by default (D-174).
@@ -92,9 +22,10 @@ pub(crate) async fn client(options: &Options, allocator: &str) {
     let current_thread = options.get("runtime", String::from("multi")) == "current";
     let cached = match options.get("cache", String::from("none")).as_str() {
         "none" => false,
-        "discord-js" => true,
-        other => panic!("unknown --cache {other} (none, discord-js)"),
+        "discord-js" | "serenity" => true,
+        other => panic!("unknown --cache {other} (none, discord-js, serenity)"),
     };
+    let serenity = options.get("cache", String::new()) == "serenity";
     // One fixed shard with a gateway URL: the client never calls Get Gateway Bot (which would
     // go to the real Discord API, D-146).
     let mut builder = Client::builder(TOKEN)
@@ -108,7 +39,11 @@ pub(crate) async fn client(options: &Options, allocator: &str) {
             HandlerMode::Concurrent
         });
     if cached {
-        builder = builder.cache(CacheConfig::discord_js());
+        builder = builder.cache(if serenity {
+            serenity_cache()
+        } else {
+            CacheConfig::discord_js()
+        });
     }
     let client = builder.build();
     let counter = Arc::clone(&window);
@@ -121,7 +56,7 @@ pub(crate) async fn client(options: &Options, allocator: &str) {
         }
     });
     crate::login(&client);
-    window.done.notified().await;
+    window.wait().await;
     let mut variant = match (sequential, current_thread) {
         (false, false) => "Client + messageCreate handler",
         (true, false) => "Client + messageCreate handler, HandlerMode::Sequential",
@@ -129,7 +64,9 @@ pub(crate) async fn client(options: &Options, allocator: &str) {
         (true, true) => "Client + messageCreate handler, Sequential, current-thread runtime",
     }
     .to_owned();
-    if cached {
+    if serenity {
+        variant.push_str(", serenity's default cache");
+    } else if cached {
         variant.push_str(", CacheConfig::discord_js()");
     }
     println!("{}", window.result("djs-rs", &variant, allocator));

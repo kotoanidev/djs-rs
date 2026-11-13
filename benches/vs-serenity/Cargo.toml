@@ -1,0 +1,43 @@
+[package]
+name = "djs-vs-serenity"
+description = "The djs-rs vs serenity comparison harness (docs/VS_SERENITY.md, D-277–D-280)."
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.89"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/kotoanidev/djs-rs"
+# A benchmark harness, never published.
+publish = false
+
+# Its own workspace, kept out of the main one so the quality gate never builds serenity
+# (D-278); it has its own Cargo.lock.
+[workspace]
+
+[dependencies]
+# The mock Discord servers, payloads and metrics shared with the discord.js comparison.
+djs-vs-node = { path = "../vs-node" }
+djs-rs = { path = "../../crates/djs-rs", default-features = false }
+# serenity with its default features, as most bots use it (D-280).
+serenity = "=0.12.5"
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "time"] }
+# The HTTPS mock serenity is pointed at (D-282): a test CA and certificate, a TLS server, and
+# the reqwest version serenity resolves for the client given to it.
+bytes = "1.12"
+http-body-util = "0.1.5"
+hyper = { version = "1.12", default-features = false, features = ["server", "http1"] }
+hyper-util = { version = "0.1.21", default-features = false, features = ["tokio"] }
+rcgen = { version = "0.14.10", default-features = false, features = ["ring", "pem"] }
+reqwest = { version = "0.12.28", default-features = false, features = ["rustls-tls"] }
+rustls = { version = "0.23.46", default-features = false, features = ["ring", "std", "tls12"] }
+tokio-rustls = { version = "0.26.6", default-features = false, features = ["ring", "tls12"] }
+
+# The main workspace's lints (this crate cannot inherit them).
+[lints.rust]
+unsafe_code = "deny"
+missing_docs = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }

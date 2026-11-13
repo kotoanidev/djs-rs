@@ -19,3 +19,5 @@
 # The Node.js side of the discord.js showcase (D-123)
 /benches/vs-node/node_modules/
 /benches/vs-node/out/
+# Raw results of the serenity comparison (D-278)
+/benches/vs-serenity/out/

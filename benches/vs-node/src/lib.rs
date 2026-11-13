@@ -9,9 +9,9 @@
 //! | `decode`       | Times decoding of the fixtures into djs-model types. |
 //! | `mock-gateway` | Serves `GET /gateway/bot` and a gateway that sends `READY`, guilds and a message flood. |
 //! | `mock-rest`    | Serves a fake Create Message endpoint with rate-limit headers. |
-//! | `flood`        | A djs-rs `Client` counting `MESSAGE_CREATE` handler calls. |
+//! | `flood`        | A djs-rs `Client` counting `MESSAGE_CREATE` handler calls (`--cache none\|discord-js\|serenity`). |
 //! | `shard-flood`  | A bare djs-gateway `Shard` counting decoded `MESSAGE_CREATE` events. |
-//! | `memory`       | A djs-gateway `Shard` keeping every decoded guild, then reporting RSS. |
+//! | `memory`       | A djs-rs `Client` caching the guilds it receives (`--cache discord-js\|serenity`), then reporting RSS. |
 //! | `rest`         | Concurrent Create Message calls through djs-rest. |
 //!
 //! Every client subcommand prints one JSON line with its results.
@@ -23,9 +23,35 @@ mod flood;
 mod memory;
 pub mod metrics;
 mod mock_gateway;
-mod mock_rest;
+pub mod mock_rest;
 pub mod payloads;
 mod rest;
+
+/// The cache serenity keeps by default, as a djs-rs [`CacheConfig`](djs_rs::cache::CacheConfig)
+/// (D-280): serenity 0.12's default `Settings` cache guilds — with their members, roles,
+/// emojis, stickers, channels, threads, presences, voice states, stage instances and scheduled
+/// events — channels and users, and no messages (`max_messages: 0`); it has no soundboard
+/// cache.
+#[must_use]
+pub fn serenity_cache() -> djs_rs::cache::CacheConfig {
+    use djs_rs::cache::{CacheConfig, Limit};
+    CacheConfig::builder()
+        .guilds(Limit::Unlimited)
+        .channels(Limit::Unlimited)
+        .threads(Limit::Unlimited)
+        .roles(Limit::Unlimited)
+        .emojis(Limit::Unlimited)
+        .stickers(Limit::Unlimited)
+        .members(Limit::Unlimited)
+        .users(Limit::Unlimited)
+        .presences(Limit::Unlimited)
+        .voice_states(Limit::Unlimited)
+        .scheduled_events(Limit::Unlimited)
+        .stage_instances(Limit::Unlimited)
+        .messages(Limit::Disabled)
+        .soundboard_sounds(Limit::Disabled)
+        .build()
+}
 
 /// The token every client uses. It is not a real token and authenticates nothing.
 pub const TOKEN: &str = "not-a-real-token-only-for-benchmarking-0123456789";
@@ -35,7 +61,12 @@ pub const TOKEN: &str = "not-a-real-token-only-for-benchmarking-0123456789";
 pub struct Options(HashMap<String, String>);
 
 impl Options {
-    fn parse(mut args: impl Iterator<Item = String>) -> Self {
+    /// Parses `--key value` pairs, as the harness binaries receive them after the subcommand.
+    ///
+    /// # Panics
+    ///
+    /// Panics on an argument that is not `--key` or a key without a value.
+    pub fn parse(mut args: impl Iterator<Item = String>) -> Self {
         let mut map = HashMap::new();
         while let Some(key) = args.next() {
             let key = key

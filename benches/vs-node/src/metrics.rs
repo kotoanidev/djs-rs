@@ -1,7 +1,16 @@
 //! Process metrics read from `/proc` (Linux) and the timing loop — implemented the same way in
 //! `node/common.mjs`, so both sides are measured identically.
 
-use std::time::{Duration, Instant};
+use std::{
+    sync::{
+        OnceLock,
+        atomic::{AtomicU64, Ordering},
+    },
+    time::{Duration, Instant},
+};
+
+use serde_json::{Value, json};
+use tokio::sync::Notify;
 
 /// Clock ticks per second of the `utime`/`stime` fields of `/proc/<pid>/stat` (`USER_HZ`,
 /// which is 100 on every mainstream Linux configuration).
@@ -110,4 +119,80 @@ pub fn percentile(sorted: &[u32], p: f64) -> u32 {
     )]
     let index = (rank as usize).clamp(1, sorted.len()) - 1;
     sorted[index]
+}
+
+/// Counts events and records when the measured window opened and closed: from the first
+/// counted event to the last one, so connecting and the events before a flood are not part of
+/// it. Shared by every flood runner (djs-rs, discord.js through `common.mjs`, serenity).
+#[derive(Debug)]
+pub struct Window {
+    count: AtomicU64,
+    target: u64,
+    opened: OnceLock<(Instant, f64)>,
+    done: Notify,
+}
+
+impl Window {
+    /// A window closing at the `target`-th event.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `target` is below 2.
+    #[must_use]
+    pub fn new(target: u64) -> Self {
+        assert!(target >= 2, "--events must be at least 2");
+        Self {
+            count: AtomicU64::new(0),
+            target,
+            opened: OnceLock::new(),
+            done: Notify::new(),
+        }
+    }
+
+    /// Counts one event; returns true for the last one.
+    pub fn hit(&self) -> bool {
+        let count = self.count.fetch_add(1, Ordering::Relaxed) + 1;
+        if count == 1 {
+            self.opened.get_or_init(|| (Instant::now(), cpu_ms()));
+        }
+        let last = count == self.target;
+        if last {
+            self.done.notify_one();
+        }
+        last
+    }
+
+    /// Waits until the last event was counted.
+    pub async fn wait(&self) {
+        self.done.notified().await;
+    }
+
+    /// The result line for the closed window.
+    ///
+    /// # Panics
+    ///
+    /// Panics if no event was counted.
+    #[must_use]
+    pub fn result(&self, library: &str, variant: &str, allocator: &str) -> Value {
+        let (opened, cpu_before) = *self.opened.get().expect("the window opened");
+        let seconds = opened.elapsed().as_secs_f64();
+        let cpu = cpu_ms() - cpu_before;
+        #[expect(
+            clippy::cast_precision_loss,
+            reason = "event counts are far below 2^52"
+        )]
+        let events = (self.target - 1) as f64;
+        json!({
+            "scenario": "flood",
+            "library": library,
+            "variant": variant,
+            "allocator": allocator,
+            "events": self.target,
+            "seconds": seconds,
+            "events_per_sec": events / seconds,
+            "cpu_ms": cpu,
+            "cpu_us_per_event": cpu * 1000.0 / events,
+            "peak_rss_kib": status_kib("VmHWM"),
+        })
+    }
 }
