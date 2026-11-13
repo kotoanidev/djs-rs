@@ -8,6 +8,16 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- A comparison harness against serenity 0.12.5 with its default configuration
+  (`benches/vs-serenity/`, its own workspace and `Cargo.lock`, D-277–D-282, C-108):
+  performance runners (decode, gateway flood, memory, REST) reusing the `benches/vs-node`
+  mocks, serenity reaching them through an HTTPS mock with a test CA; resources (`build.sh`
+  builds two identical `!ping` bots for build times, binary sizes and dependencies);
+  reliability (`reliability.sh` with a failing gateway — dropped connection, `RECONNECT`,
+  `INVALID_SESSION`, a zombie connection, close codes 4000 and 4004 — and a failing API —
+  route and global 429s, 502s). Every run happens in a network namespace without a route
+  out. `benches/vs-node` gains `GET /gateway` in its mock REST server, the shared
+  `metrics::Window`, `serenity_cache()` and `--cache serenity`.
 - Example bots in `djs-rs/examples/` (Phase 8 step 6, D-274–D-276, C-107):
   `slash_commands` (registration, the router, subcommands, autocomplete, a modal, ephemeral
   and deferred replies), `components` (a paginated menu, a quiz, a reaction poll with

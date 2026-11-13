@@ -1,0 +1,15 @@
+[package]
+name = "ping-serenity"
+description = "The smallest serenity bot, built (never run) to measure build time, size and dependencies (D-279)."
+version = "0.0.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+publish = false
+
+# Its own workspace and Cargo.lock, like a bot project of its own.
+[workspace]
+
+[dependencies]
+# Default features, as most bots use it (D-280).
+serenity = "=0.12.5"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

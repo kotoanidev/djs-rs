@@ -570,13 +570,40 @@ fields with `Deref` to `new`). Steps:
    outside the workspace (own `Cargo.lock`, serenity 0.12.5 with default features), reusing
    the mocks and payloads of `benches/vs-node/`; performance, resources and reliability
    (gateway and REST failure scenarios); results in `docs/VS_SERENITY.md`.
-   **In progress (S1, performance):** `benches/vs-serenity/` exists (own workspace and
-   `Cargo.lock`, serenity `=0.12.5`, the main lints) with serenity runners `decode`, `flood`,
-   `memory`, `rest`; `vs-node` gained `GET /gateway` in its mock, `metrics::Window` (shared),
-   `serenity_cache()` and `--cache serenity` for `flood`/`memory`. serenity reaches the mocks
-   through an HTTPS mock and a harness-built `reqwest::Client` (D-282, being written);
-   **every run inside `unshare -rn`** (C-108: one request reached Discord in the first smoke
-   test). Next: S2 resources, S3 reliability (mock faults), S4 the report page.
+   - **S1 performance ✅** (`run.sh`, 132 s, peak 83 °C, medians of 3): decode
+     `MESSAGE_CREATE` 1.63 vs 8.47 µs, `GUILD_CREATE` 740 vs 4707 µs; gateway flood with an
+     equal cache 237,846 vs 57,559 events/s (7.87 vs 23.72 µs CPU/event, peak 9.0 vs
+     21.2 MiB); memory idle 6.7 vs 12.5 MiB, 100k members 43.9 vs 188.9 MiB, 500k members
+     203.4 vs 980.8 MiB; REST 250,810 vs 105,101 req/s (serenity over TLS; 152,369 with its
+     limiter off over plain HTTP, the bound of D-282). Raw results in the git-ignored
+     `benches/vs-serenity/out/`.
+   - **S2 resources ✅** (`build.sh`, two identical `!ping` bots in `bots/`, 388 s, peak
+     85 °C): 85 vs 152 dependencies; clean release build 46.6–46.8 vs 73.7–74.1 s, clean
+     debug 23.9–25.0 vs 34.3–35.2 s; **serenity wins the rebuild after a `main.rs` change**
+     (release 9.9 vs 4.9–5.0 s, debug 0.79–1.38 vs 0.58–0.62 s); release binary 12.2 MiB
+     (stripped 8.7) vs 14.7 (10.8).
+   - **S3 reliability (code ✅, full run in progress):** `fault-gateway` (a session model: a
+     producer appends numbered messages to the current session every 1 ms, `RESUME` replays,
+     a new `IDENTIFY` loses what the old session did not send; faults drop, op 7, op 9,
+     zombie, close 4000, close 4004; reports `recovered_ms` = fault → first `READY`/
+     `RESUMED`), `fault-rest` (route/global 429 with `retry_after` 0.5 s and a whole-second
+     `Retry-After` header as Discord sends it, the client's measured wait, in-flight vs early
+     requests; 502 on the first attempt at every 4th message of a channel), clients in
+     `src/reliability.rs`, orchestrator `reliability.sh` (10,000 messages, fault at 2000;
+     40 requests, under djs-rs's proactive 50/s global limit). Dry run: equal on drop, op 7,
+     close 4000/4004 and 429s (no early request; djs-rs waits 552 ms, serenity 1003 ms from
+     the header); invalid session: djs-rs back after a random 1–5 s (3.1 s), serenity after
+     its 5 s shard-queue wait; **zombie: djs-rs resumes after 1.4 s with nothing lost,
+     serenity restarts the shard (fresh `IDENTIFY`, 6.0 s, ~6000 events lost)**; 502s: djs-rs
+     retries (40/40 sent), serenity does not (32/40, error "Could not decode json").
+   - **Next:** after the full S3 run, S4 — `docs/VS_SERENITY.md` (tables + SVG charts from a
+     committed results summary, environment, caveats: TLS vs plain HTTP and the bound, no
+     payload compression in the mocks, djs-rs's proactive global limit off in REST perf as in
+     VS_NODE, heartbeat 1000 ms in the fault mock, serenity's faster incremental rebuild),
+     C-109 for the harness defaults, an open question on djs-rs's incremental rebuild time
+     (monomorphization of `Client<B>` in the bot crate?), then tick ROADMAP.
+   - **Every run inside `unshare -rn`** (C-108: one request reached Discord in the first
+     smoke test, serenity's rate limiter ignores its proxy).
 
 > **Heavy runs (D-257, D-259–D-262):** the owner's laptop hard-froze on 2026-11-13 under
 > assistant load. Every cargo build/test/bench/stress test goes through

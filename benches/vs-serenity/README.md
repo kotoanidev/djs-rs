@@ -17,6 +17,20 @@ never builds serenity (D-278).
 | HTTPS mock API for serenity (same responses, a CA made for the run) | `djs-vs-serenity tls-api` |
 | serenity runners | `djs-vs-serenity decode`, `flood`, `memory`, `rest` |
 | Shared measuring code | `djs_vs_node::metrics` (`Window`, `measure`, `/proc` readers) |
+| Failing mock gateway and API (reliability) | `djs-vs-serenity fault-gateway`, `fault-rest` |
+| Reliability clients, the same for both libraries | `djs-vs-serenity reliability`, `rest-faults` |
+| Two identical `!ping` bots (build time, size, dependencies; built, never run) | `bots/djs-rs`, `bots/serenity` |
+
+## Running
+
+```bash
+benches/vs-serenity/run.sh           # performance: decode, flood, memory, REST → out/results.jsonl
+benches/vs-serenity/build.sh         # resources: builds, sizes, dependencies → out/build.jsonl
+benches/vs-serenity/reliability.sh   # reliability: gateway and API faults → out/reliability.jsonl
+```
+
+`build.sh` builds offline: fetch the bots' dependencies first (`cargo fetch` in each of
+`bots/djs-rs` and `bots/serenity`). `out/` is git-ignored.
 
 serenity's default rate limiter ignores `HttpBuilder::proxy`, so serenity keeps its
 `https://discord.com` URLs and is given a `reqwest::Client` that resolves `discord.com` to the

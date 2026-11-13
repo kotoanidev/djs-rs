@@ -519,6 +519,7 @@ dependencies = [
  "bytes",
  "djs-rs",
  "djs-vs-node",
+ "futures-util",
  "http-body-util",
  "hyper",
  "hyper-util",
@@ -529,6 +530,7 @@ dependencies = [
  "serenity",
  "tokio",
  "tokio-rustls 0.26.6",
+ "tokio-websockets",
 ]
 
 [[package]]

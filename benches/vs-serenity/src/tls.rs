@@ -9,13 +9,16 @@
 use std::{
     convert::Infallible,
     fs,
+    future::Future,
     net::SocketAddr,
-    path::Path,
+    path::{Path, PathBuf},
     sync::{Arc, atomic::AtomicU64},
 };
 
+use bytes::Bytes;
 use djs_vs_node::{Options, mock_rest::respond};
-use hyper::{server::conn::http1, service::service_fn};
+use http_body_util::Full;
+use hyper::{Request, Response, body::Incoming, server::conn::http1, service::service_fn};
 use hyper_util::rt::TokioIo;
 use rcgen::{BasicConstraints, CertificateParams, DnType, IsCa, Issuer, KeyPair, KeyUsagePurpose};
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
@@ -60,20 +63,13 @@ fn certificates() -> Certificates {
     }
 }
 
-/// `tls-api --dir D [--gateway URL]`: writes the run's CA to `D/ca.pem`, serves the mock API
-/// over HTTPS (HTTP/1.1, keep-alive) on a free port of 127.0.0.1 and prints
-/// `{"tls_api": "127.0.0.1:<port>", "ca": "<path>"}`. `--gateway` is the URL `GET /gateway`
-/// answers (the gateway of a running `vs-node mock-gateway`).
-pub(crate) async fn serve(options: &Options) {
-    let gateway: Option<Arc<str>> = Some(options.get("gateway", String::new()))
-        .filter(|url| !url.is_empty())
-        .map(Into::into);
-    let dir = Path::new(options.required("dir"));
+/// Makes the run's CA and `discord.com` certificate, writes the CA to `dir/ca.pem` and returns
+/// a TLS acceptor offering HTTP/1.1, with the CA's path.
+pub(crate) fn acceptor(dir: &Path) -> (TlsAcceptor, PathBuf) {
     fs::create_dir_all(dir).expect("the directory can be created");
     let Certificates { ca_pem, chain, key } = certificates();
     let ca_path = dir.join("ca.pem");
     fs::write(&ca_path, ca_pem).expect("the CA is written");
-
     let provider = Arc::new(rustls::crypto::ring::default_provider());
     let mut config = rustls::ServerConfig::builder_with_provider(provider)
         .with_safe_default_protocol_versions()
@@ -82,8 +78,60 @@ pub(crate) async fn serve(options: &Options) {
         .with_single_cert(chain, key)
         .expect("the certificate and its key match");
     config.alpn_protocols = vec![b"http/1.1".to_vec()];
-    let acceptor = TlsAcceptor::from(Arc::new(config));
+    (TlsAcceptor::from(Arc::new(config)), ca_path)
+}
 
+/// Serves HTTP/1.1 connections (keep-alive) on `listener` forever, over TLS when `acceptor` is
+/// given, answering every request with `respond`.
+pub(crate) async fn serve_with<F, Fut>(
+    listener: TcpListener,
+    acceptor: Option<TlsAcceptor>,
+    respond: F,
+) where
+    F: Fn(Request<Incoming>) -> Fut + Clone + Send + Sync + 'static,
+    Fut: Future<Output = Response<Full<Bytes>>> + Send + 'static,
+{
+    loop {
+        let Ok((stream, _)) = listener.accept().await else {
+            continue;
+        };
+        let _ = stream.set_nodelay(true);
+        let acceptor = acceptor.clone();
+        let respond = respond.clone();
+        tokio::spawn(async move {
+            let service = service_fn(move |request| {
+                let respond = respond.clone();
+                async move { Ok::<_, Infallible>(respond(request).await) }
+            });
+            let result = match acceptor {
+                Some(acceptor) => {
+                    let Ok(stream) = acceptor.accept(stream).await else {
+                        return;
+                    };
+                    http1::Builder::new()
+                        .serve_connection(TokioIo::new(stream), service)
+                        .await
+                }
+                None => {
+                    http1::Builder::new()
+                        .serve_connection(TokioIo::new(stream), service)
+                        .await
+                }
+            };
+            let _ = result;
+        });
+    }
+}
+
+/// `tls-api --dir D [--gateway URL]`: writes the run's CA to `D/ca.pem`, serves the mock API
+/// over HTTPS on a free port of 127.0.0.1 and prints
+/// `{"tls_api": "127.0.0.1:<port>", "ca": "<path>"}`. `--gateway` is the URL `GET /gateway`
+/// answers (the gateway of a running `vs-node mock-gateway`).
+pub(crate) async fn serve(options: &Options) {
+    let gateway: Option<Arc<str>> = Some(options.get("gateway", String::new()))
+        .filter(|url| !url.is_empty())
+        .map(Into::into);
+    let (acceptor, ca_path) = acceptor(Path::new(options.required("dir")));
     let listener = TcpListener::bind("127.0.0.1:0").await.expect("a free port");
     let address = listener.local_addr().expect("a bound address");
     println!(
@@ -91,28 +139,12 @@ pub(crate) async fn serve(options: &Options) {
         json!({ "tls_api": address.to_string(), "ca": ca_path.display().to_string() })
     );
     let sequence = Arc::new(AtomicU64::new(0));
-    loop {
-        let Ok((stream, _)) = listener.accept().await else {
-            continue;
-        };
-        let _ = stream.set_nodelay(true);
-        let acceptor = acceptor.clone();
+    serve_with(listener, Some(acceptor), move |request| {
         let gateway = gateway.clone();
         let sequence = Arc::clone(&sequence);
-        tokio::spawn(async move {
-            let Ok(stream) = acceptor.accept(stream).await else {
-                return;
-            };
-            let service = service_fn(move |request| {
-                let gateway = gateway.clone();
-                let sequence = Arc::clone(&sequence);
-                async move { Ok::<_, Infallible>(respond(request, gateway.as_deref(), &sequence).await) }
-            });
-            let _ = http1::Builder::new()
-                .serve_connection(TokioIo::new(stream), service)
-                .await;
-        });
-    }
+        async move { respond(request, gateway.as_deref(), &sequence).await }
+    })
+    .await;
 }
 
 /// serenity's default client (`Client::builder().use_rustls_tls()`), except that it sends

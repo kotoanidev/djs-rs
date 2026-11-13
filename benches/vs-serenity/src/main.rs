@@ -14,6 +14,8 @@
 //! | `flood --events N` | A serenity `Client` counting `message` handler calls. |
 //! | `memory --guilds N` | A serenity `Client` caching the guilds it receives, then reporting RSS. |
 //! | `rest --requests N --concurrency C` | Concurrent `send_message` calls through serenity's `Http`. |
+//! | `fault-gateway`, `fault-rest` | Mock servers that fail on purpose ([`fault_gateway`], [`fault_rest`]). |
+//! | `reliability`, `rest-faults` | Their clients, for djs-rs and serenity ([`reliability`]). |
 //!
 //! The clients take `--tls 127.0.0.1:<port> --ca <ca.pem>` (a running `tls-api`): serenity
 //! with its default configuration, its HTTP client resolving `discord.com` to the mock.
@@ -51,6 +53,9 @@ use serenity::{
     },
 };
 
+mod fault_gateway;
+mod fault_rest;
+mod reliability;
 mod tls;
 
 /// The fixture files written by `vs-node fixtures`.
@@ -75,7 +80,14 @@ fn main() {
         "flood" => runtime().block_on(flood(&options)),
         "memory" => runtime().block_on(memory(&options)),
         "rest" => runtime().block_on(rest(&options)),
-        _ => panic!("unknown subcommand `{command}` (tls-api, decode, flood, memory, rest)"),
+        "fault-gateway" => runtime().block_on(fault_gateway::run(&options)),
+        "fault-rest" => runtime().block_on(fault_rest::run(&options)),
+        "reliability" => runtime().block_on(reliability::gateway(&options)),
+        "rest-faults" => runtime().block_on(reliability::rest(&options)),
+        _ => panic!(
+            "unknown subcommand `{command}` (tls-api, decode, flood, memory, rest, fault-gateway, \
+             fault-rest, reliability, rest-faults)"
+        ),
     }
 }
 

@@ -20,7 +20,10 @@ djs-rs = { path = "../../crates/djs-rs", default-features = false }
 # serenity with its default features, as most bots use it (D-280).
 serenity = "=0.12.5"
 serde_json = "1"
-tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "time"] }
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "sync", "time"] }
+# The failing mock gateway (D-279), as in benches/vs-node.
+futures-util = { version = "0.3", features = ["sink", "std"] }
+tokio-websockets = { version = "0.13.3", default-features = false, features = ["server", "ring"] }
 # The HTTPS mock serenity is pointed at (D-282): a test CA and certificate, a TLS server, and
 # the reqwest version serenity resolves for the client given to it.
 bytes = "1.12"
