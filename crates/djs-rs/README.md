@@ -6,8 +6,8 @@ A high-performance, discord.js-style framework for building Discord bots in Rust
 > discord.js event (with the previous state from the cache), managers for guilds, channels,
 > users, members, messages, reactions, roles, bans, threads, emojis, stickers, events,
 > stages, soundboard sounds, invites, webhooks, application commands and auto moderation
-> with methods on the structures, interaction responses and typed option getters, a
-> `WebhookClient`, presence and an optional cache. The
+> with methods on the structures, interaction responses, typed option getters and a
+> command router, a `WebhookClient`, presence and an optional cache. The
 > full discord.js surface arrives in later phases — see the
 > [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
 
@@ -168,6 +168,36 @@ fn interactions(client: &Client) {
             let feedback = modal.text_value("feedback").unwrap_or_default();
             interaction.reply(&ctx, format!("Thanks for: {feedback}")).await?;
         }
+        Ok(())
+    });
+}
+```
+
+### The router
+
+Instead of one `match` in `InteractionCreate`, handlers can be routed by name (D-251–D-255):
+`client.command("mod ban", …)` for a subcommand (a route for `"mod"` catches the
+subcommands without their own), `client.autocomplete(…)`, and `client.component("vote", …)` /
+`client.modal(…)` by the `custom_id` part before `:` — `vote:42` reaches `"vote"` with
+`args()` = `"42"`. Each handler gets a typed wrapper that dereferences to the data and
+answers like the interaction. The router does not register commands with Discord (use
+`ctx.commands().set(…)`), and `InteractionCreate` still fires for every interaction.
+
+```rust,no_run
+use djs_rs::prelude::*;
+
+fn routes(client: &Client) {
+    client.command("ping", |ctx, cmd| async move {
+        cmd.reply(&ctx, "Pong!").await?;
+        Ok(())
+    });
+    client.command("mod ban", |ctx, cmd| async move {
+        let reason = cmd.get_string("reason").unwrap_or("no reason");
+        cmd.reply(&ctx, format!("Banned: {reason}")).await?;
+        Ok(())
+    });
+    client.component("vote", |ctx, button| async move {
+        button.update(&ctx, format!("Voted for {}", button.args())).await?;
         Ok(())
     });
 }

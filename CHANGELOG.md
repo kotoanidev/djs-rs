@@ -8,6 +8,13 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- The interaction router in `djs-rs` (Phase 8 step 3c, D-251–D-255, C-101):
+  `client.command("mod ban", …)` (full-path routes with fallback to the group and the
+  command), `client.autocomplete(…)`, `client.component("vote", …)` and `client.modal(…)`
+  (routed by the `custom_id` part before `:`, the rest as `args()`); handlers receive
+  `CommandInteraction`, `AutocompleteInteraction`, `ComponentInteraction` or
+  `ModalInteraction` (`djs_rs::router`), which dereference to the data and implement
+  `InteractionExt`. `Events::InteractionCreate` still fires for every interaction.
 - `InteractionExt` in `djs-rs` (Phase 8 step 3b, D-248, C-100), in the prelude: `reply`,
   `defer_reply`, `update`, `defer_update`, `show_modal`, `respond`, `launch_activity`,
   `fetch_reply`, `edit_reply`, `delete_reply`, `follow_up`, `fetch_follow_up`,

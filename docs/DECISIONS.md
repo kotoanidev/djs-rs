@@ -3682,6 +3682,26 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   gateway can send dispatches after `READY` (`mock_gateway_with`), for an end-to-end
   `INTERACTION_CREATE` → handler → `reply` test.
 
+### C-101 — Phase 8 step 3c: the interaction router (D-251–D-255)
+- `djs_rs::router` holds the wrappers (`CommandInteraction`, `AutocompleteInteraction`,
+  `ComponentInteraction`, `ModalInteraction`; not in the prelude, closures infer them) with
+  `interaction()`, `event()` and, for components and modals, `args()`. Their `Debug` prints
+  the interaction (token redacted). `Deref` to the data matches the variant, with an
+  `unreachable!` for the kind the constructor already checked.
+- Registration: `Client::{command, autocomplete, component, modal}(name, handler)`, next to
+  `on`. Registering a name again replaces its handler. A component or modal route name
+  containing `:` panics (`#[track_caller]`, `# Panics`), as it could never match.
+  Autocomplete has its own routes, matched like commands.
+- The routes live in the copy-on-write handler `Registry`, so dispatching takes no lock;
+  `InteractionCreate` is decoded when there are routes even without an event handler. The
+  route handlers run after the `InteractionCreate` handlers (in sequential mode, after them in
+  order) and their errors are logged with a `route` field.
+- Command lookup tries the full path (`mod config set`), then the group (`mod config`), then
+  the command (`mod`); the key is joined in a 256-byte stack buffer (the heap beyond), so a
+  routed interaction allocates nothing more than the handler's own future. Commands of
+  different types sharing a name share the route (the handler reads `kind`). Route names
+  are compared verbatim (no case or whitespace normalisation).
+
 ---
 
 ## Open questions (to ask the owner when relevant)

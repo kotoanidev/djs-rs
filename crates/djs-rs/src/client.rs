@@ -34,6 +34,9 @@ use crate::{
     dispatch::{ReadySeen, ShardTracker, convert},
     event::{Dispatch, Event, EventKind, ShardEvent, payload},
     handler::{ErasedHandler, Handler, HandlerError, Registry},
+    router::{
+        AutocompleteInteraction, CommandInteraction, ComponentInteraction, ModalInteraction, Route,
+    },
 };
 
 fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -225,6 +228,161 @@ impl<B: Backend> Client<B> {
             .unwrap_or_else(PoisonError::into_inner);
         *registry = Arc::new(registry.with(E::KIND, handler));
         self
+    }
+
+    /// Replaces the handler table with one changed by `change` (copy-on-write).
+    fn change_registry(&self, change: impl FnOnce(&mut Registry<B>)) -> &Self {
+        let mut registry = self
+            .inner
+            .registry
+            .write()
+            .unwrap_or_else(PoisonError::into_inner);
+        let mut next = Registry::clone(&registry);
+        change(&mut next);
+        *registry = Arc::new(next);
+        self
+    }
+
+    /// Routes the command `name` to `handler` (the [router](crate::router), D-251–D-253).
+    ///
+    /// `name` is the command's full name as Discord shows it, with single spaces: `"ping"`,
+    /// `"mod ban"` (a subcommand), `"mod config set"` (a subcommand in a group), or the name
+    /// of a user or message command. A route for `"mod"` or `"mod config"` also receives the
+    /// subcommands below it that have no route of their own. Registering a name again
+    /// replaces its handler; routes can be added while the client runs.
+    ///
+    /// The handler receives a [`CommandInteraction`](crate::router::CommandInteraction): the
+    /// command's data (`get_string`, …) and its responses (`reply`, …). Like event handlers it
+    /// returns `Result<(), HandlerError>`, and errors are logged. The router only routes:
+    /// commands are registered with Discord through [`Context::commands`] (D-255), and
+    /// [`Events::InteractionCreate`](crate::Events::InteractionCreate) still fires.
+    ///
+    /// discord.js has no counterpart (a `switch` on `interaction.commandName`).
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use djs_rs::prelude::*;
+    /// # let client = Client::builder("token").build();
+    /// client.command("ping", |ctx, cmd| async move {
+    ///     cmd.reply(&ctx, "Pong!").await?;
+    ///     Ok(())
+    /// });
+    /// client.command("mod ban", |ctx, cmd| async move {
+    ///     let reason = cmd.get_string("reason").unwrap_or("no reason");
+    ///     cmd.reply(&ctx, format!("Banned: {reason}")).await?;
+    ///     Ok(())
+    /// });
+    /// ```
+    pub fn command<F, Fut>(&self, name: &str, handler: F) -> &Self
+    where
+        F: Fn(Context<B>, CommandInteraction) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = Result<(), HandlerError>> + Send + 'static,
+    {
+        let route = Arc::new(Route::new(name, handler));
+        self.change_registry(|registry| {
+            registry.routes.commands.insert(name.into(), route);
+        })
+    }
+
+    /// Routes the autocomplete interactions of the command `name` to `handler`; `name` is
+    /// matched like in [`command`](Self::command). The handler receives an
+    /// [`AutocompleteInteraction`](crate::router::AutocompleteInteraction) and answers with
+    /// [`respond`](crate::ext::InteractionExt::respond).
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use djs_rs::{model::{application_command::Choice, interaction::AutocompleteChoices}, prelude::*};
+    /// # let client = Client::builder("token").build();
+    /// client.autocomplete("search", |ctx, search| async move {
+    ///     let typed = search.focused_value().unwrap_or_default();
+    ///     let choices = vec![Choice::new(format!("{typed}…"), typed.into())];
+    ///     search.respond(&ctx, AutocompleteChoices::String(choices)).await?;
+    ///     Ok(())
+    /// });
+    /// ```
+    pub fn autocomplete<F, Fut>(&self, name: &str, handler: F) -> &Self
+    where
+        F: Fn(Context<B>, AutocompleteInteraction) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = Result<(), HandlerError>> + Send + 'static,
+    {
+        let route = Arc::new(Route::new(name, handler));
+        self.change_registry(|registry| {
+            registry.routes.autocomplete.insert(name.into(), route);
+        })
+    }
+
+    /// Routes the buttons and select menus whose custom ID is `name`, or starts with `name:`,
+    /// to `handler` (D-254). What follows the `:` is the handler's
+    /// [`args`](crate::router::ComponentInteraction::args): a button `delete:123` reaches the
+    /// route `"delete"` with the arguments `123`. Registering a name again replaces its
+    /// handler.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `name` contains a `:` (it could never match).
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use djs_rs::prelude::*;
+    /// # let client = Client::builder("token").build();
+    /// client.component("delete", |ctx, button| async move {
+    ///     let message_id = button.args();
+    ///     button.update(&ctx, format!("Deleted {message_id}")).await?;
+    ///     Ok(())
+    /// });
+    /// ```
+    #[track_caller]
+    pub fn component<F, Fut>(&self, name: &str, handler: F) -> &Self
+    where
+        F: Fn(Context<B>, ComponentInteraction) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = Result<(), HandlerError>> + Send + 'static,
+    {
+        assert!(
+            !name.contains(':'),
+            "a component route name cannot contain `:`: {name:?}"
+        );
+        let route = Arc::new(Route::new(name, handler));
+        self.change_registry(|registry| {
+            registry.routes.components.insert(name.into(), route);
+        })
+    }
+
+    /// Routes the modals whose custom ID is `name`, or starts with `name:`, to `handler`, like
+    /// [`component`](Self::component). The handler receives a
+    /// [`ModalInteraction`](crate::router::ModalInteraction) with the submitted fields.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `name` contains a `:` (it could never match).
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use djs_rs::prelude::*;
+    /// # let client = Client::builder("token").build();
+    /// client.modal("feedback", |ctx, modal| async move {
+    ///     let text = modal.text_value("text").unwrap_or_default();
+    ///     modal.reply(&ctx, format!("Thanks for: {text}")).await?;
+    ///     Ok(())
+    /// });
+    /// ```
+    #[track_caller]
+    pub fn modal<F, Fut>(&self, name: &str, handler: F) -> &Self
+    where
+        F: Fn(Context<B>, ModalInteraction) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = Result<(), HandlerError>> + Send + 'static,
+    {
+        assert!(
+            !name.contains(':'),
+            "a modal route name cannot contain `:`: {name:?}"
+        );
+        let route = Arc::new(Route::new(name, handler));
+        self.change_registry(|registry| {
+            registry.routes.modals.insert(name.into(), route);
+        })
     }
 
     /// Returns a stream of every event the client receives (D-029).
@@ -652,6 +810,7 @@ impl<B: Backend> Client<B> {
     /// [`Raw`](crate::event::Raw)).
     fn wants(&self, registry: &Registry<B>, kind: EventKind) -> bool {
         !registry.get(kind).is_empty()
+            || (kind == EventKind::InteractionCreate && !registry.routes.is_empty())
             || (kind != EventKind::Raw && self.inner.has_subscribers.load(Ordering::Acquire))
     }
 
@@ -677,10 +836,18 @@ impl<B: Backend> Client<B> {
             return;
         };
         let handlers = registry.get(kind);
+        // The interaction routes run after the `InteractionCreate` handlers (D-255).
+        let routed = match &dispatch {
+            Dispatch::InteractionCreate(event) if !registry.routes.is_empty() => Some(event),
+            _ => None,
+        };
         match inner.mode {
             HandlerMode::Concurrent => {
                 for handler in handlers {
                     handler.spawn(ctx, &dispatch);
+                }
+                if let Some(event) = routed {
+                    registry.routes.spawn(ctx, event);
                 }
             }
             HandlerMode::Sequential => {
@@ -688,6 +855,9 @@ impl<B: Backend> Client<B> {
                     if let Some(future) = handler.call(ctx, &dispatch) {
                         future.await;
                     }
+                }
+                if let Some(future) = routed.and_then(|event| registry.routes.call(ctx, event)) {
+                    future.await;
                 }
             }
         }

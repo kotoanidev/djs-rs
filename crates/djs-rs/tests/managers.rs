@@ -17,7 +17,7 @@ use std::{
 
 use bytes::Bytes;
 use djs_rs::{
-    Shards,
+    HandlerMode, Shards,
     cache::{CacheConfig, Limit},
     gateway::Compression,
     model::{
@@ -2468,4 +2468,222 @@ async fn an_interaction_event_is_answered_from_its_handler() {
     client.shutdown();
     timeout(STEP, running).await.unwrap().unwrap().unwrap();
     gateway.await.unwrap();
+}
+
+/// An interaction `id` of `kind` with `data`, from user `7` in [`GUILD`].
+fn routed(id: u64, kind: u8, data: &Value) -> (&'static str, Value) {
+    let mut interaction = interaction_json(&format!("token-{id}"));
+    interaction["id"] = id.to_string().into();
+    interaction["type"] = kind.into();
+    interaction["data"] = data.clone();
+    ("INTERACTION_CREATE", interaction)
+}
+
+fn slash(name: &str, options: &Value) -> Value {
+    json!({"id": "91", "name": name, "type": 1, "options": options})
+}
+
+/// Every kind of route, the fallbacks of D-253 and an interaction without a route.
+fn router_dispatches() -> Vec<(&'static str, Value)> {
+    vec![
+        routed(101, 2, &slash("ping", &json!([]))),
+        routed(
+            102,
+            2,
+            &slash(
+                "mod",
+                &json!([{"name": "ban", "type": 1, "options": [
+            {"name": "reason", "type": 3, "value": "spam"}]}]),
+            ),
+        ),
+        routed(103, 2, &slash("mod", &json!([{"name": "kick", "type": 1}]))),
+        routed(
+            104,
+            2,
+            &slash(
+                "mod",
+                &json!([{"name": "config", "type": 2, "options": [
+            {"name": "set", "type": 1}]}]),
+            ),
+        ),
+        routed(
+            105,
+            2,
+            &json!({"id": "92", "name": "Report User", "type": 2,
+                               "target_id": "7"}),
+        ),
+        routed(
+            106,
+            3,
+            &json!({"custom_id": "vote:42", "component_type": 2}),
+        ),
+        routed(107, 3, &json!({"custom_id": "vote", "component_type": 2})),
+        routed(108, 5, &json!({"custom_id": "form:7", "components": []})),
+        routed(
+            109,
+            4,
+            &slash(
+                "search",
+                &json!([
+            {"name": "query", "type": 3, "value": "dj", "focused": true}]),
+            ),
+        ),
+        routed(110, 2, &slash("unknown", &json!([]))),
+    ]
+}
+
+/// Routes every kind of interaction, reporting `(route, interaction ID, detail)`.
+fn add_routes(client: &Client, tx: &mpsc::UnboundedSender<(String, u64, String)>) {
+    let report = |route: &'static str| {
+        let tx = tx.clone();
+        move |id: u64, detail: &str| {
+            let _ = tx.send((route.to_owned(), id, detail.to_owned()));
+        }
+    };
+    let ping = report("ping");
+    client.command("ping", move |ctx, cmd| {
+        let ping = ping.clone();
+        async move {
+            cmd.reply(&ctx, "Pong!").await?;
+            ping(cmd.interaction().id.get(), "");
+            Ok(())
+        }
+    });
+    let ban = report("mod ban");
+    client.command("mod ban", move |_, cmd| {
+        ban(
+            cmd.interaction().id.get(),
+            cmd.get_string("reason").unwrap_or_default(),
+        );
+        async { Ok(()) }
+    });
+    let fallback = report("mod");
+    client.command("mod", move |_, cmd| {
+        fallback(
+            cmd.interaction().id.get(),
+            cmd.subcommand().unwrap_or_default(),
+        );
+        async { Ok(()) }
+    });
+    let group = report("mod config");
+    client.command("mod config", move |_, cmd| {
+        group(
+            cmd.interaction().id.get(),
+            cmd.subcommand().unwrap_or_default(),
+        );
+        async { Ok(()) }
+    });
+    let user = report("Report User");
+    client.command("Report User", move |_, cmd| {
+        user(
+            cmd.interaction().id.get(),
+            &cmd.target_id.unwrap().to_string(),
+        );
+        async { Ok(()) }
+    });
+    let vote = report("vote");
+    client.component("vote", move |_, button| {
+        vote(button.interaction().id.get(), button.args());
+        async { Ok(()) }
+    });
+    let form = report("form");
+    client.modal("form", move |_, modal| {
+        form(modal.interaction().id.get(), modal.args());
+        async { Ok(()) }
+    });
+    let search = report("search");
+    client.autocomplete("search", move |_, search_interaction| {
+        search(
+            search_interaction.interaction().id.get(),
+            search_interaction.focused_value().unwrap_or_default(),
+        );
+        async { Ok(()) }
+    });
+    let event = report("event");
+    client.on(Events::InteractionCreate, move |_, interaction| {
+        event(interaction.id.get(), "");
+        async { Ok(()) }
+    });
+}
+
+async fn run_router(mode: HandlerMode) {
+    let (api, log) = mock_rest().await;
+    let (url, gateway) = mock_gateway_with(router_dispatches()).await;
+    let client = Client::builder("test-token")
+        .intents(Intents::GUILDS)
+        .gateway_url(url)
+        .shards(Shards::Count(1))
+        .compression(Compression::None)
+        .handler_mode(mode)
+        .rest(Rest::builder().token("test-token").api(api).build())
+        .build();
+    let (tx, mut rx) = mpsc::unbounded_channel();
+    add_routes(&client, &tx);
+    let running = {
+        let client = client.clone();
+        tokio::spawn(async move { client.login().await })
+    };
+    let mut seen = Vec::new();
+    // 9 routed interactions and 10 events.
+    while seen.len() < 19 {
+        seen.push(timeout(STEP, rx.recv()).await.unwrap().unwrap());
+    }
+    let mut routes: Vec<_> = seen
+        .iter()
+        .filter(|(route, ..)| route != "event")
+        .map(|(route, id, detail)| (*id, route.as_str(), detail.as_str()))
+        .collect();
+    routes.sort_unstable();
+    assert_eq!(
+        routes,
+        [
+            (101, "ping", ""),
+            (102, "mod ban", "spam"),
+            (103, "mod", "kick"),
+            (104, "mod config", "set"),
+            (105, "Report User", "7"),
+            (106, "vote", "42"),
+            (107, "vote", ""),
+            (108, "form", "7"),
+            (109, "search", "dj"),
+        ]
+    );
+    // `InteractionCreate` still fires for every interaction (D-255), routed or not.
+    let mut events: Vec<u64> = seen
+        .iter()
+        .filter(|(route, ..)| route == "event")
+        .map(|(_, id, _)| *id)
+        .collect();
+    events.sort_unstable();
+    assert_eq!(events, (101..=110).collect::<Vec<_>>());
+    // The wrapper answers through `InteractionExt`.
+    let callbacks: Vec<String> = log
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|seen| seen.path.starts_with("/interactions"))
+        .map(|seen| seen.path.clone())
+        .collect();
+    assert_eq!(callbacks, ["/interactions/101/token-101/callback"]);
+    assert!(rx.try_recv().is_err());
+    client.shutdown();
+    timeout(STEP, running).await.unwrap().unwrap().unwrap();
+    gateway.await.unwrap();
+}
+
+#[tokio::test]
+async fn the_router_dispatches_by_name_and_custom_id() {
+    run_router(HandlerMode::Concurrent).await;
+}
+
+#[tokio::test]
+async fn the_router_runs_sequential_handlers_too() {
+    run_router(HandlerMode::Sequential).await;
+}
+
+#[test]
+#[should_panic(expected = "cannot contain `:`")]
+fn component_routes_cannot_contain_a_colon() {
+    let client = Client::builder("test-token").build();
+    client.component("vote:yes", |_, _| async { Ok(()) });
 }

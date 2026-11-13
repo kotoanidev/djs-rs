@@ -491,13 +491,14 @@ fields with `Deref` to `new`). Steps:
       responses, the original response and follow-ups; 3 tests in `tests/managers.rs`
       (every callback body, the webhook routes without the bot token, and an end-to-end
       `INTERACTION_CREATE` → handler → `reply` through `mock_gateway_with`).
-   c. **Next:** the router (D-251). Shape decided 2026-11-13: D-252 (handlers get
-      `CommandInteraction` / `ComponentInteraction` / `ModalInteraction` /
-      `AutocompleteInteraction` wrappers over the same `Arc<InteractionCreate>`, deref to the
-      data + the responses), D-253 (full-path keys `"mod ban"`, `"mod"` catches the rest),
-      D-254 (`custom_id` prefix before `:`, the rest as arguments, hash-map lookup), D-255
-      (routes only; `InteractionCreate` still emitted; no command registration).
-   d. Benchmarks + extreme-load tests (D-041).
+   c. ✅ The router (D-251–D-255, C-101): `crates/djs-rs/src/router.rs` (wrappers, routes in
+      the copy-on-write `Registry`, allocation-free lookup), `Client::{command, autocomplete,
+      component, modal}`; tests in `tests/managers.rs` (every route kind and fallback, the
+      `InteractionCreate` event alongside, both handler modes, the `:` panic).
+   d. **Next:** benchmarks + extreme-load tests (D-041) for step 3: the getters
+      (`djs-model` benches), route lookup and wrapper creation, interaction dispatch through
+      the client (events + routes) against the plain `InteractionCreate` handler, and a
+      flood of interactions answered through the mock REST API.
 4. Collectors and `await_*`. 5. Partials and intents guidance. 6. Examples.
 
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON

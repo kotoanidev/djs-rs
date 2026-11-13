@@ -17,7 +17,7 @@
 //! | [`MemberExt`] | [`CachedMember`], the [`GuildMemberAdd`] and [`GuildMemberUpdate`] payloads (the model [`Member`](djs_model::guild::Member) does not know its guild) |
 //! | [`GuildExt`] | [`Guild`], [`CachedGuild`] |
 //! | [`WebhookExt`] | [`Webhook`] |
-//! | [`InteractionExt`] | [`Interaction`] (and so the [`InteractionCreate`](djs_model::gateway::payload::InteractionCreate) payload) |
+//! | [`InteractionExt`] | [`Interaction`] (and so the [`InteractionCreate`](djs_model::gateway::payload::InteractionCreate) payload), the [router](crate::router)'s wrappers |
 //!
 //! Import the traits with [`prelude`](crate::prelude).
 
@@ -1312,6 +1312,10 @@ pub trait InteractionExt: sealed::Interaction {
 }
 
 impl InteractionExt for Interaction {}
+impl InteractionExt for crate::router::CommandInteraction {}
+impl InteractionExt for crate::router::AutocompleteInteraction {}
+impl InteractionExt for crate::router::ComponentInteraction {}
+impl InteractionExt for crate::router::ModalInteraction {}
 
 /// Sends the initial response `response` (Create Interaction Response).
 async fn callback<B: Backend>(
@@ -1338,6 +1342,24 @@ mod sealed {
             (self.id, self.application_id, &self.token)
         }
     }
+
+    /// The router's wrappers (D-252) answer for their interaction.
+    macro_rules! wrapped {
+        ($($wrapper:ident),*) => {$(
+            impl Interaction for crate::router::$wrapper {
+                fn interaction_parts(&self) -> (InteractionId, ApplicationId, &str) {
+                    self.interaction().interaction_parts()
+                }
+            }
+        )*};
+    }
+
+    wrapped!(
+        CommandInteraction,
+        AutocompleteInteraction,
+        ComponentInteraction,
+        ModalInteraction
+    );
 
     pub trait Message {
         /// The channel and the message.

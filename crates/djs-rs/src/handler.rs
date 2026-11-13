@@ -7,6 +7,7 @@ use djs_cache::Backend;
 use crate::{
     Context,
     event::{Dispatch, Event, EventKind},
+    router::Routes,
 };
 
 /// The error type event handlers may return. Any error type converts into it with `?`.
@@ -71,12 +72,15 @@ where
 /// dispatching only needs to clone an `Arc`.
 pub(crate) struct Registry<B: Backend> {
     handlers: [Vec<Arc<dyn ErasedHandler<B>>>; EventKind::COUNT],
+    /// The interaction routes (D-251).
+    pub(crate) routes: Routes<B>,
 }
 
 impl<B: Backend> Default for Registry<B> {
     fn default() -> Self {
         Self {
             handlers: core::array::from_fn(|_| Vec::new()),
+            routes: Routes::default(),
         }
     }
 }
@@ -85,6 +89,7 @@ impl<B: Backend> Clone for Registry<B> {
     fn clone(&self) -> Self {
         Self {
             handlers: self.handlers.clone(),
+            routes: self.routes.clone(),
         }
     }
 }

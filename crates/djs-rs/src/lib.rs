@@ -9,6 +9,7 @@ pub mod event;
 pub mod ext;
 mod handler;
 pub mod manager;
+pub mod router;
 pub mod webhook;
 
 pub use self::{
