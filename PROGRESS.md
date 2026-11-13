@@ -505,27 +505,24 @@ fields with `Deref` to `new`). Steps:
       16-shard reply flood reduced to 50 000 per D-258; CHANGELOG and PERFORMANCE updated).
       **Verified:** `cargo fmt` and `cargo clippy --workspace --all-targets --all-features`
       (which type-checks every test, bench and example). **Not yet run:** `cargo test` and
-      `cargo doc` — the guard stopped the gate at 94 °C. **Next, once the owner allows heavy
-      work again:** run `.reference/tools/gate.sh` through `.reference/tools/safe.sh` (with the
-      limits the owner then chooses), then one decode benchmark
+      `cargo doc` — the guard stopped the gate at 94 °C. **Next (D-259, the owner asked to run
+      the stress tests):** run `.reference/tools/gate.sh` through `.reference/tools/safe.sh`,
+      then one decode benchmark
       (`cargo bench -p djs-model --bench interaction -- decode_dispatch`, pinned to one core),
-      record it in `docs/PERFORMANCE.md`, and commit without the `wip` mark; then step 4.
+      and the interaction stress tests one at a time (both allocators, the gateway flood),
+      record them in `docs/PERFORMANCE.md`, and commit without the `wip` mark; then step 4.
 
-> **Heavy runs are PAUSED by the owner (2026-11-13).** The laptop hard-froze at 03:55 under
-> assistant load, and the resource guard (D-257) then stopped the quality gate at 94 °C even
-> at 4 CPUs (one rustc on the P-cores, turbo 5 GHz). Do not compile, test or benchmark until
-> the owner says the computer was checked; then ask how to run (proposed: the guard pinned to
-> the E-cores, `AllowedCPUs=4-11`, 4 threads, a reading every second, stop at 88 °C; or the
-> owner switches the platform profile to balanced/quiet). The guard and the gate script are in
-> `.reference/tools/` (git-ignored, persists across reboots; `/tmp` does not). Stress tests
-> only after asking (D-258).
-4. Collectors and `await_*`. 5. Partials and intents guidance. 6. Examples.
+> **Heavy runs (D-257, D-259, D-260):** the owner's laptop hard-froze on 2026-11-13 under
+> assistant load. Every cargo build/test/bench/stress test goes through
+> `.reference/tools/safe.sh` (git-ignored, persists): AC only, cool start, `MemoryMax=6G`
+> without swap, no core limit, a stop at 99 °C, and the fan forced to full speed during the run
+> (it refuses to start without fan control). The LAN monitor `.reference/tools/monitor.py`
+> (http://192.168.0.20:8765) shows temperatures, load, the runs on a time axis and a comparison
+> table; it logs to `.reference/tools/monitor-log.csv`. Stress tests one at a time (D-258).
 
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON
   body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").
 
 ## Blocked on the owner
-- **All CPU-heavy work (builds, tests, benchmarks) is paused** until the owner has checked the
-  computer (overheating: 94 °C at 4 CPUs; a hard freeze on 2026-11-13). Then: ask how heavy
-  runs may proceed (E-core pinning / lower stop temperature / platform profile), finish step
-  3e (gate + one benchmark), and only then continue with step 4.
+- **Fan control (D-260):** the guard needs write access to the ASUS fan's `pwm1_enable`; the
+  owner installs a udev rule once (2026-11-13). Until then no heavy run can start.

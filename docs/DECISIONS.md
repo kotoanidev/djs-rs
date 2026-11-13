@@ -2320,6 +2320,29 @@ and why.
   Benchmarks run singly through the guard.
 - **Alternatives:** keep the sizes; run stress tests only when the owner asks.
 
+### D-259 — Heavy runs resume: no core limit, stop at 99 °C, a LAN monitor
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Decision:** after checking the computer, the owner lifts the pause and the core limit of
+  D-257: builds, tests and stress tests use every core again. The guard keeps the other
+  safeguards (AC power, `MemoryMax=6G` without swap, nice/idle I/O, a timeout, a cool start)
+  and its overheating stop moves to **99 °C** (one reading, sampled every second; the CPU's
+  limit is 100 °C). A minimal monitor page on the local network shows temperatures, load,
+  memory, fan, power and the guard's state, and logs every sample to disk so that the last
+  readings survive a freeze. Stress tests still run one at a time with a cool-down between
+  them (D-258).
+- **Alternatives:** E-core pinning at 88 °C; a balanced/quiet platform profile.
+
+### D-260 — The fan runs at full speed during heavy runs
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Decision:** during every assistant build, test or benchmark — from the guard's cool-down
+  wait to the end of the run — the ASUS fan is forced to full speed (`pwm1_enable` = 0 of the
+  `asus` hwmon) against overheating; otherwise it stays under the firmware's automatic
+  control (2). The guard restores automatic control on every exit, the monitor restores it if
+  no guard run is active (a guard killed without its exit trap), and the guard refuses to
+  start a run if it cannot force the fan. Writing `pwm1_enable` needs root once: a udev rule
+  gives the `wheel` group write access to that one file.
+- **Alternatives:** none (the owner's requirement).
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
@@ -3750,12 +3773,6 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 
 ## Open questions (to ask the owner when relevant)
 
-- **How heavy runs proceed after the hardware check** (D-257): on 2026-11-13 the guard stopped
-  the gate at 94 °C even at `CPUQuota=400%` (a rustc on the P-cores, turbo 5 GHz), and the
-  owner paused all heavy work until the computer is checked. Proposed: pin the guard's scope
-  to the E-cores (`AllowedCPUs=4-11`, max 3.7 GHz), sample every second and stop at 88 °C; or
-  the owner switches the platform profile from "performance" to "balanced"/"quiet" while the
-  assistant works.
 - **Committing the resource guard** (D-257): the guard script is kept in the git-ignored
   `.reference/tools/safe.sh` (with `gate.sh`), outside the repository's history; committing it
   (for example `scripts/safe.sh`) would share it with the repository.
