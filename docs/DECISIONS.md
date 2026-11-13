@@ -2631,6 +2631,34 @@ and why.
   the cache behind a trait object: a breaking change); boxing only the REST methods and
   `login` (the generic managers stay in the bot crate).
 
+### D-288 — Event handlers stay spawned directly (no boxed handler future)
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Context (measured, D-287 step 3):** after D-287 steps 1–2 the moderation example bot
+  rebuilt in 2.2 s (release, default profile) and the `!ping` bot in 0.89 s. In the remaining
+  IR of the moderation bot, tokio's task machinery for the spawned handler futures was the
+  largest share (~21 %). A prototype that boxed every handler future before `tokio::spawn`
+  (one shared, non-generic task type compiled in the library) rebuilt in **1.7 s**, but the
+  event flood with the cache on was **1.9 % slower** (about +0.2 µs per event).
+- **Decision:** keep `tokio::spawn` of the concrete handler future (no extra box) in
+  `ErasedHandler::spawn` and in the command router. The hot event path wins over 0.5 s of
+  rebuild time.
+- **Alternatives:** box the handler futures (1.7 s rebuild, −1.9 % flood throughput).
+
+### D-289 — The manager and structure methods are built in the library too
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Context:** D-287's scope named the manager and structure methods (`ban`, `fetch`,
+  `fetch_all`, `reply`, …). Their REST part is already built in `djs-rest` (step 1); what
+  still compiles in the bot crate is the code that depends on the cache backend (the
+  `store_*` conversions and the cache reads of the managers), because `Context<B>` and the
+  managers are generic. Estimated gain: 0.1–0.2 s of the moderation bot's 2.2 s. Claude
+  recommended stopping at steps 1–2; the owner chose to do it as well.
+- **Decision:** route the backend-dependent code of the managers, the structure extension
+  methods and the `Context` store helpers through code compiled once in `djs-rs` for the
+  default backend (the same idea as D-287's function table: set where the non-generic code
+  creates the context), keeping the public API and the custom-backend path unchanged.
+  Benchmarked before it is committed, like D-287.
+- **Alternatives:** stop after D-287 steps 1–2 (Claude's recommendation).
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
