@@ -23,7 +23,12 @@ allows it; benchmarks + extreme-load tests in `docs/PERFORMANCE.md`). Left open:
 parts with the builders (open question), a container walked twice by `validate_components`.
 **Phase 7 — small standalone crates: ✅ done 2026-11-12** (D-208–D-218; `djs-formatters` and
 `djs-collection` built, benchmarked and stress-tested; `djs-util` stays empty until two crates
-need a helper, D-218). **Phase 8 is next**, see "Next step".
+need a helper, D-218).
+**Phase 8 — full `djs-rs` client: ✅ done 2026-11-13** (events with the cached old state,
+structures with methods, managers, interactions and a router, collectors and gateway
+requests, intents and partials guidance, example bots run on the test bot; benchmarks +
+extreme-load tests in `docs/PERFORMANCE.md`). **Next: the serenity comparison (D-277–D-280),
+then Phase 9**, see "Next step".
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-075 in `docs/DECISIONS.md`; Claude defaults C-001 …
@@ -558,11 +563,10 @@ fields with `Deref` to `new`). Steps:
    shut down cleanly (Shard 0/1 ready, presence set), but **not exercised** (no messages in
    their windows). No handler error in any run. The 5 bot messages were deleted with a
    temporary `zz_` probe (deleted, never committed); the owner's 2 test messages were kept
-   (not approved for deletion).
-   **Next:** ask the owner whether to rerun `components` and `advanced` while they are at the
-   keyboard (and whether to delete their 2 messages); then tick "Examples directory" in
-   ROADMAP and close Phase 8.
-7. **After Phase 8 is closed: the serenity comparison** (D-277–D-280): `benches/vs-serenity/`
+   (deleted afterwards on request, D-281).
+   The owner chose not to rerun them and had their 2 messages deleted too (D-281). ✅
+   Phase 8 closed.
+7. **Next: the serenity comparison** (D-277–D-280; Phase 8 is closed): `benches/vs-serenity/`
    outside the workspace (own `Cargo.lock`, serenity 0.12.5 with default features), reusing
    the mocks and payloads of `benches/vs-node/`; performance, resources and reliability
    (gateway and REST failure scenarios); results in `docs/VS_SERENITY.md`.

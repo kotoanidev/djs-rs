@@ -2544,6 +2544,15 @@ and why.
 - **Alternatives:** also serenity's fastest configuration (`simd_json`, a tuned cache); also
   its unreleased `next` branch.
 
+### D-281 — Phase 8 is closed without exercising two examples live
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Decision:** the live runs of D-275 count as done: `slash_commands` and `moderation` were
+  exercised on the test guild; `components` and `advanced` logged in, became ready and shut
+  down cleanly but received no test messages, and are not run again. Their behaviour is
+  covered by the collector, router, webhook and event-stream tests on the mock servers. The
+  owner's two test messages of the runs were deleted with the bot's on the owner's request.
+- **Alternatives:** rerun both, or only `components`, with the owner at the keyboard.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)

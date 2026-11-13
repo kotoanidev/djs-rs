@@ -114,7 +114,8 @@ just with narrow scope.
   gateway member and soundboard requests; benchmarked)
 - [x] Partials, intents/privileged intents guidance (D-271–D-273: `Event::INTENTS`, a login
   warning, `required_intents()`, a partials table)
-- [ ] Examples directory covering common bot patterns
+- [x] Examples directory covering common bot patterns (D-274–D-276, D-281: slash commands,
+      components and collectors, moderation, an advanced setup; run on the test bot)
 - [ ] A comparison with serenity: performance, resources, reliability (D-277–D-280;
       `benches/vs-serenity/`, `docs/VS_SERENITY.md`), once the steps above are done
 
