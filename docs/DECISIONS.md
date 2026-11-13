@@ -2288,6 +2288,16 @@ and why.
 - **Alternatives:** routes registered with command builders and synchronised with a bulk
   overwrite at `READY`.
 
+### D-256 — The values of `Resolved` are boxed (amends D-058)
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Decision:** the six maps of interaction `Resolved` data are `BTreeMap<Id, Box<V>>`
+  (users, members, roles, channels, messages, attachments). A B-tree leaf reserves room for
+  11 values, so one-entry maps of large values cost ≈ 6.7 KB per interaction; boxed, an
+  interaction takes 3.14 KB instead of 8.72 KB (measured, same decoding time; Phase 8 step
+  3d). The other dictionaries of D-058 keep plain values. The getters of D-250 still return
+  `&User`, `&Role`, …. Breaking, noted in the CHANGELOG.
+- **Alternatives:** keep `BTreeMap<Id, V>`; a new compact sorted-`Vec` map type.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)

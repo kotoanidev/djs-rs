@@ -499,13 +499,13 @@ fields with `Deref` to `new`). Steps:
       `djs-gateway` `flood_1m_interaction_creates_plain`, `djs-rs/tests/stress_interactions.rs`
       (+ `_mimalloc`); results in `docs/PERFORMANCE.md` ("Phase 8 — interactions"). Getters
       2–22 ns without allocations; the router ≈ 1 % over a `match`; decoding (4.8 µs of shard
-      CPU per 1.9 KB interaction) dominates. **Asked the owner:** boxing `Resolved`'s values
-      (D-058 change; prototype: 8.72 → 3.14 KB per interaction, same speed).
+      CPU per 1.9 KB interaction) dominates.
+   e. **Next:** box the values of `Resolved` (D-256, decided 2026-11-13; prototype: 8.72 →
+      3.14 KB per interaction, same speed), re-measure, then step 4.
 4. Collectors and `await_*`. 5. Partials and intents guidance. 6. Examples.
 
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON
   body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").
 
 ## Blocked on the owner
-- The `Resolved` boxing question (Phase 8 step 3d finding, see `docs/PERFORMANCE.md`,
-  "Findings … (Phase 8, interactions)"): asked 2026-11-13; step 4 does not depend on it.
+- Nothing.
