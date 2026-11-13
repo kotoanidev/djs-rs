@@ -2,6 +2,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 mod client;
+pub mod collector;
 mod context;
 mod dispatch;
 mod error;

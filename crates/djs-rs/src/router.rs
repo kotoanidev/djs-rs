@@ -56,7 +56,7 @@ macro_rules! wrapper {
 
         impl $name {
             /// Wraps `event`, if it is an interaction of this kind.
-            fn new(event: &Arc<InteractionCreate>) -> Option<Self> {
+            pub(crate) fn new(event: &Arc<InteractionCreate>) -> Option<Self> {
                 matches!(event.data, InteractionData::$variant(_)).then(|| Self {
                     event: Arc::clone(event),
                 })

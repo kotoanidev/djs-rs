@@ -519,11 +519,23 @@ fields with `Deref` to `new`). Steps:
    `await_component`, `await_modal_submit`), D-270 (`members(guild).fetch_all()` /
    `fetch_by_query(q).limit(n)` / `fetch_many(ids)` with `presences` and `time`, chunks by
    nonce, cached, `Collection<UserId, Arc<CachedMember>>`). Steps:
-   a. 🟡 **In progress:** the collector core and the four collectors: `crates/djs-rs/src/
-      collector/{mod.rs, index.rs}` (index: `Collectors`, `Sink`, `Key`, `Registration`;
-      the client's `wants` / `emit` feed it; ending on message / channel / thread / guild
-      deletion), the extension methods and the `Context` methods by channel ID; tests.
-   b. Gateway member requests and soundboard sounds (D-270).
+   a. ✅ The collector core and the four collectors (C-103): `crates/djs-rs/src/collector/
+      {mod.rs (`Collector<T>` stream, `CollectorBuilder<T, M>` with `mode::{Stream, First,
+      All}`, `AwaitFirst` / `AwaitAll`, `EndReason`, `CollectorError`, `Collected`,
+      `ReactionEvent`, `CollectedReaction`, `reaction_key`, the `Context` methods by channel
+      ID), index.rs (`Collectors`: entries by raw ID, atomic counts, `deliver`, deletions,
+      `end_all` at shutdown; `Registration` unregisters on drop)}`; `context.rs` `Shared`
+      (application ID, collectors, `sequential`, shard senders); the client's `wants` / `emit`
+      feed the index; ext methods on messages, channels and interactions; tests
+      `tests/collectors.rs` (scripted mock gateway, 11 tests).
+   b. **Next:** gateway member requests and soundboard sounds (D-270): `members(guild)
+      .fetch_all()` / `.fetch_by_query(q).limit(n)` / `.fetch_many(ids)` with `presences` and
+      `time` — send `RequestGuildMembers` with a `djs-rs:<n>` nonce (`Collectors::nonce`) on
+      the guild's shard (`Context::guild_shard`), register a `Sink::MemberChunks` entry under
+      `Key::Nonce`, assemble the chunks (`chunk_count`), store members (and presences) in the
+      cache, return `Collection<UserId, Arc<CachedMember>>`; the soundboard request likewise
+      (`Sink::SoundboardSounds`, `Key::Sounds`). The `#[expect(dead_code)]` marks in
+      `index.rs` / `context.rs` go away then.
    c. Benchmarks + extreme-load tests (D-041).
 
 > **Heavy runs (D-257, D-259–D-262):** the owner's laptop hard-froze on 2026-11-13 under

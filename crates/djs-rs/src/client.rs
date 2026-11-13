@@ -9,18 +9,15 @@ use core::{
 };
 use std::{
     future::Future,
-    sync::{Arc, Mutex, MutexGuard, OnceLock, PoisonError, RwLock},
+    sync::{Arc, Mutex, MutexGuard, PoisonError, RwLock},
 };
 
 use djs_cache::{Backend, Cache, CacheConfig, DashMapBackend};
 use djs_gateway::{
-    Compression, Config, LocalIdentifyQueue, MessageSender, ReceiveErrorKind, SendError, Shard,
-    ShardState, create_shards,
+    Compression, Config, LocalIdentifyQueue, ReceiveErrorKind, SendError, Shard, ShardState,
+    create_shards,
 };
-use djs_model::{
-    gateway::{DispatchEvent, GatewayEvent, Intents, payload::UpdatePresence},
-    id::ApplicationId,
-};
+use djs_model::gateway::{DispatchEvent, GatewayEvent, Intents, payload::UpdatePresence};
 use djs_rest::Rest;
 use futures_core::Stream;
 use tokio::{
@@ -31,6 +28,8 @@ use tokio::{
 
 use crate::{
     Context, Error,
+    collector::EndReason,
+    context::Shared,
     dispatch::{ReadySeen, ShardTracker, convert},
     event::{Dispatch, Event, EventKind, ShardEvent, payload},
     handler::{ErasedHandler, Handler, HandlerError, Registry},
@@ -140,8 +139,6 @@ struct Inner<B: Backend> {
     presence: Option<UpdatePresence>,
     mode: HandlerMode,
     cache: Option<Arc<Cache<B>>>,
-    /// The senders of the running shards (empty while not running).
-    senders: Mutex<Vec<MessageSender>>,
     registry: RwLock<Arc<Registry<B>>>,
     subscribers: Mutex<Vec<mpsc::UnboundedSender<ShardEvent>>>,
     has_subscribers: AtomicBool,
@@ -150,8 +147,9 @@ struct Inner<B: Backend> {
     /// The shards of the current `login` and how many of them have been ready (D-224).
     shard_count: AtomicU32,
     ready_shards: AtomicU32,
-    /// The bot's application, from the first `READY` (D-245).
-    application_id: Arc<OnceLock<ApplicationId>>,
+    /// The application ID, the collectors and the shards' senders, shared with every
+    /// [`Context`].
+    shared: Arc<Shared>,
 }
 
 impl<B: Backend> Clone for Client<B> {
@@ -526,7 +524,13 @@ impl<B: Backend> Client<B> {
     /// ```
     pub fn set_presence(&self, presence: &UpdatePresence) -> Result<(), SendError> {
         let mut result = Ok(());
-        for sender in lock(&self.inner.senders).iter() {
+        let shards = self
+            .inner
+            .shared
+            .shards
+            .read()
+            .unwrap_or_else(PoisonError::into_inner);
+        for (_, sender) in shards.iter() {
             if let Err(error) = sender.update_presence(presence) {
                 result = result.and(Err(error));
             }
@@ -574,7 +578,12 @@ impl<B: Backend> Client<B> {
         let mut sweepers = self.spawn_sweepers();
         let mut tasks = JoinSet::new();
         for shard in create_shards(plan.range, plan.total, config) {
-            lock(&inner.senders).push(shard.sender());
+            inner
+                .shared
+                .shards
+                .write()
+                .unwrap_or_else(PoisonError::into_inner)
+                .push((shard.id().number(), shard.sender()));
             let (client, shutdown) = (self.clone(), shutdown.clone());
             tasks.spawn(async move { client.run_shard(shard, shutdown).await });
         }
@@ -598,7 +607,14 @@ impl<B: Backend> Client<B> {
                 }
             }
         }
-        lock(&inner.senders).clear();
+        inner
+            .shared
+            .shards
+            .write()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clear();
+        // The collectors waiting for this client's events end with it.
+        inner.shared.collectors.end_all(EndReason::Shutdown);
         sweepers.shutdown().await;
         result
     }
@@ -636,7 +652,7 @@ impl<B: Backend> Client<B> {
         out: &mut Vec<Dispatch>,
     ) {
         // The same application on every shard and every login.
-        let _ = self.inner.application_id.set(seen.application_id);
+        let _ = self.inner.shared.application_id.set(seen.application_id);
         if *counted_ready {
             return;
         }
@@ -662,7 +678,7 @@ impl<B: Backend> Client<B> {
             shard.id(),
             shard.sender(),
             self.inner.cache.clone(),
-            Arc::clone(&self.inner.application_id),
+            Arc::clone(&self.inner.shared),
         );
         let mut tracker = ShardTracker::default();
         let mut out = Vec::new();
@@ -811,6 +827,7 @@ impl<B: Backend> Client<B> {
     fn wants(&self, registry: &Registry<B>, kind: EventKind) -> bool {
         !registry.get(kind).is_empty()
             || (kind == EventKind::InteractionCreate && !registry.routes.is_empty())
+            || self.inner.shared.collectors.wants(kind)
             || (kind != EventKind::Raw && self.inner.has_subscribers.load(Ordering::Acquire))
     }
 
@@ -831,6 +848,10 @@ impl<B: Backend> Client<B> {
                 .has_subscribers
                 .store(!subscribers.is_empty(), Ordering::Release);
         }
+
+        // The collectors watching the event's IDs (D-264); they do not take it from the
+        // handlers (D-266).
+        inner.shared.collectors.deliver(&dispatch);
 
         let Some(kind) = dispatch.kind() else {
             return;
@@ -1092,7 +1113,6 @@ impl<B: Backend> ClientBuilder<B> {
                 presence: self.presence,
                 mode: self.mode,
                 cache,
-                senders: Mutex::new(Vec::new()),
                 registry: RwLock::new(Arc::new(Registry::default())),
                 subscribers: Mutex::new(Vec::new()),
                 has_subscribers: AtomicBool::new(false),
@@ -1100,7 +1120,10 @@ impl<B: Backend> ClientBuilder<B> {
                 shutdown: watch::channel(false).0,
                 shard_count: AtomicU32::new(0),
                 ready_shards: AtomicU32::new(0),
-                application_id: Arc::default(),
+                shared: Arc::new(Shared {
+                    sequential: self.mode == HandlerMode::Sequential,
+                    ..Shared::default()
+                }),
             }),
         }
     }

@@ -21,14 +21,14 @@
 //!
 //! Import the traits with [`prelude`](crate::prelude).
 
-use std::{future::Future, sync::Arc};
+use std::{future::Future, sync::Arc, time::Duration};
 
 use djs_cache::{Backend, CachedGuild, CachedMember, CachedMessage, CachedUser};
 use djs_collection::Collection;
 use djs_model::{
     audit_log::AuditLog,
     channel::Channel,
-    gateway::payload::{GuildMemberAdd, GuildMemberUpdate},
+    gateway::payload::{GuildMemberAdd, GuildMemberUpdate, MessageCreate},
     guild::{Guild, Integration},
     id::{
         ApplicationId, ChannelId, GuildId, IntegrationId, InteractionId, MessageId, RoleId, UserId,
@@ -55,12 +55,14 @@ use djs_rest::{Error, ReactionEmoji};
 
 use crate::{
     Context,
+    collector::{CollectorBuilder, Key, ReactionEvent, mode},
     manager::{
         AutoModerationRuleManager, BanManager, EmojiManager, GuildChannelManager,
         GuildCommandManager, MemberManager, MessageManager, OverwriteTarget, RoleManager,
         ScheduledEventManager, SoundboardSoundManager, StageInstanceManager, StickerManager,
         ThreadManager, ThreadMemberManager,
     },
+    router::{ComponentInteraction, ModalInteraction},
     webhook::WebhookError,
 };
 
@@ -249,6 +251,141 @@ pub trait MessageExt: sealed::Message {
     ) -> impl Future<Output = Result<(), Error>> + Send {
         let (channel_id, message_id) = self.ids();
         ctx.messages(channel_id).remove_all_reactions(message_id)
+    }
+
+    /// A collector of the reactions added to this message (D-263, D-269); with
+    /// [`dispose`](CollectorBuilder::dispose) it also yields their removals.
+    ///
+    /// It ends at its limits, or when the message, its channel, thread or guild is deleted.
+    /// Needs the `GUILD_MESSAGE_REACTIONS` or `DIRECT_MESSAGE_REACTIONS` intent.
+    ///
+    /// discord.js counterpart: `Message#createReactionCollector`.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use std::time::Duration;
+    /// # use djs_rs::{collector::ReactionEvent, prelude::*};
+    /// # async fn example(ctx: Context, poll: djs_rs::model::message::Message) {
+    /// let mut votes = poll
+    ///     .reaction_collector(&ctx)
+    ///     .time(Duration::from_secs(60))
+    ///     .build();
+    /// while let Some(ReactionEvent::Added(vote)) = votes.next().await {
+    ///     println!("{} voted {:?}", vote.user_id, vote.emoji.name());
+    /// }
+    /// # }
+    /// ```
+    fn reaction_collector<B: Backend>(&self, ctx: &Context<B>) -> CollectorBuilder<ReactionEvent> {
+        let (channel_id, message_id) = self.ids();
+        CollectorBuilder::new(
+            ctx,
+            Key::Message(message_id),
+            self.guild(),
+            Some(channel_id),
+        )
+    }
+
+    /// Collects the reactions added to this message until the collector ends, gathered by
+    /// emoji ([`reaction_key`](crate::collector::reaction_key)); set a limit (`time`, `max`,
+    /// …), or it only ends with the message.
+    ///
+    /// discord.js counterpart: `Message#awaitReactions`.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use std::time::Duration;
+    /// # use djs_rs::prelude::*;
+    /// # async fn example(ctx: Context, poll: djs_rs::model::message::Message) {
+    /// let votes = poll.await_reactions(&ctx).time(Duration::from_secs(60)).await;
+    /// let yes = votes.get("👍").map_or(0, |reaction| reaction.count());
+    /// println!("{yes} yes votes ({})", votes.reason());
+    /// # }
+    /// ```
+    fn await_reactions<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+    ) -> CollectorBuilder<ReactionEvent, mode::All> {
+        let (channel_id, message_id) = self.ids();
+        CollectorBuilder::new(
+            ctx,
+            Key::Message(message_id),
+            self.guild(),
+            Some(channel_id),
+        )
+    }
+
+    /// A collector of the component interactions (buttons, select menus) on this message.
+    ///
+    /// It ends at its limits, or when the message, its channel, thread or guild is deleted.
+    ///
+    /// discord.js counterpart: `Message#createMessageComponentCollector`.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use std::time::Duration;
+    /// # use djs_rs::prelude::*;
+    /// # async fn example(ctx: Context, menu: djs_rs::model::message::Message) -> Result<(), HandlerError> {
+    /// let mut clicks = menu
+    ///     .component_collector(&ctx)
+    ///     .idle(Duration::from_secs(120))
+    ///     .build();
+    /// while let Some(click) = clicks.next().await {
+    ///     click.reply(&ctx, format!("You pressed {}", click.custom_id)).await?;
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    fn component_collector<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+    ) -> CollectorBuilder<ComponentInteraction> {
+        let (channel_id, message_id) = self.ids();
+        CollectorBuilder::new(
+            ctx,
+            Key::Message(message_id),
+            self.guild(),
+            Some(channel_id),
+        )
+    }
+
+    /// Waits for one component interaction on this message (D-268); set a
+    /// [`time`](CollectorBuilder::time), or it only ends with the message.
+    ///
+    /// discord.js counterpart: `Message#awaitMessageComponent`.
+    ///
+    /// # Errors
+    ///
+    /// [`CollectorError`](crate::collector::CollectorError) with the reason if the collector
+    /// ended first ([`EndReason::Time`](crate::collector::EndReason::Time), …).
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use std::time::Duration;
+    /// # use djs_rs::prelude::*;
+    /// # async fn example(ctx: Context, prompt: djs_rs::model::message::Message) -> Result<(), HandlerError> {
+    /// match prompt.await_component(&ctx).time(Duration::from_secs(30)).await {
+    ///     Ok(click) if click.custom_id == "confirm" => click.update(&ctx, "Confirmed").await?,
+    ///     Ok(click) => click.update(&ctx, "Cancelled").await?,
+    ///     Err(_) => println!("no answer in 30 seconds"),
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    fn await_component<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+    ) -> CollectorBuilder<ComponentInteraction, mode::First> {
+        let (channel_id, message_id) = self.ids();
+        CollectorBuilder::new(
+            ctx,
+            Key::Message(message_id),
+            self.guild(),
+            Some(channel_id),
+        )
     }
 }
 
@@ -481,6 +618,55 @@ pub trait ChannelExt: sealed::Channel {
     ) -> impl Future<Output = Result<(), Error>> + Send {
         ctx.channels()
             .send_soundboard_sound(self.channel_id(), body)
+    }
+
+    /// A collector of the messages sent in this channel
+    /// ([`Context::message_collector`]).
+    ///
+    /// discord.js counterpart: `TextChannel#createMessageCollector`.
+    fn message_collector<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+    ) -> CollectorBuilder<Arc<MessageCreate>> {
+        ctx.message_collector(self.channel_id())
+    }
+
+    /// Collects the messages sent in this channel until the collector ends
+    /// ([`Context::await_messages`]).
+    ///
+    /// discord.js counterpart: `TextChannel#awaitMessages`.
+    fn await_messages<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+    ) -> CollectorBuilder<Arc<MessageCreate>, mode::All> {
+        ctx.await_messages(self.channel_id())
+    }
+
+    /// A collector of the component interactions on every message of this channel
+    /// ([`Context::component_collector`]).
+    ///
+    /// discord.js counterpart: `TextChannel#createMessageComponentCollector`.
+    fn component_collector<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+    ) -> CollectorBuilder<ComponentInteraction> {
+        ctx.component_collector(self.channel_id())
+    }
+
+    /// Waits for one component interaction on any message of this channel
+    /// ([`Context::await_component`]).
+    ///
+    /// discord.js counterpart: `TextChannel#awaitMessageComponent`.
+    ///
+    /// # Errors
+    ///
+    /// [`CollectorError`](crate::collector::CollectorError) with the reason if the collector
+    /// ended first.
+    fn await_component<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+    ) -> CollectorBuilder<ComponentInteraction, mode::First> {
+        ctx.await_component(self.channel_id())
     }
 }
 
@@ -1309,6 +1495,109 @@ pub trait InteractionExt: sealed::Interaction {
         ctx.rest()
             .delete_followup_message(application_id, token, message_id)
     }
+
+    /// A collector of the component interactions on this interaction's reply (and its
+    /// follow-ups), matched by the interaction they belong to: no need to fetch the reply.
+    /// For a component interaction (whose response edits its message), the components of
+    /// that message.
+    ///
+    /// It ends at its limits, or when the reply, its channel, thread or guild is deleted.
+    ///
+    /// discord.js counterpart: `InteractionResponse#createMessageComponentCollector`.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use std::time::Duration;
+    /// # use djs_rs::prelude::*;
+    /// # let client = Client::builder("token").build();
+    /// client.command("counter", |ctx, cmd| async move {
+    ///     cmd.reply(&ctx, "Count: 0").await?; // with a "+1" button
+    ///     let mut clicks = cmd.component_collector(&ctx).time(Duration::from_secs(300)).build();
+    ///     let mut count = 0;
+    ///     while let Some(click) = clicks.next().await {
+    ///         count += 1;
+    ///         click.update(&ctx, format!("Count: {count}")).await?;
+    ///     }
+    ///     Ok(())
+    /// });
+    /// ```
+    fn component_collector<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+    ) -> CollectorBuilder<ComponentInteraction> {
+        let interaction = self.interaction();
+        CollectorBuilder::new(
+            ctx,
+            reply_key(interaction),
+            interaction.guild_id,
+            interaction.channel_id,
+        )
+    }
+
+    /// Waits for one component interaction on this interaction's reply (D-268); set a
+    /// [`time`](CollectorBuilder::time).
+    ///
+    /// discord.js counterpart: `InteractionResponse#awaitMessageComponent`.
+    ///
+    /// # Errors
+    ///
+    /// [`CollectorError`](crate::collector::CollectorError) with the reason if the collector
+    /// ended first.
+    fn await_component<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+    ) -> CollectorBuilder<ComponentInteraction, mode::First> {
+        let interaction = self.interaction();
+        CollectorBuilder::new(
+            ctx,
+            reply_key(interaction),
+            interaction.guild_id,
+            interaction.channel_id,
+        )
+    }
+
+    /// Waits up to `time` for the user of this interaction to submit a modal (D-268), usually
+    /// the one shown with [`show_modal`](Self::show_modal). Add a
+    /// [`filter`](CollectorBuilder::filter) on the modal's `custom_id` when several can be
+    /// open. `time` is required, as in discord.js: a closed modal sends nothing.
+    ///
+    /// discord.js counterpart: `awaitModalSubmit`.
+    ///
+    /// # Errors
+    ///
+    /// [`CollectorError`](crate::collector::CollectorError) with
+    /// [`EndReason::Time`](crate::collector::EndReason::Time) if nothing was submitted in time.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use std::time::Duration;
+    /// # use djs_rs::prelude::*;
+    /// # let client = Client::builder("token").build();
+    /// client.command("feedback", |ctx, cmd| async move {
+    ///     // cmd.show_modal(&ctx, …) with a text input "text" in the modal "feedback"
+    ///     let submitted = cmd
+    ///         .await_modal_submit(&ctx, Duration::from_secs(300))
+    ///         .filter(|modal| modal.custom_id == "feedback")
+    ///         .await?;
+    ///     let text = submitted.text_value("text").unwrap_or_default();
+    ///     submitted.reply(&ctx, format!("Thanks for: {text}")).await?;
+    ///     Ok(())
+    /// });
+    /// ```
+    fn await_modal_submit<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+        time: Duration,
+    ) -> CollectorBuilder<ModalInteraction, mode::First> {
+        let interaction = self.interaction();
+        // Every interaction a bot receives has a user; the fallback matches no one.
+        let user = interaction
+            .author()
+            .map_or(UserId::new(u64::MAX), |user| user.id);
+        CollectorBuilder::new(ctx, Key::User(user), interaction.guild_id, None).time(time)
+    }
 }
 
 impl InteractionExt for Interaction {}
@@ -1316,6 +1605,15 @@ impl InteractionExt for crate::router::CommandInteraction {}
 impl InteractionExt for crate::router::AutocompleteInteraction {}
 impl InteractionExt for crate::router::ComponentInteraction {}
 impl InteractionExt for crate::router::ModalInteraction {}
+
+/// What identifies the components of an interaction's reply: the interaction itself, or for a
+/// component interaction its message (discord.js does the same in `update`).
+fn reply_key(interaction: &Interaction) -> Key {
+    match &interaction.message {
+        Some(message) => Key::Message(message.id),
+        None => Key::Interaction(interaction.id),
+    }
+}
 
 /// Sends the initial response `response` (Create Interaction Response).
 async fn callback<B: Backend>(
@@ -1335,11 +1633,18 @@ mod sealed {
     pub trait Interaction {
         /// The interaction's ID, its application and its token.
         fn interaction_parts(&self) -> (InteractionId, ApplicationId, &str);
+
+        /// The whole interaction.
+        fn interaction(&self) -> &djs_model::interaction::Interaction;
     }
 
     impl Interaction for djs_model::interaction::Interaction {
         fn interaction_parts(&self) -> (InteractionId, ApplicationId, &str) {
             (self.id, self.application_id, &self.token)
+        }
+
+        fn interaction(&self) -> &Self {
+            self
         }
     }
 
@@ -1348,7 +1653,11 @@ mod sealed {
         ($($wrapper:ident),*) => {$(
             impl Interaction for crate::router::$wrapper {
                 fn interaction_parts(&self) -> (InteractionId, ApplicationId, &str) {
-                    self.interaction().interaction_parts()
+                    crate::router::$wrapper::interaction(self).interaction_parts()
+                }
+
+                fn interaction(&self) -> &djs_model::interaction::Interaction {
+                    crate::router::$wrapper::interaction(self)
                 }
             }
         )*};
@@ -1364,17 +1673,28 @@ mod sealed {
     pub trait Message {
         /// The channel and the message.
         fn ids(&self) -> (ChannelId, MessageId);
+
+        /// The guild, if the message is in one and its data says so.
+        fn guild(&self) -> Option<GuildId>;
     }
 
     impl Message for djs_model::message::Message {
         fn ids(&self) -> (ChannelId, MessageId) {
             (self.channel_id, self.id)
         }
+
+        fn guild(&self) -> Option<GuildId> {
+            self.guild_id
+        }
     }
 
     impl Message for djs_cache::CachedMessage {
         fn ids(&self) -> (ChannelId, MessageId) {
             (self.channel_id, self.id)
+        }
+
+        fn guild(&self) -> Option<GuildId> {
+            self.guild_id
         }
     }
 

@@ -7,7 +7,7 @@ A high-performance, discord.js-style framework for building Discord bots in Rust
 > users, members, messages, reactions, roles, bans, threads, emojis, stickers, events,
 > stages, soundboard sounds, invites, webhooks, application commands and auto moderation
 > with methods on the structures, interaction responses, typed option getters and a
-> command router, a `WebhookClient`, presence and an optional cache. The
+> command router, collectors, a `WebhookClient`, presence and an optional cache. The
 > full discord.js surface arrives in later phases — see the
 > [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
 
@@ -202,6 +202,48 @@ fn routes(client: &Client) {
     });
 }
 ```
+
+## Collectors
+
+A collector yields what arrives where it watches — the messages of a channel, the reactions
+or components of a message, the components of an interaction's reply, the modals a user
+submits — as a stream, until its `time`, `idle` or `max` limit, its `stop()`, or the deletion
+of what it watches (D-263–D-269). The `await_*` shortcuts wait for one click or modal
+(`Result`, with the reason on failure) or collect until the end (a `Collection` with
+`reason()`). Events reach collectors through an index by ID, so a thousand open menus cost
+an event one lookup, and they still reach the handlers and the router.
+
+```rust,no_run
+use std::time::Duration;
+
+use djs_rs::prelude::*;
+
+fn quiz(client: &Client) {
+    client.on(Events::MessageCreate, |ctx, msg| async move {
+        if msg.content != "!quiz" {
+            return Ok(());
+        }
+        msg.reply(&ctx, "What is 6 × 7?").await?;
+        let author = msg.author.id;
+        let answers = ctx
+            .await_messages(msg.channel_id)
+            .filter(move |answer| answer.author.id == author)
+            .max(1)
+            .time(Duration::from_secs(30))
+            .await;
+        let verdict = match answers.first() {
+            Some(answer) if answer.content.trim() == "42" => "Correct!",
+            Some(_) => "No, it is 42.",
+            None => "Time is up.",
+        };
+        msg.reply(&ctx, verdict).await?;
+        Ok(())
+    });
+}
+```
+
+With the `Sequential` handler mode a handler waiting for a collector blocks its shard, so
+the collector receives nothing from it; keep the default `Concurrent` mode (D-267).
 
 ## Webhooks without a bot
 

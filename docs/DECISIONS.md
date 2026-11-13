@@ -3875,6 +3875,39 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - The `Box<V>` prototype of `Resolved` was measured locally and reverted; it is asked as a
   change of D-058, not applied.
 
+### C-103 — Phase 8 step 4a: the collector core and the four collectors (D-263–D-269)
+- `djs_rs::collector` (public module): `Collector<T>` (`Stream` + `next`, `stop`,
+  `reset_timer`, `end_reason`, `is_ended`, `collected`, `processed`), one generic
+  `CollectorBuilder<T, M>` whose mode marker (`mode::Stream` → `build()`, `mode::First` /
+  `mode::All` → `IntoFuture`) avoids three builder types; the futures `AwaitFirst` and
+  `AwaitAll`; `EndReason` (discord.js' reasons plus `Stopped` for `stop()` and `Shutdown`
+  when the client stops), `CollectorError`, `Collected`, `ReactionEvent`
+  (`Added` / `Removed` / `RemovedAll`), `CollectedReaction`, `reaction_key` (custom emoji ID
+  or the Unicode emoji, discord.js' key), the sealed `Collectable`.
+- Items: `Arc<MessageCreate>` (the handlers' payload), the router's `ComponentInteraction` and
+  `ModalInteraction`, `ReactionEvent`. Options per kind as in discord.js: `max_users` and
+  `component_type` for components, `dispose`, `max_users`, `max_emojis` for reactions;
+  `time`, `idle`, `max`, `max_processed`, `filter` (an `FnMut`, run where the collector is
+  polled) for all.
+- Entry points: the extension methods of D-269 on `Message` / `CachedMessage` (reactions and
+  components of the message), `Channel` (messages and components of the channel) and every
+  interaction type (components of its reply, keyed by the interaction through
+  `message.interaction_metadata`, or by the clicked message for a component interaction as
+  discord.js' `update` does; `await_modal_submit(ctx, time)` with `time` required as in
+  discord.js, keyed by the user); and `Context::{message_collector, await_messages,
+  component_collector, await_component}` taking a channel ID, for handlers that hold only
+  IDs (the `ctx.messages(channel)` pattern).
+- The index (`collector/index.rs`): one `Mutex` over maps by raw 64-bit ID with a private
+  Fibonacci hasher (snowflakes are unique numbers; no new dependency), an atomic entry count
+  checked first, and a per-`EventKind` count that makes the client convert the events a
+  collector needs even without a handler. Deletions are matched by the entry's guild and
+  channel (a scan, as these events are rare). Collectors and the shards' senders live in a
+  `Shared` struct of the client and every `Context` (replacing the separate application ID
+  `Arc` and sender list).
+- Semantics: a removal with `dispose` is yielded only for a collected reaction and gives its
+  place back under `max`, as discord.js' `total--`; the item reaching a limit is still
+  yielded; a component of another `component_type` is not even processed.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

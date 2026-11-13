@@ -8,6 +8,15 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Collectors in `djs-rs` (Phase 8 step 4a, D-263–D-269, C-103): `djs_rs::collector` with
+  `Collector<T>` streams and `CollectorBuilder` (`time`, `idle`, `max`, `max_processed`,
+  `filter`; `max_users`, `max_emojis`, `dispose`, `component_type` where discord.js has
+  them), ending on deletions, `stop()` and shutdown (`EndReason`). Entry points:
+  `message.reaction_collector` / `await_reactions` / `component_collector` /
+  `await_component`, `channel.message_collector` / `await_messages` / …, the same on the
+  `Context` by channel ID, and `interaction.component_collector` / `await_component` /
+  `await_modal_submit`. Events reach them through an index by ID (D-264) and still reach the
+  handlers and routes (D-266).
 - Interaction benchmarks and extreme-load tests (Phase 8 step 3d, C-102):
   `djs-model/benches/interaction.rs` (getters 2–22 ns, no allocation; decoding a 1.9 KB
   interaction 3.8 µs), a gateway `INTERACTION_CREATE` flood, and
