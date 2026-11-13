@@ -172,6 +172,47 @@ struct Inner<B: Backend> {
     /// The application ID, the collectors and the shards' senders, shared with every
     /// [`Context`].
     shared: Arc<Shared>,
+    compiled: Compiled<B>,
+}
+
+/// A future boxed inside this crate (D-287).
+type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
+
+/// The entry points of the client's code that depends on the cache backend, called through
+/// function pointers (D-287). [`Client::builder`] — not generic — sets the ones compiled in
+/// this crate for [`DashMapBackend`], and [`ClientBuilder::cache_backend`] the generic ones, so
+/// a bot that keeps the default backend does not compile the client's event loop in its own
+/// crate again on every edit.
+struct Compiled<B: Backend> {
+    build: fn(ClientBuilder<B>) -> Client<B>,
+    login: for<'a> fn(&'a Client<B>) -> BoxFuture<'a, Result<(), Error>>,
+}
+
+impl<B: Backend> Compiled<B> {
+    /// The entry points for `B`, compiled in the crate that names `B`.
+    fn generic() -> Self {
+        fn login<B: Backend>(client: &Client<B>) -> BoxFuture<'_, Result<(), Error>> {
+            Box::pin(client.login_inner())
+        }
+        Self {
+            build: ClientBuilder::build_inner,
+            login: login::<B>,
+        }
+    }
+}
+
+impl<B: Backend> Clone for Compiled<B> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<B: Backend> Copy for Compiled<B> {}
+
+impl<B: Backend> core::fmt::Debug for Compiled<B> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Compiled").finish_non_exhaustive()
+    }
 }
 
 impl<B: Backend> Clone for Client<B> {
@@ -196,8 +237,16 @@ impl<B: Backend> core::fmt::Debug for Client<B> {
 impl Client {
     /// Returns a builder for a client authenticated with `token` (without the `Bot ` prefix).
     pub fn builder(token: impl Into<String>) -> ClientBuilder {
+        Self::builder_with(token.into())
+    }
+
+    /// [`builder`](Self::builder) without its generic argument, so that it — and with it the
+    /// client's code for the default backend, through [`Compiled`] — is compiled in this crate
+    /// only (D-287). Never inlined into a bot's crate, for the same reason.
+    #[inline(never)]
+    fn builder_with(token: String) -> ClientBuilder {
         ClientBuilder {
-            token: token.into(),
+            token,
             intents: Intents::empty(),
             rest: None,
             compression: Compression::default(),
@@ -207,6 +256,7 @@ impl Client {
             mode: HandlerMode::default(),
             cache: None,
             backend: DashMapBackend::new(),
+            compiled: Compiled::generic(),
         }
     }
 }
@@ -541,7 +591,12 @@ impl<B: Backend> Client<B> {
     ///
     /// Re-raises a panic of a shard's task (only possible with [`HandlerMode::Sequential`], when
     /// a handler panics).
-    pub async fn login(&self) -> Result<(), Error> {
+    pub fn login(&self) -> impl Future<Output = Result<(), Error>> + Send + '_ {
+        (self.inner.compiled.login)(self)
+    }
+
+    /// [`login`](Self::login)'s body, reached through [`Compiled`].
+    async fn login_inner(&self) -> Result<(), Error> {
         if self.inner.running.swap(true, Ordering::AcqRel) {
             return Err(Error::AlreadyRunning);
         }
@@ -994,6 +1049,7 @@ pub struct ClientBuilder<B: Backend = DashMapBackend> {
     mode: HandlerMode,
     cache: Option<CacheConfig>,
     backend: B,
+    compiled: Compiled<B>,
 }
 
 impl<B: Backend> ClientBuilder<B> {
@@ -1153,12 +1209,19 @@ impl<B: Backend> ClientBuilder<B> {
             mode: self.mode,
             cache: Some(self.cache.unwrap_or_default()),
             backend,
+            compiled: Compiled::generic(),
         }
     }
 
     /// Builds the client. It does not connect until [`Client::login`] is called.
     #[must_use]
     pub fn build(self) -> Client<B> {
+        (self.compiled.build)(self)
+    }
+
+    /// [`build`](Self::build)'s body, reached through [`Compiled`].
+    fn build_inner(self) -> Client<B> {
+        let compiled = self.compiled;
         let rest = self.rest.unwrap_or_else(|| Rest::new(self.token.clone()));
         let backend = self.backend;
         let cache = self
@@ -1187,6 +1250,7 @@ impl<B: Backend> ClientBuilder<B> {
                     intents: self.intents,
                     ..Shared::default()
                 }),
+                compiled,
             }),
         }
     }

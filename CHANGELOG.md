@@ -149,6 +149,13 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   crate but sends through the crate-built path. Each call costs one allocation (REST runner:
   the same throughput, +0.27 µs CPU per request); a `!ping` bot that replies rebuilds in
   6.4 s instead of 7.8 s after an edit.
+- `Client::login` returns `impl Future<Output = Result<(), Error>> + Send` instead of being
+  an `async fn`, and `Client::builder` / `ClientBuilder::build` reach the client's code
+  through a table of functions (D-287): for the default cache backend that code — the event
+  loop, the shards, the cache updates — is compiled once in `djs-rs`, not in the bot's crate;
+  `ClientBuilder::cache_backend` switches to the generic table, so custom backends work as
+  before. Calls do not change. A `!ping` bot rebuilds after an edit in 0.5 s (0.85 s when it
+  replies) instead of 7.1 s (7.8 s), release profile.
 - **Breaking:** the six maps of interaction `Resolved` data box their values
   (`BTreeMap<Id, Box<V>>`, D-256): an interaction takes 3.14 KB of heap instead of 8.72 KB
   at the same decoding time. Field access and method calls work through the box; the getters
