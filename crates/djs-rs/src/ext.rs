@@ -17,6 +17,7 @@
 //! | [`MemberExt`] | [`CachedMember`], the [`GuildMemberAdd`] and [`GuildMemberUpdate`] payloads (the model [`Member`](djs_model::guild::Member) does not know its guild) |
 //! | [`GuildExt`] | [`Guild`], [`CachedGuild`] |
 //! | [`WebhookExt`] | [`Webhook`] |
+//! | [`InteractionExt`] | [`Interaction`] (and so the [`InteractionCreate`](djs_model::gateway::payload::InteractionCreate) payload) |
 //!
 //! Import the traits with [`prelude`](crate::prelude).
 
@@ -29,14 +30,22 @@ use djs_model::{
     channel::Channel,
     gateway::payload::{GuildMemberAdd, GuildMemberUpdate},
     guild::{Guild, Integration},
-    id::{ChannelId, GuildId, IntegrationId, MessageId, RoleId, UserId, WebhookId},
+    id::{
+        ApplicationId, ChannelId, GuildId, IntegrationId, InteractionId, MessageId, RoleId, UserId,
+        WebhookId,
+    },
+    interaction::{
+        AutocompleteCallbackData, AutocompleteChoices, DeferredCallbackData, Interaction,
+        InteractionResponse, MessageCallbackData, ModalCallbackData,
+    },
     invite::InviteWithMetadata,
-    message::{Message, MessageReference},
+    message::{Message, MessageFlags, MessageReference},
     permissions::Permissions,
     rest::{
-        CreateChannelInvite, CreateGuildBan, CreateMessage, CreateWebhook, EditMessage,
-        ExecuteWebhook, GetGuildAuditLog, ModifyGuild, ModifyGuildChannel, ModifyGuildMember,
-        ModifyWebhook, SendSoundboardSound, StartThreadFromMessage,
+        CreateChannelInvite, CreateFollowupMessage, CreateGuildBan, CreateMessage, CreateWebhook,
+        EditMessage, EditWebhookMessage, ExecuteWebhook, GetGuildAuditLog, ModifyGuild,
+        ModifyGuildChannel, ModifyGuildMember, ModifyWebhook, SendSoundboardSound,
+        StartThreadFromMessage,
     },
     user::User,
     util::Timestamp,
@@ -943,9 +952,392 @@ pub trait WebhookExt: sealed::Webhook {
 
 impl WebhookExt for Webhook {}
 
+/// Responses to an [`Interaction`] (D-248): one method per Discord callback, plus the original
+/// response and follow-up messages. Works on the
+/// [`InteractionCreate`](djs_model::gateway::payload::InteractionCreate) payload too, which
+/// dereferences to the interaction.
+///
+/// This trait is sealed.
+///
+/// # The order of responses
+///
+/// Nothing is tracked locally (D-248): the rules are Discord's, and Discord rejects a request
+/// that breaks them.
+///
+/// 1. **Within 3 seconds**, exactly one *initial response*:
+///    - [`reply`](Self::reply) — a message (commands, components, modals);
+///    - [`defer_reply`](Self::defer_reply) — "thinking…", the message comes later with
+///      [`edit_reply`](Self::edit_reply);
+///    - [`update`](Self::update) / [`defer_update`](Self::defer_update) — edit the message the
+///      component is on, now or later (components, modals opened from one);
+///    - [`show_modal`](Self::show_modal) — open a modal (commands, components);
+///    - [`respond`](Self::respond) — autocomplete suggestions (autocomplete only);
+///    - [`launch_activity`](Self::launch_activity) — start the app's Activity.
+///
+///    A second initial response fails with error `40060` ("Interaction has already been
+///    acknowledged"); a late one with `10062` ("Unknown interaction").
+/// 2. **For 15 minutes** after it, the interaction token allows
+///    [`fetch_reply`](Self::fetch_reply), [`edit_reply`](Self::edit_reply),
+///    [`delete_reply`](Self::delete_reply) and the follow-up messages
+///    ([`follow_up`](Self::follow_up) and the `*_follow_up` methods).
+///
+/// These requests are authorized by the interaction token, not the bot token, and do not
+/// count against the global rate limit. Messages they return are cached (D-233).
+///
+/// # Examples
+///
+/// ```no_run
+/// # use djs_rs::prelude::*;
+/// # let client = Client::builder("token").build();
+/// client.on(Events::InteractionCreate, |ctx, interaction| async move {
+///     let Some(command) = interaction.command() else {
+///         return Ok(());
+///     };
+///     match command.name.as_str() {
+///         "ping" => interaction.reply(&ctx, "Pong!").await?,
+///         "slow" => {
+///             interaction.defer_reply(&ctx, Default::default()).await?;
+///             // … up to 15 minutes of work …
+///             interaction.edit_reply(&ctx, "Done").await?;
+///         }
+///         _ => {}
+///     }
+///     Ok(())
+/// });
+/// ```
+pub trait InteractionExt: sealed::Interaction {
+    /// Responds with a message ([`ChannelMessageWithSource`](InteractionResponse::ChannelMessageWithSource));
+    /// accepts anything that converts into [`MessageCallbackData`], such as `&str`. Set
+    /// [`MessageFlags::EPHEMERAL`] in its `flags` for a message only the user sees.
+    ///
+    /// An initial response (see [the order of responses](InteractionExt#the-order-of-responses)).
+    ///
+    /// discord.js counterpart: `reply`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    fn reply<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+        body: impl Into<MessageCallbackData>,
+    ) -> impl Future<Output = Result<(), Error>> + Send {
+        let response = InteractionResponse::ChannelMessageWithSource(Box::new(body.into()));
+        callback(ctx, self.interaction_parts(), response)
+    }
+
+    /// Acknowledges the interaction and shows "thinking…"
+    /// ([`DeferredChannelMessageWithSource`](InteractionResponse::DeferredChannelMessageWithSource));
+    /// the message follows with [`edit_reply`](Self::edit_reply). `flags` can only be
+    /// [`MessageFlags::EPHEMERAL`] (for an ephemeral message) or empty.
+    ///
+    /// An initial response (see [the order of responses](InteractionExt#the-order-of-responses)).
+    ///
+    /// discord.js counterpart: `deferReply`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    fn defer_reply<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+        flags: MessageFlags,
+    ) -> impl Future<Output = Result<(), Error>> + Send {
+        let response =
+            InteractionResponse::DeferredChannelMessageWithSource(DeferredCallbackData::new(flags));
+        callback(ctx, self.interaction_parts(), response)
+    }
+
+    /// Edits the message the component is on
+    /// ([`UpdateMessage`](InteractionResponse::UpdateMessage)): fields left `None` keep their
+    /// value. Component interactions and modals opened from a component.
+    ///
+    /// An initial response (see [the order of responses](InteractionExt#the-order-of-responses)).
+    ///
+    /// discord.js counterpart: `update`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    fn update<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+        body: impl Into<MessageCallbackData>,
+    ) -> impl Future<Output = Result<(), Error>> + Send {
+        let response = InteractionResponse::UpdateMessage(Box::new(body.into()));
+        callback(ctx, self.interaction_parts(), response)
+    }
+
+    /// Acknowledges a component interaction without a loading state
+    /// ([`DeferredUpdateMessage`](InteractionResponse::DeferredUpdateMessage)); the message
+    /// can be edited later with [`edit_reply`](Self::edit_reply).
+    ///
+    /// An initial response (see [the order of responses](InteractionExt#the-order-of-responses)).
+    ///
+    /// discord.js counterpart: `deferUpdate`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    fn defer_update<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+    ) -> impl Future<Output = Result<(), Error>> + Send {
+        callback(
+            ctx,
+            self.interaction_parts(),
+            InteractionResponse::DeferredUpdateMessage,
+        )
+    }
+
+    /// Opens a modal ([`Modal`](InteractionResponse::Modal)), for example one built with
+    /// `djs_builders::ModalBuilder`. Its submission arrives as a new interaction. Not for
+    /// modal-submit and autocomplete interactions.
+    ///
+    /// An initial response (see [the order of responses](InteractionExt#the-order-of-responses)).
+    ///
+    /// discord.js counterpart: `showModal`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    fn show_modal<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+        modal: ModalCallbackData,
+    ) -> impl Future<Output = Result<(), Error>> + Send {
+        let response = InteractionResponse::Modal(Box::new(modal));
+        callback(ctx, self.interaction_parts(), response)
+    }
+
+    /// Suggests choices for the option being typed in an autocomplete interaction
+    /// ([`AutocompleteResult`](InteractionResponse::AutocompleteResult)); up to 25, typed like
+    /// the option. An empty list shows "no suggestions".
+    ///
+    /// An initial response (see [the order of responses](InteractionExt#the-order-of-responses)).
+    ///
+    /// discord.js counterpart: `AutocompleteInteraction#respond`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    fn respond<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+        choices: AutocompleteChoices,
+    ) -> impl Future<Output = Result<(), Error>> + Send {
+        let response =
+            InteractionResponse::AutocompleteResult(AutocompleteCallbackData::new(choices));
+        callback(ctx, self.interaction_parts(), response)
+    }
+
+    /// Launches the app's Activity ([`LaunchActivity`](InteractionResponse::LaunchActivity);
+    /// apps with Activities enabled).
+    ///
+    /// An initial response (see [the order of responses](InteractionExt#the-order-of-responses)).
+    ///
+    /// discord.js counterpart: `launchActivity`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    fn launch_activity<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+    ) -> impl Future<Output = Result<(), Error>> + Send {
+        callback(
+            ctx,
+            self.interaction_parts(),
+            InteractionResponse::LaunchActivity,
+        )
+    }
+
+    /// The message of the initial response
+    /// ([Get Original Interaction Response](djs_rest::Rest::get_original_interaction_response)).
+    ///
+    /// discord.js counterpart: `fetchReply`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed (for example before an initial response).
+    fn fetch_reply<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+    ) -> impl Future<Output = Result<Arc<CachedMessage>, Error>> + Send {
+        let (_, application_id, token) = self.interaction_parts();
+        async move {
+            let message = ctx
+                .rest()
+                .get_original_interaction_response(application_id, token)
+                .await?;
+            Ok(ctx.store_message(&message))
+        }
+    }
+
+    /// Edits the message of the initial response — also how the message of a
+    /// [`defer_reply`](Self::defer_reply) is sent, and how a
+    /// [`defer_update`](Self::defer_update)d message is edited
+    /// ([Edit Original Interaction Response](djs_rest::Rest::edit_original_interaction_response)).
+    /// Accepts anything that converts into an [`EditWebhookMessage`], such as `&str`.
+    ///
+    /// discord.js counterpart: `editReply`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    fn edit_reply<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+        body: impl Into<EditWebhookMessage>,
+    ) -> impl Future<Output = Result<Arc<CachedMessage>, Error>> + Send {
+        let (_, application_id, token) = self.interaction_parts();
+        let body = body.into();
+        async move {
+            let message = ctx
+                .rest()
+                .edit_original_interaction_response(application_id, token, &body)
+                .await?;
+            Ok(ctx.store_message(&message))
+        }
+    }
+
+    /// Deletes the message of the initial response
+    /// ([Delete Original Interaction Response](djs_rest::Rest::delete_original_interaction_response)).
+    ///
+    /// discord.js counterpart: `deleteReply`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    fn delete_reply<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+    ) -> impl Future<Output = Result<(), Error>> + Send {
+        let (_, application_id, token) = self.interaction_parts();
+        ctx.rest()
+            .delete_original_interaction_response(application_id, token)
+    }
+
+    /// Sends another message for the interaction
+    /// ([Create Followup Message](djs_rest::Rest::create_followup_message)); accepts anything
+    /// that converts into a [`CreateFollowupMessage`], such as `&str`. After a
+    /// [`defer_reply`](Self::defer_reply), the first follow-up replaces "thinking…".
+    ///
+    /// discord.js counterpart: `followUp`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed (`40094` after the 5 follow-ups an app
+    /// installed only for the user may send).
+    fn follow_up<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+        body: impl Into<CreateFollowupMessage>,
+    ) -> impl Future<Output = Result<Arc<CachedMessage>, Error>> + Send {
+        let (_, application_id, token) = self.interaction_parts();
+        let body = body.into();
+        async move {
+            let message = ctx
+                .rest()
+                .create_followup_message(application_id, token, &body)
+                .await?;
+            Ok(ctx.store_message(&message))
+        }
+    }
+
+    /// A follow-up message ([Get Followup Message](djs_rest::Rest::get_followup_message)).
+    ///
+    /// discord.js counterpart: `fetchReply` with a message ID.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    fn fetch_follow_up<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+        message_id: MessageId,
+    ) -> impl Future<Output = Result<Arc<CachedMessage>, Error>> + Send {
+        let (_, application_id, token) = self.interaction_parts();
+        async move {
+            let message = ctx
+                .rest()
+                .get_followup_message(application_id, token, message_id)
+                .await?;
+            Ok(ctx.store_message(&message))
+        }
+    }
+
+    /// Edits a follow-up message ([Edit Followup Message](djs_rest::Rest::edit_followup_message));
+    /// accepts anything that converts into an [`EditWebhookMessage`], such as `&str`.
+    ///
+    /// discord.js counterpart: `editReply` with a message ID.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    fn edit_follow_up<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+        message_id: MessageId,
+        body: impl Into<EditWebhookMessage>,
+    ) -> impl Future<Output = Result<Arc<CachedMessage>, Error>> + Send {
+        let (_, application_id, token) = self.interaction_parts();
+        let body = body.into();
+        async move {
+            let message = ctx
+                .rest()
+                .edit_followup_message(application_id, token, message_id, &body)
+                .await?;
+            Ok(ctx.store_message(&message))
+        }
+    }
+
+    /// Deletes a follow-up message
+    /// ([Delete Followup Message](djs_rest::Rest::delete_followup_message)).
+    ///
+    /// discord.js counterpart: `deleteReply` with a message ID.
+    ///
+    /// # Errors
+    ///
+    /// Returns the REST error if the request failed.
+    fn delete_follow_up<B: Backend>(
+        &self,
+        ctx: &Context<B>,
+        message_id: MessageId,
+    ) -> impl Future<Output = Result<(), Error>> + Send {
+        let (_, application_id, token) = self.interaction_parts();
+        ctx.rest()
+            .delete_followup_message(application_id, token, message_id)
+    }
+}
+
+impl InteractionExt for Interaction {}
+
+/// Sends the initial response `response` (Create Interaction Response).
+async fn callback<B: Backend>(
+    ctx: &Context<B>,
+    (interaction_id, _, token): (InteractionId, ApplicationId, &str),
+    response: InteractionResponse,
+) -> Result<(), Error> {
+    ctx.rest()
+        .create_interaction_response(interaction_id, token, &response)
+        .await
+}
+
 /// The IDs the extension traits need; sealed so the traits stay implementable only here.
 mod sealed {
-    use super::{ChannelId, GuildId, MessageId, UserId, WebhookId};
+    use super::{ApplicationId, ChannelId, GuildId, InteractionId, MessageId, UserId, WebhookId};
+
+    pub trait Interaction {
+        /// The interaction's ID, its application and its token.
+        fn interaction_parts(&self) -> (InteractionId, ApplicationId, &str);
+    }
+
+    impl Interaction for djs_model::interaction::Interaction {
+        fn interaction_parts(&self) -> (InteractionId, ApplicationId, &str) {
+            (self.id, self.application_id, &self.token)
+        }
+    }
 
     pub trait Message {
         /// The channel and the message.

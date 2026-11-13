@@ -3627,6 +3627,27 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - `Interaction::command()` returns only command interactions (D-249: one kind per accessor);
   the older `InteractionData::command()` keeps covering autocomplete too.
 
+### C-100 — Phase 8 step 3b: `InteractionExt` (D-248)
+- `InteractionExt` is implemented for the model `Interaction` only; the `InteractionCreate`
+  payload reaches it by auto-deref (it dereferences to the interaction), so no second impl.
+- Initial responses: `reply`, `defer_reply(ctx, flags)`, `update`, `defer_update`,
+  `show_modal(ctx, ModalCallbackData)`, `respond(ctx, AutocompleteChoices)`,
+  `launch_activity`; they return `()` (Discord answers 204 without `with_response`), and
+  `fetch_reply` gets the message when needed. `defer_reply` takes `MessageFlags`
+  (`EPHEMERAL` or empty) rather than a `bool`. `Pong` (HTTP endpoints only) and the
+  deprecated `PremiumRequired` have no method.
+- Original response and follow-ups: `fetch_reply`, `edit_reply`, `delete_reply`,
+  `follow_up`, `fetch_follow_up`, `edit_follow_up`, `delete_follow_up` (discord.js'
+  `followUp` / `editReply({ message })` …). Messages they return are cached and returned as
+  `Arc<CachedMessage>` (D-233), ephemeral ones included.
+- `reply`, `update` take `impl Into<MessageCallbackData>`, `edit_reply` / `edit_follow_up`
+  `impl Into<EditWebhookMessage>` and `follow_up` `impl Into<CreateFollowupMessage>` (all
+  accept `&str`), converted eagerly so the futures stay `Send`; `edit_reply` is how a
+  deferred reply is sent, so it takes text like a send.
+- Tests: the interaction routes join the mock REST API of `tests/managers.rs`, and its mock
+  gateway can send dispatches after `READY` (`mock_gateway_with`), for an end-to-end
+  `INTERACTION_CREATE` → handler → `reply` test.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

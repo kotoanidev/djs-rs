@@ -371,9 +371,38 @@ fn respond_extra(method: &str, segments: &[&str], body: &Value) -> Option<(u16, 
 }
 
 /// The mock API: what Discord would answer, by method and path.
+/// The interaction routes of [`interaction_json`]s (application `1`); the token `expired` is
+/// unknown to Discord.
+fn respond_interaction(method: &str, segments: &[&str], body: &Value) -> Option<(u16, Value)> {
+    let expired = (
+        404,
+        json!({"message": "Unknown interaction", "code": 10_062}),
+    );
+    Some(match (method, segments) {
+        ("POST", ["interactions", _, "expired", "callback"]) => expired,
+        ("GET", ["webhooks", "1", _, "messages", "@original"]) => {
+            (200, message("20", "80", &json!("original")))
+        }
+        ("PATCH", ["webhooks", "1", _, "messages", "@original"]) => {
+            (200, message("20", "80", &body["content"]))
+        }
+        ("POST", ["webhooks", "1", _]) => (200, message("20", "81", &body["content"])),
+        ("GET", ["webhooks", "1", _, "messages", id]) => {
+            (200, message("20", id, &json!("follow-up")))
+        }
+        ("PATCH", ["webhooks", "1", _, "messages", id]) => {
+            (200, message("20", id, &body["content"]))
+        }
+        ("POST", ["interactions", _, _, "callback"])
+        | ("DELETE", ["webhooks", "1", _, "messages", _]) => (204, Value::Null),
+        _ => return None,
+    })
+}
+
 fn respond(method: &str, path: &str, body: &Value) -> (u16, Value) {
     let segments: Vec<&str> = path.trim_start_matches('/').split('/').collect();
-    respond_extra(method, &segments, body)
+    respond_interaction(method, &segments, body)
+        .or_else(|| respond_extra(method, &segments, body))
         .or_else(|| respond_application(method, &segments, body))
         .unwrap_or_else(|| respond_core(method, &segments, body))
 }
@@ -541,6 +570,11 @@ async fn mock_rest() -> (String, Log) {
 /// A gateway that identifies the client, sends an empty `READY` (these sessions never resume)
 /// and waits for the close.
 async fn mock_gateway() -> (String, JoinHandle<()>) {
+    mock_gateway_with(Vec::new()).await
+}
+
+/// [`mock_gateway`], sending the `dispatches` (`t` and `d`) after `READY`.
+async fn mock_gateway_with(dispatches: Vec<(&'static str, Value)>) -> (String, JoinHandle<()>) {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let url = format!("ws://{}", listener.local_addr().unwrap());
     let task = tokio::spawn(async move {
@@ -568,6 +602,11 @@ async fn mock_gateway() -> (String, JoinHandle<()>) {
         }})))
         .await
         .unwrap();
+        for (sequence, (event, data)) in (2..).zip(dispatches) {
+            ws.send(text(json!({"t": event, "s": sequence, "op": 0, "d": data})))
+                .await
+                .unwrap();
+        }
         while let Ok(Some(Ok(frame))) = timeout(STEP, ws.next()).await {
             if frame.is_close() {
                 return;
@@ -2239,4 +2278,194 @@ async fn application_emojis_and_standard_stickers() {
         "Wumpus"
     );
     session.finish().await;
+}
+
+/// A `/ping` command interaction of application `1` in [`CHANNEL`].
+fn interaction_json(token: &str) -> Value {
+    json!({"id": "90", "application_id": "1", "type": 2, "token": token, "version": 1,
+           "guild_id": GUILD.to_string(), "channel_id": "20", "app_permissions": "0",
+           "member": member("7", &Value::Null),
+           "data": {"id": "91", "name": "ping", "type": 1}})
+}
+
+#[tokio::test]
+async fn interaction_callbacks_send_the_documented_responses() {
+    use djs_rs::model::{
+        application_command::Choice,
+        component::{Label, TextInput, TextInputStyle},
+        interaction::{AutocompleteChoices, Interaction, ModalCallbackData},
+        message::MessageFlags,
+    };
+
+    let session = Session::start(Some(full_cache())).await;
+    let ctx = &session.ctx;
+    let interaction: Interaction = serde_json::from_value(interaction_json("itoken")).unwrap();
+    let modal = ModalCallbackData::new(
+        "feedback",
+        "Feedback",
+        vec![Label::new("Text", TextInput::new("text", TextInputStyle::Short).into()).into()],
+    );
+    let choices = AutocompleteChoices::String(vec![Choice::new("Rust", "rust".into())]);
+
+    interaction.reply(ctx, "Pong!").await.unwrap();
+    interaction
+        .defer_reply(ctx, MessageFlags::EPHEMERAL)
+        .await
+        .unwrap();
+    interaction.update(ctx, "Updated").await.unwrap();
+    interaction.defer_update(ctx).await.unwrap();
+    interaction.show_modal(ctx, modal).await.unwrap();
+    interaction.respond(ctx, choices).await.unwrap();
+    interaction.launch_activity(ctx).await.unwrap();
+
+    let seen = session.take();
+    for seen in &seen {
+        assert_eq!(
+            (seen.method.as_str(), seen.path.as_str(), seen.authorized),
+            ("POST", "/interactions/90/itoken/callback", false)
+        );
+    }
+    let bodies: Vec<Value> = seen.into_iter().map(|seen| seen.body).collect();
+    assert_eq!(bodies[0], json!({"type": 4, "data": {"content": "Pong!"}}));
+    assert_eq!(bodies[1], json!({"type": 5, "data": {"flags": 64}}));
+    assert_eq!(
+        bodies[2],
+        json!({"type": 7, "data": {"content": "Updated"}})
+    );
+    assert_eq!(bodies[3], json!({"type": 6}));
+    assert_eq!(
+        (&bodies[4]["type"], &bodies[4]["data"]["custom_id"]),
+        (&json!(9), &json!("feedback"))
+    );
+    assert_eq!(
+        bodies[5],
+        json!({"type": 8, "data": {"choices": [{"name": "Rust", "value": "rust"}]}})
+    );
+    assert_eq!(bodies[6], json!({"type": 12}));
+    assert_eq!(bodies.len(), 7);
+
+    // An expired interaction: Discord's error is returned.
+    let expired: Interaction = serde_json::from_value(interaction_json("expired")).unwrap();
+    let error = expired.reply(ctx, "late").await.unwrap_err();
+    assert!(
+        format!("{error:?}").contains("UnknownInteraction"),
+        "{error:?}"
+    );
+    session.finish().await;
+}
+
+#[tokio::test]
+async fn the_original_response_and_follow_ups() {
+    let session = Session::start(Some(full_cache())).await;
+    let ctx = &session.ctx;
+    let interaction: djs_rs::model::interaction::Interaction =
+        serde_json::from_value(interaction_json("itoken")).unwrap();
+
+    assert_eq!(
+        interaction.fetch_reply(ctx).await.unwrap().content,
+        "original"
+    );
+    let edited = interaction.edit_reply(ctx, "Done").await.unwrap();
+    assert_eq!(
+        (edited.id, edited.content.as_str()),
+        (MessageId::new(80), "Done")
+    );
+    // The messages are cached (D-233).
+    let cached = ctx.messages(CHANNEL).fetch(MessageId::new(80));
+    assert!(cached.is_cached());
+    assert_eq!(cached.await.unwrap().content, "Done");
+    interaction.delete_reply(ctx).await.unwrap();
+
+    let follow_up = interaction.follow_up(ctx, "More").await.unwrap();
+    assert_eq!(
+        (follow_up.id, follow_up.content.as_str()),
+        (MessageId::new(81), "More")
+    );
+    let fetched = interaction
+        .fetch_follow_up(ctx, follow_up.id)
+        .await
+        .unwrap();
+    assert_eq!(fetched.content, "follow-up");
+    let edited = interaction
+        .edit_follow_up(ctx, follow_up.id, "Edited")
+        .await
+        .unwrap();
+    assert_eq!(edited.content, "Edited");
+    interaction
+        .delete_follow_up(ctx, follow_up.id)
+        .await
+        .unwrap();
+
+    let seen = session.take();
+    let original = "/webhooks/1/itoken/messages/@original";
+    let message = "/webhooks/1/itoken/messages/81";
+    let requests: Vec<(&str, &str)> = seen
+        .iter()
+        .inspect(|seen| assert!(!seen.authorized, "{seen:?}"))
+        .map(|seen| (seen.method.as_str(), seen.path.as_str()))
+        .collect();
+    assert_eq!(
+        requests,
+        [
+            ("GET", original),
+            ("PATCH", original),
+            ("DELETE", original),
+            ("POST", "/webhooks/1/itoken"),
+            ("GET", message),
+            ("PATCH", message),
+            ("DELETE", message),
+        ]
+    );
+    assert_eq!(seen[1].body, json!({"content": "Done"}));
+    assert_eq!(seen[3].body, json!({"content": "More"}));
+    session.finish().await;
+}
+
+#[tokio::test]
+async fn an_interaction_event_is_answered_from_its_handler() {
+    let (api, log) = mock_rest().await;
+    let (url, gateway) =
+        mock_gateway_with(vec![("INTERACTION_CREATE", interaction_json("itoken"))]).await;
+    let client = Client::builder("test-token")
+        .intents(Intents::GUILDS)
+        .gateway_url(url)
+        .shards(Shards::Count(1))
+        .compression(Compression::None)
+        .rest(Rest::builder().token("test-token").api(api).build())
+        .build();
+    let (tx, mut rx) = mpsc::unbounded_channel();
+    client.on(Events::InteractionCreate, move |ctx, interaction| {
+        let tx = tx.clone();
+        async move {
+            // The accessors and the responses work on the event payload.
+            let Some(command) = interaction.command() else {
+                return Ok(());
+            };
+            interaction.reply(&ctx, "Pong!").await?;
+            let _ = tx.send((
+                command.name.clone(),
+                interaction.author().map(|user| user.id),
+            ));
+            Ok(())
+        }
+    });
+    let running = {
+        let client = client.clone();
+        tokio::spawn(async move { client.login().await })
+    };
+    let (name, author) = timeout(STEP, rx.recv()).await.unwrap().unwrap();
+    assert_eq!((name.as_str(), author), ("ping", Some(UserId::new(7))));
+    let callbacks: Vec<Seen> = log
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|seen| seen.path.starts_with("/interactions"))
+        .cloned()
+        .collect();
+    assert_eq!(callbacks.len(), 1);
+    assert_eq!(callbacks[0].path, "/interactions/90/itoken/callback");
+    assert_eq!(callbacks[0].body["data"]["content"], "Pong!");
+    client.shutdown();
+    timeout(STEP, running).await.unwrap().unwrap().unwrap();
+    gateway.await.unwrap();
 }

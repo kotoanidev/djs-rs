@@ -8,6 +8,11 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `InteractionExt` in `djs-rs` (Phase 8 step 3b, D-248, C-100), in the prelude: `reply`,
+  `defer_reply`, `update`, `defer_update`, `show_modal`, `respond`, `launch_activity`,
+  `fetch_reply`, `edit_reply`, `delete_reply`, `follow_up`, `fetch_follow_up`,
+  `edit_follow_up`, `delete_follow_up` on `Interaction` and the `InteractionCreate` payload;
+  the order Discord requires is documented on the trait.
 - Interaction getters in `djs-model` (Phase 8 step 3a, D-249, D-250, C-099):
   `Interaction::{command, autocomplete, component, modal}`; `CommandData::{get,
   get_string, get_integer, get_number, get_boolean, get_user, get_member, get_role,

@@ -52,7 +52,7 @@ pub use djs_collection as collection;
 pub mod prelude {
     pub use crate::{
         Client, Context, Events, HandlerError,
-        ext::{ChannelExt, GuildExt, MemberExt, MessageExt, UserExt, WebhookExt},
+        ext::{ChannelExt, GuildExt, InteractionExt, MemberExt, MessageExt, UserExt, WebhookExt},
         model::gateway::Intents,
     };
 }

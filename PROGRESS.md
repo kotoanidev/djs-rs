@@ -487,8 +487,13 @@ fields with `Deref` to `new`). Steps:
       `ComponentData::{users, members, roles, channels, mentionables}`; `ModalSubmitData`
       field getters; `Mentionable`) and `Interaction::{command, autocomplete, component,
       modal}` (D-249); tests in `crates/djs-model/tests/interaction_getters.rs`.
-   b. **Next:** `InteractionExt` (D-248) in `djs-rs` with tests against the mock REST API.
-   c. The router (D-251): ask its shape first.
+   b. ✅ `InteractionExt` (D-248, C-100) in `crates/djs-rs/src/ext.rs`: the initial
+      responses, the original response and follow-ups; 3 tests in `tests/managers.rs`
+      (every callback body, the webhook routes without the bot token, and an end-to-end
+      `INTERACTION_CREATE` → handler → `reply` through `mock_gateway_with`).
+   c. **Next:** the router (D-251): ask the owner its shape first (registration API, how
+      handlers get the typed data, subcommands, component `custom_id` matching, unmatched
+      interactions).
    d. Benchmarks + extreme-load tests (D-041).
 4. Collectors and `await_*`. 5. Partials and intents guidance. 6. Examples.
 

@@ -6,7 +6,8 @@ A high-performance, discord.js-style framework for building Discord bots in Rust
 > discord.js event (with the previous state from the cache), managers for guilds, channels,
 > users, members, messages, reactions, roles, bans, threads, emojis, stickers, events,
 > stages, soundboard sounds, invites, webhooks, application commands and auto moderation
-> with methods on the structures, a `WebhookClient`, presence and an optional cache. The
+> with methods on the structures, interaction responses and typed option getters, a
+> `WebhookClient`, presence and an optional cache. The
 > full discord.js surface arrives in later phases — see the
 > [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
 
@@ -127,6 +128,45 @@ fn moderate(client: &Client) {
             let in_ten_minutes = Timestamp::from_unix_secs(Timestamp::now().as_unix_secs() + 600);
             member.timeout(&ctx, in_ten_minutes, Some("invite link")).await?;
             msg.author.send(&ctx, "Invite links are not allowed here.").await?;
+        }
+        Ok(())
+    });
+}
+```
+
+## Interactions
+
+Slash commands, context menus, buttons, select menus, modals and autocomplete all arrive as
+`Events::InteractionCreate` (as in discord.js). `interaction.command()`, `component()`,
+`modal()` and `autocomplete()` return the typed data of that kind, whose getters read the
+options and fields with their resolved users, members, roles and channels —
+`get_string("reason")`, `get_user("target")`, `subcommand()`, `text_value("feedback")`,
+`selected_roles("roles")`, … (discord.js' `CommandInteractionOptionResolver` and
+`ModalSubmitFields`). `InteractionExt` in the prelude answers: `reply`, `defer_reply`,
+`edit_reply`, `follow_up`, `update`, `defer_update`, `show_modal`, `respond`, … — one
+method per Discord callback; the order Discord requires is documented on the trait.
+
+```rust,no_run
+use djs_rs::{model::message::MessageFlags, prelude::*};
+
+fn interactions(client: &Client) {
+    client.on(Events::InteractionCreate, |ctx, interaction| async move {
+        if let Some(command) = interaction.command() {
+            match command.name.as_str() {
+                "greet" => {
+                    let who = command.get_user("user").map_or("stranger", |user| &user.username);
+                    interaction.reply(&ctx, format!("Hello, {who}!")).await?;
+                }
+                "report" => {
+                    interaction.defer_reply(&ctx, MessageFlags::EPHEMERAL).await?;
+                    // … slow work, up to 15 minutes …
+                    interaction.edit_reply(&ctx, "Report sent").await?;
+                }
+                _ => {}
+            }
+        } else if let Some(modal) = interaction.modal() {
+            let feedback = modal.text_value("feedback").unwrap_or_default();
+            interaction.reply(&ctx, format!("Thanks for: {feedback}")).await?;
         }
         Ok(())
     });
