@@ -25,7 +25,7 @@
 //! `Arc<CachedGuild>`, `Arc<CachedUser>` for the compact cached types, `Arc<Channel>` and
 //! `Arc<Role>` where the cache keeps the model type — whether the value came from the cache or
 //! from Discord. A REST result is converted to that type and stored when its resource is
-//! enabled in the [`CacheConfig`]; without a cache it is only
+//! enabled in the [`CacheConfig`](djs_cache::CacheConfig); without a cache it is only
 //! converted. Objects the cache never keeps (bans) are returned as their
 //! [`djs-model`](djs_model) type.
 //!
@@ -61,11 +61,9 @@ use core::{
     pin::Pin,
     task::{Context as TaskContext, Poll},
 };
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 
-use djs_cache::{
-    Backend, Cache, CacheConfig, CachedGuild, CachedMember, CachedMessage, CachedUser, Limit,
-};
+use djs_cache::{Backend, CachedGuild, CachedMember, CachedMessage, CachedUser};
 use djs_collection::Collection;
 use djs_model::{
     channel::Channel,
@@ -197,71 +195,39 @@ impl<T: Unpin, F: Future<Output = Result<T, Error>>> Future for FetchFuture<T, F
     }
 }
 
-/// A cache that keeps nothing, converting REST objects for clients without a cache.
-static CONVERT: LazyLock<Cache> = LazyLock::new(|| {
-    Cache::with_config(
-        CacheConfig::builder()
-            .guilds(Limit::Disabled)
-            .channels(Limit::Disabled)
-            .roles(Limit::Disabled)
-            .build(),
-    )
-});
-
-/// Converts REST objects to the cached types through the context's cache (D-230, D-233).
+/// Converts REST objects to the cached types through the context's cache (D-230, D-233),
+/// with the code compiled in djs-rs (D-289).
 impl<B: Backend> Context<B> {
     pub(crate) fn store_guild(&self, guild: &Guild) -> Arc<CachedGuild> {
-        self.cache().map_or_else(
-            || CONVERT.store_guild(guild),
-            |cache| cache.store_guild(guild),
-        )
+        self.ops().store_guild(guild)
     }
 
     pub(crate) fn store_channel(&self, channel: &Channel) -> Arc<Channel> {
-        self.cache().map_or_else(
-            || CONVERT.store_channel(channel),
-            |cache| cache.store_channel(channel),
-        )
+        self.ops().store_channel(channel)
     }
 
     pub(crate) fn store_user(&self, user: &User) -> Arc<CachedUser> {
-        self.cache()
-            .map_or_else(|| CONVERT.store_user(user), |cache| cache.store_user(user))
+        self.ops().store_user(user)
     }
 
     pub(crate) fn store_member(&self, guild_id: GuildId, member: &Member) -> Arc<CachedMember> {
-        self.cache().map_or_else(
-            || CONVERT.store_member(guild_id, member),
-            |cache| cache.store_member(guild_id, member),
-        )
+        self.ops().store_member(guild_id, member)
     }
 
     pub(crate) fn store_message(&self, message: &Message) -> Arc<CachedMessage> {
-        self.cache().map_or_else(
-            || CONVERT.store_message(message),
-            |cache| cache.store_message(message),
-        )
+        self.ops().store_message(message)
     }
 
     pub(crate) fn store_role(&self, guild_id: GuildId, role: &Role) -> Arc<Role> {
-        self.cache().map_or_else(
-            || CONVERT.store_role(guild_id, role),
-            |cache| cache.store_role(guild_id, role),
-        )
+        self.ops().store_role(guild_id, role)
     }
 
     pub(crate) fn store_emoji(&self, guild_id: GuildId, emoji: &Emoji) -> Arc<Emoji> {
-        self.cache().map_or_else(
-            || CONVERT.store_emoji(guild_id, emoji),
-            |cache| cache.store_emoji(guild_id, emoji),
-        )
+        self.ops().store_emoji(guild_id, emoji)
     }
 
     pub(crate) fn store_sticker(&self, guild_id: GuildId, sticker: &Sticker) -> Arc<Sticker> {
-        self.cache().map_or_else(
-            || CONVERT.store_sticker(guild_id, sticker),
-            |cache| cache.store_sticker(guild_id, sticker),
-        )
+        self.ops().store_sticker(guild_id, sticker)
     }
 
     pub(crate) fn store_scheduled_event(
@@ -269,10 +235,7 @@ impl<B: Backend> Context<B> {
         guild_id: GuildId,
         event: &GuildScheduledEvent,
     ) -> Arc<GuildScheduledEvent> {
-        self.cache().map_or_else(
-            || CONVERT.store_scheduled_event(guild_id, event),
-            |cache| cache.store_scheduled_event(guild_id, event),
-        )
+        self.ops().store_scheduled_event(guild_id, event)
     }
 
     pub(crate) fn store_stage_instance(
@@ -280,10 +243,7 @@ impl<B: Backend> Context<B> {
         guild_id: GuildId,
         stage: &StageInstance,
     ) -> Arc<StageInstance> {
-        self.cache().map_or_else(
-            || CONVERT.store_stage_instance(guild_id, stage),
-            |cache| cache.store_stage_instance(guild_id, stage),
-        )
+        self.ops().store_stage_instance(guild_id, stage)
     }
 
     pub(crate) fn store_soundboard_sound(
@@ -291,10 +251,7 @@ impl<B: Backend> Context<B> {
         guild_id: GuildId,
         sound: &SoundboardSound,
     ) -> Arc<SoundboardSound> {
-        self.cache().map_or_else(
-            || CONVERT.store_soundboard_sound(guild_id, sound),
-            |cache| cache.store_soundboard_sound(guild_id, sound),
-        )
+        self.ops().store_soundboard_sound(guild_id, sound)
     }
 
     /// Returns the guild manager (D-229).

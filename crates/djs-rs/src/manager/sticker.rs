@@ -62,7 +62,7 @@ impl<'a, B: Backend> StickerManager<'a, B> {
         self,
         sticker_id: StickerId,
     ) -> Fetch<Arc<Sticker>, impl Future<Output = Result<Arc<Sticker>, Error>> + Send + 'a> {
-        let cached = self.cache().and_then(|stickers| stickers.get(sticker_id));
+        let cached = self.ctx.ops().sticker(self.guild_id, sticker_id);
         let Self { ctx, guild_id } = self;
         Fetch::new(cached, async move {
             let sticker = ctx.rest().get_guild_sticker(guild_id, sticker_id).await?;

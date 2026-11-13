@@ -29,9 +29,9 @@ structures with methods, managers, interactions and a router, collectors and gat
 requests, intents and partials guidance, example bots run on the test bot; benchmarks +
 extreme-load tests in `docs/PERFORMANCE.md`).
 **The serenity comparison: ✅ done 2026-11-13** (`docs/VS_SERENITY.md`, D-277–D-282, C-108,
-C-109). **Next: the fixes found by the comparison (D-283) — the rebuild time after an edit,
-then the ergonomics gaps — and then Phase 9** (D-284–D-286 already decided), see "Next
-step".
+C-109). **Next: the fixes found by the comparison (D-283) — the rebuild time after an edit
+✅ (D-287–D-289; the serenity page's build numbers still to re-measure), then the
+ergonomics gaps — and then Phase 9** (D-284–D-286 already decided), see "Next step".
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-075 in `docs/DECISIONS.md`; Claude defaults C-001 …
@@ -595,12 +595,22 @@ fields with `Deref` to `new`). Steps:
    - **Every run inside `unshare -rn`** (C-108: one request reached Discord in the first
      smoke test, serenity's rate limiter ignores its proxy).
 8. **Next: fixes before Phase 9 (D-283).**
-   - **Rebuild time:** measure why the `!ping` bot of `benches/vs-serenity/bots/djs-rs`
-     rebuilds in 9.9 s (release) / 0.8–1.4 s (debug) after touching `main.rs`, against
-     5.0 s / 0.6 s with serenity (`build.sh`; `cargo build --timings`,
-     `-Zself-profile`-free tools such as `cargo llvm-lines` need asking if they are new
-     tools). Hypothesis: the generic `Client`, `on` handlers and futures are monomorphized
-     and optimized in the bot crate. Any public API change for it is asked first.
+   - ✅ **Rebuild time** (D-287, D-288, D-289; `docs/PERFORMANCE.md`, "Rebuild time after
+     an edit"): the REST futures are built in `djs-rest` (`c88492a`), the client loop in
+     `djs-rs` through the `Compiled<B>` function table set by the non-generic
+     `Client::builder` (`77e8b0e`), and the managers' cache code goes through
+     `dyn CacheOps` (`crates/djs-rs/src/cache_ops.rs`, created in `Context::new`, which only
+     the client loop calls) with the backend-independent part of the context in
+     `context::Core`. Default release profile, after a `main.rs` edit: `!ping` bot
+     10.8 → 0.77 s, moderation example 12.7 → 2.1 s; flood and `fetch_all` unchanged, REST
+     +0.22 µs CPU per request (−2.2 % throughput in the default profile, equal with fat
+     LTO). The handler spawn stays unboxed (D-288: boxing would give 1.7 s but −1.9 % flood
+     with a cache). The scratch workspace for these measurements is the git-ignored
+     `.reference/tmp-ab/` (`rebuild.sh`, `ir.sh`, `flood.sh`, `rest.sh`, `build*.sh`).
+     **Left:** re-run `benches/vs-serenity/build.sh` (offline, under the guard, inside
+     `unshare -rn` per C-108) and regenerate `docs/VS_SERENITY.md` with
+     `node benches/vs-serenity/report.mjs benches/vs-serenity/out`; close the open question
+     about the rebuild time.
    - **Ergonomics gaps** (open question of C-107, in `docs/DECISIONS.md`): setters for the
      `#[non_exhaustive]` message bodies, `From<String>` for `EditWebhookMessage`, `Vec` vs
      `Option<Vec>`, member permissions from the cache, shutting down from a handler — ask the

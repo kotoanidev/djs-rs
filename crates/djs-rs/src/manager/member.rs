@@ -67,7 +67,7 @@ impl<'a, B: Backend> MemberManager<'a, B> {
         user_id: UserId,
     ) -> Fetch<Arc<CachedMember>, impl Future<Output = Result<Arc<CachedMember>, Error>> + Send + 'a>
     {
-        let cached = self.cache().and_then(|members| members.get(user_id));
+        let cached = self.ctx.ops().member(self.guild_id, user_id);
         let Self { ctx, guild_id } = self;
         Fetch::new(cached, async move {
             let member = ctx.rest().get_guild_member(guild_id, user_id).await?;

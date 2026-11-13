@@ -68,12 +68,7 @@ impl<'a, B: Backend> StageInstanceManager<'a, B> {
         Arc<StageInstance>,
         impl Future<Output = Result<Arc<StageInstance>, Error>> + Send + 'a,
     > {
-        let cached = self.cache().and_then(|stages| {
-            stages
-                .values()
-                .into_iter()
-                .find(|stage| stage.channel_id == channel_id)
-        });
+        let cached = self.ctx.ops().stage_instance_of(self.guild_id, channel_id);
         let Self { ctx, guild_id } = self;
         Fetch::new(cached, async move {
             let stage = ctx.rest().get_stage_instance(channel_id).await?;

@@ -69,7 +69,7 @@ impl<'a, B: Backend> SoundboardSoundManager<'a, B> {
         Arc<SoundboardSound>,
         impl Future<Output = Result<Arc<SoundboardSound>, Error>> + Send + 'a,
     > {
-        let cached = self.cache().and_then(|sounds| sounds.get(sound_id));
+        let cached = self.ctx.ops().soundboard_sound(self.guild_id, sound_id);
         let Self { ctx, guild_id } = self;
         Fetch::new(cached, async move {
             let sound = ctx

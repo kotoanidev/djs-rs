@@ -60,7 +60,7 @@ impl<'a, B: Backend> ChannelManager<'a, B> {
         self,
         channel_id: ChannelId,
     ) -> Fetch<Arc<Channel>, impl Future<Output = Result<Arc<Channel>, Error>> + Send + 'a> {
-        let cached = self.cache().and_then(|channels| channels.get(channel_id));
+        let cached = self.ctx.ops().channel(channel_id);
         let ctx = self.ctx;
         Fetch::new(cached, async move {
             let channel = ctx.rest().get_channel(channel_id).await?;

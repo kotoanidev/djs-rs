@@ -31,7 +31,9 @@ use tokio::{sync::mpsc, time::Instant};
 
 use crate::{
     Context,
+    cache_ops::CacheOps,
     collector::{EndReason, Key, MemberReply, NONCE_PREFIX, Signal, Sink},
+    context::Core,
 };
 
 /// Why a request answered through the gateway failed.
@@ -162,15 +164,31 @@ impl<'a, B: Backend> FetchMembers<'a, B> {
         self.time = time;
         self
     }
+}
 
-    async fn run(self) -> Result<Collection<UserId, Arc<CachedMember>>, GatewayRequestError> {
-        let Self {
-            ctx,
-            guild_id,
-            members,
-            presences,
-            time,
-        } = self;
+/// The future of a [`FetchMembers`].
+type MembersFuture<'a> = Pin<
+    Box<
+        dyn Future<Output = Result<Collection<UserId, Arc<CachedMember>>, GatewayRequestError>>
+            + Send
+            + 'a,
+    >,
+>;
+
+/// The future of [`fetch_soundboard_sounds`].
+pub(crate) type SoundsFuture<'a> =
+    Pin<Box<dyn Future<Output = Result<GuildSoundboardSounds, GatewayRequestError>> + Send + 'a>>;
+
+/// The request loop of [`FetchMembers`]. Neither generic nor `async`: the future is created
+/// and boxed here, so that its code is compiled in djs-rs (D-289).
+fn fetch_members(
+    ctx: &Core,
+    guild_id: GuildId,
+    members: Members,
+    presences: bool,
+    time: Duration,
+) -> MembersFuture<'_> {
+    Box::pin(async move {
         let sender = ctx
             .guild_shard(guild_id)
             .ok_or(GatewayRequestError::ShardNotRunning(guild_id))?;
@@ -208,7 +226,7 @@ impl<'a, B: Backend> FetchMembers<'a, B> {
                 match reply {
                     Some(Signal::Item(MemberReply::Chunk(chunk))) => {
                         received += 1;
-                        add_members(ctx, &chunk, &mut fetched);
+                        add_members(ctx.ops(), &chunk, &mut fetched);
                         if received >= chunk.chunk_count {
                             break;
                         }
@@ -222,32 +240,37 @@ impl<'a, B: Backend> FetchMembers<'a, B> {
             }
         }
         Ok(fetched)
-    }
+    })
 }
 
 /// Adds a chunk's members to `fetched`, as the cache stored them while handling the chunk
 /// (converted here when the cache keeps no members).
-fn add_members<B: Backend>(
-    ctx: &Context<B>,
+fn add_members(
+    ops: &dyn CacheOps,
     chunk: &GuildMembersChunk,
     fetched: &mut Collection<UserId, Arc<CachedMember>>,
 ) {
-    let cached = ctx.cache().map(|cache| cache.members(chunk.guild_id));
     for member in &chunk.members {
-        let stored = cached
-            .as_ref()
-            .and_then(|members| members.get(member.user.id))
-            .unwrap_or_else(|| ctx.store_member(chunk.guild_id, member));
+        let stored = ops
+            .member(chunk.guild_id, member.user.id)
+            .unwrap_or_else(|| ops.store_member(chunk.guild_id, member));
         fetched.insert(member.user.id, stored);
     }
 }
 
 impl<'a, B: Backend> IntoFuture for FetchMembers<'a, B> {
     type Output = Result<Collection<UserId, Arc<CachedMember>>, GatewayRequestError>;
-    type IntoFuture = Pin<Box<dyn Future<Output = Self::Output> + Send + 'a>>;
+    type IntoFuture = MembersFuture<'a>;
 
     fn into_future(self) -> Self::IntoFuture {
-        Box::pin(self.run())
+        let Self {
+            ctx,
+            guild_id,
+            members,
+            presences,
+            time,
+        } = self;
+        fetch_members(ctx.core(), guild_id, members, presences, time)
     }
 }
 
@@ -256,62 +279,70 @@ pub type GuildSoundboardSounds =
     Collection<GuildId, Collection<SoundboardSoundId, Arc<SoundboardSound>>>;
 
 /// Requests the soundboard sounds of `guild_ids` on their shards and waits up to `time` for
-/// every answer.
-pub(crate) async fn fetch_soundboard_sounds<B: Backend>(
-    ctx: &Context<B>,
+/// every answer. Not `async`: the future is boxed here, so that its code is compiled in
+/// djs-rs (D-289).
+pub(crate) fn fetch_soundboard_sounds(
+    ctx: &Core,
     guild_ids: Vec<GuildId>,
     time: Duration,
-) -> Result<GuildSoundboardSounds, GatewayRequestError> {
-    let deadline = Instant::now().checked_add(time);
-    let (tx, mut rx) = mpsc::unbounded_channel();
-    let mut registrations = Vec::with_capacity(guild_ids.len());
-    let mut by_shard: HashMap<u32, (djs_gateway::MessageSender, Vec<GuildId>)> = HashMap::new();
-    let total = ctx.shard_id().total();
-    for &guild_id in &guild_ids {
-        let number = ShardId::for_guild(guild_id, total).number();
-        let (_, guilds) = match by_shard.entry(number) {
-            Entry::Occupied(entry) => entry.into_mut(),
-            Entry::Vacant(entry) => {
-                let sender = ctx
-                    .guild_shard(guild_id)
-                    .ok_or(GatewayRequestError::ShardNotRunning(guild_id))?;
-                entry.insert((sender, Vec::new()))
-            }
-        };
-        guilds.push(guild_id);
-        registrations.push(ctx.collectors().register(
-            Key::Sounds(guild_id),
-            Some(guild_id),
-            None,
-            Sink::SoundboardSounds(tx.clone()),
-        ));
-    }
-    drop(tx);
-    for (sender, guilds) in by_shard.into_values() {
-        sender.command(&RequestSoundboardSounds::new(guilds))?;
-    }
-    let mut fetched = GuildSoundboardSounds::new();
-    while fetched.len() < guild_ids.len() {
-        let reply = match deadline {
-            Some(deadline) => tokio::time::timeout_at(deadline, rx.recv())
-                .await
-                .map_err(|_| GatewayRequestError::Timeout)?,
-            None => rx.recv().await,
-        };
-        match reply {
-            Some(Signal::Item(sounds)) => {
-                let guild_id = sounds.guild_id;
-                let stored = sounds
-                    .soundboard_sounds
-                    .iter()
-                    .map(|sound| (sound.sound_id, ctx.store_soundboard_sound(guild_id, sound)))
-                    .collect();
-                fetched.insert(guild_id, stored);
-            }
-            Some(Signal::End(reason)) => return Err(GatewayRequestError::Ended(reason)),
-            None => return Err(GatewayRequestError::Ended(EndReason::Shutdown)),
+) -> SoundsFuture<'_> {
+    Box::pin(async move {
+        let deadline = Instant::now().checked_add(time);
+        let (tx, mut rx) = mpsc::unbounded_channel();
+        let mut registrations = Vec::with_capacity(guild_ids.len());
+        let mut by_shard: HashMap<u32, (djs_gateway::MessageSender, Vec<GuildId>)> = HashMap::new();
+        let total = ctx.shard_id().total();
+        for &guild_id in &guild_ids {
+            let number = ShardId::for_guild(guild_id, total).number();
+            let (_, guilds) = match by_shard.entry(number) {
+                Entry::Occupied(entry) => entry.into_mut(),
+                Entry::Vacant(entry) => {
+                    let sender = ctx
+                        .guild_shard(guild_id)
+                        .ok_or(GatewayRequestError::ShardNotRunning(guild_id))?;
+                    entry.insert((sender, Vec::new()))
+                }
+            };
+            guilds.push(guild_id);
+            registrations.push(ctx.collectors().register(
+                Key::Sounds(guild_id),
+                Some(guild_id),
+                None,
+                Sink::SoundboardSounds(tx.clone()),
+            ));
         }
-    }
-    drop(registrations);
-    Ok(fetched)
+        drop(tx);
+        for (sender, guilds) in by_shard.into_values() {
+            sender.command(&RequestSoundboardSounds::new(guilds))?;
+        }
+        let mut fetched = GuildSoundboardSounds::new();
+        while fetched.len() < guild_ids.len() {
+            let reply = match deadline {
+                Some(deadline) => tokio::time::timeout_at(deadline, rx.recv())
+                    .await
+                    .map_err(|_| GatewayRequestError::Timeout)?,
+                None => rx.recv().await,
+            };
+            match reply {
+                Some(Signal::Item(sounds)) => {
+                    let guild_id = sounds.guild_id;
+                    let stored = sounds
+                        .soundboard_sounds
+                        .iter()
+                        .map(|sound| {
+                            (
+                                sound.sound_id,
+                                ctx.ops().store_soundboard_sound(guild_id, sound),
+                            )
+                        })
+                        .collect();
+                    fetched.insert(guild_id, stored);
+                }
+                Some(Signal::End(reason)) => return Err(GatewayRequestError::Ended(reason)),
+                None => return Err(GatewayRequestError::Ended(EndReason::Shutdown)),
+            }
+        }
+        drop(registrations);
+        Ok(fetched)
+    })
 }

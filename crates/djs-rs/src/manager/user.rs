@@ -55,7 +55,7 @@ impl<'a, B: Backend> UserManager<'a, B> {
         user_id: UserId,
     ) -> Fetch<Arc<CachedUser>, impl Future<Output = Result<Arc<CachedUser>, Error>> + Send + 'a>
     {
-        let cached = self.cache().and_then(|users| users.get(user_id));
+        let cached = self.ctx.ops().user(user_id);
         let ctx = self.ctx;
         Fetch::new(cached, async move {
             let user = ctx.rest().get_user(user_id).await?;

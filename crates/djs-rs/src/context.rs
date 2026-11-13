@@ -1,5 +1,6 @@
 //! The [`Context`] passed to event handlers.
 
+use core::fmt;
 use std::sync::{Arc, OnceLock, PoisonError, RwLock};
 
 use djs_cache::{Backend, Cache, DashMapBackend};
@@ -10,7 +11,10 @@ use djs_model::{
 };
 use djs_rest::Rest;
 
-use crate::collector::Collectors;
+use crate::{
+    cache_ops::{CacheOps, converter},
+    collector::Collectors,
+};
 
 /// What the client and every shard's [`Context`] share.
 #[derive(Debug, Default)]
@@ -53,11 +57,58 @@ pub struct Context<B: Backend = DashMapBackend> {
 
 #[derive(Debug)]
 struct Inner<B: Backend> {
+    core: Core,
+    cache: Option<Arc<Cache<B>>>,
+}
+
+/// The part of a [`Context`] that does not depend on the cache backend: code that needs
+/// only this is not generic, so it is compiled once, in djs-rs (D-289).
+pub(crate) struct Core {
     rest: Rest,
     shard: ShardId,
     sender: MessageSender,
-    cache: Option<Arc<Cache<B>>>,
     shared: Arc<Shared>,
+    /// The cache's operations, or the converter's without a cache (D-289).
+    ops: Arc<dyn CacheOps>,
+}
+
+impl fmt::Debug for Core {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Core")
+            .field("rest", &self.rest)
+            .field("shard", &self.shard)
+            .field("sender", &self.sender)
+            .field("shared", &self.shared)
+            .finish_non_exhaustive()
+    }
+}
+
+impl Core {
+    /// The running collectors (D-264).
+    pub(crate) fn collectors(&self) -> &Arc<Collectors> {
+        &self.shared.collectors
+    }
+
+    /// The ID of the shard that received the event.
+    pub(crate) const fn shard_id(&self) -> ShardId {
+        self.shard
+    }
+
+    /// The cache operations (D-289): the cache's, or a converter's that keeps nothing.
+    pub(crate) fn ops(&self) -> &dyn CacheOps {
+        &*self.ops
+    }
+
+    /// The sender of the shard that receives `guild`'s events, if it runs in this client.
+    pub(crate) fn guild_shard(&self, guild: GuildId) -> Option<MessageSender> {
+        let own = self.shard;
+        let number = ShardId::for_guild(guild, own.total()).number();
+        if number == own.number() {
+            Some(self.sender.clone())
+        } else {
+            self.shared.shard(number)
+        }
+    }
 }
 
 impl<B: Backend> Clone for Context<B> {
@@ -76,41 +127,49 @@ impl<B: Backend> Context<B> {
         cache: Option<Arc<Cache<B>>>,
         state: Arc<Shared>,
     ) -> Self {
+        // Created here, in the client loop, so that for the default backend the cache
+        // operations are compiled in djs-rs (D-289).
+        let ops = match &cache {
+            Some(cache) => Arc::clone(cache) as Arc<dyn CacheOps>,
+            None => converter(),
+        };
         Self {
             inner: Arc::new(Inner {
-                rest,
-                shard,
-                sender,
+                core: Core {
+                    rest,
+                    shard,
+                    sender,
+                    shared: state,
+                    ops,
+                },
                 cache,
-                shared: state,
             }),
         }
     }
 
+    /// The part of the context that does not depend on the cache backend (D-289).
+    pub(crate) fn core(&self) -> &Core {
+        &self.inner.core
+    }
+
+    /// The cache operations (D-289): the cache's, or a converter's that keeps nothing.
+    pub(crate) fn ops(&self) -> &dyn CacheOps {
+        self.inner.core.ops()
+    }
+
     /// The running collectors (D-264).
     pub(crate) fn collectors(&self) -> &Arc<Collectors> {
-        &self.inner.shared.collectors
+        self.inner.core.collectors()
     }
 
     /// Whether handlers run one after another (D-267).
     pub(crate) fn is_sequential(&self) -> bool {
-        self.inner.shared.sequential
+        self.inner.core.shared.sequential
     }
 
     /// The client's intents.
     pub(crate) fn intents(&self) -> Intents {
-        self.inner.shared.intents
-    }
-
-    /// The sender of the shard that receives `guild`'s events, if it runs in this client.
-    pub(crate) fn guild_shard(&self, guild: GuildId) -> Option<MessageSender> {
-        let own = self.inner.shard;
-        let number = ShardId::for_guild(guild, own.total()).number();
-        if number == own.number() {
-            Some(self.inner.sender.clone())
-        } else {
-            self.inner.shared.shard(number)
-        }
+        self.inner.core.shared.intents
     }
 
     /// Returns the bot's application ID, known from the first `READY` (D-245); `None` only in
@@ -120,7 +179,7 @@ impl<B: Backend> Context<B> {
     /// discord.js counterpart: `client.application.id`.
     #[must_use]
     pub fn application_id(&self) -> Option<ApplicationId> {
-        self.inner.shared.application_id.get().copied()
+        self.inner.core.shared.application_id.get().copied()
     }
 
     /// The application ID for the application managers (D-247).
@@ -133,7 +192,7 @@ impl<B: Backend> Context<B> {
     /// Returns the REST client.
     #[must_use]
     pub fn rest(&self) -> &Rest {
-        &self.inner.rest
+        &self.inner.core.rest
     }
 
     /// Returns the cache, if the client has one ([`ClientBuilder::cache`](crate::ClientBuilder::cache),
@@ -148,12 +207,12 @@ impl<B: Backend> Context<B> {
     /// Returns the ID of the shard that received the event.
     #[must_use]
     pub fn shard_id(&self) -> ShardId {
-        self.inner.shard
+        self.inner.core.shard
     }
 
     /// Returns a sender for gateway commands on the shard that received the event.
     #[must_use]
     pub fn shard(&self) -> &MessageSender {
-        &self.inner.sender
+        &self.inner.core.sender
     }
 }

@@ -72,7 +72,7 @@ impl<'a, B: Backend> MessageManager<'a, B> {
         Arc<CachedMessage>,
         impl Future<Output = Result<Arc<CachedMessage>, Error>> + Send + 'a,
     > {
-        let cached = self.cache().and_then(|messages| messages.get(message_id));
+        let cached = self.ctx.ops().message(self.channel_id, message_id);
         let Self { ctx, channel_id } = self;
         Fetch::new(cached, async move {
             let message = ctx

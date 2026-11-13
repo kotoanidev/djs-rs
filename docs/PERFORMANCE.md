@@ -1287,3 +1287,50 @@ E-core and one flood takes 2.1 or 4.1–4.5 µs per message.
 - The index is one `Mutex`; with one shard per core and thousands of busy collectors a
   sharded index could reduce contention, but no measured load shows it.
 
+
+## Rebuild time after an edit (D-283, D-287–D-289, 2026-11-13)
+
+The serenity comparison found that a djs-rs bot rebuilt about twice as slowly as a serenity
+bot after an edit of its `main.rs` (D-283). The cause, measured with `-Z time-passes` and the
+bot crate's LLVM IR: the bodies of `async fn`s and of everything generic over the cache
+backend are compiled in the crate that uses them, so the bot's crate compiled the client loop,
+the REST stack and the cache again on every edit. D-287 builds the public futures inside the
+library; D-289 also moves the managers' cache code there; D-288 keeps the handler spawn as it
+is. Laptop i7-1355U, **balanced** profile, every run through the resource guard (D-262).
+
+Two bots in a scratch workspace using `djs-rs` by path: the `!ping` bot of
+`benches/vs-serenity/bots/djs-rs` (one handler, `msg.reply`) and `examples/moderation.rs`
+(7 event handlers, 4 slash commands, `fetch_all`, `ban`, `timeout`, message listing). The
+default release profile of a new bot (no LTO, 16 codegen units), 12 jobs; a rebuild is
+`touch main.rs` + `cargo build --release`, 3 runs.
+
+| Step | `!ping` bot | Moderation bot |
+|---|---:|---:|
+| Before (commit `b0bb7c6`) | 10.6–11.0 s | 12.6–12.7 s |
+| D-287: REST futures built in `djs-rest` (`c88492a`), the client loop in `djs-rs` (`77e8b0e`) | 0.88–0.90 s | 2.16–2.35 s |
+| D-289: the managers' cache operations behind `dyn CacheOps`, the gateway requests boxed in the library | **0.77–0.78 s** | **2.07–2.12 s** |
+| Prototype, rejected (D-288): handler futures boxed before `tokio::spawn` | 0.82–0.86 s | 1.65–1.74 s |
+
+What the moderation bot's crate still compiles (LLVM IR lines in functions: 109 000 in 723
+functions after D-289, 114 900 in 751 before it): tokio's task code for the spawned handler futures 26 %, drop
+glue and `Debug` of `djs-model` types 16 %, the bot's own code 14 %, `tracing-subscriber`
+12 %, the handler and router wrappers 22 %, the managers 1.0 %, `djs-cache` 0.8 %.
+
+**What it costs at run time** (ABBA, 6 runs each, the `vs-node` runners against their local
+mocks):
+
+| Benchmark | Before | After | Change |
+|---|---:|---:|---:|
+| REST (`djs-rest` runner, 300 000 requests, 64 in flight), default profile | 205 700 req/s, 15.20 µs CPU | 201 200 req/s, 15.42 µs CPU | −2.2 %, +0.22 µs (the boxed future) |
+| REST, fat-LTO profile (D-287) | — | — | same throughput, +0.27 µs CPU |
+| Flood 1M `MESSAGE_CREATE`, discord.js cache, default profile (D-287) | 214 500/s | 216 100/s | noise |
+| The same without a cache | 236 500/s | 235 600/s | noise |
+| Flood, fat-LTO profile, discord.js cache / none (D-287) | 224 800 / 242 500/s | 223 800 / 245 200/s | noise |
+| Flood after D-289, default profile, cache / none | 217 000 / 236 400/s | 216 400 / 238 800/s | noise |
+| `fetch_all` of 100 000 members (`stress_collectors.rs`, pinned `taskset -c 0,2`), cache / none (D-289) | 113.1 / 82.7 ms | 112.7 / 81.6 ms | noise |
+| The rejected D-288 prototype: flood, fat profile, cache / none | 222 600 / 243 900/s | 218 400 / 243 400/s | **−1.9 %** with a cache |
+
+- The `vs-node` binary (default profile) grew from 17.51 to 17.68 MB with D-289: the
+  `dyn CacheOps` table compiles every cache operation of the default backend, used or not.
+- Unpinned `fetch_all` runs without a cache take 77–92 ms on this laptop (the shard's thread
+  lands on a P-core or an E-core); only the pinned A/B above compares the code.

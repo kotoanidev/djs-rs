@@ -62,7 +62,7 @@ impl<'a, B: Backend> EmojiManager<'a, B> {
         self,
         emoji_id: EmojiId,
     ) -> Fetch<Arc<Emoji>, impl Future<Output = Result<Arc<Emoji>, Error>> + Send + 'a> {
-        let cached = self.cache().and_then(|emojis| emojis.get(emoji_id));
+        let cached = self.ctx.ops().emoji(self.guild_id, emoji_id);
         let Self { ctx, guild_id } = self;
         Fetch::new(cached, async move {
             let emoji = ctx.rest().get_guild_emoji(guild_id, emoji_id).await?;

@@ -156,6 +156,13 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `ClientBuilder::cache_backend` switches to the generic table, so custom backends work as
   before. Calls do not change. A `!ping` bot rebuilds after an edit in 0.5 s (0.85 s when it
   replies) instead of 7.1 s (7.8 s), release profile.
+- The managers, the structure methods and `Context` reach the cache through one
+  `dyn` table of cache operations built where the client loop creates the context (D-289),
+  and the gateway member and soundboard requests box their futures inside `djs-rs`: for the
+  default backend none of that code is compiled in the bot's crate any more. No public API
+  change. With the default release profile, a `!ping` bot that replies rebuilds after an edit
+  in 0.77 s (10.8 s before D-287) and the moderation example in 2.1 s (12.7 s); event and
+  REST throughput are unchanged (`docs/PERFORMANCE.md`, "Rebuild time after an edit").
 - **Breaking:** the six maps of interaction `Resolved` data box their values
   (`BTreeMap<Id, Box<V>>`, D-256): an interaction takes 3.14 KB of heap instead of 8.72 KB
   at the same decoding time. Field access and method calls work through the box; the getters

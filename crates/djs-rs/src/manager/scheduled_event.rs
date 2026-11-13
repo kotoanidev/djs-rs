@@ -72,7 +72,7 @@ impl<'a, B: Backend> ScheduledEventManager<'a, B> {
         Arc<GuildScheduledEvent>,
         impl Future<Output = Result<Arc<GuildScheduledEvent>, Error>> + Send + 'a,
     > {
-        let cached = self.cache().and_then(|events| events.get(event_id));
+        let cached = self.ctx.ops().scheduled_event(self.guild_id, event_id);
         let Self { ctx, guild_id } = self;
         Fetch::new(cached, async move {
             let mut query = GetGuildScheduledEvent::default();

@@ -1062,7 +1062,7 @@ impl<B: Backend> Context<B> {
     /// The guild of `channel`, if the cache knows it (so that the guild's deletion ends the
     /// collector).
     fn channel_guild(&self, channel: ChannelId) -> Option<GuildId> {
-        self.cache()?.channels().get(channel)?.guild_id()
+        self.ops().channel(channel)?.guild_id()
     }
 
     /// A collector of the messages sent in `channel` (D-263, D-269).

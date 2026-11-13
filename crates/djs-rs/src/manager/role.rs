@@ -62,7 +62,7 @@ impl<'a, B: Backend> RoleManager<'a, B> {
         self,
         role_id: RoleId,
     ) -> Fetch<Arc<Role>, impl Future<Output = Result<Arc<Role>, Error>> + Send + 'a> {
-        let cached = self.cache().and_then(|roles| roles.get(role_id));
+        let cached = self.ctx.ops().role(self.guild_id, role_id);
         let Self { ctx, guild_id } = self;
         Fetch::new(cached, async move {
             let role = ctx.rest().get_guild_role(guild_id, role_id).await?;

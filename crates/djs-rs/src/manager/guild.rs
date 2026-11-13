@@ -61,8 +61,12 @@ impl<'a, B: Backend> GuildManager<'a, B> {
         guild_ids: impl IntoIterator<Item = GuildId>,
         time: Duration,
     ) -> Result<GuildSoundboardSounds, GatewayRequestError> {
-        super::gateway::fetch_soundboard_sounds(self.ctx, guild_ids.into_iter().collect(), time)
-            .await
+        super::gateway::fetch_soundboard_sounds(
+            self.ctx.core(),
+            guild_ids.into_iter().collect(),
+            time,
+        )
+        .await
     }
 
     /// A guild: the cached one, or [Get Guild](djs_rest::Rest::get_guild) (with the
@@ -79,7 +83,7 @@ impl<'a, B: Backend> GuildManager<'a, B> {
         guild_id: GuildId,
     ) -> Fetch<Arc<CachedGuild>, impl Future<Output = Result<Arc<CachedGuild>, Error>> + Send + 'a>
     {
-        let cached = self.cache().and_then(|guilds| guilds.get(guild_id));
+        let cached = self.ctx.ops().guild(guild_id);
         let ctx = self.ctx;
         Fetch::new(cached, async move {
             let mut query = GetGuild::default();
