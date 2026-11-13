@@ -15,19 +15,14 @@
 
 use djs_rs::prelude::*;
 
+#[path = "common/mod.rs"]
+mod common;
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
-        )
-        .init();
+    common::init_tracing();
 
-    let token = config_value("DISCORD_TOKEN")
-        .ok_or("DISCORD_TOKEN is not set (put it in .env or the environment)")?;
-
-    let client = Client::builder(token)
+    let client = Client::builder(common::token()?)
         .intents(Intents::GUILDS | Intents::GUILD_MESSAGES | Intents::MESSAGE_CONTENT)
         .build();
 
@@ -55,35 +50,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     // Disconnect cleanly on Ctrl+C.
-    let shutdown = client.clone();
-    tokio::spawn(async move {
-        if tokio::signal::ctrl_c().await.is_ok() {
-            println!("Shutting down…");
-            shutdown.shutdown();
-        }
-    });
+    common::shutdown_on_ctrl_c(&client);
 
     client.login().await?;
     Ok(())
-}
-
-/// Reads a setting from the environment, falling back to a `.env` file in the current directory
-/// or one of its parents (`KEY=VALUE` lines, `#` comments). Kept dependency-free on purpose; the
-/// environment is not modified.
-fn config_value(key: &str) -> Option<String> {
-    if let Ok(value) = std::env::var(key) {
-        return Some(value);
-    }
-    let mut dir = std::env::current_dir().ok()?;
-    loop {
-        if let Ok(contents) = std::fs::read_to_string(dir.join(".env")) {
-            return contents.lines().find_map(|line| {
-                let (name, value) = line.trim().split_once('=')?;
-                (name.trim() == key).then(|| value.trim().trim_matches('"').to_owned())
-            });
-        }
-        if !dir.pop() {
-            return None;
-        }
-    }
 }

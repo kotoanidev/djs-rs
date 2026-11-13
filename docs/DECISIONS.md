@@ -4047,10 +4047,46 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - The partials guide is a table in the `event` module documentation (and a README section),
   one row per discord.js partial.
 
+### C-107 — Phase 8 step 6: the example bots (D-274–D-276)
+- Files: `examples/common/mod.rs` (`init_tracing`, `config_value` — empty values count as
+  unset —, `token`, `test_guild`, `cleanup_requested`, `shutdown_on_ctrl_c`; included with
+  `#[path]`, `#![allow(dead_code)]` because each example uses only some helpers), `ping.rs`
+  moved onto it, `slash_commands.rs`, `components.rs`, `moderation.rs`, `advanced.rs`.
+- Settings: `DISCORD_TOKEN`; `DISCORD_TEST_CHANNEL_ID` is the log channel of `moderation`;
+  new optional `DISCORD_TEST_GUILD_ID` (the commands' guild, else the first guild of
+  `READY`) and `DISCORD_WEBHOOK_URL` (`advanced` announces its start through it).
+- Commands are guild commands set with `ctx.guild_commands(guild).set(…)` at `ClientReady`
+  (they appear at once; `set` replaces the bot's commands in the guild, so two examples do
+  not mix); `-- --cleanup` sets an empty list and shuts the client down — the D-275 cleanup
+  is part of the examples.
+- Safety in the examples: echoed or quoted user text is sent with empty `AllowedMentions`;
+  the welcome may ping the new member only; moderation commands use
+  `default_member_permissions` and `contexts([Guild])` (the docs say a real bot would also
+  compare the moderator's and the target's roles); `/purge` skips messages older than 14 days
+  (bulk deletion's limit) and deletes a single message with `delete`.
+- `components`: `!menu` answers clicks by other users with an ephemeral message (a filter
+  would leave them "failed") and disables its buttons by editing the message once idle;
+  `!poll` filters out the bot's own reactions by the poll message's author and uses
+  `dispose(true)`.
+- `advanced`: `HandlerMode::Sequential` with the slow work (REST) spawned through a
+  `spawn_logged` helper; statistics from `client.events()`; `!webhook` creates a webhook,
+  sends, edits and deletes a message through `WebhookClient::new`, and deletes the webhook
+  whatever happened.
+
 ---
 
 ## Open questions (to ask the owner when relevant)
 
+- **Ergonomics gaps found by the examples (C-107):** (1) an ephemeral or embed reply needs
+  `let mut reply = MessageCallbackData::from(…); reply.flags = Some(MessageFlags::EPHEMERAL);`
+  — the body types are `#[non_exhaustive]`, so struct literals are impossible outside the
+  crate; setters (`.ephemeral()`, `.embed(…)`, `.components(…)`) or a message builder in
+  `djs-builders` would shorten every bot. (2) `EditWebhookMessage` (so `edit_reply`) has no
+  `From<String>`, unlike its siblings: `format!(…).as_str()` is needed. (3) `CreateMessage`
+  holds `Vec`s where `MessageCallbackData` holds `Option<Vec>`s. (4) No member permission
+  calculation from the cache (discord.js `GuildMember#permissions` / `permissionsIn`), so
+  prefix commands cannot check a moderator's rights. (5) Shutting down from a handler needs a
+  captured `Client` clone (no `Context::shutdown`).
 - **Committing the resource guard** (D-257): the guard script is kept in the git-ignored
   `.reference/tools/safe.sh` (with `gate.sh`), outside the repository's history; committing it
   (for example `scripts/safe.sh`) would share it with the repository.

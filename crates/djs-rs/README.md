@@ -42,6 +42,24 @@ async fn main() -> Result<(), djs_rs::Error> {
 
 A runnable version lives in [`examples/ping.rs`](https://github.com/kotoanidev/djs-rs/blob/main/crates/djs-rs/examples/ping.rs).
 
+### More examples
+
+Each example is one file in
+[`examples/`](https://github.com/kotoanidev/djs-rs/tree/main/crates/djs-rs/examples), run
+with `cargo run --example <name>`, its setup explained at the top. They read
+`DISCORD_TOKEN` (and their other settings) from the environment or a git-ignored `.env`
+(see `.env.example`).
+
+| Example | What it shows |
+|---|---|
+| `ping` | the smallest bot: `!ping` → `Pong!` |
+| `slash_commands` | guild command registration, the router, options and subcommands, autocomplete, a modal awaited with `await_modal_submit`, ephemeral and deferred replies |
+| `components` | a paginated button menu with a component collector, a quiz with `await_messages`, a reaction poll with `await_reactions` |
+| `moderation` | join, leave, ban, edit and deletion logs with the cached previous state, `/timeout`, `/ban`, `/purge` and `/members` (`fetch_all`) limited to moderators |
+| `advanced` | `Shards::Auto`, a changing presence, the `events()` stream, `HandlerMode::Sequential`, `WebhookClient`, mimalloc |
+
+The examples that register commands remove them again with `-- --cleanup`.
+
 ## How it fits together
 
 `djs-rs` wires the lower-level crates into a discord.js-like client:

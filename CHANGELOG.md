@@ -8,6 +8,14 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Example bots in `djs-rs/examples/` (Phase 8 step 6, D-274–D-276, C-107):
+  `slash_commands` (registration, the router, subcommands, autocomplete, a modal, ephemeral
+  and deferred replies), `components` (a paginated menu, a quiz, a reaction poll with
+  collectors), `moderation` (logs with the cached previous state, moderator-only slash
+  commands, `fetch_all`) and `advanced` (automatic sharding, presence, the event stream,
+  sequential handlers, `WebhookClient`, mimalloc), sharing a small `examples/common` module
+  with `ping`; `.env.example` gains the optional `DISCORD_TEST_GUILD_ID` and
+  `DISCORD_WEBHOOK_URL`.
 - Collectors in `djs-rs` (Phase 8 step 4a, D-263–D-269, C-103): `djs_rs::collector` with
   `Collector<T>` streams and `CollectorBuilder` (`time`, `idle`, `max`, `max_processed`,
   `filter`; `max_users`, `max_emojis`, `dispose`, `component_type` where discord.js has

@@ -546,14 +546,14 @@ fields with `Deref` to `new`). Steps:
    `Client::required_intents()`; `Shared::intents`; the partials table in the `event` module
    docs and the README; tests: a unit test of the warning (captured `tracing` output) and
    `required_intents_cover_handlers_routes_and_collectors`.
-6. **In progress: examples** (D-274–D-276; ROADMAP Phase 8: "Examples directory covering
-   common bot patterns"): `examples/common/mod.rs` (`.env`, logging, Ctrl+C, the test guild,
-   `--cleanup`), `slash_commands.rs`, `components.rs` and `moderation.rs` are written (not yet
-   committed if this line is still here); `advanced.rs` (Shards::Auto + presence, the
-   `events()` loop, `WebhookClient`, `HandlerMode::Sequential`, mimalloc) is next. Then the
-   gate, a commit, and one short live run per example on the test guild, **asking the owner
-   before each run** (D-275), removing the guild commands (`-- --cleanup`) and the test
-   messages afterwards.
+6. ✅ **Examples written** (D-274–D-276, C-107): `examples/common/mod.rs` (`.env`, logging,
+   Ctrl+C, `DISCORD_TEST_GUILD_ID`, `--cleanup`), `ping.rs` on it, `slash_commands.rs`,
+   `components.rs`, `moderation.rs`, `advanced.rs`; README "More examples", `.env.example`
+   (`DISCORD_TEST_GUILD_ID`, `DISCORD_WEBHOOK_URL` optional). Gate passed.
+   **Next: the live runs** (D-275): one short run per example on the owner's test guild,
+   **asking the owner before each run** and saying what it does; afterwards
+   `cargo run --example <name> -- --cleanup` for the command examples and deleting the test
+   messages. Then tick "Examples directory" in ROADMAP and close Phase 8.
 7. **After Phase 8 is closed: the serenity comparison** (D-277–D-280): `benches/vs-serenity/`
    outside the workspace (own `Cargo.lock`, serenity 0.12.5 with default features), reusing
    the mocks and payloads of `benches/vs-node/`; performance, resources and reliability
