@@ -1129,3 +1129,77 @@ The futures are polled once with a no-op waker, so no runtime is measured.
 - Converting without a cache allocates the cached type (3 allocations for a member); a
   client without a cache that only reads fields could skip it, but D-233 chose one return
   type for both.
+
+## Phase 8 — interactions (2026-11-13)
+
+Step 3d of Phase 8 (D-041): the getters (D-250), `InteractionExt` (D-248) and the router
+(D-251–D-255). Laptop i7-1355U (2 P-cores with HT + 8 E-cores, 12 threads); micro-benchmarks
+pinned to two separate P-cores (`taskset -c 0,2`, C-072); the gateway and REST API are
+in-process mocks (no request reaches Discord). The flood payload is a realistic
+`INTERACTION_CREATE` of ≈ 1.9 KB: `/mod config set` with five options, the guild, channel and
+member objects, and a resolved user, member and role.
+
+### Getters (`djs-model/benches/interaction.rs`, divan with `AllocProfiler`)
+
+| Operation | Median | Allocations |
+|---|---:|---:|
+| `interaction.command()` | 0.2 ns | 0 |
+| `subcommand_group()` + `subcommand()` | 2.2 ns | 0 |
+| `get_integer("days")` (2nd of 5 options, in a group) | 4.7 ns | 0 |
+| `get_string("role")` (5th of 5) / a missing option | 10.2 / 5.3 ns | 0 |
+| `get_user` / `get_role` / `get_member` (resolved) | 9.2 / 8.3 / 12.7 ns | 0 |
+| Component: `ids()` / `users()` / `members()` of 5 selected | 74 / 85 / 97 ns | 0 |
+| Modal: `text_value` 1st / 4th field, `selected_users` (5th) | 9.8 / 22 / 21 ns | 0 |
+| **Decoding the whole dispatch** (`GatewayEvent`) | **3.79 µs** (649 MB/s) | **15 (8.72 KB)** |
+
+- **The getters are free next to the decoding**: a handler reading four options spends
+  ≈ 30 ns, against 3.8 µs to decode the interaction. Selections parse their IDs from strings
+  (≈ 15 ns per value), as Discord sends them.
+- **An interaction takes 8.72 KB of heap, ten times a `MESSAGE_CREATE` (913 B)**: ≈ 6.7 KB
+  are the three one-entry `BTreeMap`s of `resolved` — a B-tree leaf always holds room for 11
+  entries, and the values are large (`User` 144 B, `InteractionMember` 312 B, `Role` 128 B).
+  See the findings below.
+
+### Extreme load (`djs-gateway/tests/stress.rs`, `djs-rs/tests/stress_interactions.rs`)
+
+| Flood | System allocator | mimalloc |
+|---|---:|---:|
+| Gateway only: 1M `INTERACTION_CREATE`, one shard (shard CPU per event) | 194 000–200 000/s (4.79–4.85 µs) | — |
+| 1M through an `InteractionCreate` handler (`match` on the name), `Concurrent` | 81 200–82 800/s | 95 400/s |
+| 1M through the router (20 routes), `Concurrent` | 79 700–81 000/s | 90 400/s |
+| 1M through the router and an event handler | 72 300–76 200/s | 88 500/s |
+| 1M through the router, `Sequential` | 133 700–138 300/s | 134 700/s |
+| 1M through the router, 16 shards | 366 000–407 000/s (peak 126–274 MiB) | 449 000/s (peak 391 MiB) |
+| 100k answered with `reply`, `Sequential` | 53 600–54 600/s (18.5 µs each) | 54 200/s |
+| 200k answered with `reply`, 64 in flight | 59 800–61 500/s (peak 22–24 MiB) | 73 500/s |
+| 200k answered with `reply`, 64 in flight, 16 shards | 117 000–120 000/s (**peak 2.2 GiB**) | 97 500/s (peak 2.2 GiB) |
+
+Every reply reached the mock API exactly once (checked). Fair A/B of the routing (the same
+handler work, 3 runs each): the router costs **0.1–0.2 µs per interaction (≈ 1 %)** over a
+`match` in the event handler — the route lookup (the path is joined on the stack, then one
+hash lookup), an `Arc` clone and the route's name for error logs.
+
+- **Decoding is the cost**: one shard decodes ≈ 200 000 interactions/s (4.8 µs of CPU each,
+  2.7× a `MESSAGE_CREATE` for 2.7× the bytes). `Sequential` dispatch adds ≈ 2.6 µs (the
+  handler, dropping 15 allocations); `Concurrent` adds ≈ 7 µs, the hand-off of a large
+  payload to another core and its free there (mimalloc recovers ≈ 15 %). Sharding scales:
+  16 shards route 0.37–0.45 M interactions/s.
+- **Replies are bound by the request**: ≈ 17–18 µs per reply through the mock API; 64 in
+  flight on one shard gives ≈ 60 000 replies/s, 16 shards ≈ 120 000/s.
+- **A backlog costs ≈ 11 KB per waiting interaction**: with 16 shards decoding faster than
+  64 replies in flight can answer, all 200 000 interactions wait in memory (2.2 GiB peak).
+  Real interactions must be answered within 3 seconds, so such a backlog cannot last in
+  production, but the size per interaction matters for every bot that keeps them.
+
+### Findings and optimization candidates (Phase 8, interactions)
+
+- **Open, asked:** boxing the values of `Resolved`'s maps (`BTreeMap<Id, Box<V>>`, a change of
+  D-058) was prototyped locally and not committed: 15 → 18 allocations but **8.72 → 3.14 KB
+  (−64 %) per interaction** at the same decoding time (3.53 vs 3.61 µs). The 16-shard reply
+  backlog fell from 2.16 to 1.22 GiB (system allocator) and from 2.2 to 1.24 GiB (mimalloc),
+  and with mimalloc 16 shards routed 523 000/s instead of 449 000/s. A compact sorted
+  `Vec` map would save ≈ 0.5 KB more (estimate) but is a new public type.
+- `Concurrent` dispatch of interactions costs ≈ 5 µs more than `Sequential`, far more than for
+  messages (≈ 1.2 µs); `perf` is blocked on this machine (SELinux, `perf_event_paranoid` 2),
+  so the split between the cross-core hand-off and the allocator could only be bounded by the
+  mimalloc A/B.

@@ -31,6 +31,10 @@ harness = false
 name = "encode"
 harness = false
 
+[[bench]]
+name = "interaction"
+harness = false
+
 [lints]
 workspace = true
 

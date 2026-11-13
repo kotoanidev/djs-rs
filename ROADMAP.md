@@ -108,7 +108,8 @@ just with narrow scope.
 
 ## Phase 8 — `djs-rs` full high-level client (≈ discord.js)
 - [x] All events, structures with methods, managers (fetch/cache semantics)
-- [ ] Interactions: replies, deferrals, follow-ups, modals, autocomplete
+- [x] Interactions: replies, deferrals, follow-ups, modals, autocomplete (D-248–D-255; typed
+  getters, `InteractionExt`, a command router; benchmarked)
 - [ ] Collectors (message, reaction, interaction) and `await_*` helpers
 - [ ] Partials, intents/privileged intents guidance
 - [ ] Examples directory covering common bot patterns

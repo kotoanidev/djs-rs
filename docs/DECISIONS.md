@@ -3702,6 +3702,18 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   different types sharing a name share the route (the handler reads `kind`). Route names
   are compared verbatim (no case or whitespace normalisation).
 
+### C-102 — Phase 8 step 3d: interaction benchmarks and stress tests (D-041)
+- `djs-model/benches/interaction.rs` (new `[[bench]]`): the getters on realistic payloads
+  and the decoding of the stress test's `INTERACTION_CREATE`.
+- `djs-gateway/tests/stress.rs` gained `flood_1m_interaction_creates_plain` (shard CPU per
+  interaction); `djs-rs/tests/stress_interactions.rs` (ignored) floods 1M interactions
+  through an event handler, the router (A/B with the same handler work), both, sequential
+  mode and 16 shards, and 100k–200k replies through a mock REST API (sequential, 64 in
+  flight with a semaphore, 16 shards); `stress_interactions_mimalloc.rs` runs the same with
+  mimalloc (D-080), like `stress_mimalloc.rs`.
+- The `Box<V>` prototype of `Resolved` was measured locally and reverted; it is asked as a
+  change of D-058, not applied.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

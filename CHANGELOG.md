@@ -8,6 +8,11 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Interaction benchmarks and extreme-load tests (Phase 8 step 3d, C-102):
+  `djs-model/benches/interaction.rs` (getters 2–22 ns, no allocation; decoding a 1.9 KB
+  interaction 3.8 µs), a gateway `INTERACTION_CREATE` flood, and
+  `djs-rs/tests/stress_interactions.rs` (+ a mimalloc variant): the router costs ≈ 1 % over a
+  `match` in an event handler; results in `docs/PERFORMANCE.md`.
 - The interaction router in `djs-rs` (Phase 8 step 3c, D-251–D-255, C-101):
   `client.command("mod ban", …)` (full-path routes with fallback to the group and the
   command), `client.autocomplete(…)`, `client.component("vote", …)` and `client.modal(…)`

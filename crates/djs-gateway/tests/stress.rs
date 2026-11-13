@@ -327,6 +327,36 @@ async fn flood_1m_message_creates_plain() {
     report("1M MESSAGE_CREATE, plain", EVENTS, sent, elapsed, baseline);
 }
 
+/// A realistic `/mod config set` interaction (≈ 1.9 KB): the guild and channel objects, the
+/// invoking member, five options and their resolved user, member and role.
+fn interaction_create(sequence: u64) -> String {
+    format!(
+        r#"{{"t":"INTERACTION_CREATE","s":{sequence},"op":0,"d":{{"id":"{}","application_id":"1","type":2,"token":"not-a-real-token-only-for-benchmarking-0123456789-aWQ6MTMwMDAwMDAwMDAwMDAwMDAwMQ","version":1,"app_permissions":"2248473465835073","locale":"pl","guild_locale":"en-US","guild_id":"1400000000000000002","guild":{{"id":"1400000000000000002","locale":"en-US","features":["COMMUNITY","NEWS"]}},"channel_id":"1200000000000000020","channel":{{"id":"1200000000000000020","type":0,"name":"general","guild_id":"1400000000000000002","nsfw":false,"flags":0,"permissions":"2248473465835073","position":3,"topic":"Talk here","last_message_id":"1500000000000000099","rate_limit_per_user":0,"parent_id":"1200000000000000001"}},"member":{{"user":{{"id":"1300000000000000003","username":"nelly","discriminator":"0","global_name":"Nelly","avatar":"a_1269e74af4df7417b13759eae50c83dc","public_flags":0,"clan":null,"avatar_decoration_data":null}},"roles":["1100000000000000001","1100000000000000002"],"joined_at":"2024-05-01T12:00:00.000000+00:00","premium_since":null,"deaf":false,"mute":false,"flags":0,"pending":false,"nick":null,"avatar":null,"banner":null,"communication_disabled_until":null,"permissions":"2248473465835073"}},"entitlements":[],"authorizing_integration_owners":{{"0":"1400000000000000002"}},"context":0,"attachment_size_limit":10485760,"data":{{"id":"1600000000000000001","name":"mod","type":1,"guild_id":"1400000000000000002","options":[{{"name":"config","type":2,"options":[{{"name":"set","type":1,"options":[{{"name":"reason","type":3,"value":"spam in general, number {sequence}"}},{{"name":"days","type":4,"value":7}},{{"name":"silent","type":5,"value":true}},{{"name":"target","type":6,"value":"1300000000000000011"}},{{"name":"role","type":8,"value":"1100000000000000001"}}]}}]}}],"resolved":{{"users":{{"1300000000000000011":{{"id":"1300000000000000011","username":"spammer","discriminator":"0","global_name":null,"avatar":null,"public_flags":0}}}},"members":{{"1300000000000000011":{{"roles":[],"joined_at":"2026-11-01T12:00:00.000000+00:00","premium_since":null,"flags":0,"pending":false,"nick":null,"avatar":null,"banner":null,"communication_disabled_until":null,"permissions":"104324673"}}}},"roles":{{"1100000000000000001":{{"id":"1100000000000000001","name":"Muted","color":0,"colors":{{"primary_color":0,"secondary_color":null,"tertiary_color":null}},"hoist":false,"icon":null,"unicode_emoji":null,"position":1,"permissions":"0","managed":false,"mentionable":false,"flags":0}}}}}}}}}}}}"#,
+        1_700_000_000_000_000_000_u64 + sequence
+    )
+}
+
+/// One million `INTERACTION_CREATE` text frames (≈ 1.9 KB each) through one shard.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "stress test; run with --release --ignored"]
+async fn flood_1m_interaction_creates_plain() {
+    const EVENTS: u64 = 1_000_000;
+    let (listener, url) = listener().await;
+    let payloads = (2..EVENTS + 2).map(interaction_create);
+    let server = tokio::spawn(serve(listener, Frames::Text(Box::new(payloads))));
+    let baseline = memory_kib();
+    reset_peak_memory();
+    let elapsed = drain(&url, Compression::None, EVENTS).await;
+    let sent = server.await.unwrap();
+    report(
+        "1M INTERACTION_CREATE, plain",
+        EVENTS,
+        sent,
+        elapsed,
+        baseline,
+    );
+}
+
 /// One million `MESSAGE_CREATE` frames compressed with `zstd-stream`.
 #[cfg(feature = "zstd-stream")]
 #[tokio::test(flavor = "multi_thread")]
