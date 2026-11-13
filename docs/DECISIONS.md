@@ -2817,6 +2817,17 @@ and why.
 - **Alternatives:** `std::process` with one blocking thread per process waiting for its exit
   (no new crate; hundreds of threads for hundreds of processes).
 
+### D-305 — The manager asks Get Gateway Bot once, for every process
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Decision:** the `ClusterManager` always calls Get Gateway Bot once when it starts, also
+  with a fixed shard count: it checks `session_start_limit.remaining` for all its shards at
+  once, keeps `max_concurrency` for its IDENTIFY queue (D-299), and passes the gateway URL
+  and `max_concurrency` to every process in its assignment. A cluster process does not call
+  Get Gateway Bot: 1 request instead of N + 1 at start, none when a process is restarted.
+- **Alternatives:** a `ClusterManagerBuilder::max_concurrency` option (fetched only with
+  `Shards::Auto`, processes still asking for the URL); processes reporting `max_concurrency`
+  with their IDENTIFY requests (N requests at start).
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
