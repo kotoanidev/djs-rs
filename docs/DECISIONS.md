@@ -2808,6 +2808,15 @@ and why.
   benchmarks and extreme-load tests (D-041).
 - **Alternatives:** values and commands right after step 1.
 
+### D-304 — Shard processes are run with tokio's `process` feature
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Decision:** the manager starts, watches and kills its processes with
+  `tokio::process::Command` (tokio's `process` feature, enabled only by `sharding`): waiting
+  for an exit is asynchronous, in the same runtime. On Unix it adds `signal-hook-registry`
+  (part of the tokio ecosystem, for `SIGCHLD`) to a bot's dependencies when `sharding` is on.
+- **Alternatives:** `std::process` with one blocking thread per process waiting for its exit
+  (no new crate; hundreds of threads for hundreds of processes).
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
