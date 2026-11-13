@@ -29,8 +29,9 @@ structures with methods, managers, interactions and a router, collectors and gat
 requests, intents and partials guidance, example bots run on the test bot; benchmarks +
 extreme-load tests in `docs/PERFORMANCE.md`).
 **The serenity comparison: ✅ done 2026-11-13** (`docs/VS_SERENITY.md`, D-277–D-282, C-108,
-C-109). **Next: Phase 9 (multi-process sharding)** — ask the owner its decisions first, see
-"Next step".
+C-109). **Next: the fixes found by the comparison (D-283) — the rebuild time after an edit,
+then the ergonomics gaps — and then Phase 9** (D-284–D-286 already decided), see "Next
+step".
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-075 in `docs/DECISIONS.md`; Claude defaults C-001 …
@@ -593,10 +594,22 @@ fields with `Deref` to `new`). Steps:
      equal profiles (serenity gained ~6 % in decode and flood, idle memory 12.5 → 10.0 MiB).
    - **Every run inside `unshare -rn`** (C-108: one request reached Discord in the first
      smoke test, serenity's rate limiter ignores its proxy).
-8. **Next: Phase 9 — multi-process sharding (D-018)** (`ShardingManager` spawning
-   processes, IPC, `broadcastEval`-style messaging, respawn). Ask the owner its significant
-   decisions first (crate placement, IPC transport, process model, API shape), record them
-   as D-283+, then implement, benchmark and stress-test (D-041).
+8. **Next: fixes before Phase 9 (D-283).**
+   - **Rebuild time:** measure why the `!ping` bot of `benches/vs-serenity/bots/djs-rs`
+     rebuilds in 9.9 s (release) / 0.8–1.4 s (debug) after touching `main.rs`, against
+     5.0 s / 0.6 s with serenity (`build.sh`; `cargo build --timings`,
+     `-Zself-profile`-free tools such as `cargo llvm-lines` need asking if they are new
+     tools). Hypothesis: the generic `Client`, `on` handlers and futures are monomorphized
+     and optimized in the bot crate. Any public API change for it is asked first.
+   - **Ergonomics gaps** (open question of C-107, in `docs/DECISIONS.md`): setters for the
+     `#[non_exhaustive]` message bodies, `From<String>` for `EditWebhookMessage`, `Vec` vs
+     `Option<Vec>`, member permissions from the cache, shutting down from a handler — ask the
+     owner the API shape of each first.
+9. **Then Phase 9 — multi-process sharding** (D-018, D-284–D-286): `djs_rs::sharding`
+   behind the `sharding` feature, TCP 127.0.0.1 + length-prefixed JSON with a per-process
+   token, built-in values + named typed commands instead of `broadcastEval`. Still to ask:
+   the process model (re-spawn the same executable or a given binary), shards per process,
+   respawn policy, IDENTIFY coordination across processes.
 
 > **Heavy runs (D-257, D-259–D-262):** the owner's laptop hard-froze on 2026-11-13 under
 > assistant load. Every cargo build/test/bench/stress test goes through

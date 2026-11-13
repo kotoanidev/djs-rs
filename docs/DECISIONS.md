@@ -2571,6 +2571,41 @@ and why.
 - **Alternatives:** serenity with its limiter disabled everywhere (no 429/5xx scenarios for
   it); TLS for both with a djs-rest option to trust extra root certificates.
 
+### D-283 — After the serenity comparison: fixes before Phase 9
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Decision:** before Phase 9, (1) investigate and shorten the time a bot takes to rebuild
+  after an edit (`docs/VS_SERENITY.md`: release 9.9 s with djs-rs vs 5.0 s with serenity,
+  the only scenario serenity wins), and (2) close the ergonomics gaps the example bots found
+  (the open question of C-107: setters for message bodies, `From<String>` for
+  `EditWebhookMessage`, `Vec` vs `Option<Vec>`, member permissions from the cache, shutting
+  down from a handler). Each public API change is still asked first.
+- **Alternatives:** only the rebuild time, then Phase 9; Phase 9 at once, fixes later.
+
+### D-284 — Multi-process sharding lives in `djs-rs`
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Decision:** Phase 9's process manager (≈ discord.js `ShardingManager`, `Shard`,
+  `ShardClientUtil`) is a module of the main crate, `djs_rs::sharding`, behind an opt-in
+  cargo feature `sharding`; the shard side integrates with `Client` (≈ `client.shard`).
+- **Alternatives:** a separate `djs-sharding` crate re-exported by `djs-rs`.
+
+### D-285 — Sharding IPC: TCP on 127.0.0.1 with JSON frames
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Decision:** shard processes talk to the manager over TCP on `127.0.0.1`, with
+  length-prefixed JSON frames and a one-time token passed in an environment variable to
+  authenticate each process. The same on Linux, macOS and Windows, without new dependencies,
+  and the bot keeps its stdin/stdout.
+- **Alternatives:** the child's stdin/stdout (takes the bot's standard output); Unix domain
+  sockets / Windows named pipes (separate code per platform).
+
+### D-286 — Instead of `broadcastEval`: built-in values and named commands
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Decision:** Rust cannot evaluate code sent at run time, so the manager offers
+  (1) built-in values fetched from every shard (≈ `fetchClientValues`: guild and user
+  counts, ping, uptime, …) and (2) commands registered by name on the shard side, with typed
+  arguments and results (serde), which the manager can broadcast to every shard or send to
+  one (≈ `broadcastEval`).
+- **Alternatives:** only named commands; only built-in values.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
