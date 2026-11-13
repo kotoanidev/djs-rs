@@ -2355,6 +2355,100 @@ and why.
   automatic control.
 - **Alternatives:** stopping at once when AC is unplugged (the first rule of D-257).
 
+### D-262 — The guard stops only on a real danger; the balanced profile and its sweet spot
+- **Date:** 2026-11-13 · **Decided by:** Owner (the thresholds chosen by Claude on the
+  owner's instruction)
+- **Decision:** the guard must not stop a heavy command over a theoretical risk, only when
+  the computer is really in danger of shutting down. The owner switched the platform profile
+  to **balanced** (PL1 23 W, PL2 39 W) and asked for the load "sweet spot" that uses the safe
+  maximum with an **absolute peak of 95 °C**. The guard now stops (exit 124) only when the
+  CPU package stays at 99 °C for 10 s in a row (the CPU's limit is 100 °C, where it throttles
+  itself; a single reading no longer counts), when the ACPI zone `acpitz` comes within 3 °C of
+  its critical trip (103 °C here, where the kernel powers the laptop off), on a battery below
+  80 % without AC (the owner's rule of D-261), below 1 GiB of available RAM (a freeze), or on
+  its timeout. Thermal throttling and temperatures at 95 °C and above are warnings only; each
+  run records its seconds at 95 °C+ and its throttle events. Measured sweet spot: a clean
+  quality gate (clippy, tests, docs, everything built from scratch) on all 12 CPUs in the
+  balanced profile peaked at **79 °C** with no throttling in 126 s, so no core limit is
+  needed; the release stress tests confirm it (`docs/PERFORMANCE.md`).
+- **Alternatives:** the throttling stop of D-261 (it ended the D-256 gate during `cargo doc`
+  on single-core turbo bursts in the performance profile, peak 96 °C); a core limit.
+
+### D-263 — Collectors are streams, with `await_*` shortcuts
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Decision:** a collector is a `Stream` of the collected items, configured with a builder
+  (`time`, `idle`, `max`, `filter`, …): `while let Some(item) = collector.next().await`, and
+  `collector.end_reason()` afterwards. Shortcuts `await_*` wait for one item or collect into a
+  `Collection`. No callbacks.
+- **Alternatives:** discord.js-style callbacks (`on_collect`, `on_end`) in a spawned task;
+  both.
+
+### D-264 — Events reach collectors through an index by ID
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Decision:** the client keeps one shared registry of collectors keyed by the channel,
+  message or interaction they watch. Each event costs one lookup (one atomic read when no
+  collector exists), whatever the number of collectors.
+- **Alternatives:** every collector receives every event and filters it (like
+  `client.events()`), O(collectors) per event.
+
+### D-265 — Step 4 scope: four collectors and the gateway member requests
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Decision:** Phase 8 step 4 brings the message, reaction (with removals / dispose),
+  component and modal collectors of discord.js, and the gateway requests left open by D-149:
+  fetching members through `REQUEST_GUILD_MEMBERS` (assembling `GUILD_MEMBERS_CHUNK`) and the
+  soundboard sounds (`SOUNDBOARD_SOUNDS`).
+- **Alternatives:** only the four collectors (the member requests later); only the
+  interaction collectors first.
+
+### D-266 — Collected events still reach the handlers and the router
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Decision:** a collector is one more listener, as in discord.js: the event handlers
+  (`InteractionCreate`, `MessageCreate`, …) and the router's routes receive every event
+  whether or not a collector collected it. Avoiding a double reply is the bot's job (for
+  example distinct `custom_id` prefixes).
+- **Alternatives:** a collected interaction skips the router's routes.
+
+### D-267 — Collectors in `Sequential` mode: documented, with a warning
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Decision:** a handler that awaits a collector in `HandlerMode::Sequential` blocks its
+  shard, so the collector receives nothing from that shard until it ends. This is documented
+  in rustdoc and the client logs a `tracing` warning when a collector is created in
+  `Sequential` mode; the default `Concurrent` mode has no such limit. Nothing is added to the
+  event path.
+- **Alternatives:** the shard keeps reading while a handler waits, feeding the collectors and
+  queueing the events for the handlers (memory grows while it waits); an error in
+  `Sequential` mode.
+
+### D-268 — What the `await_*` shortcuts return
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Decision:** the single-item shortcuts (`await_component`, `await_modal_submit`) return
+  `Result<T, CollectorError>`, the error carrying the end reason (time, message deleted, …),
+  like discord.js' rejection. The multi-item shortcuts (`await_messages`, `await_reactions`)
+  return `Collected`: the `Collection` (through `Deref`) with its `reason()`; an empty result
+  is not an error (discord.js' default without `errors`).
+- **Alternatives:** `Option<T>` and a plain `Collection` (the reason is lost); `Result`
+  everywhere, an empty result being an error.
+
+### D-269 — Short collector method names
+- **Date:** 2026-11-13 · **Decided by:** Owner (not the recommendation)
+- **Decision:** the extension methods (D-220) are `message_collector` / `await_messages`,
+  `reaction_collector` / `await_reactions`, `component_collector` / `await_component` and
+  `await_modal_submit`, shorter than discord.js' `createMessageCollector`,
+  `createMessageComponentCollector`, `awaitMessageComponent`; the rustdoc of each names its
+  discord.js counterpart.
+- **Alternatives:** discord.js' names in snake_case (`create_message_collector`,
+  `await_message_component`, …; the recommendation).
+
+### D-270 — Gateway member requests: separate methods with a builder
+- **Date:** 2026-11-13 · **Decided by:** Owner
+- **Decision:** the member manager gains `fetch_all()`, `fetch_by_query(query)` (with
+  `limit`) and `fetch_many(ids)`, each with `presences(bool)` and `time(Duration)`; they send
+  `REQUEST_GUILD_MEMBERS` on the guild's shard, assemble the `GUILD_MEMBERS_CHUNK` replies
+  matched by nonce, store the members in the cache and return
+  `Collection<UserId, Arc<CachedMember>>`. `fetch(user)` stays on REST.
+- **Alternatives:** one `fetch_with(FetchMembers { … })` method with options, like
+  discord.js' `guild.members.fetch({ … })`.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)

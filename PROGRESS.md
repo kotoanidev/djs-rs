@@ -512,15 +512,18 @@ fields with `Deref` to `new`). Steps:
       and the interaction stress tests one at a time (both allocators, the gateway flood),
       record them in `docs/PERFORMANCE.md`, and commit without the `wip` mark; then step 4.
 
-> **Heavy runs (D-257, D-259, D-260):** the owner's laptop hard-froze on 2026-11-13 under
+> **Heavy runs (D-257, D-259–D-262):** the owner's laptop hard-froze on 2026-11-13 under
 > assistant load. Every cargo build/test/bench/stress test goes through
-> `.reference/tools/safe.sh` (git-ignored, persists): AC only, cool start, `MemoryMax=6G`
-> without swap, no core limit, the fan forced to full speed during the run (it refuses to start
-> without fan control); AC unplugged is a warning, a stop (of the heavy command only) comes at
-> 99 °C, a battery < 80 %, < 1 GiB RAM or sustained throttling (D-261). Machine test 2026-11-13:
-> 12 threads × 2 min peaked at 83 °C with the fan at full speed. The LAN monitor `.reference/tools/monitor.py`
-> (http://192.168.0.20:8765) shows temperatures, load, the runs on a time axis and a comparison
-> table; it logs to `.reference/tools/monitor-log.csv`. Stress tests one at a time (D-258).
+> `.reference/tools/safe.sh` (git-ignored, persists): AC (or a battery at 80 %+), cool start,
+> `MemoryMax=6G` without swap, the fan forced to full speed during the run (it refuses to
+> start without fan control). It stops the heavy command only on a real danger (D-262): the
+> package at 99 °C for 10 s, `acpitz` within 3 °C of its 103 °C critical trip, a battery
+> < 80 % without AC, < 1 GiB RAM, or its timeout; throttling and ≥ 95 °C only warn. The
+> owner runs the **balanced** profile and wants peaks below 95 °C: a clean gate on all 12 CPUs
+> peaked at 79 °C, so no core limit. The LAN monitor `.reference/tools/monitor.py`
+> (http://192.168.0.20:8765) shows temperatures, load, the runs on a time axis and a
+> comparison table; it logs to `.reference/tools/monitor-log.csv`. Stress tests one at a time
+> (D-258).
 
 - Open optimization candidates from Phase 3 (not blocking): the REST future size and JSON
   body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").
