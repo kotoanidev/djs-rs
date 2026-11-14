@@ -37,7 +37,10 @@ use super::{
     ClusterCommand, ClusterError, ClusterReply,
     cluster::{CLUSTER_ENV, ClusterAssignment, Gateway},
     command::{Failure, Replies, decode_one, decode_replies, encode},
-    ipc::{ToCluster, ToManager, Token, read_frame, write_frame},
+    ipc::{
+        MAX_HELLO, TOO_LARGE, ToCluster, ToManager, Token, read_frame, read_frame_within,
+        too_large, write_frame,
+    },
     lock,
 };
 use crate::Shards;
@@ -367,6 +370,35 @@ impl ClusterManager {
             }
             replies
         })
+    }
+
+    /// Answers for a message to cluster `cluster` that did not fit in a frame: its request
+    /// fails here, and the replies it carried are replaced by errors (sent instead).
+    fn too_large(&self, cluster: u32, message: ToCluster) -> Option<ToCluster> {
+        let failure = || Failure::Encoding {
+            message: TOO_LARGE.into(),
+        };
+        match message {
+            ToCluster::Request { id, .. } => {
+                tracing::warn!(cluster, "a command for a cluster is too large to send");
+                let waiting = lock(&self.inner.clusters)
+                    .get_mut(cluster as usize)
+                    .and_then(|state| state.pending.remove(&id));
+                if let Some(waiting) = waiting {
+                    let _ = waiting.send(Err(failure()));
+                }
+                None
+            }
+            ToCluster::Replies { id, replies } => {
+                tracing::warn!(cluster, "the results of a command are too large to send");
+                let replies = replies
+                    .into_iter()
+                    .map(|(cluster, _)| (cluster, Err(failure())))
+                    .collect();
+                Some(ToCluster::Replies { id, replies })
+            }
+            _ => None,
+        }
     }
 
     fn emit(&self, event: &ClusterEvent) {
@@ -707,7 +739,11 @@ async fn accept(manager: ClusterManager, listener: TcpListener, session: Arc<Ses
 async fn handshake(manager: ClusterManager, stream: TcpStream, session: Arc<Session>) {
     let _ = stream.set_nodelay(true);
     let (mut reader, mut writer) = stream.into_split();
-    let hello = tokio::time::timeout(HELLO_TIMEOUT, read_frame::<_, ToManager>(&mut reader)).await;
+    let hello = tokio::time::timeout(
+        HELLO_TIMEOUT,
+        read_frame_within::<_, ToManager>(&mut reader, MAX_HELLO),
+    )
+    .await;
     let Ok(Ok(Some(ToManager::Hello {
         cluster,
         token: presented,
@@ -741,10 +777,23 @@ async fn handshake(manager: ClusterManager, stream: TcpStream, session: Arc<Sess
     if *manager.inner.shutdown.borrow() {
         let _ = tx.send(ToCluster::Shutdown);
     }
-    let writing = tokio::spawn(async move {
-        while let Some(message) = rx.recv().await {
-            if write_frame(&mut writer, &message).await.is_err() {
-                break;
+    let writing = tokio::spawn({
+        let manager = manager.clone();
+        async move {
+            while let Some(message) = rx.recv().await {
+                match write_frame(&mut writer, &message).await {
+                    Ok(()) => {}
+                    // Nothing was written: answer for the message instead, and go on.
+                    Err(error) if too_large(&error) => {
+                        let Some(instead) = manager.too_large(cluster, message) else {
+                            continue;
+                        };
+                        if write_frame(&mut writer, &instead).await.is_err() {
+                            break;
+                        }
+                    }
+                    Err(_) => break,
+                }
             }
         }
     });

@@ -14,6 +14,13 @@ use super::command::{Failure, Replies};
 /// The largest frame accepted (16 MiB): a peer cannot make the other side allocate more.
 pub(crate) const MAX_FRAME: u32 = 16 * 1024 * 1024;
 
+/// The largest first frame (the [`ToManager::Hello`]) the manager reads from a connection
+/// that has not shown its token yet: another local program cannot make it allocate more.
+pub(crate) const MAX_HELLO: u32 = 4 * 1024;
+
+/// Why a message was not sent, given instead of its result.
+pub(crate) const TOO_LARGE: &str = "the message is larger than a frame (16 MiB)";
+
 /// What a cluster process sends to the manager.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case")]
@@ -58,7 +65,9 @@ pub(crate) enum ToCluster {
     Replies { id: u64, replies: Replies },
 }
 
-/// Writes `message` as one frame.
+/// Writes `message` as one frame. A message larger than [`MAX_FRAME`] is an error of kind
+/// [`io::ErrorKind::InvalidInput`] ([`too_large`]) and nothing is written: the connection
+/// can go on.
 pub(crate) async fn write_frame<W, T>(writer: &mut W, message: &T) -> io::Result<()>
 where
     W: AsyncWrite + Unpin,
@@ -76,8 +85,22 @@ where
     writer.flush().await
 }
 
+/// Whether `error` is [`write_frame`]'s for a message too large to send.
+pub(crate) fn too_large(error: &io::Error) -> bool {
+    error.kind() == io::ErrorKind::InvalidInput
+}
+
 /// Reads one frame; `Ok(None)` when the connection was closed between frames.
 pub(crate) async fn read_frame<R, T>(reader: &mut R) -> io::Result<Option<T>>
+where
+    R: AsyncRead + Unpin,
+    T: DeserializeOwned,
+{
+    read_frame_within(reader, MAX_FRAME).await
+}
+
+/// [`read_frame`] with a smaller limit than [`MAX_FRAME`].
+pub(crate) async fn read_frame_within<R, T>(reader: &mut R, max: u32) -> io::Result<Option<T>>
 where
     R: AsyncRead + Unpin,
     T: DeserializeOwned,
@@ -89,7 +112,7 @@ where
         Err(error) => return Err(error),
     }
     let length = u32::from_be_bytes(length);
-    if length > MAX_FRAME {
+    if length > max {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
             "frame too large",
@@ -139,7 +162,10 @@ impl fmt::Debug for Token {
 
 #[cfg(test)]
 mod tests {
-    use super::{MAX_FRAME, ToCluster, ToManager, Token, read_frame, write_frame};
+    use super::{
+        MAX_FRAME, MAX_HELLO, ToCluster, ToManager, Token, read_frame, read_frame_within,
+        too_large, write_frame,
+    };
 
     #[tokio::test]
     async fn frames_round_trip() {
@@ -194,6 +220,33 @@ mod tests {
             .await
             .unwrap();
         assert!(read_frame::<_, ToCluster>(&mut b).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn a_large_first_frame_is_refused_before_it_is_read() {
+        let (mut a, mut b) = tokio::io::duplex(64);
+        tokio::io::AsyncWriteExt::write_all(&mut a, &(MAX_HELLO + 1).to_be_bytes())
+            .await
+            .unwrap();
+        assert!(
+            read_frame_within::<_, ToManager>(&mut b, MAX_HELLO)
+                .await
+                .is_err()
+        );
+    }
+
+    #[tokio::test]
+    async fn a_message_too_large_writes_nothing() {
+        let (mut a, mut b) = tokio::io::duplex(1024);
+        let huge = "x".repeat(MAX_FRAME as usize);
+        let error = write_frame(&mut a, &huge).await.unwrap_err();
+        assert!(too_large(&error));
+        // The connection goes on.
+        write_frame(&mut a, &ToCluster::Welcome).await.unwrap();
+        assert_eq!(
+            read_frame::<_, ToCluster>(&mut b).await.unwrap(),
+            Some(ToCluster::Welcome)
+        );
     }
 
     #[test]

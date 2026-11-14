@@ -4611,6 +4611,19 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - **The test gateway** now heartbeats every second and acknowledges each heartbeat, also
   while a shard waits for its IDENTIFY turn, so that the stats have latencies.
 
+### C-117 — Limits of the cluster connections (found while planning step 5)
+- **Before its token is checked**, a connection's first frame may be at most 4 KiB
+  (`MAX_HELLO`): another local program could otherwise make the manager allocate 16 MiB
+  per connection by announcing a large frame.
+- **A message larger than a frame (16 MiB)** is not written and does not end the
+  connection: a request fails at once with `ClusterError::Encoding` (in the manager for its
+  requests, in the cluster for the cluster's own), a handler's result too large is replaced
+  by that error, and a broadcast's replies too large together (each fits, the sum does not)
+  are each replaced by it. Before, the writing task stopped: the connection stayed half
+  open, later requests timed out, and a cluster's own request waited forever.
+- **Dropping a cluster's connection** (the end of `login`) fails its requests still
+  waiting with `NotConnected` instead of leaving them waiting.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

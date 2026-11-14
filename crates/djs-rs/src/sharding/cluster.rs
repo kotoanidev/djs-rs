@@ -24,7 +24,7 @@ use tokio::{
 use super::{
     ClusterError,
     command::{Commands, Failure, Replies},
-    ipc::{ToCluster, ToManager, read_frame, write_frame},
+    ipc::{TOO_LARGE, ToCluster, ToManager, read_frame, too_large, write_frame},
     lock,
 };
 use crate::context::Shared;
@@ -169,18 +169,32 @@ impl ClusterAssignment {
             pending: Mutex::default(),
         });
         *lock(&shared.link) = Some(Arc::clone(&link));
-        // Open while the client may still send requests: the manager sees the end of the
-        // connection once the process is done.
-        let writing = tokio::spawn(async move {
-            while let Some(message) = outgoing.recv().await {
-                if write_frame(&mut writer, &message).await.is_err() {
-                    break;
+        // Open until the connection is dropped: the manager then sees its end.
+        let writing = tokio::spawn({
+            let link = Arc::clone(&link);
+            async move {
+                while let Some(message) = outgoing.recv().await {
+                    match write_frame(&mut writer, &message).await {
+                        Ok(()) => {}
+                        // Nothing was written: answer for the message instead, and go on.
+                        Err(error) if too_large(&error) => {
+                            let Some(instead) = link.too_large(&message) else {
+                                continue;
+                            };
+                            if write_frame(&mut writer, &instead).await.is_err() {
+                                break;
+                            }
+                        }
+                        Err(_) => break,
+                    }
                 }
             }
         });
         let cluster = self.cluster;
         let granted = Arc::clone(&queue);
+        let (connected, reader_link) = (Arc::clone(&shared), Arc::clone(&link));
         let reading = tokio::spawn(async move {
+            let (shared, link) = (connected, reader_link);
             loop {
                 match read_frame::<_, ToCluster>(&mut reader).await {
                     Ok(Some(ToCluster::Identify { shard })) => granted.grant(shard),
@@ -204,6 +218,8 @@ impl ClusterAssignment {
         });
         Ok(Connection {
             queue,
+            shared,
+            link,
             reading,
             writing,
         })
@@ -248,6 +264,8 @@ pub(crate) struct Gateway {
 #[derive(Debug)]
 pub(crate) struct Connection {
     queue: Arc<ManagerQueue>,
+    shared: Arc<Shared>,
+    link: Arc<Link>,
     reading: JoinHandle<()>,
     writing: JoinHandle<()>,
 }
@@ -263,6 +281,8 @@ impl Drop for Connection {
     fn drop(&mut self) {
         self.reading.abort();
         self.writing.abort();
+        // The requests still waiting fail instead of waiting forever.
+        disconnect(&self.shared, &self.link);
     }
 }
 
@@ -272,7 +292,7 @@ pub(crate) struct Link {
     requests: mpsc::UnboundedSender<ToManager>,
     next: AtomicU64,
     /// The requests waiting for their replies, by ID.
-    pending: Mutex<HashMap<u64, oneshot::Sender<Replies>>>,
+    pending: Mutex<HashMap<u64, oneshot::Sender<Result<Replies, ClusterError>>>>,
 }
 
 impl Link {
@@ -308,12 +328,36 @@ impl Link {
             return Err(ClusterError::NotConnected);
         }
         // Dropped unanswered when the connection ends.
-        rx.await.map_err(|_| ClusterError::NotConnected)
+        rx.await.map_err(|_| ClusterError::NotConnected)?
     }
 
     fn replied(&self, id: u64, replies: Replies) {
         if let Some(waiting) = lock(&self.pending).remove(&id) {
-            let _ = waiting.send(replies);
+            let _ = waiting.send(Ok(replies));
+        }
+    }
+
+    /// Answers for a message that did not fit in a frame: its own request fails here, and a
+    /// handler's result is replaced by an error (sent instead).
+    fn too_large(&self, message: &ToManager) -> Option<ToManager> {
+        match *message {
+            ToManager::Request { id, .. } => {
+                tracing::warn!("a command is too large to send to the cluster manager");
+                if let Some(waiting) = lock(&self.pending).remove(&id) {
+                    let _ = waiting.send(Err(ClusterError::Encoding(TOO_LARGE.into())));
+                }
+                None
+            }
+            ToManager::Reply { id, .. } => {
+                tracing::warn!("the result of a command is too large to send");
+                Some(ToManager::Reply {
+                    id,
+                    result: Err(Failure::Encoding {
+                        message: TOO_LARGE.into(),
+                    }),
+                })
+            }
+            _ => None,
         }
     }
 

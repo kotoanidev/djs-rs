@@ -77,6 +77,34 @@ impl ClusterCommand for StatsFromCluster {
     type Output = Vec<u32>;
 }
 
+/// Answers with a string of `Input` MiB.
+struct Big;
+
+impl ClusterCommand for Big {
+    const NAME: &'static str = "big";
+    type Input = usize;
+    type Output = String;
+}
+
+/// From inside a cluster: sends a request too large, and broadcasts [`Big`] of 9 MiB (two
+/// fit alone, not together); answers with how each result failed.
+struct BigFromCluster;
+
+impl ClusterCommand for BigFromCluster {
+    const NAME: &'static str = "big_from_cluster";
+    type Input = ();
+    type Output = Vec<String>;
+}
+
+/// How a cluster result failed, for [`BigFromCluster`].
+fn failure<T>(result: Result<T, ClusterError>) -> String {
+    match result {
+        Ok(_) => "ok".into(),
+        Err(ClusterError::Encoding(_)) => "encoding".into(),
+        Err(error) => error.to_string(),
+    }
+}
+
 /// Handled by no cluster.
 struct Unhandled;
 
@@ -137,6 +165,17 @@ async fn cluster_process() {
                 .map(|reply| reply.result.map(|stats| stats.cluster))
                 .collect::<Result<_, _>>()?;
             Ok(ids)
+        })
+        .handle::<Big, _, _>(|_, mib| async move { Ok("x".repeat(mib << 20)) })
+        .handle::<BigFromCluster, _, _>(|client, ()| async move {
+            let cluster = client.cluster().unwrap();
+            let mut failures = vec![failure(
+                cluster.send::<WhoAmI>(1, "x".repeat(17 << 20)).await,
+            )];
+            for reply in cluster.broadcast::<Big>(9).await? {
+                failures.push(failure(reply.result));
+            }
+            Ok(failures)
         })
         .handle::<Fail, _, _>(|_, panic| async move {
             assert!(!panic, "on purpose");
@@ -822,6 +861,58 @@ async fn clusters_report_their_stats() {
             .unwrap()
             .cluster,
         1
+    );
+
+    manager.shutdown();
+    timeout(STEP, running).await.unwrap().unwrap().unwrap();
+}
+
+/// A message larger than a frame (16 MiB) fails its own request at once, in every direction,
+/// and the connection goes on.
+#[tokio::test]
+async fn oversized_commands_fail_alone() {
+    let (gateway_url, _identified) = mock_gateway(Vec::new()).await;
+    let manager = ClusterManager::builder("test-token")
+        .rest(mock_rest(&gateway_url, 2, 1000, 2).await)
+        .executable(std::env::current_exe().unwrap())
+        .args(child_args())
+        .build();
+    let mut events = manager.events();
+    let running = tokio::spawn({
+        let manager = manager.clone();
+        async move { manager.spawn().await }
+    });
+    let mut connected = 0;
+    while connected < 2 {
+        if let ClusterEvent::Connected { .. } = next_event(&mut events).await {
+            connected += 1;
+        }
+    }
+
+    let started = Instant::now();
+    // The manager's input, and a cluster's result, too large.
+    assert_eq!(
+        failure(manager.send::<WhoAmI>(0, "x".repeat(17 << 20)).await),
+        "encoding"
+    );
+    assert_eq!(failure(manager.send::<Big>(0, 17).await), "encoding");
+    // A large result that fits.
+    assert_eq!(manager.send::<Big>(1, 8).await.unwrap().len(), 8 << 20);
+    // From a cluster: its own request, and the results of its broadcast together.
+    assert_eq!(
+        manager.send::<BigFromCluster>(0, ()).await.unwrap(),
+        ["encoding", "encoding", "encoding"]
+    );
+    // None of them waited for the command timeout.
+    assert!(
+        started.elapsed() < Duration::from_secs(20),
+        "{:?}",
+        started.elapsed()
+    );
+    // The connections go on.
+    assert_eq!(
+        manager.send::<WhoAmI>(0, "after".into()).await.unwrap(),
+        (0, "after".into())
     );
 
     manager.shutdown();

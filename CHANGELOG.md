@@ -31,7 +31,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   type implementing `ClusterCommand` (a name, serde input and output types) is handled in
   each cluster with `client.cluster()` → `ClusterClient::handle`, and sent by the manager
   or any cluster to every cluster (`broadcast`, one `ClusterReply` per cluster) or to one
-  (`send`), through the manager, within its `command_timeout` (30 s).
+  (`send`), through the manager, within its `command_timeout` (30 s). A message larger than
+  a 16 MiB frame fails its own request with `ClusterError::Encoding` and the connection goes
+  on (C-117).
 - Built-in cluster values (D-310, C-116): `stats()` on `ClusterManager` and `ClusterClient`
   returns a `ClusterStats` per cluster: each shard's state and heartbeat latency, the
   cached guild and user counts, the client's uptime and the process's memory (Linux); the
