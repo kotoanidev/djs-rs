@@ -5,12 +5,16 @@ use core::{fmt, future::Future, ops::Range, pin::Pin, time::Duration};
 use std::{
     collections::{HashMap, VecDeque},
     net::SocketAddr,
-    sync::{Arc, Mutex},
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicU64, Ordering},
+    },
 };
 
 use djs_gateway::IdentifyQueue;
 use djs_model::gateway::ShardId;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use tokio::{
     net::TcpStream,
     sync::{mpsc, oneshot},
@@ -19,6 +23,7 @@ use tokio::{
 
 use super::{
     ClusterError,
+    command::{Commands, Failure, Replies},
     ipc::{ToCluster, ToManager, read_frame, write_frame},
     lock,
 };
@@ -127,8 +132,14 @@ impl ClusterAssignment {
 
     /// Connects to the manager and introduces this process; then keeps the connection: a
     /// shutdown asked by the manager, or the manager going away, shuts the client down. The
-    /// connection carries the shards' IDENTIFY requests ([`Connection::identify_queue`]).
-    pub(crate) async fn connect(&self, shared: Arc<Shared>) -> Result<Connection, ClusterError> {
+    /// connection carries the shards' IDENTIFY requests ([`Connection::identify_queue`]),
+    /// runs the commands the manager sends with `commands`, and carries this process's own
+    /// requests ([`Link`], in `shared`).
+    pub(crate) async fn connect(
+        &self,
+        shared: Arc<Shared>,
+        commands: Arc<dyn Commands>,
+    ) -> Result<Connection, ClusterError> {
         let stream = TcpStream::connect(self.address)
             .await
             .map_err(ClusterError::Io)?;
@@ -149,9 +160,15 @@ impl ClusterAssignment {
 
         let (requests, mut outgoing) = mpsc::unbounded_channel();
         let queue = Arc::new(ManagerQueue {
-            requests,
+            requests: requests.clone(),
             waiting: Mutex::default(),
         });
+        let link = Arc::new(Link {
+            requests,
+            next: AtomicU64::new(0),
+            pending: Mutex::default(),
+        });
+        *lock(&shared.link) = Some(Arc::clone(&link));
         // Open while the client may still send requests: the manager sees the end of the
         // connection once the process is done.
         let writing = tokio::spawn(async move {
@@ -167,6 +184,10 @@ impl ClusterAssignment {
             loop {
                 match read_frame::<_, ToCluster>(&mut reader).await {
                     Ok(Some(ToCluster::Identify { shard })) => granted.grant(shard),
+                    Ok(Some(ToCluster::Request { id, command, input })) => {
+                        link.run(id, commands.call(&command, input));
+                    }
+                    Ok(Some(ToCluster::Replies { id, replies })) => link.replied(id, replies),
                     Ok(Some(ToCluster::Shutdown)) => {
                         tracing::info!(cluster, "the cluster manager asked to shut down");
                         break;
@@ -178,6 +199,7 @@ impl ClusterAssignment {
                     }
                 }
             }
+            disconnect(&shared, &link);
             shared.shutdown.send_replace(true);
         });
         Ok(Connection {
@@ -186,6 +208,19 @@ impl ClusterAssignment {
             writing,
         })
     }
+}
+
+/// Forgets `link`: its requests still waiting fail with [`ClusterError::NotConnected`].
+fn disconnect(shared: &Shared, link: &Arc<Link>) {
+    let mut current = lock(&shared.link);
+    if current
+        .as_ref()
+        .is_some_and(|current| Arc::ptr_eq(current, link))
+    {
+        *current = None;
+    }
+    drop(current);
+    lock(&link.pending).clear();
 }
 
 impl fmt::Debug for ClusterAssignment {
@@ -228,6 +263,72 @@ impl Drop for Connection {
     fn drop(&mut self) {
         self.reading.abort();
         self.writing.abort();
+    }
+}
+
+/// A cluster process's requests to the other clusters, through its manager (D-307).
+#[derive(Debug)]
+pub(crate) struct Link {
+    requests: mpsc::UnboundedSender<ToManager>,
+    next: AtomicU64,
+    /// The requests waiting for their replies, by ID.
+    pending: Mutex<HashMap<u64, oneshot::Sender<Replies>>>,
+}
+
+impl Link {
+    /// Sends `command` to every cluster (`to: None`) or one and waits for the results. The
+    /// manager answers each cluster within its command timeout. Boxed here so that its code
+    /// is compiled in djs-rs (D-287).
+    pub(crate) fn ask<'a>(
+        &'a self,
+        to: Option<u32>,
+        command: &'a str,
+        input: Value,
+    ) -> super::command::BoxFuture<'a, Result<Replies, ClusterError>> {
+        Box::pin(self.request(to, command, input))
+    }
+
+    async fn request(
+        &self,
+        to: Option<u32>,
+        command: &str,
+        input: Value,
+    ) -> Result<Replies, ClusterError> {
+        let id = self.next.fetch_add(1, Ordering::Relaxed);
+        let (tx, rx) = oneshot::channel();
+        lock(&self.pending).insert(id, tx);
+        let request = ToManager::Request {
+            id,
+            to,
+            command: command.to_owned(),
+            input,
+        };
+        if self.requests.send(request).is_err() {
+            lock(&self.pending).remove(&id);
+            return Err(ClusterError::NotConnected);
+        }
+        // Dropped unanswered when the connection ends.
+        rx.await.map_err(|_| ClusterError::NotConnected)
+    }
+
+    fn replied(&self, id: u64, replies: Replies) {
+        if let Some(waiting) = lock(&self.pending).remove(&id) {
+            let _ = waiting.send(replies);
+        }
+    }
+
+    /// Runs a handler for the manager's request `id` and sends its result back. A handler
+    /// that panics is reported as failed.
+    fn run(&self, id: u64, handler: super::command::BoxFuture<'static, Result<Value, Failure>>) {
+        let requests = self.requests.clone();
+        tokio::spawn(async move {
+            let result = tokio::spawn(handler).await.unwrap_or_else(|_| {
+                Err(Failure::Failed {
+                    message: "the command handler panicked".into(),
+                })
+            });
+            let _ = requests.send(ToManager::Reply { id, result });
+        });
     }
 }
 

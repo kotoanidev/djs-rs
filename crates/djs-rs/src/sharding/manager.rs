@@ -10,13 +10,14 @@ use core::{
     time::Duration,
 };
 use std::{
+    collections::HashMap,
     ffi::OsString,
     io,
     path::PathBuf,
     process::{ExitStatus, Stdio},
     sync::{
         Arc, Mutex,
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
     },
 };
 
@@ -24,16 +25,18 @@ use djs_gateway::{IdentifyQueue, LocalIdentifyQueue};
 use djs_model::gateway::ShardId;
 use djs_rest::Rest;
 use futures_core::Stream;
+use serde_json::Value;
 use tokio::{
     net::{TcpListener, TcpStream},
     process::Command,
-    sync::{mpsc, watch},
+    sync::{mpsc, oneshot, watch},
     task::JoinSet,
 };
 
 use super::{
-    ClusterError,
+    ClusterCommand, ClusterError, ClusterReply,
     cluster::{CLUSTER_ENV, ClusterAssignment, Gateway},
+    command::{Failure, Replies, decode_one, decode_replies, encode},
     ipc::{ToCluster, ToManager, Token, read_frame, write_frame},
     lock,
 };
@@ -45,6 +48,9 @@ const HELLO_TIMEOUT: Duration = Duration::from_secs(10);
 /// The default time clusters get to stop after [`ClusterManager::shutdown`] before they are
 /// killed.
 const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// The default time a cluster has to answer a command.
+const COMMAND_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// The default first and largest delays before a process is restarted (D-306).
 const RESTART_DELAY: (Duration, Duration) = (Duration::from_secs(1), Duration::from_secs(60));
@@ -105,6 +111,9 @@ struct Inner {
     shutdown_timeout: Duration,
     restart: Restart,
     restart_delay: (Duration, Duration),
+    command_timeout: Duration,
+    /// The ID of the next request sent to a cluster.
+    next_request: AtomicU64,
     running: AtomicBool,
     shutdown: watch::Sender<bool>,
     subscribers: Mutex<Vec<mpsc::UnboundedSender<ClusterEvent>>>,
@@ -120,6 +129,8 @@ struct State {
     sender: Option<mpsc::UnboundedSender<ToCluster>>,
     /// The delay before the next restart, unless the process ran long enough (D-306).
     delay: Duration,
+    /// The requests sent to the connected process, waiting for its reply.
+    pending: HashMap<u64, oneshot::Sender<Result<Value, Failure>>>,
 }
 
 impl ClusterManager {
@@ -141,6 +152,7 @@ impl ClusterManager {
             shutdown_timeout: SHUTDOWN_TIMEOUT,
             restart: Restart::OnFailure,
             restart_delay: RESTART_DELAY,
+            command_timeout: COMMAND_TIMEOUT,
         }
     }
 
@@ -222,6 +234,129 @@ impl ClusterManager {
             .collect()
     }
 
+    /// Sends the command `C` to every cluster and returns each one's result, by cluster ID
+    /// (D-307–D-309). A cluster that is not connected (down, restarting, or the manager is
+    /// not running), does not handle `C`, fails or does not answer within the
+    /// [`command_timeout`](ClusterManagerBuilder::command_timeout) has an error in its
+    /// [`ClusterReply`]; the others still have their results.
+    ///
+    /// discord.js counterpart: `ShardingManager#broadcastEval`.
+    ///
+    /// # Errors
+    ///
+    /// [`ClusterError::Encoding`] if `input` cannot be converted to JSON.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use djs_rs::sharding::{ClusterCommand, ClusterManager};
+    ///
+    /// struct GuildCount;
+    ///
+    /// impl ClusterCommand for GuildCount {
+    ///     const NAME: &'static str = "guild_count";
+    ///     type Input = ();
+    ///     type Output = usize;
+    /// }
+    ///
+    /// # async fn run(manager: ClusterManager) -> Result<(), djs_rs::sharding::ClusterError> {
+    /// let total: usize = manager
+    ///     .broadcast::<GuildCount>(())
+    ///     .await?
+    ///     .into_iter()
+    ///     .filter_map(|reply| reply.result.ok())
+    ///     .sum();
+    /// println!("{total} guilds");
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn broadcast<C: ClusterCommand>(
+        &self,
+        input: C::Input,
+    ) -> Result<Vec<ClusterReply<C::Output>>, ClusterError> {
+        let input = encode(&input)?;
+        Ok(decode_replies(self.ask(None, C::NAME, input).await))
+    }
+
+    /// Sends the command `C` to cluster `cluster` and returns its result.
+    ///
+    /// discord.js counterpart: `broadcastEval` with the `shard` option.
+    ///
+    /// # Errors
+    ///
+    /// [`ClusterError::NotConnected`] if the cluster is not connected (or does not exist),
+    /// [`ClusterError::UnknownCommand`] if it does not handle `C`,
+    /// [`ClusterError::CommandFailed`] if its handler fails, [`ClusterError::Timeout`] if it
+    /// does not answer in time, [`ClusterError::Encoding`] if the input or output cannot be
+    /// converted.
+    pub async fn send<C: ClusterCommand>(
+        &self,
+        cluster: u32,
+        input: C::Input,
+    ) -> Result<C::Output, ClusterError> {
+        let input = encode(&input)?;
+        decode_one(self.ask(Some(cluster), C::NAME, input).await)
+    }
+
+    /// Sends `command` to every cluster (`to: None`) or one, and waits for each one's result
+    /// until the command timeout. Boxed here so that its code is compiled in djs-rs (D-287).
+    pub(crate) fn ask<'a>(
+        &'a self,
+        to: Option<u32>,
+        command: &'a str,
+        input: Value,
+    ) -> BoxFuture<'a, Replies> {
+        Box::pin(async move {
+            let inner = &*self.inner;
+            let mut waiting = Vec::new();
+            {
+                let mut clusters = lock(&inner.clusters);
+                let targets = match to {
+                    Some(cluster) => cluster..cluster.saturating_add(1),
+                    None => 0..u32::try_from(clusters.len()).unwrap_or(u32::MAX),
+                };
+                for cluster in targets {
+                    let state = clusters.get_mut(cluster as usize);
+                    let Some((state, sender)) =
+                        state.and_then(|state| state.sender.clone().map(|sender| (state, sender)))
+                    else {
+                        waiting.push((cluster, 0, None));
+                        continue;
+                    };
+                    let id = inner.next_request.fetch_add(1, Ordering::Relaxed);
+                    let (tx, rx) = oneshot::channel();
+                    state.pending.insert(id, tx);
+                    let request = ToCluster::Request {
+                        id,
+                        command: command.to_owned(),
+                        input: input.clone(),
+                    };
+                    let sent = sender.send(request).is_ok();
+                    waiting.push((cluster, id, sent.then_some(rx)));
+                }
+            }
+            let deadline = tokio::time::Instant::now() + inner.command_timeout;
+            let mut replies = Vec::with_capacity(waiting.len());
+            for (cluster, id, reply) in waiting {
+                let result = match reply {
+                    None => Err(Failure::NotConnected),
+                    Some(reply) => match tokio::time::timeout_at(deadline, reply).await {
+                        Ok(Ok(result)) => result,
+                        Ok(Err(_)) => Err(Failure::NotConnected),
+                        Err(_) => {
+                            if let Some(state) = lock(&inner.clusters).get_mut(cluster as usize) {
+                                state.pending.remove(&id);
+                            }
+                            Err(Failure::Timeout)
+                        }
+                    },
+                };
+                replies.push((cluster, result));
+            }
+            replies
+        })
+    }
+
     fn emit(&self, event: &ClusterEvent) {
         lock(&self.inner.subscribers).retain(|tx| tx.send(event.clone()).is_ok());
     }
@@ -292,6 +427,7 @@ impl ClusterManager {
                 pid: None,
                 sender: None,
                 delay: inner.restart_delay.0,
+                pending: HashMap::new(),
             })
             .collect();
         tracing::info!(
@@ -452,6 +588,8 @@ impl Run<'_> {
         if let Some(state) = lock(&self.manager.inner.clusters).get_mut(id as usize) {
             state.sender = None;
             state.pid = None;
+            // Its requests still waiting fail as not connected.
+            state.pending.clear();
         }
         match status {
             Ok(status) => {
@@ -598,7 +736,7 @@ async fn handshake(manager: ClusterManager, stream: TcpStream, session: Arc<Sess
             }
         }
     });
-    serve(cluster, &shards, reader, &tx, &session).await;
+    serve(&manager, cluster, &shards, reader, &tx, &session).await;
     writing.abort();
     let mut clusters = lock(&manager.inner.clusters);
     if let Some(state) = clusters.get_mut(cluster as usize)
@@ -608,12 +746,15 @@ async fn handshake(manager: ClusterManager, stream: TcpStream, session: Arc<Sess
             .is_some_and(|sender| sender.same_channel(&tx))
     {
         state.sender = None;
+        state.pending.clear();
     }
 }
 
-/// Answers a connected process's requests until its connection ends. Its turns still
-/// waiting in the IDENTIFY queue are then dropped, so they do not hold up the others.
+/// Answers a connected process's requests until its connection ends: IDENTIFY turns, its
+/// commands for the clusters, and its replies to the manager's. Its turns still waiting in
+/// the IDENTIFY queue are then dropped, so they do not hold up the others.
 async fn serve(
+    manager: &ClusterManager,
     cluster: u32,
     shards: &Range<u32>,
     mut reader: tokio::net::tcp::OwnedReadHalf,
@@ -630,7 +771,7 @@ async fn serve(
             }
         }
     });
-    let mut turns = JoinSet::new();
+    let mut tasks = JoinSet::new();
     loop {
         tokio::select! {
             frame = frames.recv() => match frame {
@@ -639,10 +780,25 @@ async fn serve(
                         .identify
                         .wait_turn(ShardId::new(shard, session.gateway.total));
                     let tx = tx.clone();
-                    turns.spawn(async move {
+                    tasks.spawn(async move {
                         turn.await;
                         let _ = tx.send(ToCluster::Identify { shard });
                     });
+                }
+                Some(ToManager::Request { id, to, command, input }) => {
+                    let (manager, tx) = (manager.clone(), tx.clone());
+                    tasks.spawn(async move {
+                        let replies = manager.ask(to, &command, input).await;
+                        let _ = tx.send(ToCluster::Replies { id, replies });
+                    });
+                }
+                Some(ToManager::Reply { id, result }) => {
+                    let waiting = lock(&manager.inner.clusters)
+                        .get_mut(cluster as usize)
+                        .and_then(|state| state.pending.remove(&id));
+                    if let Some(waiting) = waiting {
+                        let _ = waiting.send(result);
+                    }
                 }
                 Some(ToManager::Identify { shard }) => {
                     tracing::warn!(cluster, shard, "ignored a turn asked for another cluster's shard");
@@ -650,7 +806,7 @@ async fn serve(
                 Some(ToManager::Hello { .. }) => {}
                 None => break,
             },
-            Some(_) = turns.join_next(), if !turns.is_empty() => {}
+            Some(_) = tasks.join_next(), if !tasks.is_empty() => {}
         }
     }
     reading.abort();
@@ -670,6 +826,7 @@ pub struct ClusterManagerBuilder {
     shutdown_timeout: Duration,
     restart: Restart,
     restart_delay: (Duration, Duration),
+    command_timeout: Duration,
 }
 
 impl ClusterManagerBuilder {
@@ -777,6 +934,16 @@ impl ClusterManagerBuilder {
         self
     }
 
+    /// Sets how long a cluster has to answer a command
+    /// ([`ClusterManager::broadcast`], [`ClusterClient::broadcast`](super::ClusterClient::broadcast), …)
+    /// before its result is [`ClusterError::Timeout`] (default 30 seconds).
+    ///
+    /// discord.js counterpart: the `timeout` option of `broadcastEval`.
+    pub const fn command_timeout(mut self, timeout: Duration) -> Self {
+        self.command_timeout = timeout;
+        self
+    }
+
     /// Builds the manager.
     #[must_use]
     pub fn build(self) -> ClusterManager {
@@ -791,6 +958,8 @@ impl ClusterManagerBuilder {
                 shutdown_timeout: self.shutdown_timeout,
                 restart: self.restart,
                 restart_delay: self.restart_delay,
+                command_timeout: self.command_timeout,
+                next_request: AtomicU64::new(0),
                 running: AtomicBool::new(false),
                 shutdown: watch::channel(false).0,
                 subscribers: Mutex::new(Vec::new()),
@@ -906,6 +1075,10 @@ mod tests {
     use djs_gateway::LocalIdentifyQueue;
     use djs_model::gateway::ShardId;
 
+    use std::collections::HashMap;
+
+    use serde_json::{Value, json};
+
     use super::{
         ClusterEvent, ClusterManager, Session, State, Token, accept, lock, restart_delay, split,
     };
@@ -915,6 +1088,7 @@ mod tests {
         sharding::{
             ClusterAssignment, ClusterError,
             cluster::Gateway,
+            command::{BoxFuture, Commands, Failure},
             ipc::{ToCluster, ToManager, read_frame, write_frame},
         },
     };
@@ -927,6 +1101,23 @@ mod tests {
         assert_eq!(split(0..10, 4), vec![0..4, 4..8, 8..10]);
         assert_eq!(split(8..16, 8), vec![8..16]);
         assert_eq!(split(0..3, 10), vec![0..3]);
+    }
+
+    /// The commands of the test clusters: `echo` returns its input, `hang` never answers.
+    struct Echo;
+
+    impl Commands for Echo {
+        fn call(&self, name: &str, input: Value) -> BoxFuture<'static, Result<Value, Failure>> {
+            match name {
+                "echo" => Box::pin(async move { Ok(input) }),
+                "hang" => Box::pin(core::future::pending()),
+                _ => Box::pin(async { Err(Failure::UnknownCommand) }),
+            }
+        }
+    }
+
+    fn commands() -> Arc<dyn Commands> {
+        Arc::new(Echo)
     }
 
     fn gateway() -> Gateway {
@@ -957,6 +1148,7 @@ mod tests {
     async fn listening() -> (ClusterManager, SocketAddr, Token) {
         let manager = ClusterManager::builder("tok")
             .shards(Shards::Count(2))
+            .command_timeout(Duration::from_millis(200))
             .build();
         *lock(&manager.inner.clusters) = [0..1, 1..2]
             .into_iter()
@@ -965,6 +1157,7 @@ mod tests {
                 pid: None,
                 sender: None,
                 delay: Duration::from_secs(1),
+                pending: HashMap::new(),
             })
             .collect();
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -997,18 +1190,18 @@ mod tests {
 
         // A wrong token, or a cluster the manager does not have, is refused.
         let refused = assignment(0, address, "not-the-token")
-            .connect(Arc::clone(&shared))
+            .connect(Arc::clone(&shared), commands())
             .await;
         assert!(matches!(refused, Err(ClusterError::Refused)), "{refused:?}");
         let unknown = assignment(7, address, token.as_str())
-            .connect(Arc::clone(&shared))
+            .connect(Arc::clone(&shared), commands())
             .await;
         assert!(matches!(unknown, Err(ClusterError::Refused)), "{unknown:?}");
         assert!(manager.clusters().iter().all(|cluster| !cluster.connected));
 
         // The right token is welcomed, once per cluster.
         let connection = assignment(0, address, token.as_str())
-            .connect(Arc::clone(&shared))
+            .connect(Arc::clone(&shared), commands())
             .await
             .unwrap();
         assert_eq!(
@@ -1018,7 +1211,7 @@ mod tests {
         let clusters = manager.clusters();
         assert!(clusters[0].connected && !clusters[1].connected);
         let second = assignment(0, address, token.as_str())
-            .connect(Arc::new(Shared::default()))
+            .connect(Arc::new(Shared::default()), commands())
             .await;
         assert!(matches!(second, Err(ClusterError::Refused)), "{second:?}");
         assert!(!*shared.shutdown.borrow());
@@ -1041,7 +1234,7 @@ mod tests {
         .await
         .unwrap();
         let again = assignment(0, address, token.as_str())
-            .connect(Arc::new(Shared::default()))
+            .connect(Arc::new(Shared::default()), commands())
             .await;
         assert!(again.is_ok(), "{again:?}");
     }
@@ -1050,7 +1243,7 @@ mod tests {
     async fn turns_are_granted_for_the_clusters_own_shards() {
         let (_manager, address, token) = listening().await;
         let connection = assignment(1, address, token.as_str())
-            .connect(Arc::new(Shared::default()))
+            .connect(Arc::new(Shared::default()), commands())
             .await
             .unwrap();
         let queue = connection.identify_queue();
@@ -1065,6 +1258,46 @@ mod tests {
         tokio::time::timeout(STEP, queue.wait_turn(ShardId::new(1, 2)))
             .await
             .unwrap();
+    }
+
+    #[tokio::test]
+    async fn commands_reach_every_connected_cluster() {
+        let (manager, address, token) = listening().await;
+        let shared = Arc::new(Shared::default());
+        let _connection = assignment(0, address, token.as_str())
+            .connect(Arc::clone(&shared), commands())
+            .await
+            .unwrap();
+        // Cluster 1 is not connected; the others' results stay usable.
+        assert_eq!(
+            manager.ask(None, "echo", json!({"n": 1})).await,
+            [(0, Ok(json!({"n": 1}))), (1, Err(Failure::NotConnected))]
+        );
+        assert_eq!(
+            manager.ask(Some(0), "nope", Value::Null).await,
+            [(0, Err(Failure::UnknownCommand))]
+        );
+        assert_eq!(
+            manager.ask(Some(9), "echo", Value::Null).await,
+            [(9, Err(Failure::NotConnected))]
+        );
+        // No answer within the command timeout; the request is forgotten.
+        assert_eq!(
+            manager.ask(Some(0), "hang", Value::Null).await,
+            [(0, Err(Failure::Timeout))]
+        );
+        assert!(lock(&manager.inner.clusters)[0].pending.is_empty());
+
+        // A cluster's own request goes through the manager to every cluster, itself too.
+        let link = lock(&shared.link).clone().unwrap();
+        assert_eq!(
+            link.ask(None, "echo", json!(2)).await.unwrap(),
+            [(0, Ok(json!(2))), (1, Err(Failure::NotConnected))]
+        );
+        assert_eq!(
+            link.ask(Some(0), "echo", json!("one")).await.unwrap(),
+            [(0, Ok(json!("one")))]
+        );
     }
 
     #[tokio::test]
@@ -1086,7 +1319,7 @@ mod tests {
         });
         let shared = Arc::new(Shared::default());
         let _connection = assignment(1, address, "t")
-            .connect(Arc::clone(&shared))
+            .connect(Arc::clone(&shared), commands())
             .await
             .unwrap();
         manager.await.unwrap();

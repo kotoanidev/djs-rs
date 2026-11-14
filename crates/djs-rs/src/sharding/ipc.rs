@@ -6,7 +6,10 @@ use core::{fmt, hash::BuildHasher};
 use std::{collections::hash_map::RandomState, io};
 
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde_json::Value;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+
+use super::command::{Failure, Replies};
 
 /// The largest frame accepted (16 MiB): a peer cannot make the other side allocate more.
 pub(crate) const MAX_FRAME: u32 = 16 * 1024 * 1024;
@@ -20,6 +23,19 @@ pub(crate) enum ToManager {
     Hello { cluster: u32, token: String },
     /// Asks for a turn to send IDENTIFY for one of the process's shards (D-299).
     Identify { shard: u32 },
+    /// A command from this process for every cluster (`to: None`) or one (D-307); answered
+    /// with [`ToCluster::Replies`] under the same `id`.
+    Request {
+        id: u64,
+        to: Option<u32>,
+        command: String,
+        input: Value,
+    },
+    /// The result of a [`ToCluster::Request`] with the same `id`.
+    Reply {
+        id: u64,
+        result: Result<Value, Failure>,
+    },
 }
 
 /// What the manager sends to a cluster process.
@@ -32,6 +48,14 @@ pub(crate) enum ToCluster {
     Shutdown,
     /// The turn asked by a [`ToManager::Identify`]: the shard may identify now.
     Identify { shard: u32 },
+    /// A command for this process's handlers; answered with [`ToManager::Reply`].
+    Request {
+        id: u64,
+        command: String,
+        input: Value,
+    },
+    /// Every cluster's result for the [`ToManager::Request`] with the same `id`.
+    Replies { id: u64, replies: Replies },
 }
 
 /// Writes `message` as one frame.

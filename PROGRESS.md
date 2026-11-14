@@ -666,7 +666,18 @@ fields with `Deref` to `new`). Steps:
       `ClusterEvent::Restarting`. Tests: `tests/sharding.rs` (`sh -c "exit N"` for the
       policies and delays, a `cluster_process` that crashes once after READY and comes back,
       identifying again ≥ 5 s later in the same queue), a unit test for the delays.
-   4. **Next:** built-in values and named commands (D-286; ask the API details first).
+   4. Built-in values and named commands (D-286, D-307–D-310), two commits:
+      a. ✅ Named commands (C-115): `sharding/command.rs` (`ClusterCommand`,
+         `ClusterReply`, `Failure`, `Commands`, `erase`), `sharding/cluster_client.rs`
+         (`ClusterClient`, `Table`), `Link` in `cluster.rs` (a process's own requests,
+         kept in `Shared::link`), `ClusterManager::{broadcast, send, ask}` and the routing
+         in `serve`, `command_timeout`, `Client::cluster()` and the handler table in the
+         client's `Inner`. Tests: unit tests in `command.rs` / `manager.rs`,
+         `tests/sharding.rs::clusters_answer_commands`.
+      b. **Next:** `ClusterStats` (D-310): per shard ID, state and heartbeat latency
+         (needs a status table updated by `run_shard` on `HeartbeatAck` and state changes),
+         cached guilds and users, uptime, RSS from `/proc/self/status`; a built-in
+         command (`djs-rs:stats`) and `stats()` on the manager and `ClusterClient`.
    5. Benchmarks + extreme-load tests (D-041), then Phase 9 is done.
 
 > **Heavy runs (D-257, D-259–D-262):** the owner's laptop hard-froze on 2026-11-13 under

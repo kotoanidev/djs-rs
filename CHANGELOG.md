@@ -16,8 +16,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `clusters()`, and on `shutdown` asks every process to stop, killing those still running
   after `shutdown_timeout`. A process tells itself apart with `sharding::process()` and
   passes its `ClusterAssignment` to `ClientBuilder::cluster`; its client shuts down when the
-  manager asks or goes away. The manager does not run commands in them yet (the next
-  step).
+  manager asks or goes away.
 - The cluster manager is the IDENTIFY queue of every process (D-299, C-113): shards ask it
   for a turn, granted per rate-limit bucket every 5 seconds over all the processes. It calls
   Get Gateway Bot once (D-305), checks the session starts left for every shard
@@ -28,6 +27,11 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (failures by default: a non-zero code or a signal), `restart_delay(first, max)` the
   delays (1 s doubling up to 60 s, back to 1 s after a process ran 60 s), and
   `ClusterEvent::Restarting { cluster, delay }` reports each restart.
+- Commands between clusters instead of `broadcastEval` (D-286, D-307–D-309, C-115): a
+  type implementing `ClusterCommand` (a name, serde input and output types) is handled in
+  each cluster with `client.cluster()` → `ClusterClient::handle`, and sent by the manager
+  or any cluster to every cluster (`broadcast`, one `ClusterReply` per cluster) or to one
+  (`send`), through the manager, within its `command_timeout` (30 s).
 - Member permissions (D-292, D-294, D-295, C-111): `Permissions::guild_level`,
   `Permissions::in_channel` and `Permissions::during_timeout` compute them the way Discord
   does (owner, `@everyone`, roles, `ADMINISTRATOR`, channel overwrites, the implicit

@@ -17,7 +17,9 @@ use djs_rs::{
     gateway::Compression,
     prelude::*,
     rest::Rest,
-    sharding::{self, ClusterError, ClusterEvent, ClusterEvents, ClusterManager, Restart},
+    sharding::{
+        self, ClusterCommand, ClusterError, ClusterEvent, ClusterEvents, ClusterManager, Restart,
+    },
 };
 use futures_util::{SinkExt, StreamExt};
 use http_body_util::Full;
@@ -37,6 +39,42 @@ const STEP: Duration = Duration::from_secs(20);
 /// The environment variable naming a file: the first [`cluster_process`] that creates it
 /// crashes once its shards are ready.
 const CRASH_ONCE_ENV: &str = "DJS_RS_TEST_CRASH_ONCE";
+
+/// Answers with the cluster's ID and the input.
+struct WhoAmI;
+
+impl ClusterCommand for WhoAmI {
+    const NAME: &'static str = "who_am_i";
+    type Input = String;
+    type Output = (u32, String);
+}
+
+/// Asks every cluster [`WhoAmI`] from inside a cluster, and answers with their IDs.
+struct AskAll;
+
+impl ClusterCommand for AskAll {
+    const NAME: &'static str = "ask_all";
+    type Input = ();
+    type Output = Vec<u32>;
+}
+
+/// Fails, or panics when its input is `true`.
+struct Fail;
+
+impl ClusterCommand for Fail {
+    const NAME: &'static str = "fail";
+    type Input = bool;
+    type Output = ();
+}
+
+/// Handled by no cluster.
+struct Unhandled;
+
+impl ClusterCommand for Unhandled {
+    const NAME: &'static str = "unhandled";
+    type Input = ();
+    type Output = ();
+}
 
 /// The process side, started by the manager tests (a plain `cargo test` skips it; run
 /// without a manager, it does nothing).
@@ -64,6 +102,28 @@ async fn cluster_process() {
         }
         Ok(())
     });
+    client
+        .cluster()
+        .unwrap()
+        .handle::<WhoAmI, _, _>(|client, input| async move {
+            Ok((client.cluster().unwrap().id(), input))
+        })
+        .handle::<AskAll, _, _>(|client, ()| async move {
+            let replies = client
+                .cluster()
+                .unwrap()
+                .broadcast::<WhoAmI>("from a cluster".into())
+                .await?;
+            let ids = replies
+                .into_iter()
+                .map(|reply| reply.result.map(|(id, _)| id))
+                .collect::<Result<_, _>>()?;
+            Ok(ids)
+        })
+        .handle::<Fail, _, _>(|_, panic| async move {
+            assert!(!panic, "on purpose");
+            Err("nope".into())
+        });
     let crash_once = std::env::var_os(CRASH_ONCE_ENV);
     client.on(Events::ClientReady, move |_ctx, _ready| {
         let crash_once = crash_once.clone();
@@ -593,4 +653,73 @@ async fn a_crashed_process_is_started_again() {
     timeout(STEP, running).await.unwrap().unwrap().unwrap();
     assert!(exits(&mut events, 1).await[0].1.success());
     std::fs::remove_file(&marker).unwrap();
+}
+
+/// D-307–D-309: the manager and the clusters send named commands to every cluster or one.
+#[tokio::test]
+async fn clusters_answer_commands() {
+    let (gateway_url, _identified) = mock_gateway(Vec::new()).await;
+    let manager = ClusterManager::builder("test-token")
+        .rest(mock_rest(&gateway_url, 2, 1000, 2).await)
+        .executable(std::env::current_exe().unwrap())
+        .args(child_args())
+        .build();
+    let mut events = manager.events();
+    let running = tokio::spawn({
+        let manager = manager.clone();
+        async move { manager.spawn().await }
+    });
+    let mut connected = 0;
+    while connected < 2 {
+        if let ClusterEvent::Connected { .. } = next_event(&mut events).await {
+            connected += 1;
+        }
+    }
+
+    let replies = manager.broadcast::<WhoAmI>("hi".into()).await.unwrap();
+    let replies: Vec<_> = replies
+        .into_iter()
+        .map(|reply| (reply.cluster, reply.result.unwrap()))
+        .collect();
+    assert_eq!(replies, [(0, (0, "hi".into())), (1, (1, "hi".into()))]);
+    assert_eq!(
+        manager.send::<WhoAmI>(1, "one".into()).await.unwrap(),
+        (1, "one".into())
+    );
+    // A cluster's own broadcast, through the manager, reaches every cluster.
+    assert_eq!(manager.send::<AskAll>(0, ()).await.unwrap(), [0, 1]);
+    // Errors, by cluster.
+    let failed = manager.send::<Fail>(0, false).await;
+    assert!(
+        matches!(&failed, Err(ClusterError::CommandFailed(message)) if message == "nope"),
+        "{failed:?}"
+    );
+    let panicked = manager.send::<Fail>(1, true).await;
+    assert!(
+        matches!(&panicked, Err(ClusterError::CommandFailed(message)) if message.contains("panicked")),
+        "{panicked:?}"
+    );
+    assert!(matches!(
+        manager.send::<Unhandled>(0, ()).await,
+        Err(ClusterError::UnknownCommand)
+    ));
+    assert!(matches!(
+        manager.send::<WhoAmI>(5, String::new()).await,
+        Err(ClusterError::NotConnected)
+    ));
+    // The cluster that panicked still answers.
+    assert_eq!(
+        manager.send::<WhoAmI>(1, "still".into()).await.unwrap(),
+        (1, "still".into())
+    );
+
+    manager.shutdown();
+    timeout(STEP, running).await.unwrap().unwrap().unwrap();
+    // Once the processes are gone, every cluster is not connected.
+    let after = manager.broadcast::<WhoAmI>(String::new()).await.unwrap();
+    assert!(
+        after
+            .iter()
+            .all(|reply| matches!(reply.result, Err(ClusterError::NotConnected)))
+    );
 }

@@ -33,6 +33,10 @@ pub(crate) struct Shared {
     /// Set to `true` to stop the running client ([`Client::shutdown`](crate::Client::shutdown),
     /// [`Context::shutdown`], D-293); `login` sets it back to `false`.
     pub(crate) shutdown: watch::Sender<bool>,
+    /// A cluster process's open connection to its manager, for its outgoing requests
+    /// (D-307).
+    #[cfg(feature = "sharding")]
+    pub(crate) link: std::sync::Mutex<Option<Arc<crate::sharding::Link>>>,
 }
 
 impl Default for Shared {
@@ -44,6 +48,8 @@ impl Default for Shared {
             intents: Intents::empty(),
             shards: RwLock::default(),
             shutdown: watch::channel(false).0,
+            #[cfg(feature = "sharding")]
+            link: std::sync::Mutex::new(None),
         }
     }
 }

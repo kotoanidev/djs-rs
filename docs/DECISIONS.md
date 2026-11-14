@@ -4570,9 +4570,40 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   (its old connection was cleared when its exit was seen) and waits for its IDENTIFY turn
   in the same queue: the queue lives as long as the `spawn` (D-299).
 
+### C-115 — Commands between clusters (D-286, D-307–D-309, step 4)
+- **Names:** `ClusterCommand` (trait: `NAME`, `Input`, `Output`), `ClusterReply<T>`
+  (`cluster`, `result`, non-exhaustive), `ClusterClient<B>` (from `Client::cluster()`, a
+  `Client` clone inside: `id`, `shards`, `total_shards`, `handle`, `broadcast`, `send`),
+  and on `ClusterManager` `broadcast` / `send`. New `ClusterError` variants:
+  `NotConnected` (also an unknown cluster ID, and a cluster process that is not logged in),
+  `UnknownCommand`, `CommandFailed(String)` (the handler's error as text: errors are not
+  serializable), `Timeout`, `Encoding(String)` (serde_json's error as text, so that
+  serde_json stays out of the public API).
+- **Handlers** are `Fn(Client<B>, C::Input) -> Future<Output = Result<C::Output,
+  HandlerError>>`, as event handlers return `HandlerError`; each request runs in its own
+  task, and a panic becomes `CommandFailed("the command handler panicked")`, the process
+  going on. A second `handle` of the same command replaces the first. `handle` returns
+  `&Self` to chain, like `Client::on`.
+- **The timeout** is the manager's, `ClusterManagerBuilder::command_timeout` (30 s by
+  default): one deadline for every cluster of a request, after which the cluster's result
+  is `Timeout` and its late reply is dropped. A cluster process's own request waits for
+  the manager's answer (it always comes within that deadline, or the connection ends).
+- **The wire:** `request` / `reply` / `replies` frames; inputs and outputs are
+  `serde_json::Value` inside the frames (the manager does not need to know the types). The
+  manager numbers its requests to the clusters; a cluster numbers its own, and the manager
+  answers them under that number.
+- **Later:** a `Context::cluster()` for handlers that do not capture the `ClusterClient`
+  is in the open questions.
+
 ---
 
 ## Open questions (to ask the owner when relevant)
+
+- **`Context::cluster()` (Phase 9, C-115):** event handlers reach the `ClusterClient` only
+  by capturing a clone (`client.cluster()`), the pattern `ctx.shutdown()` removed for
+  shutdowns (D-293). A non-generic handle for sending (`broadcast`, `send`, `stats`) could
+  be reachable from `Context`; `handle` needs the client's backend type and would stay on
+  `ClusterClient`. Ask the owner whether to add it.
 
 - **djs-rs bots rebuild slower than serenity bots** (`docs/VS_SERENITY.md`, C-109): after
   editing `main.rs` of the same `!ping` bot, a release rebuild takes about twice as long

@@ -175,6 +175,9 @@ struct Inner<B: Backend> {
     /// The assignment of a cluster process (D-300).
     #[cfg(feature = "sharding")]
     cluster: Option<crate::sharding::ClusterAssignment>,
+    /// The commands this cluster process handles, by name (D-308).
+    #[cfg(feature = "sharding")]
+    commands: RwLock<std::collections::HashMap<&'static str, crate::sharding::Handler<Client<B>>>>,
 }
 
 /// A future boxed inside this crate (D-287).
@@ -568,6 +571,63 @@ impl<B: Backend> Client<B> {
         self.inner.cache.as_deref()
     }
 
+    /// This process's cluster, for a client built with [`ClientBuilder::cluster`]: its
+    /// assignment, the commands it handles and its requests to the other clusters (D-301).
+    /// `None` for any other client.
+    ///
+    /// discord.js counterpart: `Client#shard`.
+    #[cfg(feature = "sharding")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "sharding")))]
+    #[must_use]
+    pub fn cluster(&self) -> Option<crate::sharding::ClusterClient<B>> {
+        self.inner
+            .cluster
+            .is_some()
+            .then(|| crate::sharding::ClusterClient::new(self.clone()))
+    }
+
+    #[cfg(feature = "sharding")]
+    pub(crate) fn assignment(&self) -> Option<&crate::sharding::ClusterAssignment> {
+        self.inner.cluster.as_ref()
+    }
+
+    /// The open connection to the manager, while a cluster process is logged in.
+    #[cfg(feature = "sharding")]
+    pub(crate) fn link(&self) -> Option<Arc<crate::sharding::Link>> {
+        self.inner
+            .shared
+            .link
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
+    }
+
+    #[cfg(feature = "sharding")]
+    pub(crate) fn add_cluster_command(
+        &self,
+        name: &'static str,
+        handler: crate::sharding::Handler<Client<B>>,
+    ) {
+        self.inner
+            .commands
+            .write()
+            .unwrap_or_else(PoisonError::into_inner)
+            .insert(name, handler);
+    }
+
+    #[cfg(feature = "sharding")]
+    pub(crate) fn cluster_command(
+        &self,
+        name: &str,
+    ) -> Option<crate::sharding::Handler<Client<B>>> {
+        self.inner
+            .commands
+            .read()
+            .unwrap_or_else(PoisonError::into_inner)
+            .get(name)
+            .cloned()
+    }
+
     /// Connects to Discord and processes events until [`shutdown`](Self::shutdown) is called or
     /// the connection fails fatally.
     ///
@@ -680,7 +740,16 @@ impl<B: Backend> Client<B> {
         // A cluster process stays connected to its manager while it runs (D-300).
         #[cfg(feature = "sharding")]
         let manager = match &inner.cluster {
-            Some(assignment) => Some(assignment.connect(Arc::clone(&inner.shared)).await?),
+            Some(assignment) => {
+                let commands = Arc::new(crate::sharding::Table {
+                    client: self.clone(),
+                });
+                Some(
+                    assignment
+                        .connect(Arc::clone(&inner.shared), commands)
+                        .await?,
+                )
+            }
             None => None,
         };
 
@@ -1312,6 +1381,8 @@ impl<B: Backend> ClientBuilder<B> {
                 compiled,
                 #[cfg(feature = "sharding")]
                 cluster: self.cluster,
+                #[cfg(feature = "sharding")]
+                commands: RwLock::default(),
             }),
         }
     }

@@ -45,6 +45,17 @@
 //! processes (D-305), and it is their IDENTIFY queue (D-299): shards in different processes
 //! never identify faster than Discord's `max_concurrency` allows.
 //!
+//! # Commands between clusters
+//!
+//! Rust cannot evaluate code sent at run time, so instead of discord.js's `broadcastEval`
+//! a bot declares commands (D-286, D-308): a type implementing [`ClusterCommand`] names one
+//! and gives its input and output types; a cluster handles it with
+//! [`ClusterClient::handle`] (from [`Client::cluster`](crate::Client::cluster)), and the
+//! manager or any cluster sends it to every cluster ([`ClusterManager::broadcast`],
+//! [`ClusterClient::broadcast`]) or to one (`send`), through the manager (D-307). A
+//! broadcast returns a [`ClusterReply`] per cluster (D-309), so a cluster that is down or
+//! restarting does not spoil the others' results.
+//!
 //! Each process has its own REST client, so the REST rate limits are not shared between
 //! processes (D-302): what goes over Discord's limits ends in a 429, which the client waits
 //! out and retries.
@@ -53,17 +64,25 @@
 //! discord-hybrid-sharding's clusters (D-301).
 
 mod cluster;
+mod cluster_client;
+mod command;
 mod ipc;
 mod manager;
 
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
-pub(crate) use self::cluster::Connection;
 pub use self::{
     cluster::ClusterAssignment,
+    cluster_client::ClusterClient,
+    command::{ClusterCommand, ClusterReply},
     manager::{
         Cluster, ClusterEvent, ClusterEvents, ClusterManager, ClusterManagerBuilder, Restart,
     },
+};
+pub(crate) use self::{
+    cluster::{Connection, Link},
+    cluster_client::Table,
+    command::Handler,
 };
 
 /// Tells whether this process was started by a [`ClusterManager`] (D-300): its assignment
@@ -123,4 +142,22 @@ pub enum ClusterError {
     /// The manager is already running.
     #[error("the cluster manager is already running")]
     AlreadyRunning,
+    /// The cluster is not connected: it is down, restarting or does not exist; or, from a
+    /// cluster process, this process is not connected to its manager (not logged in).
+    #[error("the cluster is not connected")]
+    NotConnected,
+    /// The cluster has no handler for the command
+    /// ([`ClusterClient::handle`]).
+    #[error("the cluster does not handle this command")]
+    UnknownCommand,
+    /// The cluster's handler returned an error, given here as text.
+    #[error("the command failed: {0}")]
+    CommandFailed(String),
+    /// The cluster did not answer within the manager's
+    /// [`command_timeout`](ClusterManagerBuilder::command_timeout).
+    #[error("the cluster did not answer in time")]
+    Timeout,
+    /// A command's input or output could not be converted to or from JSON (as text).
+    #[error("could not encode or decode a command: {0}")]
+    Encoding(String),
 }
