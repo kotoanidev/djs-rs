@@ -699,11 +699,15 @@ fields with `Deref` to `new`). Steps:
    (standalone `djs-voice` with an adapter trait + djs-rs `voice` feature), D-316 (API
    shaped like **songbird**: a call per guild, a track queue, track handles; names asked
    per step), D-317 (inputs: FFmpeg process, native Ogg/Opus, PCM), D-318 (order:
-   connection + DAVE + ready Ogg/Opus → player → receiving → benchmarks). **Next: step 1**
-   — first ask its public names and shape (the manager, the per-guild call, joining and
-   leaving, connection events, the adapter trait), then the new dependencies' versions
-   (`davey`, `chacha20poly1305`, `aes-gcm`, `audiopus` comes in step 2) and the voice
-   gateway's own crates (reuse `tokio-websockets` from djs-gateway). Live tests need the
+   connection + DAVE + ready Ogg/Opus → player → receiving → benchmarks), D-319
+   (`VoiceManager`, `Call`, later `Track`/`TrackHandle`/`TrackQueue`; `client.voice()`),
+   D-320 (`Call` is a cheap-clone handle, `&self` methods), D-321 (events as streams:
+   `call.events()` → `CallEvent`), D-322 (`join` returns once gateway + UDP + DAVE are
+   ready; 10 s timeout). `davey` 0.2 checked: MIT, safe Rust, openmls 0.8, sync
+   `DaveSession` API (MSRV 1.89 to verify on the first build). **Next: step 1** — still to
+   ask: how step 1 plays ready Ogg/Opus before step 2's tracks exist, the adapter trait's
+   shape, and the dependency versions (`davey` 0.2, `chacha20poly1305` 0.11, `aes-gcm`
+   0.11; `audiopus` in step 2; reuse `tokio-websockets` for the voice gateway). Live tests need the
    owner's go-ahead (D-275) and a voice channel on the test guild.
 
 > **Heavy runs (D-257, D-259–D-262):** the owner's laptop hard-froze on 2026-11-13 under

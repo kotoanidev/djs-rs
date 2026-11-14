@@ -2954,6 +2954,38 @@ and why.
   volume; (3) receiving audio; (4) benchmarks and extreme-load tests (D-041).
 - **Alternatives:** receiving before the player (for recording bots).
 
+### D-319 — Voice names: `VoiceManager` and `Call`
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Decision:** songbird's concepts and names (`Call` for a guild's voice connection, and in
+  step 2 `Track`, `TrackHandle`, `TrackQueue`), with the manager named descriptively and
+  like `ClusterManager`: `djs_voice::VoiceManager`, reached in djs-rs as `client.voice()`.
+- **Alternatives:** songbird's names verbatim (`Songbird` as the manager: another project's
+  brand); discord.js names on songbird's shape (`VoiceConnection`, `AudioResource`).
+
+### D-320 — `Call` is a cheap-clone handle
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Decision:** `Call` holds an `Arc` (like `Client` and `ClusterManager`) and its methods
+  take `&self` (`call.play(…)`, `call.leave().await`): the connection's state lives in its
+  task, and the methods send it commands. The bot never locks anything.
+- **Alternatives:** `Arc<Mutex<Call>>` as songbird returns, locked for each operation.
+
+### D-321 — Voice events are streams
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Decision:** `call.events()` returns a stream of `CallEvent` (connected, disconnected,
+  reconnecting, …) and, in step 2, `track.events()` a stream of the track's events, as
+  `client.events()` and `ClusterManager::events()` do: one pattern in the whole project.
+- **Alternatives:** songbird's `EventHandler` trait registered with `add_global_event` /
+  `add_event` (with periodic and delayed events).
+
+### D-322 — `join` returns once the call can send audio
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Decision:** `VoiceManager::join(guild, channel).await` returns the `Call` once the voice
+  gateway, UDP and the DAVE session are ready to send, or an error (a timeout of 10 s,
+  missing permissions, …), as songbird's `join`; connections lost later are repaired in the
+  background and reported as events.
+- **Alternatives:** returning at once after Opcode 4, the connection progressing in the
+  background (audio buffered until `Connected`).
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
