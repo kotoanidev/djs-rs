@@ -2881,6 +2881,43 @@ and why.
 - **Alternatives:** discord.js-style keys (`fetch_values(Value::Guilds)`), one value per
   request; no built-in values, only commands.
 
+### D-311 — Phase 10: our own voice stack, with proven crates for the hard parts
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Decision:** `djs-voice` implements the voice gateway, UDP/RTP, players and resources
+  itself, shaped like `@discordjs/voice` and consistent with the rest of djs-rs (and
+  benchmarked, D-041), and uses established crates for the specialised parts: DAVE
+  (D-312), the Opus codec (D-313) and transport encryption (D-314). Since 2026-03-01
+  Discord only accepts end-to-end encrypted (DAVE) calls, so DAVE is part of the first
+  usable version.
+- **Alternatives:** an adapter over songbird (serenity's voice library, ISC: fastest to a
+  working voice, but its API and architecture, and a large dependency tree); everything
+  from scratch, MLS/DAVE included (months of cryptography that is easy to get wrong).
+
+### D-312 — DAVE through the `davey` crate
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Decision:** the DAVE protocol (the MLS group, epoch transitions, sender keys, frame
+  encryption) comes from `davey` (0.2, a Rust implementation built on openmls); djs-voice
+  handles the DAVE voice gateway opcodes and feeds them to it. Being 0.x, its API may
+  change: pin it and wrap it behind a private module.
+- **Alternatives:** our own DAVE layer on `openmls`; a binding to Discord's C++ `libdave`
+  (FFI, `unsafe`, a C++ toolchain).
+
+### D-313 — Opus through `audiopus`
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Decision:** Opus encoding and decoding (48 kHz stereo) use `audiopus`, a binding to
+  libopus built statically with the crate (a C compiler and cmake at build time, no system
+  library; the `unsafe` is inside the dependency, as songbird does).
+- **Alternatives:** `opus` 0.4 (usually links the system's libopus); no codec at first
+  (only ready Opus packets until PCM is supported).
+
+### D-314 — Transport encryption with RustCrypto
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Decision:** the two AEAD modes Discord offers use RustCrypto, pure Rust:
+  `chacha20poly1305` for `aead_xchacha20_poly1305_rtpsize` (always offered, required) and
+  `aes-gcm` for `aead_aes256_gcm_rtpsize` (preferred when offered; AES-NI accelerated).
+- **Alternatives:** `ring` (already in the tree through rustls) for AES-256-GCM, with
+  RustCrypto only for XChaCha20, which `ring` lacks.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)

@@ -692,14 +692,15 @@ fields with `Deref` to `new`). Steps:
       each; 259k cluster answers/s; no leaked descriptor or pending request.
    **Phase 9 is done.**
 10. **Next: Phase 10 — `djs-voice`** (≈ `@discordjs/voice`, D-017: voice gateway, UDP/RTP,
-   encryption modes, DAVE E2EE, Opus, players and resources, receiving audio). Nothing is
-   decided beyond D-017: before any code, ask the owner (in Polish, with recommendations)
-   at least the crate layout and scope of a first step, the Opus codec (a C binding such as
-   `audiopus`/`opus` vs a pure-Rust decoder, i.e. new dependencies and possibly `unsafe`),
-   the encryption crates (AEAD for `aead_aes256_gcm_rtpsize` / `aead_xchacha20_poly1305_rtpsize`),
-   DAVE (MLS, a large dependency), audio input formats (FFmpeg as an external process like
-   discord.js?), and how voice plugs into the gateway shards (voice state/server updates).
-   Live tests need the owner's go-ahead (D-275) and a voice channel on the test guild.
+   encryption modes, DAVE E2EE, Opus, players and resources, receiving audio).
+   **Decided 2026-11-14:** D-311 (our own stack shaped like `@discordjs/voice`, crates for
+   the hard parts; DAVE is mandatory since 2026-03-01), D-312 (`davey` for DAVE), D-313
+   (`audiopus` for Opus), D-314 (RustCrypto `chacha20poly1305` + `aes-gcm`). **Still to
+   ask before code:** the crate layout and how voice plugs into the client (voice state /
+   server updates from the shards), the public API shape (`joinVoiceChannel`,
+   `VoiceConnection`, `AudioPlayer`, `createAudioResource` counterparts), audio inputs
+   (FFmpeg as an external process like prism-media?), and the order of the steps. Live
+   tests need the owner's go-ahead (D-275) and a voice channel on the test guild.
 
 > **Heavy runs (D-257, D-259–D-262):** the owner's laptop hard-froze on 2026-11-13 under
 > assistant load. Every cargo build/test/bench/stress test goes through
