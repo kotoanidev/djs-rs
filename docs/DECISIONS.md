@@ -3031,6 +3031,23 @@ and why.
 - **Decision:** keep 0.11 (D-325); the duplicates go when openmls moves to 0.11.
 - **Alternatives:** 0.10, shared with openmls.
 
+### D-328 — The six RustSec advisories under `davey` 0.2 are ignored, with reasons
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Context:** the workspace had no advisories; `davey` 0.2 → openmls 0.8 brings six that
+  cargo-deny fails on, and no compatible update removes them (openmls 0.9.2 exists but needs
+  Rust 1.91, and `davey` has not moved to it). RUSTSEC-2026-0387 (`crypto-bigint` 0.5.5,
+  timing variability; reachable through P-256 signatures and ECDH in MLS, exploitable only
+  with a precise side channel on the bot's machine); RUSTSEC-2026-0207 and -0208
+  (`libcrux-sha3` 0.0.8, SHAKE; `hpke-rs` calls it only for the X-Wing and ML-KEM KEMs,
+  which DAVE's P-256 suite does not use); RUSTSEC-2026-0212 (`libcrux-secrets` 0.0.5,
+  swap/select on aarch64, not called); RUSTSEC-2024-0384 (`instant`) and RUSTSEC-2026-0441
+  (`pin-utils`), unmaintained, through `fluvio-wasm-timer`. songbird has the same tree.
+- **Decision:** `deny.toml` ignores exactly these six IDs, each with its reason. They are
+  removed when `davey` moves to openmls 0.9 (which also needs an MSRV answer from the
+  owner); an open question tracks it.
+- **Alternatives:** do the voice steps without `davey` until it updates; port `davey` to
+  openmls 0.9 ourselves (MSRV 1.91).
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
@@ -4777,6 +4794,11 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 ---
 
 ## Open questions (to ask the owner when relevant)
+
+- **Drop the D-328 advisory ignores when `davey` updates (Phase 10):** once a `davey`
+  release depends on openmls 0.9 (or later), update it (ask the owner: openmls 0.9 needs
+  MSRV 1.91), re-run the advisory check and remove the ignores from `deny.toml` that no
+  longer apply.
 
 - **Bounded channels between the manager and its clusters (Phase 9 findings):** the queues
   of frames to and from each process are unbounded; a process that stops reading while it
