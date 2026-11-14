@@ -4943,6 +4943,33 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   stop codes, giving up after the 6 attempts, a refused resume, closing, commands,
   keepalives and the handshake's failures. 20 repeated runs: no failure.
 
+### C-122 — The DAVE state machine (D-312, D-332, D-333, step 1d)
+- **Internal `dave` module:** `Dave` wraps one `davey::DaveSession` and follows the flow of
+  Discord's documentation and of `libdave`'s sample session manager. `start(version)` runs
+  for every new voice session (also after identifying anew): it forgets the earlier session,
+  its external sender, the users in the call and the prepared transitions, and with a
+  version above 0 creates a new session (a new identity key, D-333) and returns its key
+  package (Opcode 26). Prepare Epoch 1 does the same within the session; later epochs come
+  with their commits.
+- **Members:** the bot and the users of Opcode 11 (until their Opcode 13; the bot is never
+  removed) are the only users proposals and welcomes may add.
+- **Replies:** proposals (27) are committed (28, commit and optional welcome); an announced
+  commit (29) or a welcome (30) prepares the transition with the session's protocol version
+  and replies 23 unless its ID is 0 (applied at once); one that cannot be processed replies
+  31, and the session is reinitialized and sends a new key package. Prepare Transition (21)
+  with version 0 lets unencrypted frames through at once; Execute Transition (22) switches
+  the protocol version media is sent with, and an upgrade from 0 accepts unencrypted frames
+  for 10 more seconds.
+- **Media:** `ready()` is true without DAVE or with a key to encrypt with; `encrypt(opus)`
+  returns the packet itself without DAVE, else its frame in a reused buffer (`None` while
+  there is no key: nothing is sent).
+- **Tests (D-332):** `dave::mls::ExternalSender` plays the gateway's MLS external sender with
+  openmls (`openmls`, `openmls_basic_credential`, `openmls_rust_crypto` as dev-dependencies,
+  the versions `davey` uses, so Cargo.lock gains no versions); another member is a second
+  `DaveSession`. 10 tests: joining through a welcome and through the bot's own commit (the
+  other member decrypts the bot's frames), refused and unprocessable welcomes (31 and a new
+  key package), Prepare Epoch, a downgrade, a new voice session, forwarded events.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

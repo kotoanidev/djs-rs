@@ -23,7 +23,10 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   The internal voice connection (C-121): the handshake (WebSocket, Identify, UDP and IP
   discovery, Select Protocol, Session Description), heartbeats, the UDP keepalive, resuming
   and reconnecting as D-331 says, and a sender of encrypted RTP packets; its own TLS
-  connector and `native-roots` feature (D-330).
+  connector and `native-roots` feature (D-330). The internal DAVE state machine (C-122): an
+  MLS session per voice session through `davey`, with its key package, proposals, commits,
+  welcomes and transitions, and the end-to-end encryption of the sent Opus frames; tested
+  against an MLS external sender built with openmls (dev-dependencies only, D-332).
 - Multi-process sharding, first step (D-284, D-285, D-296, D-297, D-300–D-303, C-112), behind
   the new `sharding` feature: `ClusterManager` starts the bot's executable again once per
   group of `shards_per_process` shards (1 by default, Discord's recommended count or a fixed

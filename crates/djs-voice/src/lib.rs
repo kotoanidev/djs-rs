@@ -3,6 +3,7 @@
 
 mod connection;
 mod crypto;
+mod dave;
 mod ogg;
 mod opus;
 mod payload;

@@ -54,6 +54,11 @@ hyper-util = { version = "0.1.21", default-features = false }
 indexmap = { version = "2.14.2", default-features = false, features = ["std"] }
 # Dev-dependency only: allocator comparison in the djs-rs stress tests (D-080).
 mimalloc = { version = "0.1.52", default-features = false }
+# Dev-dependencies only: the MLS external sender of the djs-voice DAVE tests (D-332); the
+# versions `davey` uses.
+openmls = "0.8.3"
+openmls_basic_credential = "0.5.0"
+openmls_rust_crypto = "0.5.1"
 rustls = { version = "0.23.46", default-features = false }
 # Optional: the `native-roots` feature of djs-rest and djs-gateway (D-088, D-100).
 rustls-native-certs = "0.8.5"

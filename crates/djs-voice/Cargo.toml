@@ -36,6 +36,9 @@ tracing = { workspace = true, features = ["std"] }
 webpki-roots.workspace = true
 
 [dev-dependencies]
+openmls.workspace = true
+openmls_basic_credential.workspace = true
+openmls_rust_crypto.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "test-util"] }
 tokio-websockets = { workspace = true, features = ["server"] }
 
