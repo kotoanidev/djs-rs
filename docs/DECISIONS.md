@@ -4628,6 +4628,12 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 
 ## Open questions (to ask the owner when relevant)
 
+- **Bounded channels between the manager and its clusters (Phase 9 findings):** the queues
+  of frames to and from each process are unbounded; a process that stops reading while it
+  is flooded with commands grows the manager's memory. No measured load needed a bound
+  (`docs/PERFORMANCE.md`, "Phase 9"); a bound needs a policy when full (wait, fail the
+  command, drop the connection). Ask the owner if a bot needs it.
+
 - **`Context::cluster()` (Phase 9, C-115):** event handlers reach the `ClusterClient` only
   by capturing a clone (`client.cluster()`), the pattern `ctx.shutdown()` removed for
   shutdowns (D-293). A non-generic handle for sending (`broadcast`, `send`, `stats`) could

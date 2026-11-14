@@ -127,7 +127,7 @@ just with narrow scope.
 - [x] Restarts with a growing delay (D-298, D-306, C-114)
 - [x] Built-in values and named typed commands instead of `broadcastEval` (D-286,
       D-307–D-310, C-115, C-116)
-- [ ] Benchmarks + extreme-load tests (D-041)
+- [x] Benchmarks + extreme-load tests (D-041; `docs/PERFORMANCE.md`, "Phase 9")
 
 ## Phase 10 — `djs-voice` (≈ @discordjs/voice, D-017)
 - [ ] Voice gateway, UDP/RTP, encryption modes, DAVE E2EE

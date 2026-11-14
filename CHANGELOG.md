@@ -38,6 +38,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   returns a `ClusterStats` per cluster: each shard's state and heartbeat latency, the
   cached guild and user counts, the client's uptime and the process's memory (Linux); the
   `Stats` command asks one cluster.
+- Phase 9 benchmarks and extreme-load tests (D-041): `djs-rs/benches/sharding.rs` and
+  `djs-rs/tests/stress_sharding.rs` (64 processes, command floods, payloads up to the
+  16 MiB frame, a restart storm, bogus connections), results in `docs/PERFORMANCE.md`.
 - Member permissions (D-292, D-294, D-295, C-111): `Permissions::guild_level`,
   `Permissions::in_channel` and `Permissions::during_timeout` compute them the way Discord
   does (owner, `@everyone`, roles, `ADMINISTRATOR`, channel overwrites, the implicit

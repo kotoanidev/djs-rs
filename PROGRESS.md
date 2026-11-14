@@ -29,10 +29,13 @@ structures with methods, managers, interactions and a router, collectors and gat
 requests, intents and partials guidance, example bots run on the test bot; benchmarks +
 extreme-load tests in `docs/PERFORMANCE.md`).
 **The serenity comparison: ✅ done 2026-11-13** (`docs/VS_SERENITY.md`, D-277–D-282, C-108,
-C-109). **Next: the fixes found by the comparison (D-283) — the rebuild time after an edit
-✅ (D-287–D-289, `docs/VS_SERENITY.md` re-measured), the ergonomics gaps ✅ (D-290–D-295).
-**Phase 9 — multi-process sharding: in progress** (steps 1–4 of 5 ✅ 2026-11-14), see "Next
-step".
+C-109). The fixes found by the comparison (D-283) ✅: the rebuild time after an edit
+(D-287–D-289, `docs/VS_SERENITY.md` re-measured) and the ergonomics gaps (D-290–D-295).
+**Phase 9 — multi-process sharding: ✅ done 2026-11-14** (`djs_rs::sharding` behind the
+`sharding` feature: processes of the same executable, IPC over `127.0.0.1`, the manager as
+IDENTIFY queue, restarts, named commands and stats; benchmarks + extreme-load tests in
+`docs/PERFORMANCE.md` "Phase 9"). **Next: Phase 10 — `djs-voice` (D-017)**: nothing decided
+yet beyond D-017; ask the owner first (see "Next step").
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-075 in `docs/DECISIONS.md`; Claude defaults C-001 …
@@ -680,15 +683,23 @@ fields with `Deref` to `new`). Steps:
          client's `shard_slots` (set in `run` for a cluster process, written by
          `run_shard` through a `Reporter`), the built-in command in `Table`, `stats()` on
          both sides. Test: `tests/sharding.rs::clusters_report_their_stats`.
-   5. **In progress:** benchmarks + extreme-load tests (D-041). Done: the fix found while
-      planning them (C-117, `2d0ed1e`); `crates/djs-rs/benches/sharding.rs` (the bench
-      binary is also the cluster processes) run, results in `docs/PERFORMANCE.md`
-      "Phase 9"; `crates/djs-rs/tests/stress_sharding.rs` written (shared mocks in
-      `tests/support/sharding.rs`). **Next:** run its five tests one at a time in release
-      under the guard (`sixty_four_processes`, `command_floods`, `large_payloads`,
-      `restart_storm`, `bogus_connections`; the command is in the file's docs, add
-      `--exact <name>`), record each result in `docs/PERFORMANCE.md` and commit after each;
-      then mark Phase 9 done (ROADMAP, PROGRESS "Current phase").
+   5. ✅ Benchmarks + extreme-load tests (D-041): the fix found while planning them
+      (C-117, `2d0ed1e`); `crates/djs-rs/benches/sharding.rs` (the bench binary is also the
+      cluster processes); `crates/djs-rs/tests/stress_sharding.rs` (64 processes, command
+      floods, payloads, a restart storm, bogus connections; shared mocks in
+      `tests/support/sharding.rs`). Results in `docs/PERFORMANCE.md` "Phase 9": 64
+      processes connected in 57 ms and identified in 15.3 s at `max_concurrency` 16, 6.8 MiB
+      each; 259k cluster answers/s; no leaked descriptor or pending request.
+   **Phase 9 is done.**
+10. **Next: Phase 10 — `djs-voice`** (≈ `@discordjs/voice`, D-017: voice gateway, UDP/RTP,
+   encryption modes, DAVE E2EE, Opus, players and resources, receiving audio). Nothing is
+   decided beyond D-017: before any code, ask the owner (in Polish, with recommendations)
+   at least the crate layout and scope of a first step, the Opus codec (a C binding such as
+   `audiopus`/`opus` vs a pure-Rust decoder, i.e. new dependencies and possibly `unsafe`),
+   the encryption crates (AEAD for `aead_aes256_gcm_rtpsize` / `aead_xchacha20_poly1305_rtpsize`),
+   DAVE (MLS, a large dependency), audio input formats (FFmpeg as an external process like
+   discord.js?), and how voice plugs into the gateway shards (voice state/server updates).
+   Live tests need the owner's go-ahead (D-275) and a voice channel on the test guild.
 
 > **Heavy runs (D-257, D-259–D-262):** the owner's laptop hard-froze on 2026-11-13 under
 > assistant load. Every cargo build/test/bench/stress test goes through
