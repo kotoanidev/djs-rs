@@ -4791,6 +4791,35 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - **Dropping a cluster's connection** (the end of `login`) fails its requests still
   waiting with `NotConnected` instead of leaving them waiting.
 
+### C-118 — The Ogg/Opus reader (D-317, D-325, step 1a)
+- **Internal and sans-IO:** `ogg::OggOpus` is crate-private (its public face is the coming
+  `Input`, whose names are asked in step 1e). It is fed bytes (`push`, `finish`) and returns
+  audio packets (`packet`), so files, pipes and memory share it; a packet within one page is
+  returned without copying, one that crosses pages is assembled in a reused buffer. The
+  buffer is compacted only once at least as many bytes were read as are left (amortized
+  copying); it stays at about twice the read size.
+- **Which stream:** the first logical stream whose first page carries `OpusHead`; pages of
+  other streams are skipped; after its last page, the next chained Opus stream is read
+  (its `OpusHead` replaces the previous). An input whose first link has no Opus, or that
+  starts without the identification header, fails with `NotOpus`; no page in the first
+  64 KiB fails with `NotOgg`; a malformed `OpusHead` (major version other than 0, no
+  channels, family 0 with more than 2, a short mapping table) with `BadHead`; a missing
+  `OpusTags` with `BadTags`. Empty audio packets are skipped.
+- **Damage:** a page with a wrong checksum, version or capture pattern is skipped and the
+  next capture pattern searched; a packet missing a part (a page lost, found by the page
+  sequence number, or cut by a page without the continuation flag) is dropped, and the rest
+  of a packet whose beginning was lost is skipped. At the end of the input an incomplete
+  page is searched past, so a false capture pattern cannot hide the pages after it.
+- **Checksum by slicing-by-8** (eight 256-entry tables, 8 KiB, built at compile time):
+  3.9 times the byte-at-a-time speed (`docs/PERFORMANCE.md`, "Phase 10").
+- **Measured by an ignored test** (`ogg::tests::throughput`) until `Input` exists; a divan
+  benchmark through `Input` comes with step 1e. The tests read a 4.5 KiB file encoded by
+  libopus and written by `ffmpeg` (`tests/data/sine.opus`), so the parser is checked
+  against an independent writer, and synthetic streams for crossing, damage, interleaving
+  and chaining.
+- **`opus::packet_samples`**: a packet's duration from its TOC byte (RFC 6716, 3.1), for
+  pacing packets sent unchanged; `None` for one that cannot be valid.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

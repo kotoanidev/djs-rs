@@ -8,6 +8,13 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- The `djs-voice` crate, Phase 10 (D-311–D-328): its skeleton and dependencies (`davey` for
+  DAVE, `chacha20poly1305` and `aes-gcm`; MSRV 1.89 kept), with MPL-2.0 allowed only for
+  the four `hpke-rs` crates under `davey` (D-326, noted in `NOTICE`) and the six RustSec
+  advisories `davey` 0.2 brings ignored with reasons (D-328). An internal Ogg/Opus reader
+  (C-118): fed bytes, it returns the audio packets of the first Opus stream, follows chained
+  streams, skips damaged pages and drops incomplete packets; its checksum is computed eight
+  bytes at a time (about 1.4 GiB/s).
 - Multi-process sharding, first step (D-284, D-285, D-296, D-297, D-300–D-303, C-112), behind
   the new `sharding` feature: `ClusterManager` starts the bot's executable again once per
   group of `shards_per_process` shards (1 by default, Discord's recommended count or a fixed

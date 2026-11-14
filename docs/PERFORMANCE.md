@@ -1460,3 +1460,28 @@ manager and both ends of every connection) went from 6.3 MiB / 25 descriptors to
 - The process's channels to and from the manager are unbounded: a cluster that stops
   reading while the manager floods it would grow the manager's memory. Every flood above
   stayed flat; a bound (and what to do when it is reached) would be a new decision.
+
+## Phase 10 — voice (2026-11-14)
+
+Machine: the owner's laptop (Intel Core i7-1355U, 12 threads, Fedora 44), release build,
+through the resource guard (`.reference/tools/safe.sh`).
+
+### The Ogg/Opus reader (`djs-voice/src/ogg.rs`, `ogg::tests::throughput`, C-118)
+
+An hour of 64 kbit/s audio (180 000 packets of 160 bytes, 50 per page as `opusenc` and
+`ffmpeg` write them, 27.7 MiB), best of 5 runs:
+
+| Input | Byte-at-a-time checksum | Slicing-by-8 checksum |
+|---|---|---|
+| Whole input, 64 KiB pushes | 374 MiB/s, 2.4 M packets/s | **1 448 MiB/s, 9.4 M packets/s** |
+| 4 KiB pushes | 375 MiB/s | 1 441 MiB/s |
+| 1 page in 100 damaged | 372 MiB/s (exactly the damaged pages' packets lost) | 1 402 MiB/s |
+| The checksum alone | 390 MiB/s | 1 685 MiB/s |
+
+- The checksum was 96 % of the reader's time; slicing by 8 made the reader 3.9 times
+  faster (same checksums). An hour of audio is read in 19 ms, about 188 000 times real
+  time, so one core could feed some 180 000 streams' worth of packets.
+- Memory: the buffer stays at twice the push size (131 072 bytes for 64 KiB pushes, 16 384
+  for 4 KiB); packets within a page are not copied.
+- Damage costs nothing measurable: skipping a damaged page and finding the next one is
+  within noise.

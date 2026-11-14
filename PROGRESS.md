@@ -714,8 +714,11 @@ fields with `Deref` to `new`). Steps:
    D-327 keeps the AEAD crates at 0.11 (openmls compiles 0.10 too); D-328 ignores, with
    reasons, the six RustSec advisories openmls 0.8 brings (until `davey` moves to openmls
    0.9). `davey` is a dependency of `djs-voice` again.
+   **Step 1a done (C-118):** the internal Ogg/Opus reader `ogg::OggOpus` (sans-IO,
+   20 tests incl. a libopus/`ffmpeg` file and a mutation check) and `opus::packet_samples`;
+   slicing-by-8 checksum, 1.4 GiB/s (`docs/PERFORMANCE.md`, "Phase 10").
    **Next: implement step 1** in commits:
-   (a) the crate skeleton and dependencies (done) and the Ogg reader;
+   (a) done;
    (b) the voice gateway v8 protocol types and the transport encryption (unit-tested with
    known vectors); (c) the connection task (gateway, UDP, IP discovery, heartbeats, resume)
    against a local mock voice server; (d) DAVE through `davey`; (e) `VoiceManager`,
