@@ -1380,3 +1380,18 @@ a 2-thread runtime; each cluster process runs a 1-thread runtime).
 - Divan's `AllocProfiler` counts only the benchmark's own thread (the runtime's workers do
   most of the work), so its allocation numbers are left out: they are not the manager's
   total.
+
+### Extreme load (`djs-rs/tests/stress_sharding.rs`, release, one test at a time)
+
+**64 processes of one shard** (`sixty_four_processes`, `max_concurrency` 16):
+
+| Measure | Result |
+|---|---:|
+| From `spawn` to all 64 processes connected | 57 ms |
+| IDENTIFY schedule over the 64 shards (4 rounds) | 15.31 s |
+| Closest two IDENTIFYs of one bucket (across processes) | 5.0999 s (the 5.1 s interval) |
+| Resident memory per cluster process (min / median / max) | 6.6 / 6.8 / 7.0 MiB |
+| All 64 processes | 436 MiB |
+| `shutdown` to every process exited | 7 ms |
+| The manager's process (with the mocks): before / with 64 clusters / after | 4.1 / 7.5 / 7.5 MiB |
+| Its file descriptors: before / with 64 clusters / just after | 10 / 207 / 41 |
