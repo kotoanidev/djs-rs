@@ -17,6 +17,9 @@ publish = false
 aes-gcm = { workspace = true, features = ["aes"] }
 chacha20poly1305.workspace = true
 davey.workspace = true
+djs-model.workspace = true
+serde = { workspace = true, features = ["derive", "std"] }
+serde_json.workspace = true
 
 [lints]
 workspace = true

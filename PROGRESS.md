@@ -717,17 +717,14 @@ fields with `Deref` to `new`). Steps:
    **Step 1a done (C-118):** the internal Ogg/Opus reader `ogg::OggOpus` (sans-IO,
    20 tests incl. a libopus/`ffmpeg` file and a mutation check) and `opus::packet_samples`;
    slicing-by-8 checksum, 1.4 GiB/s (`docs/PERFORMANCE.md`, "Phase 10").
-   **Step 1b in progress (C-119):** done: transport encryption (`crypto::{Mode, Cipher}`,
-   in place, byte-for-byte equal to libsodium's packets; AES-GCM 142 ns per 160-byte
-   packet, XChaCha20 1.6 µs because of `poly1305`'s AVX2 backend, see PERFORMANCE), the
-   RTP header and IP discovery (`udp`). Left in 1b: the voice gateway v8 messages (JSON
-   opcodes 0–13 and 21–24, 31; binary DAVE opcodes 25–30 with the u16 sequence number;
-   close codes), as internal types with serde (C-120 to log: djs-voice uses the
-   workspace's `serde`, `serde_json`, `djs-model`).
+   **Step 1b done (C-119, C-120):** transport encryption (`crypto::{Mode, Cipher}`, in
+   place, byte-for-byte equal to libsodium's packets; AES-GCM 142 ns per 160-byte packet,
+   XChaCha20 1.6 µs because of `poly1305`'s AVX2 backend, see PERFORMANCE), the RTP header
+   and IP discovery (`udp`), the voice gateway v8 messages (`payload`: commands, JSON and
+   binary DAVE server messages with sequence numbers, `after_close`). 37 unit tests.
    **Next: implement step 1** in commits:
-   (a) done;
-   (b) the voice gateway v8 protocol types and the transport encryption (unit-tested with
-   known vectors); (c) the connection task (gateway, UDP, IP discovery, heartbeats, resume)
+   (a) done; (b) done;
+   (c) **next:** the connection task (gateway, UDP, IP discovery, heartbeats, resume)
    against a local mock voice server; (d) DAVE through `davey`; (e) `VoiceManager`,
    `VoiceGateway`, `Call`, `CallEvent`, `Input`, `TrackHandle`, playback pacing; (f) djs-rs
    `voice` feature; (g) a live test only with the owner's go-ahead (D-275). Live tests need the

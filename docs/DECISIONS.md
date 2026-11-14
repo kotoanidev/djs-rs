@@ -4855,6 +4855,28 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   IPv4 or IPv6; anything else is ignored rather than an error, so stray packets on the
   socket do not break the handshake.
 
+### C-120 — The voice gateway's messages (step 1b)
+- **Dependencies from the workspace:** `djs-voice` now uses `serde` (derive), `serde_json`
+  and `djs-model` (for `GuildId`/`UserId` and, later, the voice events of D-324): all
+  already in the workspace and used by the other crates, under D-325's "already in the
+  workspace". The connection (step 1c) will add the TLS and WebSocket crates djs-gateway
+  uses, the same way.
+- **Internal `payload` module:** commands are built as strings (JSON) or byte vectors
+  (binary DAVE opcodes 26 and 28: the opcode byte and the MLS messages one after the other);
+  server messages decode to `Incoming { seq, event: Event }`, the JSON envelope through
+  `serde_json::Value` (messages are few: no hot path), binary ones as
+  `[sequence u16 big-endian][opcode][payload]`, the transition IDs of 29 and 30 as u16
+  big-endian (MLS's TLS encoding). Undocumented opcodes Discord sends (12, 14, 15, 18, 20, …)
+  decode to `Event::Other(op)`, not errors. Opcode 24 is read as `{epoch,
+  protocol_version}` (the whitepaper has no transition ID there); opcode 23 sends only the
+  transition ID. The secret key is redacted from `Debug`.
+- **Sequence numbers** are kept as `u64` (JSON `seq`; the binary u16 widened): the client
+  only needs the last one seen, for `seq_ack`.
+- **After a close:** resume on 4015 and on a connection lost without a code; identify again
+  on 4006 and 4009; stop on 4004, 4011, 4014 (kicked, moved or the main session dropped: the
+  bot's voice state says which), 4017, 4021, 4022 and on the codes that mean a client bug
+  (4001, 4002, 4003, 4005, 4012, 4016, 4020).
+
 ---
 
 ## Open questions (to ask the owner when relevant)
