@@ -502,19 +502,24 @@ async fn bogus_connections() {
     let (address, token) = manager_of(pid);
     let (before_mib, before_fds) = own_usage();
 
+    // Commands go on until the flood is over.
+    let flooding = Arc::new(std::sync::atomic::AtomicBool::new(true));
     let commands = tokio::spawn({
-        let manager = manager.clone();
+        let (manager, flooding) = (manager.clone(), Arc::clone(&flooding));
         async move {
             let mut samples = Vec::new();
-            for n in 0..2_000 {
+            let mut n = 0;
+            while flooding.load(std::sync::atomic::Ordering::Relaxed) || samples.len() < 100 {
                 let started = Instant::now();
                 let replies = manager.broadcast::<Echo>(n).await.unwrap();
                 samples.push(started.elapsed());
                 assert!(replies.iter().all(|reply| reply.result.is_ok()));
+                n += 1;
             }
             samples
         }
     });
+    let flood = Instant::now();
     let mut silent = Vec::new();
     let mut attacks = JoinSet::new();
     for n in 0..1_200 {
@@ -543,11 +548,11 @@ async fn bogus_connections() {
             .await;
         });
     }
-    let refused = Instant::now();
     while let Some(done) = attacks.join_next().await {
         done.unwrap();
     }
-    let refused = refused.elapsed();
+    let refused = flood.elapsed();
+    flooding.store(false, std::sync::atomic::Ordering::Relaxed);
     let (during_mib, during_fds) = own_usage();
     latencies(
         "broadcast to 4 during the flood",
@@ -559,7 +564,8 @@ async fn bogus_connections() {
     tokio::time::sleep(Duration::from_millis(500)).await;
     let (after_mib, after_fds) = own_usage();
     println!(
-        "960 bogus connections closed by the manager in {refused:?} (and 240 silent ones); \
+        "1200 connections opened and the 960 bogus ones closed by the manager in {refused:?} \
+         (240 silent ones held); \
          this process: {before_mib:.1} MiB / {before_fds} fds before, {during_mib:.1} MiB / \
          {during_fds} fds during, {after_mib:.1} MiB / {after_fds} fds after"
     );

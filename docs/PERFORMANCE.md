@@ -1438,3 +1438,25 @@ the manager's process went from 4.4 MiB / 10 descriptors to 6.1 MiB / 15 during 
 6.1 MiB / 13 after (the 3 extra are the mock REST server's listener and the pooled REST
 connection). The delay doubles to its maximum after each quick failure, so the storm is
 bounded by the configured delays, not by the manager.
+
+**Bogus connections** (`bogus_connections`, Linux: the manager's address and token read from
+a cluster's environment): 1,200 connections to the manager's port — 240 each of HTTP
+garbage, a frame announced at 16 MiB, a `hello` with a wrong token, a `hello` with the right
+token for an already connected cluster, and silence. All of them opened and the 960 bogus
+ones closed by the manager in 94 ms (the announced 16 MiB frame is refused before anything
+is allocated, C-117); the silent ones are held until their 10 s `hello` timeout (closed by
+the test here). Broadcasts to the 4 clusters went on throughout: 550 during the flood,
+p50 76 µs, p99 563 µs, max 17.8 ms; every cluster stayed connected. The test's process (the
+manager and both ends of every connection) went from 6.3 MiB / 25 descriptors to 7.3 MiB /
+507 during and 7.3 MiB / 27 after.
+
+### Findings and optimization candidates (Phase 9)
+
+- Found and fixed while planning these tests (C-117): a message larger than a frame
+  stopped its connection's writer, and a 16 MiB frame could be announced before the token
+  was checked.
+- Payloads cross the processes at ~250 MiB/s per direction, bound by two `serde_json`
+  passes; `RawValue` frames would save one (not needed for the commands measured).
+- The process's channels to and from the manager are unbounded: a cluster that stops
+  reading while the manager floods it would grow the manager's memory. Every flood above
+  stayed flat; a bound (and what to do when it is reached) would be a new decision.
