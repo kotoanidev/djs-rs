@@ -680,9 +680,15 @@ fields with `Deref` to `new`). Steps:
          client's `shard_slots` (set in `run` for a cluster process, written by
          `run_shard` through a `Reporter`), the built-in command in `Table`, `stats()` on
          both sides. Test: `tests/sharding.rs::clusters_report_their_stats`.
-   5. **Next:** benchmarks + extreme-load tests (D-041): IPC frame round trips, broadcast
-      latency and throughput over many clusters, IDENTIFY grants, memory per process; then
-      Phase 9 is done.
+   5. **In progress:** benchmarks + extreme-load tests (D-041). Done: the fix found while
+      planning them (C-117, `2d0ed1e`); `crates/djs-rs/benches/sharding.rs` (the bench
+      binary is also the cluster processes) run, results in `docs/PERFORMANCE.md`
+      "Phase 9"; `crates/djs-rs/tests/stress_sharding.rs` written (shared mocks in
+      `tests/support/sharding.rs`). **Next:** run its five tests one at a time in release
+      under the guard (`sixty_four_processes`, `command_floods`, `large_payloads`,
+      `restart_storm`, `bogus_connections`; the command is in the file's docs, add
+      `--exact <name>`), record each result in `docs/PERFORMANCE.md` and commit after each;
+      then mark Phase 9 done (ROADMAP, PROGRESS "Current phase").
 
 > **Heavy runs (D-257, D-259–D-262):** the owner's laptop hard-froze on 2026-11-13 under
 > assistant load. Every cargo build/test/bench/stress test goes through

@@ -1350,3 +1350,33 @@ i7-1355U, balanced profile, under the resource guard.
 - The cache reads (about 20 ns per DashMap lookup) are most of the time; the overwrites cost
   little more than the guild-level step. These are the cache reads measured under load in
   Phase 5, so no separate extreme-load test was added.
+
+## Phase 9 — multi-process sharding (2026-11-14)
+
+Laptop i7-1355U (12 threads), balanced profile, every run under the resource guard
+(`.reference/tools/safe.sh`). The cluster processes are the benchmark or test binary itself,
+started again by the manager; the gateway and REST API are local mocks.
+
+### Command round trips (`djs-rs/benches/sharding.rs`, divan, release)
+
+Median of 100 samples, measured from the manager's process (one `block_on` per command on
+a 2-thread runtime; each cluster process runs a 1-thread runtime).
+
+| Benchmark | Median | Fastest |
+|---|---:|---:|
+| `broadcast` of a small command to 1 cluster and back | 46 µs | 42 µs |
+| `broadcast` to 4 clusters | 68 µs | 54 µs |
+| `broadcast` to 16 clusters | 310 µs | 253 µs |
+| `send` to one of 4 clusters | 68–74 µs | 37 µs |
+| `stats()` of 4 clusters | 169–178 µs | 129 µs |
+| `send` of a 1 KiB string there and back | 57 µs | 49 µs |
+| `send` of 64 KiB there and back | 271 µs (483 MB/s) | 234 µs |
+| `send` of 1 MiB there and back | 3.5–5.0 ms (420–607 MB/s) | 1.9 ms |
+
+- A round trip is two loopback TCP hops, two JSON frames each way and a task wake-up on
+  each side: about 45 µs. Broadcasting to more clusters costs little until the laptop's
+  cores are shared by 16 processes and the manager (16 clusters: 310 µs, ~19 µs per
+  cluster).
+- Divan's `AllocProfiler` counts only the benchmark's own thread (the runtime's workers do
+  most of the work), so its allocation numbers are left out: they are not the manager's
+  total.

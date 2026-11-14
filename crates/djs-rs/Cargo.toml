@@ -58,6 +58,11 @@ tracing-subscriber = { workspace = true, features = ["ansi", "env-filter", "fmt"
 name = "managers"
 harness = false
 
+[[bench]]
+name = "sharding"
+harness = false
+required-features = ["sharding"]
+
 [lints]
 workspace = true
 
