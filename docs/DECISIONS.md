@@ -3061,6 +3061,23 @@ and why.
   says so and the owner is asked).
 - **Alternatives:** remove `hax-lib-macros` from the tree (a patched libcrux).
 
+### D-330 — djs-voice has its own copy of the TLS connector
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Decision:** the voice gateway's `wss://` connector (rustls with the ring provider,
+  `webpki-roots`, D-030) is a copy of djs-gateway's small `tls.rs` in djs-voice, with the
+  same workspace versions and its own `native-roots` feature (D-088, D-100), which djs-rs's
+  `native-roots` feature also enables. The crates stay independent.
+- **Alternatives:** djs-voice depends on djs-gateway, which makes its connector public;
+  the connector moves to djs-util.
+
+### D-331 — A lost voice connection is retried a few times, then reported
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Decision:** after a close that allows resuming (4015, or a connection lost without a
+  code) the call resumes at once, then tries up to 5 times with exponential delays (1, 2,
+  4, 8, 16 s, with jitter); if all fail, a `CallEvent` reports the disconnection and the
+  call ends (the bot may join again). After 4006 or 4009 it identifies anew once.
+- **Alternatives:** retry forever, as the main gateway's shards do; never retry.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
