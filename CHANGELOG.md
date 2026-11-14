@@ -10,8 +10,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 - The `djs-voice` crate, Phase 10 (D-311–D-328): its skeleton and dependencies (`davey` for
   DAVE, `chacha20poly1305` and `aes-gcm`; MSRV 1.89 kept), with MPL-2.0 allowed only for
-  the four `hpke-rs` crates under `davey` (D-326, noted in `NOTICE`) and the six RustSec
-  advisories `davey` 0.2 brings ignored with reasons (D-328). An internal Ogg/Opus reader
+  the three `hpke-rs` crates under `davey` (D-326, D-329, noted in `NOTICE`) and the seven
+  RustSec advisories `davey` 0.2 brings ignored with reasons (D-328, D-329). An internal Ogg/Opus reader
   (C-118): fed bytes, it returns the audio packets of the first Opus stream, follows chained
   streams, skips damaged pages and drops incomplete packets; its checksum is computed eight
   bytes at a time (about 1.4 GiB/s).

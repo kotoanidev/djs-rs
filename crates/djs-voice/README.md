@@ -18,7 +18,7 @@ is usable yet.
 ## Licenses
 
 djs-voice is `MIT OR Apache-2.0` like the rest of djs-rs. DAVE's MLS stack under `davey`
-uses four HPKE crates (`hpke-rs*`) licensed MPL-2.0, unmodified (D-326): a bot that uses
+uses three HPKE crates (`hpke-rs*`) licensed MPL-2.0, unmodified (D-326): a bot that uses
 djs-voice links them, and their source stays available on crates.io.
 
 discord.js counterpart: [`@discordjs/voice`](https://discord.js.org/docs/packages/voice/main);

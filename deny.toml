@@ -16,6 +16,7 @@ ignore = [
   { id = "RUSTSEC-2026-0212", reason = "libcrux-secrets 0.0.5 under hpke-rs: swap/select on aarch64, not called (D-328)" },
   { id = "RUSTSEC-2024-0384", reason = "instant, unmaintained, through fluvio-wasm-timer under openmls 0.8 (D-328)" },
   { id = "RUSTSEC-2026-0441", reason = "pin-utils, unmaintained, through fluvio-wasm-timer under openmls 0.8 (D-328)" },
+  { id = "RUSTSEC-2026-0173", reason = "proc-macro-error2, unmaintained, a compile-time helper of hax-lib-macros under libcrux (hpke-rs); not in the binary (D-329)" },
 ]
 
 [licenses]
@@ -34,11 +35,10 @@ allow = [
 ]
 confidence-threshold = 0.9
 # MPL-2.0 (file-level copyleft) only for the HPKE crates under `davey`'s MLS stack, used
-# unmodified (D-326). Any other MPL-2.0 crate is still refused.
+# unmodified (D-326, D-329). Any other MPL-2.0 crate is still refused.
 exceptions = [
   { crate = "hpke-rs", allow = ["MPL-2.0"] },
   { crate = "hpke-rs-crypto", allow = ["MPL-2.0"] },
-  { crate = "hpke-rs-libcrux", allow = ["MPL-2.0"] },
   { crate = "hpke-rs-rust-crypto", allow = ["MPL-2.0"] },
 ]
 

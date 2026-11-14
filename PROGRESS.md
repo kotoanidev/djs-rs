@@ -710,10 +710,10 @@ fields with `Deref` to `new`). Steps:
    `aes-gcm` 0.11, our own Ogg page reader). **Step 1a in progress:** `crates/djs-voice`
    exists (manifest, README as crate docs, empty `lib.rs`; workspace deps added) and builds
    on MSRV 1.89 **with `davey` too**. `davey`'s tree has four `hpke-rs*` crates under
-   MPL-2.0: D-326 allows MPL-2.0 for exactly those in `deny.toml` (+ README/NOTICE note);
-   D-327 keeps the AEAD crates at 0.11 (openmls compiles 0.10 too); D-328 ignores, with
-   reasons, the six RustSec advisories openmls 0.8 brings (until `davey` moves to openmls
-   0.9). `davey` is a dependency of `djs-voice` again.
+   MPL-2.0: D-326 allows MPL-2.0 for those in `deny.toml` (+ README/NOTICE note);
+   D-327 keeps the AEAD crates at 0.11 (openmls compiles 0.10 too); D-328 and D-329
+   ignore, with reasons, the seven RustSec advisories openmls 0.8 brings (until `davey`
+   moves to openmls 0.9); D-329 drops the unused `hpke-rs-libcrux` exception. `davey` is a dependency of `djs-voice` again.
    **Step 1a done (C-118):** the internal Ogg/Opus reader `ogg::OggOpus` (sans-IO,
    20 tests incl. a libopus/`ffmpeg` file and a mutation check) and `opus::packet_samples`;
    slicing-by-8 checksum, 1.4 GiB/s (`docs/PERFORMANCE.md`, "Phase 10").
