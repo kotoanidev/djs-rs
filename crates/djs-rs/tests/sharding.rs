@@ -19,6 +19,7 @@ use djs_rs::{
     rest::Rest,
     sharding::{
         self, ClusterCommand, ClusterError, ClusterEvent, ClusterEvents, ClusterManager, Restart,
+        ShardStatus,
     },
 };
 use futures_util::{SinkExt, StreamExt};
@@ -65,6 +66,15 @@ impl ClusterCommand for Fail {
     const NAME: &'static str = "fail";
     type Input = bool;
     type Output = ();
+}
+
+/// Asks every cluster for its stats from inside a cluster, and answers with their IDs.
+struct StatsFromCluster;
+
+impl ClusterCommand for StatsFromCluster {
+    const NAME: &'static str = "stats_from_cluster";
+    type Input = ();
+    type Output = Vec<u32>;
 }
 
 /// Handled by no cluster.
@@ -117,6 +127,14 @@ async fn cluster_process() {
             let ids = replies
                 .into_iter()
                 .map(|reply| reply.result.map(|(id, _)| id))
+                .collect::<Result<_, _>>()?;
+            Ok(ids)
+        })
+        .handle::<StatsFromCluster, _, _>(|client, ()| async move {
+            let replies = client.cluster().unwrap().stats().await?;
+            let ids = replies
+                .into_iter()
+                .map(|reply| reply.result.map(|stats| stats.cluster))
                 .collect::<Result<_, _>>()?;
             Ok(ids)
         })
@@ -201,7 +219,8 @@ async fn mock_session(
 ) {
     let (_, mut ws) = ServerBuilder::new().accept(stream).await.unwrap();
     let send = |payload: Value| Message::text(payload.to_string());
-    ws.send(send(json!({"op": 10, "d": {"heartbeat_interval": 45_000}})))
+    // Heartbeats every second, each acknowledged: the shards report a latency.
+    ws.send(send(json!({"op": 10, "d": {"heartbeat_interval": 1_000}})))
         .await
         .unwrap();
     let identify = loop {
@@ -210,8 +229,10 @@ async fn mock_session(
         };
         if let Some(text) = message.as_text() {
             let payload: Value = serde_json::from_str(text).unwrap();
-            if payload["op"] == 2 {
-                break payload;
+            match payload["op"].as_u64() {
+                Some(1) => ws.send(send(json!({"op": 11}))).await.unwrap(),
+                Some(2) => break payload,
+                _ => {}
             }
         }
     };
@@ -231,6 +252,13 @@ async fn mock_session(
     // Until the client closes the connection.
     while let Some(Ok(message)) = ws.next().await {
         if message.is_close() {
+            break;
+        }
+        let heartbeat = message
+            .as_text()
+            .and_then(|text| serde_json::from_str::<Value>(text).ok())
+            .is_some_and(|payload| payload["op"] == 1);
+        if heartbeat && ws.send(send(json!({"op": 11}))).await.is_err() {
             break;
         }
     }
@@ -722,4 +750,80 @@ async fn clusters_answer_commands() {
             .iter()
             .all(|reply| matches!(reply.result, Err(ClusterError::NotConnected)))
     );
+}
+
+/// D-310: every cluster reports its shards, cache, uptime and memory.
+#[tokio::test]
+async fn clusters_report_their_stats() {
+    let (gateway_url, _identified) = mock_gateway(Vec::new()).await;
+    // 3 shards in 2 processes, of 2 and 1.
+    let manager = ClusterManager::builder("test-token")
+        .rest(mock_rest(&gateway_url, 3, 1000, 16).await)
+        .shards_per_process(2)
+        .executable(std::env::current_exe().unwrap())
+        .args(child_args())
+        .build();
+    let running = tokio::spawn({
+        let manager = manager.clone();
+        async move { manager.spawn().await }
+    });
+
+    // Until every shard is active and has had a heartbeat acknowledged.
+    let stats = timeout(STEP, async {
+        loop {
+            let replies = manager.stats().await.unwrap();
+            let stats: Vec<_> = replies
+                .into_iter()
+                .filter_map(|reply| reply.result.ok())
+                .collect();
+            let settled = stats.len() == 2
+                && stats
+                    .iter()
+                    .flat_map(|stats| &stats.shards)
+                    .all(|shard| shard.status == ShardStatus::Active && shard.latency.is_some());
+            if settled {
+                break stats;
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    })
+    .await
+    .expect("the shards never settled");
+    assert_eq!(
+        stats.iter().map(|stats| stats.cluster).collect::<Vec<_>>(),
+        [0, 1]
+    );
+    let shards = |cluster: usize| {
+        stats[cluster]
+            .shards
+            .iter()
+            .map(|shard| shard.id)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!((shards(0), shards(1)), (vec![0, 1], vec![2]));
+    for stats in &stats {
+        // The cluster processes of these tests have no cache.
+        assert_eq!((stats.guilds, stats.users), (None, None));
+        assert!(stats.uptime > Duration::ZERO);
+        assert!(stats.shards.iter().all(|shard| shard.latency < Some(STEP)));
+        #[cfg(target_os = "linux")]
+        assert!(stats.memory.is_some_and(|memory| memory > 1 << 20));
+    }
+    // A cluster asks too, through the manager.
+    assert_eq!(
+        manager.send::<StatsFromCluster>(1, ()).await.unwrap(),
+        [0, 1]
+    );
+    // One cluster's stats.
+    assert_eq!(
+        manager
+            .send::<sharding::Stats>(1, ())
+            .await
+            .unwrap()
+            .cluster,
+        1
+    );
+
+    manager.shutdown();
+    timeout(STEP, running).await.unwrap().unwrap().unwrap();
 }

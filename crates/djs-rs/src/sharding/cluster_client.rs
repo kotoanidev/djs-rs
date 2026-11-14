@@ -1,13 +1,15 @@
 //! The cluster side of a [`Client`]: [`ClusterClient`] (D-301, D-307, D-308).
 
 use core::{fmt, future::Future, ops::Range};
+use std::time::Instant;
 
 use djs_cache::{Backend, DashMapBackend};
 use serde_json::Value;
 
 use super::{
-    ClusterAssignment, ClusterCommand, ClusterError, ClusterReply,
+    ClusterAssignment, ClusterCommand, ClusterError, ClusterReply, ClusterStats, Stats,
     command::{BoxFuture, Commands, Failure, decode_one, decode_replies, encode, erase},
+    stats::resident_memory,
 };
 use crate::{Client, HandlerError};
 
@@ -162,6 +164,33 @@ impl<B: Backend> ClusterClient<B> {
         let input = encode(&input)?;
         decode_one(link.ask(Some(cluster), C::NAME, input).await?)
     }
+
+    /// Asks every cluster, this one included, for its [`ClusterStats`] (D-310): the built-in
+    /// [`Stats`] command, broadcast.
+    ///
+    /// discord.js counterpart: `ShardClientUtil#fetchClientValues`.
+    ///
+    /// # Errors
+    ///
+    /// [`ClusterError::NotConnected`] if this process is not connected to its manager.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # async fn run(cluster: djs_rs::sharding::ClusterClient) -> Result<(), djs_rs::sharding::ClusterError> {
+    /// let guilds: u64 = cluster
+    ///     .stats()
+    ///     .await?
+    ///     .into_iter()
+    ///     .filter_map(|reply| reply.result.ok()?.guilds)
+    ///     .sum();
+    /// println!("{guilds} guilds over every cluster");
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn stats(&self) -> Result<Vec<ClusterReply<ClusterStats>>, ClusterError> {
+        self.broadcast::<Stats>(()).await
+    }
 }
 
 impl<B: Backend> Clone for ClusterClient<B> {
@@ -180,13 +209,37 @@ impl<B: Backend> fmt::Debug for ClusterClient<B> {
     }
 }
 
-/// The commands a cluster's connection runs: the client's handlers.
+/// The commands a cluster's connection runs: the built-in [`Stats`], then the client's
+/// handlers.
 pub(crate) struct Table<B: Backend> {
     pub(crate) client: Client<B>,
+    /// When the client logged in.
+    pub(crate) started: Instant,
+}
+
+impl<B: Backend> Table<B> {
+    fn stats(&self) -> ClusterStats {
+        let client = &self.client;
+        let cache = client.cache();
+        ClusterStats {
+            cluster: client.assignment().map_or(0, ClusterAssignment::cluster_id),
+            shards: client.shard_stats(),
+            guilds: cache.map(|cache| cache.guilds().len() as u64),
+            users: cache.map(|cache| cache.users().len() as u64),
+            uptime: self.started.elapsed(),
+            memory: resident_memory(),
+        }
+    }
 }
 
 impl<B: Backend> Commands for Table<B> {
     fn call(&self, name: &str, input: Value) -> BoxFuture<'static, Result<Value, Failure>> {
+        if name == Stats::NAME {
+            let stats = serde_json::to_value(self.stats()).map_err(|error| Failure::Encoding {
+                message: error.to_string(),
+            });
+            return Box::pin(async move { stats });
+        }
         match self.client.cluster_command(name) {
             Some(handler) => handler(self.client.clone(), input),
             None => Box::pin(async { Err(Failure::UnknownCommand) }),

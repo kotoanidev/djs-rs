@@ -178,6 +178,9 @@ struct Inner<B: Backend> {
     /// The commands this cluster process handles, by name (D-308).
     #[cfg(feature = "sharding")]
     commands: RwLock<std::collections::HashMap<&'static str, crate::sharding::Handler<Client<B>>>>,
+    /// The state and latency of each shard of a cluster process, for its stats (D-310).
+    #[cfg(feature = "sharding")]
+    shard_slots: RwLock<Vec<Arc<crate::sharding::ShardSlot>>>,
 }
 
 /// A future boxed inside this crate (D-287).
@@ -616,6 +619,29 @@ impl<B: Backend> Client<B> {
     }
 
     #[cfg(feature = "sharding")]
+    fn shard_slot(&self, number: u32) -> Option<Arc<crate::sharding::ShardSlot>> {
+        self.inner
+            .shard_slots
+            .read()
+            .unwrap_or_else(PoisonError::into_inner)
+            .iter()
+            .find(|slot| slot.number() == number)
+            .cloned()
+    }
+
+    /// The state and latency of this cluster process's shards.
+    #[cfg(feature = "sharding")]
+    pub(crate) fn shard_stats(&self) -> Vec<crate::sharding::ShardStats> {
+        self.inner
+            .shard_slots
+            .read()
+            .unwrap_or_else(PoisonError::into_inner)
+            .iter()
+            .map(|slot| slot.stats())
+            .collect()
+    }
+
+    #[cfg(feature = "sharding")]
     pub(crate) fn cluster_command(
         &self,
         name: &str,
@@ -743,6 +769,7 @@ impl<B: Backend> Client<B> {
             Some(assignment) => {
                 let commands = Arc::new(crate::sharding::Table {
                     client: self.clone(),
+                    started: std::time::Instant::now(),
                 });
                 Some(
                     assignment
@@ -754,6 +781,17 @@ impl<B: Backend> Client<B> {
         };
 
         let plan = self.plan().await?;
+        #[cfg(feature = "sharding")]
+        if inner.cluster.is_some() {
+            *inner
+                .shard_slots
+                .write()
+                .unwrap_or_else(PoisonError::into_inner) = plan
+                .range
+                .clone()
+                .map(|number| Arc::new(crate::sharding::ShardSlot::new(number)))
+                .collect();
+        }
         tracing::info!(
             shards = ?plan.range,
             total = plan.total,
@@ -894,6 +932,9 @@ impl<B: Backend> Client<B> {
         let mut replayed = 0;
         // Whether this shard already counted towards `ClientReady`.
         let mut counted_ready = false;
+        // A cluster process reports its shards' state and latency (D-310).
+        #[cfg(feature = "sharding")]
+        let mut reporter = crate::sharding::Reporter::new(self.shard_slot(shard.id().number()));
         loop {
             let event = tokio::select! {
                 biased;
@@ -937,6 +978,8 @@ impl<B: Backend> Client<B> {
                         out.push(Dispatch::Invalidated(Arc::new(payload::Invalidated)));
                     }
                 }
+                #[cfg(feature = "sharding")]
+                Some(Ok(GatewayEvent::HeartbeatAck)) => reporter.latency(shard.latency()),
                 Some(Ok(_)) => {}
                 Some(Err(error)) if error.is_fatal() => {
                     if let ReceiveErrorKind::FatallyClosed { code } = error.kind() {
@@ -967,6 +1010,8 @@ impl<B: Backend> Client<B> {
                 )));
             }
             active = state == ShardState::Active;
+            #[cfg(feature = "sharding")]
+            reporter.state(state);
             for dispatch in out.drain(..) {
                 self.emit(&ctx, &registry, dispatch).await;
             }
@@ -1383,6 +1428,8 @@ impl<B: Backend> ClientBuilder<B> {
                 cluster: self.cluster,
                 #[cfg(feature = "sharding")]
                 commands: RwLock::default(),
+                #[cfg(feature = "sharding")]
+                shard_slots: RwLock::default(),
             }),
         }
     }

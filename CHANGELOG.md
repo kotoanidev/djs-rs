@@ -32,6 +32,10 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   each cluster with `client.cluster()` → `ClusterClient::handle`, and sent by the manager
   or any cluster to every cluster (`broadcast`, one `ClusterReply` per cluster) or to one
   (`send`), through the manager, within its `command_timeout` (30 s).
+- Built-in cluster values (D-310, C-116): `stats()` on `ClusterManager` and `ClusterClient`
+  returns a `ClusterStats` per cluster: each shard's state and heartbeat latency, the
+  cached guild and user counts, the client's uptime and the process's memory (Linux); the
+  `Stats` command asks one cluster.
 - Member permissions (D-292, D-294, D-295, C-111): `Permissions::guild_level`,
   `Permissions::in_channel` and `Permissions::during_timeout` compute them the way Discord
   does (owner, `@everyone`, roles, `ADMINISTRATOR`, channel overwrites, the implicit

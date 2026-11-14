@@ -68,6 +68,7 @@ mod cluster_client;
 mod command;
 mod ipc;
 mod manager;
+mod stats;
 
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
@@ -78,11 +79,13 @@ pub use self::{
     manager::{
         Cluster, ClusterEvent, ClusterEvents, ClusterManager, ClusterManagerBuilder, Restart,
     },
+    stats::{ClusterStats, ShardStats, ShardStatus, Stats},
 };
 pub(crate) use self::{
     cluster::{Connection, Link},
     cluster_client::Table,
     command::Handler,
+    stats::{Reporter, ShardSlot},
 };
 
 /// Tells whether this process was started by a [`ClusterManager`] (D-300): its assignment

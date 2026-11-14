@@ -125,7 +125,8 @@ just with narrow scope.
 - [x] The manager as the IDENTIFY queue across processes, one Get Gateway Bot (D-299,
       D-305, C-113)
 - [x] Restarts with a growing delay (D-298, D-306, C-114)
-- [ ] Built-in values and named typed commands instead of `broadcastEval` (D-286)
+- [x] Built-in values and named typed commands instead of `broadcastEval` (D-286,
+      D-307–D-310, C-115, C-116)
 - [ ] Benchmarks + extreme-load tests (D-041)
 
 ## Phase 10 — `djs-voice` (≈ @discordjs/voice, D-017)

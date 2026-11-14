@@ -31,7 +31,7 @@ extreme-load tests in `docs/PERFORMANCE.md`).
 **The serenity comparison: ✅ done 2026-11-13** (`docs/VS_SERENITY.md`, D-277–D-282, C-108,
 C-109). **Next: the fixes found by the comparison (D-283) — the rebuild time after an edit
 ✅ (D-287–D-289, `docs/VS_SERENITY.md` re-measured), the ergonomics gaps ✅ (D-290–D-295).
-**Phase 9 — multi-process sharding: in progress** (steps 1–3 of 5 ✅ 2026-11-14), see "Next
+**Phase 9 — multi-process sharding: in progress** (steps 1–4 of 5 ✅ 2026-11-14), see "Next
 step".
 
 ## Done
@@ -640,7 +640,8 @@ fields with `Deref` to `new`). Steps:
    D-302 (REST limits per process), D-303 (order: IPC + spawning → IDENTIFY queue →
    restarts → values and commands → benchmarks), D-304 (`tokio` `process`), D-305 (the
    manager asks Get Gateway Bot once for every process), D-306 (restart failures by default,
-   `Restart` enum, `restart_delay`). Steps, one
+   `Restart` enum, `restart_delay`), D-307–D-310 (commands from the manager and the
+   clusters, the `ClusterCommand` trait, one result per cluster, `ClusterStats`). Steps, one
    commit each:
    1. ✅ IPC, starting the processes, shard assignment (D-285, D-296, D-297, D-300, C-112):
       `crates/djs-rs/src/sharding/{mod.rs (process(), ClusterError), ipc.rs (frames,
@@ -674,11 +675,14 @@ fields with `Deref` to `new`). Steps:
          in `serve`, `command_timeout`, `Client::cluster()` and the handler table in the
          client's `Inner`. Tests: unit tests in `command.rs` / `manager.rs`,
          `tests/sharding.rs::clusters_answer_commands`.
-      b. **Next:** `ClusterStats` (D-310): per shard ID, state and heartbeat latency
-         (needs a status table updated by `run_shard` on `HeartbeatAck` and state changes),
-         cached guilds and users, uptime, RSS from `/proc/self/status`; a built-in
-         command (`djs-rs:stats`) and `stats()` on the manager and `ClusterClient`.
-   5. Benchmarks + extreme-load tests (D-041), then Phase 9 is done.
+      b. ✅ `ClusterStats` (D-310, C-116): `sharding/stats.rs` (`Stats`, `ClusterStats`,
+         `ShardStats`, `ShardStatus`, `ShardSlot`, `Reporter`, `resident_memory`); the
+         client's `shard_slots` (set in `run` for a cluster process, written by
+         `run_shard` through a `Reporter`), the built-in command in `Table`, `stats()` on
+         both sides. Test: `tests/sharding.rs::clusters_report_their_stats`.
+   5. **Next:** benchmarks + extreme-load tests (D-041): IPC frame round trips, broadcast
+      latency and throughput over many clusters, IDENTIFY grants, memory per process; then
+      Phase 9 is done.
 
 > **Heavy runs (D-257, D-259–D-262):** the owner's laptop hard-froze on 2026-11-13 under
 > assistant load. Every cargo build/test/bench/stress test goes through

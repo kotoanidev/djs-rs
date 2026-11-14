@@ -4595,6 +4595,22 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - **Later:** a `Context::cluster()` for handlers that do not capture the `ClusterClient`
   is in the open questions.
 
+### C-116 — The built-in cluster stats (D-310, step 4)
+- **Names:** `ClusterStats` (`cluster`, `shards`, `guilds`, `users`, `uptime`, `memory`),
+  `ShardStats` (`id`, `status`, `latency`), `ShardStatus` (`Disconnected`, `Identifying`,
+  `Resuming`, `Active`, `Closed`: djs-gateway's `ShardState` with both closed states as
+  one, since a close code does not need to cross the processes), all non-exhaustive; the
+  built-in command `Stats` (`NAME = "djs-rs:stats"`, public so that `send::<Stats>(id, ())`
+  asks one cluster), behind `stats()` on `ClusterManager` and `ClusterClient`. Every
+  cluster answers it before looking at the bot's handlers.
+- **Where the numbers come from:** each shard's task writes its state (only when it
+  changes) and its latency (on each heartbeat acknowledgement) to a slot of atomics, only in
+  a cluster process; `guilds` / `users` are the cache's current counts (`None` without a
+  cache); `uptime` is from the start of `login`; `memory` is `VmRSS` from
+  `/proc/self/status` on Linux, `None` elsewhere (no dependency, no `unsafe`).
+- **The test gateway** now heartbeats every second and acknowledges each heartbeat, also
+  while a shard waits for its IDENTIFY turn, so that the stats have latencies.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

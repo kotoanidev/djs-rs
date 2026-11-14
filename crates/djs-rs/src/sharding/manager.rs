@@ -278,6 +278,18 @@ impl ClusterManager {
         Ok(decode_replies(self.ask(None, C::NAME, input).await))
     }
 
+    /// Asks every cluster for its [`ClusterStats`](super::ClusterStats) (D-310): the built-in
+    /// [`Stats`](super::Stats) command, broadcast.
+    ///
+    /// discord.js counterpart: `ShardingManager#fetchClientValues`.
+    ///
+    /// # Errors
+    ///
+    /// None for now: a cluster that does not answer has an error in its [`ClusterReply`].
+    pub async fn stats(&self) -> Result<Vec<ClusterReply<super::ClusterStats>>, ClusterError> {
+        self.broadcast::<super::Stats>(()).await
+    }
+
     /// Sends the command `C` to cluster `cluster` and returns its result.
     ///
     /// discord.js counterpart: `broadcastEval` with the `shard` option.
