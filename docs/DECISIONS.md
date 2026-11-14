@@ -4759,6 +4759,16 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 
 ## Open questions (to ask the owner when relevant)
 
+- **MPL-2.0 under `davey` (Phase 10, step 1a; asked 2026-11-14):** `davey` 0.2 builds on
+  MSRV 1.89, but its MLS stack (`openmls_rust_crypto`) depends on `hpke-rs`,
+  `hpke-rs-crypto`, `hpke-rs-libcrux` and `hpke-rs-rust-crypto` 0.6, licensed **MPL-2.0**,
+  which `deny.toml` does not allow (CI's cargo-deny would fail). MPL-2.0 is file-level
+  copyleft: using the crates unmodified from crates.io keeps djs-rs `MIT OR Apache-2.0`, but
+  changes to those files would have to stay MPL-2.0. songbird has the same tree. Until the
+  owner decides, `djs-voice` builds without `davey`. Also found: openmls uses
+  `chacha20poly1305` 0.10 and `aes-gcm` 0.10, so with D-325's 0.11 both lines are compiled
+  (a few small crates twice; `multiple-versions` only warns).
+
 - **Bounded channels between the manager and its clusters (Phase 9 findings):** the queues
   of frames to and from each process are unbounded; a process that stops reading while it
   is flooded with commands grows the manager's memory. No measured load needed a bound

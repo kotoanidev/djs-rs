@@ -24,14 +24,21 @@ djs-gateway = { path = "crates/djs-gateway", version = "0.0.0", default-features
 djs-model = { path = "crates/djs-model", version = "0.0.0" }
 djs-rest = { path = "crates/djs-rest", version = "0.0.0" }
 djs-util = { path = "crates/djs-util", version = "0.0.0" }
+djs-voice = { path = "crates/djs-voice", version = "0.0.0" }
 
 # Approved third-party dependencies (D-033). Features are enabled per crate; defaults are off
 # wherever possible so every crate only pulls in what it uses.
+# Voice transport encryption (D-314): `aead_aes256_gcm_rtpsize`.
+aes-gcm = { version = "0.11", default-features = false }
 bitflags = "2.13"
 bytes = "1.12"
+# Voice transport encryption (D-314): `aead_xchacha20_poly1305_rtpsize`.
+chacha20poly1305 = { version = "0.11", default-features = false }
 compact_str = { version = "0.10", default-features = false }
 # The default cache backend (D-016) and its key hasher (D-158).
 dashmap = { version = "6.2.1", default-features = false }
+# Voice end-to-end encryption (D-312), pinned while it is 0.x.
+davey = "=0.2.0"
 divan = "0.1.21"
 fastrand = "2.5"
 flate2 = { version = "1.1.11", default-features = false }
