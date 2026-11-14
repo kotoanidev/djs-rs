@@ -4833,6 +4833,28 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - **`opus::packet_samples`**: a packet's duration from its TOC byte (RFC 6716, 3.1), for
   pacing packets sent unchanged; `None` for one that cannot be valid.
 
+### C-119 — Transport encryption and the UDP framing (D-314, step 1b)
+- **Internal:** `crypto::{Mode, Cipher}` and `udp::{rtp_header, discovery_request,
+  discovery_response}` are crate-private; the connection (step 1c) uses them.
+- **Mode choice:** `aead_aes256_gcm_rtpsize` whenever the voice server offers it (Discord's
+  advice), else `aead_xchacha20_poly1305_rtpsize`; no mode is chosen (an error, later) if
+  it offers neither. The RustCrypto AES uses AES-NI when the CPU has it, detected at run
+  time.
+- **In place, no allocation:** `seal(packet, header, payload, nonce)` encrypts the payload
+  after the header and appends the 16-byte tag and the 4-byte big-endian nonce counter;
+  `open(packet)` authenticates the header (with its CSRCs and the extension preamble),
+  decrypts, and returns the payload's range after the decrypted extension body. Malformed
+  or unauthentic packets give `None`. The AES-GCM cipher is boxed (its key schedule is some
+  hundred bytes, the XChaCha20 one 32), so the enum stays small.
+- **Test vectors from libsodium**, which Discord uses: packets sealed by the system's
+  `libsodium` through Python's `ctypes` (both modes, two nonce counters, and a received-style
+  packet with a CSRC and a header extension) must match byte for byte.
+- **Not yet:** zeroizing the key on drop (the cipher crates' `zeroize` features); the JSON
+  the key arrives in leaves copies anyway. Left for the owner if wanted.
+- **IP discovery** responses are checked (type, length, SSRC) and their address parsed as
+  IPv4 or IPv6; anything else is ignored rather than an error, so stray packets on the
+  socket do not break the handshake.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

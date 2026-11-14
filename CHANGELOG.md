@@ -14,7 +14,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   RustSec advisories `davey` 0.2 brings ignored with reasons (D-328, D-329). An internal Ogg/Opus reader
   (C-118): fed bytes, it returns the audio packets of the first Opus stream, follows chained
   streams, skips damaged pages and drops incomplete packets; its checksum is computed eight
-  bytes at a time (about 1.4 GiB/s).
+  bytes at a time (about 1.4 GiB/s). Internal transport encryption (C-119): the
+  `aead_aes256_gcm_rtpsize` and `aead_xchacha20_poly1305_rtpsize` modes, sealing and
+  opening packets in place (checked against libsodium), the RTP header and IP discovery.
 - Multi-process sharding, first step (D-284, D-285, D-296, D-297, D-300–D-303, C-112), behind
   the new `sharding` feature: `ClusterManager` starts the bot's executable again once per
   group of `shards_per_process` shards (1 by default, Discord's recommended count or a fixed

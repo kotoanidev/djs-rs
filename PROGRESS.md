@@ -717,6 +717,13 @@ fields with `Deref` to `new`). Steps:
    **Step 1a done (C-118):** the internal Ogg/Opus reader `ogg::OggOpus` (sans-IO,
    20 tests incl. a libopus/`ffmpeg` file and a mutation check) and `opus::packet_samples`;
    slicing-by-8 checksum, 1.4 GiB/s (`docs/PERFORMANCE.md`, "Phase 10").
+   **Step 1b in progress (C-119):** done: transport encryption (`crypto::{Mode, Cipher}`,
+   in place, byte-for-byte equal to libsodium's packets; AES-GCM 142 ns per 160-byte
+   packet, XChaCha20 1.6 µs because of `poly1305`'s AVX2 backend, see PERFORMANCE), the
+   RTP header and IP discovery (`udp`). Left in 1b: the voice gateway v8 messages (JSON
+   opcodes 0–13 and 21–24, 31; binary DAVE opcodes 25–30 with the u16 sequence number;
+   close codes), as internal types with serde (C-120 to log: djs-voice uses the
+   workspace's `serde`, `serde_json`, `djs-model`).
    **Next: implement step 1** in commits:
    (a) done;
    (b) the voice gateway v8 protocol types and the transport encryption (unit-tested with

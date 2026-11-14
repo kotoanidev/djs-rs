@@ -1485,3 +1485,25 @@ An hour of 64 kbit/s audio (180 000 packets of 160 bytes, 50 per page as `opusen
   for 4 KiB); packets within a page are not copied.
 - Damage costs nothing measurable: skipping a damaged page and finding the next one is
   within noise.
+
+### Transport encryption (`djs-voice/src/crypto.rs`, `crypto::tests::throughput`, C-119)
+
+A million packets sealed, then opened, in place; best of 3:
+
+| Mode | 160-byte payload (20 ms at 64 kbit/s) | 1 275-byte payload (510 kbit/s) |
+|---|---|---|
+| `aead_aes256_gcm_rtpsize` | seal 142 ns (7.1 M/s), open 149 ns | seal 495 ns (2.0 M/s), open 509 ns |
+| `aead_xchacha20_poly1305_rtpsize` | seal 1 589 ns (0.63 M/s), open 1 545 ns | seal 2 410 ns (0.41 M/s), open 2 400 ns |
+
+- AES-GCM (AES-NI) costs 7 µs per second of a 64 kbit/s stream (50 packets): one core
+  seals some 140 000 streams.
+- **Finding: XChaCha20-Poly1305 is slow on short packets because of `poly1305` 0.9.1's AVX2
+  backend.** A probe (not committed) timed the parts: HChaCha20 is 95 ns, but even an empty
+  message costs 900 ns with the default backends. With `RUSTFLAGS='--cfg
+  poly1305_backend="soft"'` a 160-byte packet takes 586 ns instead of 1 583 (2.7 times
+  faster) and a 1 275-byte one 1 684 ns instead of 2 406: the AVX2 backend's set-up per
+  message outweighs its speed at every size Discord sends. The ChaCha20 backend is not the
+  cause (soft or SSE2 ChaCha20 change little). A library cannot set that `cfg` for its
+  users; AES-GCM is preferred and offered by most voice servers, so the slow path is the
+  fallback. Candidates: report it upstream (RustCrypto `universal-hashes`); document the
+  `cfg` for bots that run on XChaCha20.
