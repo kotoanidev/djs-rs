@@ -2844,6 +2844,43 @@ and why.
   `respawn: true`); `restart(bool)` without a choice of exits; a `RestartPolicy` struct
   with every threshold configurable.
 
+### D-307 — The manager and every cluster can query the clusters
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Decision:** built-in values and named commands (D-286) can be sent by the manager
+  (`ClusterManager`) and by any cluster process (`ClusterClient`, from `client.cluster()`,
+  D-301), to every cluster (`broadcast`) or to one (`send`); a cluster's requests go through
+  the manager. This is what `client.shard.broadcastEval` / `fetchClientValues` do in
+  discord.js, for example a `!stats` command that sums every cluster's guilds.
+- **Alternatives:** only the manager sends requests.
+
+### D-308 — Named commands are types implementing `ClusterCommand`
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Decision:** a command is a type implementing the trait `ClusterCommand` with
+  `const NAME: &str`, `type Input` and `type Output` (both serde); a cluster handles it with
+  `cluster.handle::<C>(|client, input| async move { … })` and anyone sends it with
+  `broadcast::<C>(input)` / `send::<C>(cluster, input)`. The name and types are written
+  once in the one executable both sides run, so they cannot disagree.
+- **Alternatives:** names as strings with the types given at each call
+  (`handle("name", …)`, `broadcast::<In, Out>("name", …)`).
+
+### D-309 — A broadcast returns one result per cluster
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Decision:** a broadcast returns `Vec<ClusterReply<T>>`, one per cluster in ID order,
+  each with its `cluster` and `result: Result<T, ClusterError>`: a cluster that is down or
+  restarting fails alone and the others' results stay usable; all-or-nothing is
+  `.collect::<Result<Vec<_>, _>>()`.
+- **Alternatives:** `Result<Vec<T>, ClusterError>`, failing as a whole (discord.js).
+
+### D-310 — The built-in values are one `ClusterStats` per cluster
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Decision:** `stats()` (on the manager and on `ClusterClient`) returns, per cluster, a
+  `ClusterStats`: the cluster's ID, its shards (each with its ID, state and heartbeat
+  latency), the numbers of cached guilds and users (`None` without a cache), the client's
+  uptime and the process's memory (resident set size; `None` where the system does not
+  tell). One typed request for everything, cheap to compute.
+- **Alternatives:** discord.js-style keys (`fetch_values(Value::Guilds)`), one value per
+  request; no built-in values, only commands.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
