@@ -184,6 +184,27 @@ fn own_usage() -> (f64, usize) {
     (kib / 1024.0, fds)
 }
 
+/// This process's open file descriptors by kind (`socket`, `pipe`, `anon_inode:[eventfd]`, …).
+fn fd_kinds() -> std::collections::BTreeMap<String, usize> {
+    let mut kinds = std::collections::BTreeMap::new();
+    for entry in std::fs::read_dir("/proc/self/fd").unwrap().flatten() {
+        let Ok(target) = std::fs::read_link(entry.path()) else {
+            continue;
+        };
+        let target = target.to_string_lossy().into_owned();
+        let kind = target.split(['[', ':']).next().unwrap_or("?").to_owned();
+        let kind = if target.starts_with("anon_inode") {
+            target
+        } else if kind.starts_with('/') {
+            "file".into()
+        } else {
+            kind
+        };
+        *kinds.entry(kind).or_default() += 1;
+    }
+    kinds
+}
+
 /// 64 processes of one shard: the time to start and connect them, the IDENTIFY schedule
 /// over all of them (`max_concurrency` 16: four rounds 5 s apart), their memory, and the
 /// time to stop them.
@@ -191,6 +212,7 @@ fn own_usage() -> (f64, usize) {
 #[ignore = "extreme-load test; run in release, see the module docs"]
 async fn sixty_four_processes() {
     let (manager_mib, manager_fds) = own_usage();
+    println!("file descriptors before: {manager_fds}, {:?}", fd_kinds());
     let (gateway_url, mut identified) = mock_gateway(Vec::new()).await;
     let manager = ClusterManager::builder("stress-token")
         .rest(mock_rest(&gateway_url, 64, 1000, 16).await)
@@ -266,6 +288,13 @@ async fn sixty_four_processes() {
     timeout(STEP, handle).await.unwrap().unwrap().unwrap();
     let stop_time = stopping.elapsed();
     let (after_mib, after_fds) = own_usage();
+    // Once the connections' tasks have seen their ends.
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    let (settled_mib, settled_fds) = own_usage();
+    println!(
+        "file descriptors 1 s after: {settled_fds}, {:?}",
+        fd_kinds()
+    );
     println!(
         "64 processes: connected in {connect_time:?}; identified over {identify_time:?} \
          (closest in a bucket {closest:?}); RSS per process min {:.1} / median {:.1} / max \
@@ -278,7 +307,8 @@ async fn sixty_four_processes() {
     println!(
         "the manager's process: {manager_mib:.1} MiB, {manager_fds} fds before; \
          {with_clusters_mib:.1} MiB, {with_clusters_fds} fds with 64 clusters; \
-         {after_mib:.1} MiB, {after_fds} fds after"
+         {after_mib:.1} MiB, {after_fds} fds after; {settled_mib:.1} MiB, {settled_fds} fds \
+         1 s later"
     );
 }
 

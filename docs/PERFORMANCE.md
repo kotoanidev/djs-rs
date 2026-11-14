@@ -1394,4 +1394,10 @@ a 2-thread runtime; each cluster process runs a 1-thread runtime).
 | All 64 processes | 436 MiB |
 | `shutdown` to every process exited | 7 ms |
 | The manager's process (with the mocks): before / with 64 clusters / after | 4.1 / 7.5 / 7.5 MiB |
-| Its file descriptors: before / with 64 clusters / just after | 10 / 207 / 41 |
+| Its file descriptors: before / with 64 clusters / just after / 1 s later | 10 / 207 / 37–41 / 14 |
+
+- No descriptor is leaked: 1 s after `spawn` returns, the 4 sockets left over the start are
+  the two mock servers' listeners and the REST client's pooled connection (both ends); the
+  ones counted just after are connections whose tasks had not yet seen their end. The
+  IDENTIFYs of one bucket stay 5.1 s apart across processes, so 64 shards start in 15.3 s
+  with `max_concurrency` 16, the fastest Discord allows.
