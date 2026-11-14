@@ -3048,6 +3048,19 @@ and why.
 - **Alternatives:** do the voice steps without `davey` until it updates; port `davey` to
   openmls 0.9 ourselves (MSRV 1.91).
 
+### D-329 — A seventh advisory ignored; the unused MPL-2.0 exception removed
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Context:** CI's cargo-deny found an advisory the local check (over the host's build
+  graph) missed: RUSTSEC-2026-0173, `proc-macro-error2` 2.0.1 unmaintained, a helper of the
+  procedural macros `hax-lib-macros` under libcrux (`hpke-rs` → openmls → `davey`). It runs
+  only in the compiler and is not in a bot's binary; no fixed version exists. cargo-deny
+  also warned that D-326's exception for `hpke-rs-libcrux` matches nothing: that crate is
+  an optional dependency nobody enables (it is in `Cargo.lock`, not in the build graph).
+- **Decision:** RUSTSEC-2026-0173 joins D-328's ignores, with its reason, and goes with
+  them; the `hpke-rs-libcrux` exception is removed (if it ever enters the graph, cargo-deny
+  says so and the owner is asked).
+- **Alternatives:** remove `hax-lib-macros` from the tree (a patched libcrux).
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
