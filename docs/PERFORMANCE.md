@@ -1431,3 +1431,10 @@ returned, 20 round trips each):
   `Value`, the frame onto the socket): about 250 MiB/s per direction, sequentially, is the
   cost of `serde_json` with escaping; a raw-JSON frame (`RawValue`, a serde_json feature)
   would remove one pass if a bot needs more.
+
+**Restart storm** (`restart_storm`: 8 clusters running `sh -c "exit 1"`, `restart_delay`
+1–4 ms, 10 s): 8,610 processes started (861/s), 8,608 exits and 8,608 restarts reported;
+the manager's process went from 4.4 MiB / 10 descriptors to 6.1 MiB / 15 during and
+6.1 MiB / 13 after (the 3 extra are the mock REST server's listener and the pooled REST
+connection). The delay doubles to its maximum after each quick failure, so the storm is
+bounded by the configured delays, not by the manager.
