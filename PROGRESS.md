@@ -704,10 +704,16 @@ fields with `Deref` to `new`). Steps:
    D-320 (`Call` is a cheap-clone handle, `&self` methods), D-321 (events as streams:
    `call.events()` → `CallEvent`), D-322 (`join` returns once gateway + UDP + DAVE are
    ready; 10 s timeout). `davey` 0.2 checked: MIT, safe Rust, openmls 0.8, sync
-   `DaveSession` API (MSRV 1.89 to verify on the first build). **Next: step 1** — still to
-   ask: how step 1 plays ready Ogg/Opus before step 2's tracks exist, the adapter trait's
-   shape, and the dependency versions (`davey` 0.2, `chacha20poly1305` 0.11, `aes-gcm`
-   0.11; `audiopus` in step 2; reuse `tokio-websockets` for the voice gateway). Live tests need the
+   `DaveSession` API (MSRV 1.89 to verify on the first build), D-323 (step 1 already has
+   `Input` (Ogg/Opus) and `call.play(input) -> TrackHandle`), D-324 (`VoiceGateway` trait
+   + `manager.process(&event)`), D-325 (`davey =0.2.0`, `chacha20poly1305` 0.11,
+   `aes-gcm` 0.11, our own Ogg page reader). **Next: implement step 1** in commits:
+   (a) the crate skeleton, dependencies (check MSRV 1.89 with `davey`) and the Ogg reader;
+   (b) the voice gateway v8 protocol types and the transport encryption (unit-tested with
+   known vectors); (c) the connection task (gateway, UDP, IP discovery, heartbeats, resume)
+   against a local mock voice server; (d) DAVE through `davey`; (e) `VoiceManager`,
+   `VoiceGateway`, `Call`, `CallEvent`, `Input`, `TrackHandle`, playback pacing; (f) djs-rs
+   `voice` feature; (g) a live test only with the owner's go-ahead (D-275). Live tests need the
    owner's go-ahead (D-275) and a voice channel on the test guild.
 
 > **Heavy runs (D-257, D-259–D-262):** the owner's laptop hard-froze on 2026-11-13 under

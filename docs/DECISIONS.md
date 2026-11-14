@@ -2986,6 +2986,32 @@ and why.
 - **Alternatives:** returning at once after Opcode 4, the connection progressing in the
   background (audio buffered until `Connected`).
 
+### D-323 — Step 1 plays through the first part of the final API
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Decision:** step 1 already has `Input` (only Ogg/Opus for now, from a file or any
+  `AsyncRead`) and `call.play(input) -> TrackHandle` (play, pause, stop for now); step 2
+  adds the queue, PCM, FFmpeg and volume to the same types.
+- **Alternatives:** a raw `call.send_opus(packet)` (the bot keeps the 20 ms pace) kept as an
+  advanced API; no playback API until step 2.
+
+### D-324 — The gateway adapter is a trait plus `process`
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Decision:** `VoiceManager::new(bot_user_id, shard_count, gateway)` takes
+  `gateway: impl VoiceGateway`, a trait with one method that sends Opcode 4 through the
+  shard of a guild; the client feeds the gateway's events with `manager.process(&event)`,
+  which keeps only the bot's `VOICE_STATE_UPDATE` and the `VOICE_SERVER_UPDATE`s (as
+  songbird does with twilight). djs-rs's `voice` feature does both by itself.
+- **Alternatives:** channels (a receiver of "send Opcode 4" commands and a sender of
+  updates), wired by the user.
+
+### D-325 — Step 1's dependencies, and our own Ogg reader
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Decision:** `davey = "=0.2.0"` (pinned: 0.x), `chacha20poly1305 = "0.11"`,
+  `aes-gcm = "0.11"`; the voice gateway uses the `tokio-websockets` already in the
+  workspace. Ogg pages are read by a small parser of our own (a simple format, measured by a
+  benchmark), not the `ogg` crate.
+- **Alternatives:** the `ogg` crate (BSD-3) for the container.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
