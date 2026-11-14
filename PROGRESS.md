@@ -695,12 +695,16 @@ fields with `Deref` to `new`). Steps:
    encryption modes, DAVE E2EE, Opus, players and resources, receiving audio).
    **Decided 2026-11-14:** D-311 (our own stack shaped like `@discordjs/voice`, crates for
    the hard parts; DAVE is mandatory since 2026-03-01), D-312 (`davey` for DAVE), D-313
-   (`audiopus` for Opus), D-314 (RustCrypto `chacha20poly1305` + `aes-gcm`). **Still to
-   ask before code:** the crate layout and how voice plugs into the client (voice state /
-   server updates from the shards), the public API shape (`joinVoiceChannel`,
-   `VoiceConnection`, `AudioPlayer`, `createAudioResource` counterparts), audio inputs
-   (FFmpeg as an external process like prism-media?), and the order of the steps. Live
-   tests need the owner's go-ahead (D-275) and a voice channel on the test guild.
+   (`audiopus` for Opus), D-314 (RustCrypto `chacha20poly1305` + `aes-gcm`), D-315
+   (standalone `djs-voice` with an adapter trait + djs-rs `voice` feature), D-316 (API
+   shaped like **songbird**: a call per guild, a track queue, track handles; names asked
+   per step), D-317 (inputs: FFmpeg process, native Ogg/Opus, PCM), D-318 (order:
+   connection + DAVE + ready Ogg/Opus → player → receiving → benchmarks). **Next: step 1**
+   — first ask its public names and shape (the manager, the per-guild call, joining and
+   leaving, connection events, the adapter trait), then the new dependencies' versions
+   (`davey`, `chacha20poly1305`, `aes-gcm`, `audiopus` comes in step 2) and the voice
+   gateway's own crates (reuse `tokio-websockets` from djs-gateway). Live tests need the
+   owner's go-ahead (D-275) and a voice channel on the test guild.
 
 > **Heavy runs (D-257, D-259–D-262):** the owner's laptop hard-froze on 2026-11-13 under
 > assistant load. Every cargo build/test/bench/stress test goes through

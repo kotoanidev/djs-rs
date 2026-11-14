@@ -2918,6 +2918,42 @@ and why.
 - **Alternatives:** `ring` (already in the tree through rustls) for AES-256-GCM, with
   RustCrypto only for XChaCha20, which `ring` lacks.
 
+### D-315 — `djs-voice` is a standalone crate, plugged into djs-rs by a feature
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Decision:** `djs-voice` works on its own through a small adapter trait (send Opcode 4
+  Voice State Update through the main gateway; receive the bot's `VOICE_STATE_UPDATE` and
+  `VOICE_SERVER_UPDATE`), as discord.js's adapters do; djs-rs gets a `voice` feature with
+  `djs_rs::voice`, which plugs the adapter into `Client` and forwards those events. A bot
+  without the feature does not compile DAVE or Opus.
+- **Alternatives:** voice only as a module of djs-rs, without the adapter trait (not usable
+  with djs-gateway alone).
+
+### D-316 — The voice API is shaped like songbird's
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Decision:** the public voice API follows songbird's concepts rather than
+  `@discordjs/voice`'s: a call per guild with a queue of tracks and a handle per track
+  (play, pause, stop, volume, track events), convenient for music bots. The names and the
+  exact shape of each type are asked before each step (D-001), and the migration guide maps
+  the `@discordjs/voice` concepts to them.
+- **Alternatives:** `@discordjs/voice`'s shape (`joinVoiceChannel` → `VoiceConnection`,
+  `AudioPlayer`, `AudioResource`, `subscribe`, with discord.js's states and names).
+
+### D-317 — Audio inputs: FFmpeg, Ogg/Opus and PCM
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Decision:** a track plays any format or URL through FFmpeg run as a separate process
+  (as prism-media does for discord.js; FFmpeg must be installed, no new Rust dependency),
+  Ogg/Opus files and streams natively (no FFmpeg, no re-encoding), and raw 48 kHz PCM.
+- **Alternatives:** decoding in Rust with `symphonia` (MP3, FLAC, AAC, … without FFmpeg; a
+  large dependency); only Opus and PCM supplied by the bot.
+
+### D-318 — Phase 10's order: connection → player → receiving → benchmarks
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Decision:** (1) the voice gateway (v8), UDP, IP discovery, transport encryption and
+  DAVE, playing ready Ogg/Opus: the first working voice, tested live with the owner's
+  go-ahead (D-275); (2) the player: tracks and their queue, PCM, Opus encoding, FFmpeg,
+  volume; (3) receiving audio; (4) benchmarks and extreme-load tests (D-041).
+- **Alternatives:** receiving before the player (for recording bots).
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
