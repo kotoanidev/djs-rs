@@ -3012,6 +3012,25 @@ and why.
   benchmark), not the `ogg` crate.
 - **Alternatives:** the `ogg` crate (BSD-3) for the container.
 
+### D-326 — MPL-2.0 allowed only for the `hpke-rs` crates under `davey`
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Context:** `davey` 0.2 (D-312) builds on MSRV 1.89, but its MLS stack
+  (`openmls_rust_crypto`) depends on `hpke-rs`, `hpke-rs-crypto`, `hpke-rs-libcrux` and
+  `hpke-rs-rust-crypto`, licensed MPL-2.0 (file-level copyleft), which `deny.toml` did not
+  allow. Used unmodified from crates.io, they leave djs-rs `MIT OR Apache-2.0`.
+- **Decision:** `deny.toml` allows MPL-2.0 for exactly these four crates
+  (`[[licenses.exceptions]]`); any other MPL crate is still refused. The djs-voice README and
+  `NOTICE` say that the voice crate links MPL-2.0 code.
+- **Alternatives:** MPL-2.0 for the whole tree; our own DAVE on another MLS stack
+  (`mls-rs`) instead of `davey`.
+
+### D-327 — `chacha20poly1305` and `aes-gcm` stay at 0.11
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Context:** openmls uses the 0.10 lines, so both 0.10 and 0.11 are compiled (a few small
+  crates twice; same speed).
+- **Decision:** keep 0.11 (D-325); the duplicates go when openmls moves to 0.11.
+- **Alternatives:** 0.10, shared with openmls.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
@@ -4758,16 +4777,6 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 ---
 
 ## Open questions (to ask the owner when relevant)
-
-- **MPL-2.0 under `davey` (Phase 10, step 1a; asked 2026-11-14):** `davey` 0.2 builds on
-  MSRV 1.89, but its MLS stack (`openmls_rust_crypto`) depends on `hpke-rs`,
-  `hpke-rs-crypto`, `hpke-rs-libcrux` and `hpke-rs-rust-crypto` 0.6, licensed **MPL-2.0**,
-  which `deny.toml` does not allow (CI's cargo-deny would fail). MPL-2.0 is file-level
-  copyleft: using the crates unmodified from crates.io keeps djs-rs `MIT OR Apache-2.0`, but
-  changes to those files would have to stay MPL-2.0. songbird has the same tree. Until the
-  owner decides, `djs-voice` builds without `davey`. Also found: openmls uses
-  `chacha20poly1305` 0.10 and `aes-gcm` 0.10, so with D-325's 0.11 both lines are compiled
-  (a few small crates twice; `multiple-versions` only warns).
 
 - **Bounded channels between the manager and its clusters (Phase 9 findings):** the queues
   of frames to and from each process are unbounded; a process that stops reading while it

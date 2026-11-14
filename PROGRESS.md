@@ -709,12 +709,12 @@ fields with `Deref` to `new`). Steps:
    + `manager.process(&event)`), D-325 (`davey =0.2.0`, `chacha20poly1305` 0.11,
    `aes-gcm` 0.11, our own Ogg page reader). **Step 1a in progress:** `crates/djs-voice`
    exists (manifest, README as crate docs, empty `lib.rs`; workspace deps added) and builds
-   on MSRV 1.89 **with `davey` too**. **Blocked on the owner:** `davey`'s tree has four
-   `hpke-rs*` crates under MPL-2.0, not allowed by `deny.toml` (see "Open questions" in
-   DECISIONS); `davey` is left out of the crate's dependencies until the owner decides.
+   on MSRV 1.89 **with `davey` too**. `davey`'s tree has four `hpke-rs*` crates under
+   MPL-2.0: D-326 allows MPL-2.0 for exactly those in `deny.toml` (+ README/NOTICE note);
+   D-327 keeps the AEAD crates at 0.11 (openmls compiles 0.10 too).
    **Next: implement step 1** in commits:
-   (a) the crate skeleton (done), dependencies (`davey` pending the license answer) and the
-   Ogg reader;
+   (a) the crate skeleton (done), dependencies (`davey` back in with the D-326 exception)
+   and the Ogg reader;
    (b) the voice gateway v8 protocol types and the transport encryption (unit-tested with
    known vectors); (c) the connection task (gateway, UDP, IP discovery, heartbeats, resume)
    against a local mock voice server; (d) DAVE through `davey`; (e) `VoiceManager`,
