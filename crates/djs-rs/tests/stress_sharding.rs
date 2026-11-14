@@ -412,7 +412,8 @@ async fn large_payloads() {
         }
         let elapsed = started.elapsed() / rounds;
         println!(
-            "{mib} MiB there and back: {elapsed:?} per round trip, {:.0} MiB/s each way",
+            "{mib} MiB there and back: {elapsed:?} per round trip, {:.0} MiB/s both ways \
+             together",
             mib as f64 / elapsed.as_secs_f64() * 2.0
         );
     }

@@ -1415,3 +1415,19 @@ a 2-thread runtime; each cluster process runs a 1-thread runtime).
 - The manager's process grew from 6.4 to 6.9 MiB over the 465,000 commands (no pending
   request is left behind). At 64 in flight the manager, 16 processes and the test share 12
   threads; the manager's per-connection writer and reader tasks keep every core busy.
+
+**Large payloads through one process** (`large_payloads`, a string sent to a cluster and
+returned, 20 round trips each):
+
+| Size | Round trip | Both ways together |
+|---|---:|---:|
+| 1 MiB | 3.9 ms | 516 MiB/s |
+| 4 MiB | 15.5 ms | 517 MiB/s |
+| 8 MiB | 36.7 ms | 436 MiB/s |
+| 15 MiB | 65.2 ms | 460 MiB/s |
+| 17 MiB | `ClusterError::Encoding` at once; the connection goes on (C-117) | |
+
+- Each byte is JSON-encoded and decoded twice per direction (the command into the frame's
+  `Value`, the frame onto the socket): about 250 MiB/s per direction, sequentially, is the
+  cost of `serde_json` with escaping; a raw-JSON frame (`RawValue`, a serde_json feature)
+  would remove one pass if a bot needs more.
