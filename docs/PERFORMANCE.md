@@ -1401,3 +1401,17 @@ a 2-thread runtime; each cluster process runs a 1-thread runtime).
   ones counted just after are connections whose tasks had not yet seen their end. The
   IDENTIFYs of one bucket stay 5.1 s apart across processes, so 64 shards start in 15.3 s
   with `max_concurrency` 16, the fastest Discord allows.
+
+**Command floods over 16 processes** (`command_floods`, a tiny `Echo` command):
+
+| Load | Throughput | p50 | p99 | Max |
+|---|---:|---:|---:|---:|
+| `broadcast` to 16, one at a time (5,000) | 10,021/s | 82 µs | 209 µs | 1.35 ms |
+| `send` to one of 16, one at a time (20,000) | 21,579/s | 41 µs | 147 µs | 466 µs |
+| `broadcast` to 16, 64 in flight (20,000) | 16,185/s = 258,967 cluster answers/s | | | |
+| `send`, 64 in flight (200,000) | 197,542/s | | | |
+| Every cluster broadcasting 1,000 times at once, through the manager | 11,587 broadcasts/s = 185,393 answers/s | | | |
+
+- The manager's process grew from 6.4 to 6.9 MiB over the 465,000 commands (no pending
+  request is left behind). At 64 in flight the manager, 16 processes and the test share 12
+  threads; the manager's per-connection writer and reader tasks keep every core busy.
