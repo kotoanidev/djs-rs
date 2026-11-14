@@ -16,6 +16,7 @@ publish = false
 [dependencies]
 aes-gcm = { workspace = true, features = ["aes", "alloc"] }
 chacha20poly1305 = { workspace = true, features = ["alloc"] }
+davey.workspace = true
 
 [lints]
 workspace = true

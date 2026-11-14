@@ -8,3 +8,9 @@ is included in this repository; discord.js is used solely as a behavioural refer
 
 djs-rs is not affiliated with, endorsed by, or sponsored by the discord.js project or
 Discord Inc. "Discord" is a trademark of Discord Inc.
+
+The djs-voice crate depends on third-party crates under their own licenses; among them,
+hpke-rs, hpke-rs-crypto, hpke-rs-libcrux and hpke-rs-rust-crypto (used, unmodified, by the
+openmls stack under the davey crate for Discord's DAVE end-to-end encryption) are licensed
+under the Mozilla Public License 2.0 (https://mozilla.org/MPL/2.0/). Their source code is
+available from crates.io and https://github.com/cryspen/hpke-rs.

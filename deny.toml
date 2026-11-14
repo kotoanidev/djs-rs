@@ -7,6 +7,16 @@ all-features = true
 [advisories]
 version = 2
 yanked = "deny"
+# The advisories `davey` 0.2 brings through openmls 0.8, which no compatible update removes
+# (D-328). Remove them when `davey` moves to openmls 0.9 (see DECISIONS, "Open questions").
+ignore = [
+  { id = "RUSTSEC-2026-0387", reason = "crypto-bigint 0.5 under p256 (openmls 0.8): timing variability, exploitable only with a precise local side channel; no compatible fix (D-328)" },
+  { id = "RUSTSEC-2026-0207", reason = "libcrux-sha3 0.0.8 under hpke-rs: incremental SHAKE squeeze, used only by X-Wing/ML-KEM, which DAVE does not use (D-328)" },
+  { id = "RUSTSEC-2026-0208", reason = "libcrux-sha3 0.0.8 under hpke-rs: AVX2 x4 SHAKE-256, used only by X-Wing/ML-KEM, which DAVE does not use (D-328)" },
+  { id = "RUSTSEC-2026-0212", reason = "libcrux-secrets 0.0.5 under hpke-rs: swap/select on aarch64, not called (D-328)" },
+  { id = "RUSTSEC-2024-0384", reason = "instant, unmaintained, through fluvio-wasm-timer under openmls 0.8 (D-328)" },
+  { id = "RUSTSEC-2026-0441", reason = "pin-utils, unmaintained, through fluvio-wasm-timer under openmls 0.8 (D-328)" },
+]
 
 [licenses]
 version = 2
@@ -23,6 +33,14 @@ allow = [
   "CDLA-Permissive-2.0",
 ]
 confidence-threshold = 0.9
+# MPL-2.0 (file-level copyleft) only for the HPKE crates under `davey`'s MLS stack, used
+# unmodified (D-326). Any other MPL-2.0 crate is still refused.
+exceptions = [
+  { crate = "hpke-rs", allow = ["MPL-2.0"] },
+  { crate = "hpke-rs-crypto", allow = ["MPL-2.0"] },
+  { crate = "hpke-rs-libcrux", allow = ["MPL-2.0"] },
+  { crate = "hpke-rs-rust-crypto", allow = ["MPL-2.0"] },
+]
 
 [bans]
 multiple-versions = "warn"
