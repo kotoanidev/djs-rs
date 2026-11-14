@@ -3078,6 +3078,23 @@ and why.
   call ends (the bot may join again). After 4006 or 4009 it identifies anew once.
 - **Alternatives:** retry forever, as the main gateway's shards do; never retry.
 
+### D-332 — DAVE is tested end to end against a mock external sender
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Decision:** djs-voice's tests get `openmls` 0.8, `openmls_rust_crypto` 0.5 and
+  `openmls_basic_credential` 0.5 as dev-dependencies (the versions already in the tree under
+  `davey`; not compiled into bots), so the mock voice gateway can be the MLS external sender
+  (opcodes 25 and 27) and hold a second participant (its own `davey` session) that decrypts
+  the bot's audio.
+- **Alternatives:** test only our handling of the opcodes, with `davey` behind a stand-in;
+  rely on the live test.
+
+### D-333 — A new DAVE identity key for every call
+- **Date:** 2026-11-14 · **Decided by:** Owner
+- **Decision:** each DAVE session generates its own ephemeral signing key pair (what
+  `davey` does without one). An option for a persistent key (stable verification codes
+  across calls) may come later in the `VoiceManager` configuration.
+- **Alternatives:** a persistent key from the start, generated once per `VoiceManager`.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
