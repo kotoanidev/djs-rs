@@ -27,6 +27,13 @@ pub(crate) fn rtp_header(sequence: u16, timestamp: u32, ssrc: u32) -> [u8; RTP_H
     header
 }
 
+/// A UDP keepalive: the SSRC, big-endian. Sent every few seconds while no audio is, so that
+/// NAT keeps the socket's mapping (Discord does not document it; songbird and discord.js
+/// send one).
+pub(crate) const fn keepalive(ssrc: u32) -> [u8; 4] {
+    ssrc.to_be_bytes()
+}
+
 /// The length of an IP discovery packet, request or response.
 pub(crate) const DISCOVERY: usize = 74;
 /// What the length field holds: the packet without its type and length.

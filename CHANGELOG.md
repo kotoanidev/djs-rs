@@ -20,6 +20,10 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   The voice gateway v8 messages (C-120): the commands (Identify, Select Protocol, Heartbeat
   with `seq_ack`, Speaking, Resume, the DAVE replies) and the server's messages, JSON and
   binary DAVE, with their sequence numbers; what a close code means for reconnecting.
+  The internal voice connection (C-121): the handshake (WebSocket, Identify, UDP and IP
+  discovery, Select Protocol, Session Description), heartbeats, the UDP keepalive, resuming
+  and reconnecting as D-331 says, and a sender of encrypted RTP packets; its own TLS
+  connector and `native-roots` feature (D-330).
 - Multi-process sharding, first step (D-284, D-285, D-296, D-297, D-300–D-303, C-112), behind
   the new `sharding` feature: `ClusterManager` starts the bot's executable again once per
   group of `shards_per_process` shards (1 by default, Discord's recommended count or a fixed

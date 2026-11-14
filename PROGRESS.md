@@ -722,10 +722,14 @@ fields with `Deref` to `new`). Steps:
    XChaCha20 1.6 µs because of `poly1305`'s AVX2 backend, see PERFORMANCE), the RTP header
    and IP discovery (`udp`), the voice gateway v8 messages (`payload`: commands, JSON and
    binary DAVE server messages with sequence numbers, `after_close`). 37 unit tests.
+   **Step 1c done (C-121, D-330, D-331):** the internal `connection` module (handshake,
+   heartbeats with `seq_ack`, UDP keepalive, resume/renew/stop with the D-331 retries,
+   `Sender` of encrypted RTP packets) and its own `tls.rs` + `native-roots` feature; 13
+   tests against a mock voice server (WebSocket + UDP), 54 unit tests in all. **To do in
+   step 1f:** djs-rs's `native-roots` feature must also enable `djs-voice?/native-roots`.
    **Next: implement step 1** in commits:
-   (a) done; (b) done;
-   (c) **next:** the connection task (gateway, UDP, IP discovery, heartbeats, resume)
-   against a local mock voice server; (d) DAVE through `davey`; (e) `VoiceManager`,
+   (a) done; (b) done; (c) done;
+   (d) **next:** DAVE through `davey`; (e) `VoiceManager`,
    `VoiceGateway`, `Call`, `CallEvent`, `Input`, `TrackHandle`, playback pacing; (f) djs-rs
    `voice` feature; (g) a live test only with the owner's go-ahead (D-275). Live tests need the
    owner's go-ahead (D-275) and a voice channel on the test guild.

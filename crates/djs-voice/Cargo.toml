@@ -13,13 +13,31 @@ readme = "README.md"
 # Not published until the owner decides on a release (see docs/DECISIONS.md, C-003).
 publish = false
 
+[features]
+## Also trust the operating system's root certificates for the voice gateway's `wss://`
+## connections, in addition to the bundled `webpki-roots` (D-088, D-100, D-330).
+native-roots = ["dep:rustls-native-certs"]
+
 [dependencies]
 aes-gcm = { workspace = true, features = ["aes"] }
 chacha20poly1305.workspace = true
 davey.workspace = true
 djs-model.workspace = true
+fastrand.workspace = true
+futures-util = { workspace = true, features = ["sink", "std"] }
+rustls = { workspace = true, features = ["ring", "std", "tls12"] }
+rustls-native-certs = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive", "std"] }
 serde_json.workspace = true
+tokio = { workspace = true, features = ["macros", "net", "rt", "sync", "time"] }
+tokio-rustls = { workspace = true, features = ["ring", "tls12"] }
+tokio-websockets = { workspace = true, features = ["client", "fastrand", "ring", "rustls-bring-your-own-connector"] }
+tracing = { workspace = true, features = ["std"] }
+webpki-roots.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "test-util"] }
+tokio-websockets = { workspace = true, features = ["server"] }
 
 [lints]
 workspace = true

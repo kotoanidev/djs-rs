@@ -4894,6 +4894,38 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   bot's voice state says which), 4017, 4021, 4022 and on the codes that mean a client bug
   (4001, 4002, 4003, 4005, 4012, 4016, 4020).
 
+### C-121 — The voice connection (D-322, D-330, D-331, step 1c)
+- **Internal `connection` module:** `connect(info, config)` runs the handshake within
+  `Config::timeout` (10 s, D-322): the WebSocket (`wss://{endpoint}/?v=8`; an endpoint that
+  already starts with `ws://` or `wss://` is used as it is, for tests and proxies),
+  Identify (`max_dave_protocol_version` = `davey::DAVE_PROTOCOL_VERSION`), Hello and Ready
+  in either order, the UDP socket (bound to the unspecified address of the server's family
+  and connected to it), IP discovery (asked again every second until answered), Select
+  Protocol with the discovered address and the chosen mode, and Session Description (whose
+  mode must be the one chosen). Messages that arrive during the handshake are delivered to
+  the call after it; heartbeats start at Hello, also during the handshake.
+- **The connection's task** heartbeats with `seq_ack` (a heartbeat still unacknowledged
+  when the next is due counts as a lost connection), sends the UDP keepalive (the SSRC in 4
+  bytes every 5 s, songbird's format; Discord does not document one), forwards the other
+  messages as `ConnectionEvent::Gateway`, and takes `Command`s (Speaking, DAVE text and
+  binary replies, Close). After a loss it follows `after_close` and D-331: resume at once and
+  after 1, 2, 4, 8, 16 s (each halved by up to half at random), identify anew once on 4006
+  or 4009 (also when a resume is refused with them), stop on the rest. A resumed session
+  keeps its UDP socket, SSRC and key; a new one replaces them for the senders (a `watch`
+  channel) and the last speaking flags are sent again. During the waits a Close ends the
+  connection, speaking flags are kept and DAVE replies (of the lost session) dropped.
+- **Ending:** `ConnectionEvent::Ended(End::{Closed, Stopped(code), Lost(error)})` is sent
+  first, then the WebSocket's closing handshake runs with a 1 s bound.
+- **`Sender`:** builds and encrypts the RTP packets of the current session in a reused
+  buffer; the RTP sequence and timestamp start at random values (RFC 3550, 5.1), the nonce
+  counter at 0, all three continuing across new sessions.
+- **Tests** run the client against a mock voice server on `127.0.0.1` (a WebSocket server
+  and a UDP socket that answers IP discovery with another address and decrypts the audio):
+  the handshake fields, audio, sequence numbers in heartbeats, resume after 4015 and after a
+  dropped connection or unanswered heartbeats, identify anew after 4006 (new SSRC and key),
+  stop codes, giving up after the 6 attempts, a refused resume, closing, commands,
+  keepalives and the handshake's failures. 20 repeated runs: no failure.
+
 ---
 
 ## Open questions (to ask the owner when relevant)
