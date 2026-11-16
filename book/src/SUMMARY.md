@@ -9,7 +9,7 @@
 
 # The basics
 
-- [Events and intents]()
+- [Events and intents](basics/events-and-intents.md)
 - [Slash commands]()
 - [Components and embeds]()
 - [The cache]()

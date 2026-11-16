@@ -11,7 +11,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - The guide (D-376–D-382): an mdBook in `book/`, published with the API reference at
   https://kotoanidev.github.io/djs-rs/ by a new `Book` workflow; its listings are examples
   of the `djs-rs-guide` crate, so they keep compiling. Written so far: the introduction,
-  installation and the first bot.
+  installation, the first bot, and events and intents.
 - The `djs-voice` crate, Phase 10 (D-311–D-328): its skeleton and dependencies (`davey` for
   DAVE, `chacha20poly1305` and `aes-gcm`; MSRV 1.89 kept), with MPL-2.0 allowed only for
   the three `hpke-rs` crates under `davey` (D-326, D-329, noted in `NOTICE`) and the seven

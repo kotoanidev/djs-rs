@@ -151,8 +151,9 @@ the gateway's traffic in detail.
 
 ## What's next
 
-The bot reacts to one event. The next chapter looks at events and intents in general:
-which events there are, what each needs, and what the [`Context`] gives a handler.
+The bot reacts to one event. [The next chapter](../basics/events-and-intents.md) looks at
+events and intents in general: which events there are, what each needs, and what the
+[`Context`] gives a handler.
 
 [`Client`]: ../api/djs_rs/struct.Client.html
 [`Client::builder`]: ../api/djs_rs/struct.Client.html#method.builder
