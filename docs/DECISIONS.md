@@ -5442,7 +5442,8 @@ garbage (±1.0 for a frame). Measured with the listeners' side decoded by libopu
 - The test `volume_changes_pauses_and_seeks_make_no_click`: the largest second difference
   of the audio at each change at most twice the tone's own (it was about 7 times at a
   volume step, 100 at a pause and 300 at a seek), levels within 12 % from the second packet
-  after a change, no gap over 30 ms.
+  after a change, no gap over 50 ms between packets (a seek without filler made 67 ms;
+  Windows's 15.6 ms timer spreads 20 ms packets up to about 36 ms apart).
 
 ### C-128 — Receiving audio, step 3 (D-363–D-373)
 - **Where packets are read:** the call's task reads the UDP socket of the connection's

@@ -408,6 +408,11 @@ async fn joining_again_changes_the_bitrate() {
     );
 }
 
+/// More time than this between two packets is a gap in the audio: a seek without filler
+/// made 67 ms (C-127). Packets 20 ms apart can arrive up to about 36 ms apart where timers
+/// tick every 15.6 ms (Windows).
+const GAP: u128 = 50;
+
 /// The sent audio decoded in order: the left channel, and when each packet arrived.
 struct Capture {
     left: Vec<f32>,
@@ -510,7 +515,8 @@ async fn volume_changes_pauses_and_seeks_make_no_click() {
     // Without the ramps (C-127): about 7 times its own at the change, 100 at the pause.
     let changes = capture.roughness(30, end);
     assert!(changes < own * 2.0, "{changes} against its own {own}");
-    assert!(capture.longest_gap(resumed) < 30);
+    let gap = capture.longest_gap(resumed);
+    assert!(gap < GAP, "{gap} ms between two packets");
     track.stop().unwrap();
 
     // A file sought: the old place fades out, the new one fades in, without a gap.
@@ -534,7 +540,8 @@ async fn volume_changes_pauses_and_seeks_make_no_click() {
     let end = capture.arrivals.len();
     let sought = capture.roughness(16, end);
     assert!(sought < own * 2.0, "{sought} against its own {own}");
-    assert!(capture.longest_gap(1) < 30);
+    let gap = capture.longest_gap(1);
+    assert!(gap < GAP, "{gap} ms between two packets");
     // At its level right after the fade in, and when its packets go as they are again: a
     // decoder started from one packet was far too quiet for 100 ms (C-127).
     let faded = capture.below(16, level * 0.5);
