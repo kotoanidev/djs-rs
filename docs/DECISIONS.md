@@ -5696,6 +5696,35 @@ garbage (±1.0 for a frame). Measured with the listeners' side decoded by libopu
   the manifests' `redundant_homepage` warnings go away when the workspace homepage becomes
   the guide (D-389), done after the measurements so as not to rebuild every crate mid-run.
 
+### C-135 — How the release was measured again (D-384)
+- **One full run, unpinned:** every benchmark and stress test of Phases 1–10 one after
+  another through the guard (all 12 CPUs, nice 19, `balanced`), as C-072 takes absolute
+  numbers. Those are the numbers PERFORMANCE.md's "Measured again for 0.1.0-alpha.1" quotes.
+- **Regressions are judged by A/Bs, not by comparing with old tables:** the older tables
+  were mostly pinned and under `performance`, so a lower number alone does not say the code
+  got slower. An A/B builds an older commit in a worktree (`.reference/ab/`), runs both
+  builds alternately (3 rounds, 5–10 s apart), pinned to the same cores where the original
+  measurement was pinned, and counts user-space instructions on the P-cores
+  (`perf stat -e cpu_core/instructions/u`); a change in instructions is the code, a change
+  in time alone is the machine.
+- **Bases:** `4085a57` (the 2026-11-13 re-run) for the gateway, the client, interactions
+  and REST; `0afab05` (Phase 10 step 4) for voice.
+- **The divan benchmarks** are run a second time pinned to CPU 2 (a P-core), as Phases
+  5–10 ran them, and those are the published micro numbers.
+
+### C-136 — The twilight comparison's harness (D-385)
+- **A bot as twilight's README writes it:** one `Shard`, `DefaultInMemoryCache` updated
+  with every event, a task spawned per event; djs-rs gets a cache with the same contents
+  (`twilight_cache()`) and both are also measured without one.
+- **No `zstd` feature on twilight's gateway:** with it twilight always asks for
+  `zstd-stream`, and the mock gateway sends plain JSON; djs-rs runs without compression
+  too. The gateway keeps its other defaults (`rustls-platform-verifier`, `twilight-http`).
+- **REST:** `twilight-http` reaches the plain-HTTP mock through its documented
+  `proxy(host, true)`; its rate limiter on (the default) is the headline, off
+  (`ratelimiter(None)`) is shown as a bound.
+- **No reliability section:** the fault-injection comparison stays with serenity
+  (`VS_SERENITY.md`); D-385 asks for the performance set.
+
 ---
 
 ## Open questions (to ask the owner when relevant)
