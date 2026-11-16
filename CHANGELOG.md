@@ -8,10 +8,18 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
-- The guide (D-376–D-382): an mdBook in `book/`, published with the API reference at
+- The guide (D-376–D-382, D-386): an mdBook in `book/`, published with the API reference at
   https://kotoanidev.github.io/djs-rs/ by a new `Book` workflow; its listings are examples
-  of the `djs-rs-guide` crate, so they keep compiling. Written so far: the introduction,
-  installation, the first bot, events and intents, and slash commands.
+  of the `djs-rs-guide` crate, so they keep compiling. Chapters: the introduction,
+  installation, the first bot, events and intents, slash commands, components and embeds,
+  the cache, the REST API, sharding, voice, and a migration chapter from discord.js.
+- Every public type and function names its discord.js counterpart in its docs (D-386,
+  C-134): 850 items got the line, each name checked against discord.js's typings.
+- A logo (`assets/logo.svg`, D-390), also the guide's favicon; a new README.
+- GitHub (D-389): issue forms (bug, feature, question), a pull request template,
+  Dependabot (cargo and Actions, weekly), `SECURITY.md` with private vulnerability
+  reporting, Discussions, labels; `CONTRIBUTING.md` and `docs/ARCHITECTURE.md` rewritten.
+- Tests for the gaps a coverage audit found (D-383, C-132): line coverage 90.4 % → 93.5 %.
 - The `djs-voice` crate, Phase 10 (D-311–D-328): its skeleton and dependencies (`davey` for
   DAVE, `chacha20poly1305` and `aes-gcm`; MSRV 1.89 kept), with MPL-2.0 allowed only for
   the three `hpke-rs` crates under `davey` (D-326, D-329, noted in `NOTICE`) and the seven
