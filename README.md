@@ -1,49 +1,36 @@
+<div align="center">
+
+<img src="assets/logo.svg" alt="" width="112" height="112">
+
 # djs-rs
 
-**A high-performance Rust library for building Discord bots, modelled on discord.js v14.**
+**Discord bots in Rust, the way discord.js writes them, several times faster and leaner.**
 
-> ⚠️ **Status: pre-alpha.** Bots work end to end (events, commands, the cache, sharding,
-> voice), but djs-rs is not on crates.io yet and its API can still change. See
-> [`ROADMAP.md`](ROADMAP.md) for the plan and [`PROGRESS.md`](PROGRESS.md) for where things stand.
+[![CI](https://github.com/kotoanidev/djs-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/kotoanidev/djs-rs/actions/workflows/ci.yml)
+[![Guide](https://img.shields.io/badge/guide-read-5865f2)](https://kotoanidev.github.io/djs-rs/)
+[![API reference](https://img.shields.io/badge/docs-API%20reference-6f42c1)](https://kotoanidev.github.io/djs-rs/api/djs_rs/)
+[![MSRV](https://img.shields.io/badge/MSRV-1.89-orange)](#status)
+[![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)](#license)
 
-**[The guide](https://kotoanidev.github.io/djs-rs/)** walks through building a bot from the
-first lines on; the [API reference](https://kotoanidev.github.io/djs-rs/api/djs_rs/index.html)
-is published next to it.
+[Guide](https://kotoanidev.github.io/djs-rs/) ·
+[API reference](https://kotoanidev.github.io/djs-rs/api/djs_rs/) ·
+[Examples](crates/djs-rs/examples) ·
+[Benchmarks](#how-it-compares) ·
+[Coming from discord.js](https://kotoanidev.github.io/djs-rs/coming-from-discord-js.html)
 
-djs-rs rebuilds the discord.js v14 ecosystem from scratch in Rust. The goal is to offer the
-familiar discord.js developer experience — `Client`, events, rich structures, managers,
-builders, collectors — on top of low-level layers designed for maximum throughput and minimal
-memory use, with complete documentation for every public item.
+</div>
 
-## How it compares with discord.js
+djs-rs is a library for writing Discord bots in Rust, rebuilt from scratch after the
+discord.js v14 ecosystem: a `Client` with events, managers and rich structures, builders,
+collectors, a cache, sharding and voice, all with the names a discord.js developer already
+knows. Under that familiar API sit low-level crates built for throughput and small memory,
+each usable on its own.
 
-Measured on one machine against discord.js 14.28.1 on Node.js 22, with the same inputs and the
-same mock Discord servers — [the full results, method and caveats](docs/VS_NODE.md):
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/vs-node/summary-dark.svg">
-  <img alt="How many times better djs-rs is than discord.js, per scenario; the numbers are in docs/VS_NODE.md" src="docs/vs-node/summary-light.svg">
-</picture>
-
-## How it compares with serenity
-
-Measured the same way against [serenity](https://github.com/serenity-rs/serenity) 0.12.5,
-a long-standing, widely used Rust library, in its default configuration: performance, resources and
-reliability under injected gateway and API faults, including where serenity does better —
-[the full results, method and caveats](docs/VS_SERENITY.md):
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/vs-serenity/summary-dark.svg">
-  <img alt="djs-rs vs serenity, scenario by scenario: how many times better the winner is; the numbers are in docs/VS_SERENITY.md" src="docs/vs-serenity/summary-light.svg">
-</picture>
-
-## Planned example
-
-```rust,ignore
+```rust,no_run
 use djs_rs::prelude::*;
 
 #[tokio::main]
-async fn main() -> Result<(), Error> {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = Client::builder(std::env::var("DISCORD_TOKEN")?)
         .intents(Intents::GUILDS | Intents::GUILD_MESSAGES | Intents::MESSAGE_CONTENT)
         .build();
@@ -55,46 +42,131 @@ async fn main() -> Result<(), Error> {
         Ok(())
     });
 
-    client.login().await
+    client.command("ping", |ctx, cmd| async move {
+        cmd.reply(&ctx, "Pong!").await?;
+        Ok(())
+    });
+
+    client.login().await?;
+    Ok(())
 }
 ```
 
-*(The final API may differ in details; it is designed as development progresses.)*
+## Why djs-rs
 
-## Crates
+- **You already know it.** `client.on(Events::MessageCreate, …)`, `msg.reply`,
+  `ctx.guilds().fetch(id)`, `EmbedBuilder`, `SlashCommandBuilder`, collectors,
+  `Collection`: discord.js's concepts and names, in Rust. Every public item of the API
+  reference names its discord.js counterpart, so its search finds things by their
+  discord.js name, and the guide has a
+  [migration chapter](https://kotoanidev.github.io/djs-rs/coming-from-discord-js.html).
+- **Fast, and measured.** Against discord.js, serenity and twilight on the same machine,
+  with the same inputs and the same mock Discord servers ([below](#how-it-compares)): events
+  decoded several times faster, a fraction of the memory per cached member, many times the
+  REST throughput. Every claim links to a script anyone can re-run.
+- **Complete.** Every Discord API v10 type and gateway event, every endpoint a bot uses;
+  slash commands,
+  components (including Components V2) and modals with routers; collectors; an optional,
+  configurable cache; automatic sharding in one process or across many; voice with
+  Discord's end-to-end encryption (DAVE).
+- **Documented.** A [guide](https://kotoanidev.github.io/djs-rs/) from the first bot to
+  sharding and voice, with compiled examples; rustdoc on every public item, with Discord's
+  docs page and the discord.js counterpart.
+- **Reliable.** 1,200+ tests against mock Discord servers (93 % line coverage),
+  extreme-load tests for every crate, fault injection against the gateway and the API, and
+  no `unsafe` code in the library.
+- **Pay for what you use.** No cache unless you ask for one, features for voice and
+  multi-process sharding, and every layer (`djs-rest`, `djs-gateway`, `djs-model`, …) a crate
+  of its own.
 
-djs-rs is a Cargo workspace that mirrors the discord.js monorepo. Use the main crate for the
-full experience, or pick individual layers.
+## Getting started
 
-| Crate | discord.js counterpart | Purpose |
+```toml
+[dependencies]
+djs-rs = "0.1.0-alpha.1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+```
+
+Then follow [the guide](https://kotoanidev.github.io/djs-rs/getting-started/installation.html):
+creating the application in Discord's Developer Portal, the first bot, events, slash
+commands, components, the cache, REST, sharding and voice. The repository's
+[examples](crates/djs-rs/examples) are complete bots: `ping`, `slash_commands`,
+`components`, `moderation`, `advanced`.
+
+Cargo features of `djs-rs`:
+
+| Feature | Default | What it adds |
 |---|---|---|
-| [`djs-rs`](crates/djs-rs) | `discord.js` | High-level client, events, structures, managers |
-| [`djs-model`](crates/djs-model) | `discord-api-types` | Every Discord API v10 type |
-| [`djs-rest`](crates/djs-rest) | `@discordjs/rest` | REST client with rate limiting |
-| [`djs-gateway`](crates/djs-gateway) | `@discordjs/ws` | Gateway connection and sharding |
-| [`djs-cache`](crates/djs-cache) | *(part of discord.js)* | Configurable in-memory cache |
-| [`djs-builders`](crates/djs-builders) | `@discordjs/builders` | Embed, command, component and modal builders |
-| [`djs-collection`](crates/djs-collection) | `@discordjs/collection` | `Collection` map type |
-| [`djs-formatters`](crates/djs-formatters) | `@discordjs/formatters` | Markdown, mention and timestamp helpers |
-| [`djs-util`](crates/djs-util) | `@discordjs/util` | Shared utilities |
-| `djs-voice` *(later)* | `@discordjs/voice` | Voice connections |
+| `zstd-stream` | yes | `zstd-stream` gateway compression (needs a C compiler) |
+| `zlib-stream` | no | `zlib-stream` gateway compression, pure Rust |
+| `sharding` | no | `djs_rs::sharding`: a `ClusterManager` running the shards in several processes |
+| `voice` | no | `djs_rs::voice`: voice channels, audio playback and receiving, with DAVE (needs CMake) |
+| `native-roots` | no | trusts the system's certificates besides the bundled ones |
 
-## Design highlights
+## How it compares
 
-- **Layered like discord.js:** idiomatic, zero-overhead low-level crates; a discord.js-style
-  high-level API on top.
-- **Built for speed:** `hyper` 1.x HTTP, `tokio-websockets` gateway, `zstd-stream` transport
-  compression, single-pass `serde_json` decoding (simd-json and sonic-rs were measured and
-  brought no gain), configurable cache with `DashMap`.
-- **Fully documented:** every public item has rustdoc; docs are built with `-D warnings` in CI.
-- **tokio-native**, `rustls` by default (optional `native-tls`).
-- **MSRV 1.89**, edition 2024.
+Each comparison runs the same bot on the same laptop, with the same gateway payloads and
+REST responses from the same mock Discord servers, both clients pinned to the same CPU
+cores, and no network. Each page has the method, every number, and the caveats, including
+where the other library does better.
 
-All design decisions are recorded in [`docs/DECISIONS.md`](docs/DECISIONS.md).
+| | djs-rs | [discord.js](docs/VS_NODE.md) 14 (Node.js 22) | [serenity](docs/VS_SERENITY.md) 0.12 | [twilight](docs/VS_TWILIGHT.md) 0.18 |
+|---|---:|---:|---:|---:|
+| Decode `MESSAGE_CREATE` | **1.40 µs** | 4.75 µs | 7.98 µs | — |
+| Decode `GUILD_CREATE` (1000 members) | **0.67 ms** | 3.20 ms | 4.78 ms | — |
+| Event flood, equal caches (events/s) | **251,061** | 130,653 | 57,387 | — |
+| Memory, idle bot | **6.2 MiB** | 102.6 MiB | 9.7 MiB | — |
+| Memory, 500,000 cached members | **203 MiB** | 504 MiB | 998 MiB | — |
+| REST throughput (requests/s) | **231,392** | 25,621 | 110,078 | — |
 
-## Contributing
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/vs-serenity/summary-dark.svg">
+  <img alt="djs-rs vs serenity, scenario by scenario: how many times better the winner is; the numbers are in docs/VS_SERENITY.md" src="docs/vs-serenity/summary-light.svg">
+</picture>
 
-See [`CONTRIBUTING.md`](CONTRIBUTING.md).
+The library's own measurements, phase by phase (decoding, the gateway, REST, the cache,
+builders, collectors, sharding, voice) are in [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md).
+
+## The crates
+
+`djs-rs` is the one bots depend on; it re-exports the others. Each one also works alone.
+
+| Crate | discord.js counterpart | What it is |
+|---|---|---|
+| [`djs-rs`](crates/djs-rs) | `discord.js` | The client: events, managers, structures, interactions, collectors, sharding |
+| [`djs-model`](crates/djs-model) | `discord-api-types` | Every Discord API v10 type, with fast decoding |
+| [`djs-rest`](crates/djs-rest) | `@discordjs/rest` | The REST client: every endpoint, rate limits, CDN, OAuth2 |
+| [`djs-gateway`](crates/djs-gateway) | `@discordjs/ws` | Gateway shards, compression, the IDENTIFY queue |
+| [`djs-cache`](crates/djs-cache) | the managers' caches | A configurable, pluggable in-memory cache |
+| [`djs-voice`](crates/djs-voice) | `@discordjs/voice` | Voice: calls, playback, receiving, DAVE |
+| [`djs-builders`](crates/djs-builders) | `@discordjs/builders` | Embed, command, component and modal builders, checked |
+| [`djs-formatters`](crates/djs-formatters) | `@discordjs/formatters` | Markdown, mentions, timestamps, escaping |
+| [`djs-collection`](crates/djs-collection) | `@discordjs/collection` | `Collection`, the ordered map with discord.js's helpers |
+| [`djs-util`](crates/djs-util) | `@discordjs/util` | Reserved for shared helpers (empty) |
+
+## Where everything is
+
+| What | Where |
+|---|---|
+| The guide (mdBook) | [kotoanidev.github.io/djs-rs](https://kotoanidev.github.io/djs-rs/), sources in [`book/`](book), its compiled examples in [`book/code`](book/code) |
+| The API reference | [kotoanidev.github.io/djs-rs/api](https://kotoanidev.github.io/djs-rs/api/djs_rs/) (and docs.rs once published) |
+| Example bots | [`crates/djs-rs/examples`](crates/djs-rs/examples) |
+| How the crates fit together | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
+| Every design decision, with its reasons | [`docs/DECISIONS.md`](docs/DECISIONS.md) |
+| Benchmarks and extreme-load results | [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md); the benchmarks in `crates/*/benches`, the stress tests in `crates/*/tests/stress*.rs` |
+| Comparisons | [discord.js](docs/VS_NODE.md), [serenity](docs/VS_SERENITY.md), [twilight](docs/VS_TWILIGHT.md); their harnesses in [`benches/`](benches) |
+| Tests | `crates/*/tests` (integration, against mock servers), unit tests next to the code |
+| What changed | [`CHANGELOG.md`](CHANGELOG.md) |
+| The plan and the current state | [`ROADMAP.md`](ROADMAP.md), [`PROGRESS.md`](PROGRESS.md) |
+| Contributing, security, conduct | [`CONTRIBUTING.md`](CONTRIBUTING.md), [`SECURITY.md`](SECURITY.md), [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) |
+
+## Status
+
+djs-rs is in **alpha** (`0.1.0-alpha.1`): it covers Discord's API and runs bots end to end,
+but its API may still change between alpha releases; the [changelog](CHANGELOG.md) says
+how. It needs Rust 1.89 or newer (edition 2024) and tokio. Bug reports, questions and
+feedback on the API are very welcome: [issues](https://github.com/kotoanidev/djs-rs/issues),
+[discussions](https://github.com/kotoanidev/djs-rs/discussions).
 
 ## License
 

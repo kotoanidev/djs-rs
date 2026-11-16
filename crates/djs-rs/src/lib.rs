@@ -65,3 +65,9 @@ pub mod prelude {
         model::gateway::Intents,
     };
 }
+
+/// The repository README's example, compiled as a doctest (not run: it needs a token) so it
+/// cannot drift from the API.
+#[cfg(doctest)]
+#[doc = include_str!("../../../README.md")]
+struct RepositoryReadme;
