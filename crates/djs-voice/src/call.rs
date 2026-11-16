@@ -116,6 +116,8 @@ pub(crate) struct Inner {
     subscribers: Arc<Mutex<Subscribers>>,
     channel: watch::Receiver<Option<ChannelId>>,
     tracks: AtomicU64,
+    /// The track `play` started last: the next `play` ends it at once.
+    current: Mutex<Option<Arc<TrackState>>>,
 }
 
 #[derive(Default)]
@@ -215,6 +217,7 @@ impl Call {
                 subscribers,
                 channel: channel_rx,
                 tracks: AtomicU64::new(0),
+                current: Mutex::new(None),
             }),
         }
     }
@@ -272,9 +275,15 @@ impl Call {
             input,
             state: Arc::clone(&state),
         };
+        // Under the lock, so that the call plays the tracks in the order they were ended.
+        let mut current = lock(&self.inner.current);
+        if let Some(previous) = current.replace(Arc::clone(&state)) {
+            previous.end();
+        }
         if !self.command(command) {
             state.end();
         }
+        drop(current);
         handle
     }
 
@@ -536,10 +545,16 @@ impl Task {
             Step::Connection(event) => self.connection_event(event),
             Step::Connected(channel_id, result) => self.connected(channel_id, result),
             Step::JoinTimeout => {
-                if let Some(join) = self.join.take() {
+                let join = self.join.take();
+                if let Err(ending) = self.idle(|| JoinError::Timeout) {
+                    // `end` answers it, once the call is out of the manager.
+                    self.join = join;
+                    return Err(ending);
+                }
+                if let Some(join) = join {
                     answer(join.waiters, || Err(JoinError::Timeout));
                 }
-                self.idle(|| JoinError::Timeout)
+                Ok(())
             }
             Step::GraceOver => Err(Ending::new(
                 Some(DisconnectReason::Closed { code: DISCONNECTED }),
@@ -731,15 +746,16 @@ impl Task {
                         _ => JoinError::Connection(Box::new(Arc::clone(&error))),
                     }
                 };
-                if let Some(join) = self.join.take() {
-                    answer(join.waiters, || Err(join_error()));
-                }
                 // A move that failed ends the call, unless the old connection is still there.
                 self.grace = None;
                 if self.live.is_some() {
+                    if let Some(join) = self.join.take() {
+                        answer(join.waiters, || Err(join_error()));
+                    }
                     tracing::warn!(guild = %self.guild_id, %error, "connecting the call again failed");
                     return Ok(());
                 }
+                // `end` answers a join, once the call is out of the manager.
                 let reason = self
                     .connected_once
                     .then(|| DisconnectReason::Lost(error as Arc<dyn Error + Send + Sync>));

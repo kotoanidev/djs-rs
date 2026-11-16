@@ -29,6 +29,11 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   against an MLS external sender built with openmls (dev-dependencies only, D-332). The
   voice connection runs DAVE (C-123): it joins each new session's group, returns once the
   bot can send media (within the 10 s, D-322), and the sent audio is end-to-end encrypted.
+  The public voice API of step 1 (D-334–D-344, C-124): `VoiceManager` (join, move, `get`,
+  `process` for the main gateway's events) over a `VoiceGateway` adapter, `Call` (play,
+  events, leave), `CallEvent`, `DisconnectReason`, `Input::ogg`/`ogg_file`, `TrackHandle`
+  (play, pause, stop), `JoinOptions` and the errors `JoinError`, `InputError`,
+  `TrackError`; Ogg/Opus played in real time with silence frames when audio stops.
 - Multi-process sharding, first step (D-284, D-285, D-296, D-297, D-300–D-303, C-112), behind
   the new `sharding` feature: `ClusterManager` starts the bot's executable again once per
   group of `shards_per_process` shards (1 by default, Discord's recommended count or a fixed

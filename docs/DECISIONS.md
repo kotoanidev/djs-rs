@@ -5082,6 +5082,46 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   with a new key package and no audio until its group is joined. 19 connection tests, 20
   repeated runs: no failure.
 
+### C-124 — The voice API's details (D-334–D-344, step 1e)
+- **Names not asked, following the project's patterns:** `CallEvents` (the stream of
+  `Call::events`, as `ClusterEvents`), `Call::guild_id()` and `Call::channel_id()` (the
+  channel connected to; `None` while connecting again or ended), `JoinError::Cancelled`
+  (the call was left, or joined elsewhere, during the join), `InputError::{Io, NotOgg,
+  NotOpus}` (a malformed Opus header is `NotOpus`).
+- **`Call::leave` returns `Result<(), Box<dyn Error + Send + Sync>>`:** the gateway's
+  error if Opcode 4 could not be sent; the call ends either way.
+- **`VoiceManager::new` takes a `shard_count` of 0 as 1.** `CallEvent::Speaking` and
+  `DisconnectReason::Closed` are `#[non_exhaustive]` variants (fields can be added);
+  `DisconnectReason::Lost` holds an `Arc<dyn Error + Send + Sync>` so events are `Clone`
+  (each `events()` stream gets every event).
+- **Joining:** the manager sends the call's task the join, then Opcode 4. The task
+  connects once the bot's `VOICE_STATE_UPDATE` for the channel and a `VOICE_SERVER_UPDATE`
+  arrived after it, all within the 10 s (D-322, the connection included). A join to the
+  channel the call is connected to returns at once. A call that ends leaves the manager
+  before its join is answered, so a new join makes a new call (a join that reached an
+  ending call tries once more).
+- **Moves:** a `VOICE_SERVER_UPDATE` outside a join connects again
+  (`CallEvent::Reconnected`); an endpoint of `null` waits for the next one. After a close
+  with 4014 the call waits 5 s for a new voice server (a move, as `@discordjs/voice`'s
+  guide does) and then ends; a `VOICE_STATE_UPDATE` without a channel ends it at once.
+- **The player (one per call, in its task):** an input is read ahead in its own task, up
+  to 50 packets (about 1 s), so a slow source cannot stall the call. Packets are sent at
+  their time, paced by their durations (samples at 48 kHz); a frame more than 100 ms late
+  starts the pace over instead of a burst. Speaking (microphone) is sent before the first
+  audio on each connection; pausing, stopping and a track's end send 5 frames of silence
+  (Discord's "Voice Data Interpolation"), then Speaking 0. While the call has no
+  connection, the pace goes on and audio is dropped. `play` ends the previous track at
+  once (its handles see `Ended`), under a lock that keeps the order of tracks.
+- **An input that fails while playing ends its track** (logged with `tracing::warn!`);
+  track events come with step 2.
+- **Dependencies:** djs-voice enables tokio's `fs` and `io-util` (files and `AsyncRead`).
+- **Tests:** a mock main gateway (a `VoiceGateway` handing Opcode 4 to the test, and
+  `process`ed events) with the connection tests' voice server: join, real-time pacing and
+  RTP numbering, pause/resume/stop with silence, leave; a track to its end and replaced;
+  timeout; a failed Opcode 4; joining again (same call, new connection); a moderator move;
+  disconnection in both orders; a stop code; user events; ignored events. 20 repeated
+  runs: no failure.
+
 ---
 
 ## Open questions (to ask the owner when relevant)
