@@ -19,3 +19,7 @@
 - [The REST API](going-further/rest.md)
 - [Sharding](going-further/sharding.md)
 - [Voice](going-further/voice.md)
+
+# Reference
+
+- [Coming from discord.js](coming-from-discord-js.md)
