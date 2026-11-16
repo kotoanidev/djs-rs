@@ -737,7 +737,7 @@ fields with `Deref` to `new`). Steps:
    encryption in `Sender::send`.
    **Next: implement step 1** in commits:
    (a) done; (b) done; (c) done; (d) done;
-   (e) **next** (ask the public names first, D-319); `VoiceManager`,
+   (e) **next** (public API decided: D-334–D-344); `VoiceManager`,
    `VoiceGateway`, `Call`, `CallEvent`, `Input`, `TrackHandle`, playback pacing; (f) djs-rs
    `voice` feature; (g) a live test only with the owner's go-ahead (D-275). Live tests need the
    owner's go-ahead (D-275) and a voice channel on the test guild.

@@ -3095,6 +3095,89 @@ and why.
   across calls) may come later in the `VoiceManager` configuration.
 - **Alternatives:** a persistent key from the start, generated once per `VoiceManager`.
 
+### D-334 — `VoiceGateway` sends Opcode 4 synchronously, with an error
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** the trait of D-324 has one method,
+  `fn send(&self, shard_id: u32, command: &UpdateVoiceState) -> Result<(), Box<dyn Error + Send + Sync>>`;
+  the manager computes the guild's shard from `shard_count` and keeps the gateway as
+  `Arc<dyn VoiceGateway>` (no type parameter on `VoiceManager`). djs-gateway's
+  `MessageSender::command` fits it directly.
+- **Alternatives:** an async method (a generic `VoiceManager<G>`, not `dyn`-compatible); a
+  method returning `bool` (no cause for `JoinError`).
+
+### D-335 — In step 1, `play` replaces the track that is playing
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** step 1 plays one track at a time: `call.play(input)` stops the current
+  track (its `TrackHandle` sees it end) and plays the new one. What `play` does with the
+  queue and mixing is decided in step 2 (mixing needs Opus decoding).
+- **Alternatives:** `play` fails while another track plays.
+
+### D-336 — An error type per operation: `JoinError`, `InputError`, `TrackError`
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** `JoinError` (`#[non_exhaustive]`: a timeout, Opcode 4 that could not be
+  sent, the connection's failure as its `source()`) for `join`, `InputError` (I/O, not
+  Ogg/Opus) for `Input`, and `TrackError` (D-339) for track handles, as songbird does.
+- **Alternatives:** one `VoiceError` for the whole crate.
+
+### D-337 — `CallEvent` in step 1: the connection and the users
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** `#[non_exhaustive] enum CallEvent` with `Resumed`, `Reconnected`,
+  `Disconnected(DisconnectReason)` (D-344), `UserJoined(UserId)`, `UserLeft(UserId)` and
+  `Speaking { user_id, ssrc }`: what the voice gateway already sends.
+- **Alternatives:** only the connection's events in step 1, the users and Speaking in
+  step 3 (receiving).
+
+### D-338 — `Input::ogg` and `Input::ogg_file`
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** `Input::ogg(reader)` (any `AsyncRead + Send + Unpin + 'static`) and
+  `Input::ogg_file(path).await?`; step 2 adds `Input::pcm(..)` and `Input::ffmpeg(..)`: the
+  format is in the name.
+- **Alternatives:** `Input::from_reader`/`from_file` with the format detected from the
+  content; `Input::ogg_opus`/`ogg_opus_file`.
+
+### D-339 — `TrackHandle`'s controls return `Result<(), TrackError>`
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** `play()`, `pause()` and `stop()` return `Result<(), TrackError>`;
+  `#[non_exhaustive] enum TrackError` has only `Ended` (the track already ended) for now,
+  and step 2's controls (volume, seeking) add their causes.
+- **Alternatives:** `bool` (a breaking change once step 2 needs other causes).
+
+### D-340 — Joining again moves the same `Call`
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** `join` in a guild where the bot already has a `Call` sends Opcode 4 with
+  the new channel and connects the same `Call` again (a new voice session and DAVE group:
+  its ID is the channel's), returning the same handle, as songbird does.
+- **Alternatives:** `JoinError::AlreadyInCall`; ending the old call and returning a new one.
+
+### D-341 — `join` is deafened, not muted, by default
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** `join` sends `self_deaf: true`, `self_mute: false`, as discord.js's
+  `joinVoiceChannel` does (a bot that does not listen gets no one's audio);
+  `join_with(guild, channel, options)` (D-343) changes them.
+- **Alternatives:** both `false` (songbird); the flags as required parameters.
+
+### D-342 — `manager.get` and `call.leave`
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** `manager.get(guild_id) -> Option<Call>` and `call.leave().await` (D-320),
+  which sends Opcode 4 without a channel and closes the connection: one way out.
+- **Alternatives:** also `manager.leave(guild_id).await` (songbird).
+
+### D-343 — `JoinOptions` with builder methods
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** `#[non_exhaustive] struct JoinOptions` with `Default` (deafened, not
+  muted, D-341) and methods: `JoinOptions::new().self_deaf(false).self_mute(true)`; later
+  steps add options without a breaking change.
+- **Alternatives:** public fields with `..Default::default()`; no `join_with` in step 1.
+
+### D-344 — `DisconnectReason`: `Left`, `Closed { code }`, `Lost`
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** `#[non_exhaustive] enum DisconnectReason` in `CallEvent::Disconnected`:
+  `Left` (`call.leave()`), `Closed { code: u16 }` (the voice gateway closed with a code
+  after which resuming cannot help, such as 4014: disconnected, or the channel deleted),
+  `Lost` (every attempt to resume failed; the cause as its `source()`).
+- **Alternatives:** a variant per known code (`Kicked` for 4014, `CallTerminated` for 4022,
+  …) and `Other { code }`.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
