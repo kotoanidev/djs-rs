@@ -111,7 +111,7 @@ REST, sharding, voice (D-380), each with its example in `book/code/examples/`, b
 7. [ ] GitHub (D-389). Done (C-134): issue forms, PR template, Dependabot, SECURITY.md;
    description, homepage (the guide), 12 topics, Discussions on, private vulnerability
    reporting on, labels (triage, dependencies, performance, security, guide, one
-   `crate: …` per crate). Left: CODE_OF_CONDUCT (Contributor Covenant 2.1, staged without a
+   `crate: …` per crate). Left: CODE_OF_CONDUCT (Contributor Covenant 2.1, staged in `.reference/staged/CODE_OF_CONDUCT.md` without a
    contact; **blocked on the owner**: a contact address for reports, an open question).
 
 ## Done
