@@ -1,0 +1,46 @@
+name: Feature request
+description: Something djs-rs should do, or do differently.
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A missing Discord API feature, an API that could be easier, a discord.js feature
+        without a counterpart. For an open-ended idea, a
+        [discussion](https://github.com/kotoanidev/djs-rs/discussions) may fit better.
+  - type: dropdown
+    id: crate
+    attributes:
+      label: Crate
+      options:
+        - djs-rs
+        - djs-model
+        - djs-rest
+        - djs-gateway
+        - djs-cache
+        - djs-voice
+        - djs-builders
+        - djs-formatters
+        - djs-collection
+        - the guide or the API reference
+        - not sure
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What you are trying to do and what stands in the way.
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: The solution you would like
+      description: How it could look in code. A link to the Discord API docs or to the discord.js counterpart helps.
+      render: rust
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: Workarounds you use now, or other ways it could work.

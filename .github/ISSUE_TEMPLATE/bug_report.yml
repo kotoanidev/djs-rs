@@ -1,0 +1,65 @@
+name: Bug report
+description: Something in djs-rs does not work as documented.
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Please check the [open issues](https://github.com/kotoanidev/djs-rs/issues)
+        first. **Never paste a bot token**, even an old one: reset it in the Developer Portal
+        if it leaked. A security problem goes to a
+        [private report](https://github.com/kotoanidev/djs-rs/security/advisories/new) instead.
+  - type: dropdown
+    id: crate
+    attributes:
+      label: Crate
+      description: Where the bug shows up (pick `djs-rs` if unsure).
+      options:
+        - djs-rs
+        - djs-model
+        - djs-rest
+        - djs-gateway
+        - djs-cache
+        - djs-voice
+        - djs-builders
+        - djs-formatters
+        - djs-collection
+        - the guide or the API reference
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The djs-rs version, or the commit for a git dependency.
+      placeholder: 0.1.0-alpha.1
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce
+      description: The smallest program (or steps) that shows the bug.
+      render: rust
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and errors
+      description: The error, a backtrace (`RUST_BACKTRACE=1`) or `tracing` output (`RUST_LOG=djs_rs=debug`). Remove tokens and IDs you would rather keep private.
+      render: text
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Rust version (`rustc --version`), operating system, enabled features.
+      placeholder: |
+        rustc 1.89.0, Linux x86_64, features = ["voice"]
+    validations:
+      required: true

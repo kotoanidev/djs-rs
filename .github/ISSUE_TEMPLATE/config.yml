@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Discussions
+    url: https://github.com/kotoanidev/djs-rs/discussions
+    about: Ideas, show and tell, and open-ended questions.
+  - name: Report a vulnerability
+    url: https://github.com/kotoanidev/djs-rs/security/advisories/new
+    about: Security problems are reported privately, never in a public issue.

@@ -5673,9 +5673,36 @@ garbage (±1.0 for a frame). Measured with the listeners' side decoded by libopu
   djs-voice (it had passed there before). The gap limit is 60 ms instead of 50: still under
   the 67 ms a seek without filler made (C-127), above a runner's hiccup.
 
+### C-134 — GitHub files and the documentation audit's conventions (D-386, D-389)
+- **Issue forms:** bug, feature and question forms ask for the crate (a dropdown), the
+  version and the environment, warn never to paste a token, and send vulnerabilities to
+  GitHub's private reporting; blank issues are off, Discussions and the private report are
+  the contact links. New bugs and features get a `triage` label.
+- **Dependabot:** weekly, the root workspace's cargo dependencies (minor and patch updates
+  in one grouped pull request) and GitHub Actions (one group). The comparison workspaces
+  (`benches/vs-serenity`, `benches/vs-twilight`) pin the libraries they measure and are
+  not watched.
+- **SECURITY.md:** only the newest alpha is supported; reports through private
+  vulnerability reporting, acknowledged within a week as an aim, not a promise; fix first,
+  advisory with it, the reporter credited unless they decline.
+- **CODE_OF_CONDUCT.md** (Contributor Covenant 2.1, unchanged) waits for the owner's
+  contact address for reports (an open question): the owner's profile shows no public
+  e-mail, and choosing one is the owner's call.
+- **The counterpart line:** `discord.js counterpart: <item>.` on types, traits and
+  functions; `none (<why>)` when discord.js has no counterpart; a discord-api-types type
+  when discord.js only has the raw payload (`… (discord-api-types)`). Fields are not given
+  one: their type's line covers them.
+- **CI's new stable (1.100) lints:** fixed in the code (`single_match_else` in the guide);
+  the manifests' `redundant_homepage` warnings go away when the workspace homepage becomes
+  the guide (D-389), done after the measurements so as not to rebuild every crate mid-run.
+
 ---
 
 ## Open questions (to ask the owner when relevant)
+
+- **A contact for code of conduct reports (D-389, C-134):** the Contributor Covenant needs
+  an address for reports; ask the owner which (an e-mail of their choice, or another
+  channel) before adding `CODE_OF_CONDUCT.md`.
 
 - **Drop the D-328 advisory ignores when `davey` updates (Phase 10):** once a `davey`
   release depends on openmls 0.9 (or later), update it (ask the owner: openmls 0.9 needs

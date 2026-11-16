@@ -1,0 +1,23 @@
+name: Question
+description: How do I do something with djs-rs?
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The [guide](https://kotoanidev.github.io/djs-rs/) and the
+        [API reference](https://kotoanidev.github.io/djs-rs/api/djs_rs/) may already answer
+        it. Questions are also welcome in [Discussions](https://github.com/kotoanidev/djs-rs/discussions).
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+      description: What you want to do, and what you tried.
+    validations:
+      required: true
+  - type: textarea
+    id: code
+    attributes:
+      label: Code
+      description: The relevant part of your bot, if any (without its token).
+      render: rust
