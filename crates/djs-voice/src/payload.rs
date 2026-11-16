@@ -7,8 +7,6 @@
 //! <https://discord.com/developers/docs/topics/opcodes-and-status-codes>; the DAVE messages
 //! in the protocol's whitepaper, <https://daveprotocol.com/#voice-gateway-opcodes>.
 
-#![allow(dead_code, reason = "used by the connection from step 1c")]
-
 use core::{fmt, net::IpAddr};
 
 use djs_model::id::{GuildId, UserId};
@@ -50,8 +48,13 @@ mod op {
 /// The speaking flags of Opcode 5: normal voice.
 pub(crate) const MICROPHONE: u32 = 1 << 0;
 /// Context audio, without the speaking indicator.
+#[expect(dead_code, reason = "a flag Discord defines, not used yet")]
 pub(crate) const SOUNDSHARE: u32 = 1 << 1;
 /// Priority speaker: other speakers are quieter.
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "a flag Discord defines, not used yet")
+)]
 pub(crate) const PRIORITY: u32 = 1 << 2;
 
 /// A JSON message to the voice gateway.

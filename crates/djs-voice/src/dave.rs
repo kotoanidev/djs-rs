@@ -14,8 +14,6 @@
 //! <https://discord.com/developers/docs/topics/voice-connections>, and in its whitepaper,
 //! <https://daveprotocol.com>.
 
-#![allow(dead_code, reason = "used by `Call` from step 1e")]
-
 use std::{
     collections::{HashMap, HashSet},
     num::NonZeroU16,
@@ -112,6 +110,7 @@ impl Dave {
     }
 
     /// The protocol version media is sent with now.
+    #[cfg(test)]
     pub(crate) const fn version(&self) -> u16 {
         self.version
     }

@@ -14,8 +14,6 @@
 //! <https://discord.com/developers/docs/topics/voice-connections>; the tests check this
 //! framing against packets sealed by libsodium, which Discord uses.
 
-#![allow(dead_code, reason = "used by the connection from step 1c")]
-
 use aes_gcm::{
     Aes256Gcm,
     aead::{AeadInOut, KeyInit},
@@ -135,6 +133,13 @@ impl Cipher {
     /// Decrypts a received packet in place and returns where its payload is (after the
     /// header, its CSRCs and its decrypted extension); `None` if the packet is malformed or
     /// does not authenticate.
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "for receiving audio (step 3); the tests' voice server"
+        )
+    )]
     pub(crate) fn open(&self, packet: &mut [u8]) -> Option<core::ops::Range<usize>> {
         let &first = packet.first()?;
         let csrcs = usize::from(first & 0x0F);

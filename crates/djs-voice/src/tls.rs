@@ -1,8 +1,6 @@
 //! TLS for the voice gateway's `wss://` connections (D-330): the same set-up as djs-gateway's,
 //! kept as a copy so the crates stay independent.
 
-#![allow(dead_code, reason = "used by the connection from step 1c")]
-
 use std::sync::Arc;
 
 use tokio_websockets::Connector;

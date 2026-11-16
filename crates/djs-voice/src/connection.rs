@@ -12,8 +12,6 @@
 //! encrypted with DAVE, then for the transport, straight to the UDP socket of the current
 //! session.
 
-#![allow(dead_code, reason = "used by `Call` from step 1e")]
-
 use core::{fmt, time::Duration};
 use std::{
     io,
@@ -208,6 +206,7 @@ pub(crate) enum Command {
 #[derive(Debug)]
 pub(crate) struct Handle {
     commands: mpsc::UnboundedSender<Command>,
+    #[cfg(test)]
     dave: Arc<Mutex<Dave>>,
 }
 
@@ -218,6 +217,7 @@ impl Handle {
     }
 
     /// The DAVE protocol version media is sent with now (0: no end-to-end encryption).
+    #[cfg(test)]
     pub(crate) fn dave_protocol_version(&self) -> u16 {
         lock(&self.dave).version()
     }
@@ -255,6 +255,7 @@ pub(crate) async fn connect(
     )));
     let handle = Handle {
         commands,
+        #[cfg(test)]
         dave: Arc::clone(&dave),
     };
     let sender = Sender::new(udp_rx, Arc::clone(&dave));
@@ -877,4 +878,4 @@ impl Sender {
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

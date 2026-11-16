@@ -5,8 +5,6 @@
 //! Discord documents both in "Voice Packet Structure" and "IP Discovery" of
 //! <https://discord.com/developers/docs/topics/voice-connections>.
 
-#![allow(dead_code, reason = "used by the connection from step 1c")]
-
 use core::net::{IpAddr, SocketAddr};
 
 use crate::crypto::RTP_HEADER;

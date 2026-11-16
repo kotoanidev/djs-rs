@@ -737,7 +737,16 @@ fields with `Deref` to `new`). Steps:
    encryption in `Sender::send`.
    **Next: implement step 1** in commits:
    (a) done; (b) done; (c) done; (d) done;
-   (e) **next** (public API decided: D-334–D-344); `VoiceManager`,
+   (e) **in progress** (public API decided: D-334–D-344): `error.rs` (`JoinError`,
+   `InputError`, `TrackError`), `gateway.rs` (`VoiceGateway`), `input.rs` (`Input::ogg`,
+   `ogg_file`, read ahead in a task), `track.rs` (`TrackHandle`), `call.rs` (`Call`,
+   `CallEvent(s)`, `DisconnectReason`, the call's task: join/move/4014 grace, the player
+   with 20 ms pacing and 5 silence frames), `manager.rs` (`VoiceManager`, `JoinOptions`)
+   written, clippy clean, unit tests pass. **Next in 1e:** E2E tests in
+   `src/manager/tests.rs` (mock gateway + the shared voice mock of
+   `connection/tests.rs`): join → play → pacing/silence → leave, timeout, gateway failure,
+   move, 4014 kick vs move, user events, track controls; then README usage, C-124, gate,
+   commit; `VoiceManager`,
    `VoiceGateway`, `Call`, `CallEvent`, `Input`, `TrackHandle`, playback pacing; (f) djs-rs
    `voice` feature; (g) a live test only with the owner's go-ahead (D-275). Live tests need the
    owner's go-ahead (D-275) and a voice channel on the test guild.

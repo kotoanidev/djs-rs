@@ -2,8 +2,6 @@
 //! table of contents byte (RFC 6716, section 3.1). The player paces packets sent unchanged
 //! (Ogg/Opus input, D-317) by it.
 
-#![allow(dead_code, reason = "used by the player from step 1e")]
-
 /// The samples per channel at 48 kHz of one frame, by the frame-size bits of the
 /// configuration: SILK-only (10, 20, 40 and 60 ms), hybrid (10 and 20 ms) and CELT-only
 /// (2.5, 5, 10 and 20 ms).

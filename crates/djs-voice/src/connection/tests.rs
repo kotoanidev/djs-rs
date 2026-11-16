@@ -23,28 +23,28 @@ use crate::{
     udp::DISCOVERY,
 };
 
-type Server = WebSocketStream<TcpStream>;
+pub(crate) type Server = WebSocketStream<TcpStream>;
 
-const STEP: Duration = Duration::from_secs(5);
-const KEY: [u8; 32] = [7; 32];
-const OTHER_KEY: [u8; 32] = [9; 32];
+pub(crate) const STEP: Duration = Duration::from_secs(5);
+pub(crate) const KEY: [u8; 32] = [7; 32];
+pub(crate) const OTHER_KEY: [u8; 32] = [9; 32];
 /// The address the mock says it sees the client at, so Select Protocol must carry it.
-const SEEN_AT: &str = "203.0.113.5";
-const SEEN_PORT: u16 = 4242;
+pub(crate) const SEEN_AT: &str = "203.0.113.5";
+pub(crate) const SEEN_PORT: u16 = 4242;
 /// The bot's user ID, and the voice channel's.
-const BOT: u64 = 2;
-const CHANNEL: u64 = 3;
+pub(crate) const BOT: u64 = 2;
+pub(crate) const CHANNEL: u64 = 3;
 /// Another user in the call.
-const OTHER: u64 = 5;
+pub(crate) const OTHER: u64 = 5;
 
-struct Mock {
+pub(crate) struct Mock {
     listener: TcpListener,
-    udp: UdpSocket,
-    endpoint: String,
+    pub(crate) udp: UdpSocket,
+    pub(crate) endpoint: String,
 }
 
 impl Mock {
-    async fn new() -> Self {
+    pub(crate) async fn new() -> Self {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let udp = UdpSocket::bind("127.0.0.1:0").await.unwrap();
         let endpoint = format!("ws://{}", listener.local_addr().unwrap());
@@ -55,7 +55,7 @@ impl Mock {
         }
     }
 
-    fn info(&self) -> Info {
+    pub(crate) fn info(&self) -> Info {
         Info {
             guild_id: djs_model::id::GuildId::new(1),
             channel_id: djs_model::id::ChannelId::new(CHANNEL),
@@ -66,7 +66,7 @@ impl Mock {
         }
     }
 
-    async fn accept(&self) -> Server {
+    pub(crate) async fn accept(&self) -> Server {
         let (stream, _) = timeout(STEP, self.listener.accept())
             .await
             .expect("no connection")
@@ -78,7 +78,7 @@ impl Mock {
 
     /// The server's side of a handshake without DAVE: returns the client's Identify. Sends
     /// an undocumented opcode with sequence number 1 between Ready and Session Description.
-    async fn handshake(
+    pub(crate) async fn handshake(
         &self,
         server: &mut Server,
         ssrc: u32,
@@ -89,7 +89,7 @@ impl Mock {
     }
 
     /// [`Mock::handshake`] with the DAVE protocol version `dave`.
-    async fn handshake_with(
+    pub(crate) async fn handshake_with(
         &self,
         server: &mut Server,
         ssrc: u32,
@@ -132,7 +132,7 @@ impl Mock {
         identify
     }
 
-    async fn ready(&self, server: &mut Server, ssrc: u32, modes: &[&str]) {
+    pub(crate) async fn ready(&self, server: &mut Server, ssrc: u32, modes: &[&str]) {
         let port = self.udp.local_addr().unwrap().port();
         send(
             server,
@@ -145,7 +145,7 @@ impl Mock {
     }
 
     /// Answers the client's IP discovery request.
-    async fn discovery(&self, ssrc: u32) {
+    pub(crate) async fn discovery(&self, ssrc: u32) {
         let mut buffer = [0; 1500];
         let (len, from) = timeout(STEP, self.udp.recv_from(&mut buffer))
             .await
@@ -163,7 +163,7 @@ impl Mock {
     }
 
     /// The next UDP packet of at least `min` bytes.
-    async fn packet(&self, min: usize) -> (Vec<u8>, SocketAddr) {
+    pub(crate) async fn packet(&self, min: usize) -> (Vec<u8>, SocketAddr) {
         let mut buffer = [0; 1500];
         loop {
             let (len, from) = timeout(STEP, self.udp.recv_from(&mut buffer))
@@ -177,7 +177,7 @@ impl Mock {
     }
 
     /// The next audio packet, decrypted with `key`: its header and its payload.
-    async fn audio(&self, key: [u8; 32]) -> (Vec<u8>, Vec<u8>) {
+    pub(crate) async fn audio(&self, key: [u8; 32]) -> (Vec<u8>, Vec<u8>) {
         // Keepalives are 4 bytes; audio has a header and the overhead.
         let (mut packet, _) = self.packet(12 + 20).await;
         let range = Cipher::new(Mode::Aes256Gcm, &key)
@@ -187,26 +187,26 @@ impl Mock {
     }
 }
 
-async fn send(server: &mut Server, payload: Value) {
+pub(crate) async fn send(server: &mut Server, payload: Value) {
     server
         .send(Message::text(payload.to_string()))
         .await
         .unwrap();
 }
 
-async fn close(server: &mut Server, code: u16) {
+pub(crate) async fn close(server: &mut Server, code: u16) {
     let code = CloseCode::try_from(code).unwrap();
     server.send(Message::close(Some(code), "")).await.unwrap();
 }
 
 /// Sends a binary DAVE message: sequence number, opcode, payload.
-async fn send_binary(server: &mut Server, seq: u16, op: u8, payload: &[u8]) {
+pub(crate) async fn send_binary(server: &mut Server, seq: u16, op: u8, payload: &[u8]) {
     let message = [&seq.to_be_bytes()[..], &[op], payload].concat();
     server.send(Message::binary(message)).await.unwrap();
 }
 
 /// The payload of the client's next binary message, which must have opcode `op`.
-async fn recv_binary(server: &mut Server, op: u8) -> Vec<u8> {
+pub(crate) async fn recv_binary(server: &mut Server, op: u8) -> Vec<u8> {
     loop {
         let message = timeout(STEP, server.next())
             .await
@@ -222,7 +222,7 @@ async fn recv_binary(server: &mut Server, op: u8) -> Vec<u8> {
 }
 
 /// The next text message from the client, without answering anything.
-async fn recv(server: &mut Server) -> Value {
+pub(crate) async fn recv(server: &mut Server) -> Value {
     loop {
         let message = timeout(STEP, server.next())
             .await
@@ -236,7 +236,7 @@ async fn recv(server: &mut Server) -> Value {
 }
 
 /// The next message from the client with opcode `op`, acknowledging heartbeats on the way.
-async fn recv_op(server: &mut Server, op: u64) -> Value {
+pub(crate) async fn recv_op(server: &mut Server, op: u64) -> Value {
     loop {
         let message = recv(server).await;
         if message["op"] == op {
@@ -250,7 +250,7 @@ async fn recv_op(server: &mut Server, op: u64) -> Value {
 }
 
 /// A client configuration for the tests: quick retries and no keepalives.
-fn config() -> Config {
+pub(crate) fn config() -> Config {
     Config {
         timeout: STEP,
         retry_delays: vec![Duration::from_millis(5); 5],
@@ -260,7 +260,7 @@ fn config() -> Config {
     }
 }
 
-async fn event(events: &mut UnboundedReceiver<ConnectionEvent>) -> ConnectionEvent {
+pub(crate) async fn event(events: &mut UnboundedReceiver<ConnectionEvent>) -> ConnectionEvent {
     timeout(STEP, events.recv())
         .await
         .expect("no event")
@@ -268,7 +268,7 @@ async fn event(events: &mut UnboundedReceiver<ConnectionEvent>) -> ConnectionEve
 }
 
 /// Connects a client to `mock` (SSRC 7, `KEY`), returning the server side too.
-async fn connected(
+pub(crate) async fn connected(
     mock: &Mock,
     config: Config,
     interval: f64,
@@ -548,7 +548,7 @@ async fn closing_ends_the_connection() {
 /// The mock's side of a call with DAVE: the handshake, then the bot joins the group of
 /// `other` through a welcome with transition 1. Returns the server once the transition is
 /// executed, and the bot's key package.
-async fn dave_handshake(
+pub(crate) async fn dave_handshake(
     mock: &Mock,
     sender: &ExternalSender,
     other: &mut davey::DaveSession,

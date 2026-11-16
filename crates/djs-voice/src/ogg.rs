@@ -11,8 +11,6 @@
 //! holds the packets after it back until that many bytes (at most 64 KiB) arrived or the
 //! input ended; libogg does the same.
 
-#![allow(dead_code, reason = "used by `Input` from step 1e")]
-
 use core::{fmt, ops::Range};
 
 /// The bytes every page starts with.
@@ -359,6 +357,13 @@ impl OggOpus {
     }
 
     /// The identification header of the stream being read; `None` before it.
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "for the player's decoding of step 2 (channels, gain)"
+        )
+    )]
     pub(crate) const fn head(&self) -> Option<&OpusHead> {
         self.head.as_ref()
     }
