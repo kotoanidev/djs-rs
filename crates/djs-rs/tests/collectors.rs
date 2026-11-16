@@ -417,6 +417,20 @@ async fn await_component_returns_the_click_or_the_reason() {
         .unwrap_err();
     assert_eq!(error.reason(), EndReason::Time);
     assert_eq!(error.to_string(), "nothing was collected: the time elapsed");
+
+    // On an interaction: a click on its reply (the message answering interaction 600).
+    let ctx = session.ctx.clone();
+    let waiting = tokio::spawn(async move {
+        command(600, 5)
+            .await_component(&ctx)
+            .time(Duration::from_secs(3))
+            .await
+    });
+    sleep(Duration::from_millis(50)).await;
+    session.send(click(502, 5, 31, "elsewhere", 2, None));
+    session.send(click(503, 5, 32, "on the reply", 2, Some(600)));
+    let clicked = timeout(STEP, waiting).await.unwrap().unwrap().unwrap();
+    assert_eq!(clicked.custom_id, "on the reply");
     session.finish().await;
 }
 

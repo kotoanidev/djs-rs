@@ -514,3 +514,27 @@ fn live_v2_text_is_at_most_4000_code_points_in_all() {
         })
     );
 }
+
+#[test]
+fn link_and_premium_buttons_take_every_setting() {
+    let link = ButtonBuilder::link("https://djs-rs.dev")
+        .label("Docs")
+        .emoji(fire())
+        .disabled(true)
+        .id(7)
+        .build_unchecked();
+    assert_eq!(
+        serde_json::to_value(&link).unwrap(),
+        json!({"type": 2, "style": 5, "url": "https://djs-rs.dev", "label": "Docs",
+               "emoji": {"id": null, "name": "🔥"}, "disabled": true, "id": 7})
+    );
+    let premium = ButtonBuilder::premium(SkuId::new(9)).disabled(true).id(8);
+    assert_eq!(
+        premium.clone().build().unwrap(),
+        premium.clone().build_unchecked()
+    );
+    assert_eq!(
+        serde_json::to_value(premium.build_unchecked()).unwrap(),
+        json!({"type": 2, "style": 6, "sku_id": "9", "disabled": true, "id": 8})
+    );
+}

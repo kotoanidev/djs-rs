@@ -147,3 +147,102 @@ fn missing_required_fields_are_errors() {
     assert!(serde_json::from_str::<Channel>(r#"{"id":"1","type":0}"#).is_err());
     assert!(serde_json::from_str::<Channel>(r#"{"id":"1","type":11,"name":"t"}"#).is_err());
 }
+
+/// Every kind of channel, made from the docs' examples with another `type`, and what each
+/// accessor gives for it.
+#[test]
+fn every_kind_answers_every_accessor() {
+    use djs_model::{
+        channel::{DefaultReaction, Overwrite},
+        id::EmojiId,
+    };
+
+    let with_type = |json: &str, kind: u8| -> Channel {
+        let mut value: Value = serde_json::from_str(json).unwrap();
+        value["type"] = kind.into();
+        round_trip(&value.to_string())
+    };
+    let text = include_str!("fixtures/docs/channel_guild_text_channel.json");
+    let voice = include_str!("fixtures/docs/channel_guild_voice_channel.json");
+    let thread = include_str!("fixtures/docs/channel_thread_channel.json");
+    let forum = r#"{"id":"3","type":15,"guild_id":"2","name":"help","position":3,
+        "parent_id":"4","nsfw":false,"topic":null,"last_message_id":null,"rate_limit_per_user":0,
+        "permission_overwrites":[],"available_tags":[],"default_reaction_emoji":null,
+        "default_sort_order":null,"default_forum_layout":0,"flags":0}"#;
+    let directory = r#"{"id":"5","type":14,"guild_id":"2","name":"hub","position":0,
+        "permission_overwrites":[],"parent_id":null,"flags":0}"#;
+    let channels = [
+        (with_type(text, 0), ChannelType::GuildText),
+        (
+            round_trip(include_str!("fixtures/docs/channel_dm_channel.json")),
+            ChannelType::Dm,
+        ),
+        (with_type(voice, 2), ChannelType::GuildVoice),
+        (
+            round_trip(include_str!("fixtures/docs/channel_group_dm_channel.json")),
+            ChannelType::GroupDm,
+        ),
+        (
+            round_trip(include_str!("fixtures/docs/channel_channel_category.json")),
+            ChannelType::GuildCategory,
+        ),
+        (with_type(text, 5), ChannelType::GuildAnnouncement),
+        (with_type(thread, 10), ChannelType::AnnouncementThread),
+        (with_type(thread, 11), ChannelType::PublicThread),
+        (with_type(thread, 12), ChannelType::PrivateThread),
+        (with_type(voice, 13), ChannelType::GuildStageVoice),
+        (round_trip(directory), ChannelType::GuildDirectory),
+        (round_trip(forum), ChannelType::GuildForum),
+        (with_type(forum, 16), ChannelType::GuildMedia),
+    ];
+    for (channel, kind) in &channels {
+        let value = serde_json::to_value(channel).unwrap();
+        assert_eq!(channel.kind(), *kind);
+        assert_eq!(channel.id().to_string(), value["id"].as_str().unwrap());
+        assert_eq!(
+            channel.guild_id().map(|id| id.to_string()),
+            value["guild_id"].as_str().map(str::to_owned),
+            "{kind:?}"
+        );
+        assert_eq!(channel.name(), value["name"].as_str(), "{kind:?}");
+        let parent = value.get("parent_id").and_then(Value::as_str);
+        if matches!(
+            kind,
+            ChannelType::Dm | ChannelType::GroupDm | ChannelType::GuildCategory
+        ) {
+            assert_eq!(channel.parent_id(), None);
+        } else {
+            assert_eq!(
+                channel.parent_id().map(|id| id.to_string()).as_deref(),
+                parent
+            );
+        }
+        assert_eq!(
+            channel.flags().bits(),
+            value.get("flags").and_then(Value::as_u64).unwrap_or(0),
+            "{kind:?}"
+        );
+        let overwrites: Vec<Overwrite> = value
+            .get("permission_overwrites")
+            .filter(|_| channel.as_thread().is_none())
+            .map(|overwrites| serde_json::from_value(overwrites.clone()).unwrap())
+            .unwrap_or_default();
+        assert_eq!(channel.permission_overwrites(), overwrites, "{kind:?}");
+        let is_thread = matches!(
+            kind,
+            ChannelType::AnnouncementThread
+                | ChannelType::PublicThread
+                | ChannelType::PrivateThread
+        );
+        assert_eq!(channel.as_thread().is_some(), is_thread);
+    }
+    // A forum's default reaction, custom or Unicode.
+    assert_eq!(
+        DefaultReaction::custom(EmojiId::new(7)).emoji_id,
+        Some(EmojiId::new(7))
+    );
+    assert_eq!(
+        DefaultReaction::unicode("👍").emoji_name.as_deref(),
+        Some("👍")
+    );
+}

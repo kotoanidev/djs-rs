@@ -127,3 +127,71 @@ fn application_role_connection_metadata() {
     let again: ApplicationRoleConnectionMetadata = serde_json::from_value(json).unwrap();
     assert_eq!(&again, level);
 }
+
+#[test]
+fn discriminators_are_four_digit_strings_or_numbers() {
+    use djs_model::{
+        gateway::PresenceUser,
+        user::{CurrentUser, User},
+    };
+    use serde_json::json;
+
+    let user = |discriminator: serde_json::Value| {
+        serde_json::from_value::<User>(json!({"id": "1", "username": "old",
+            "discriminator": discriminator, "global_name": null, "avatar": null}))
+    };
+    let legacy = user(json!("0042")).unwrap();
+    assert_eq!(
+        (legacy.discriminator, legacy.tag().as_str()),
+        (42, "old#0042")
+    );
+    assert_eq!(
+        serde_json::to_value(&legacy).unwrap()["discriminator"],
+        "0042"
+    );
+    assert_eq!(user(json!(42)).unwrap().discriminator, 42);
+    let migrated = user(json!("0")).unwrap();
+    assert_eq!(
+        serde_json::to_value(&migrated).unwrap()["discriminator"],
+        "0"
+    );
+    for wrong in [
+        json!(""),
+        json!("12345"),
+        json!("12a"),
+        json!(10_000),
+        json!(-1),
+    ] {
+        let error = user(wrong.clone()).unwrap_err();
+        assert!(
+            error.to_string().contains("discriminator"),
+            "{wrong}: {error}"
+        );
+    }
+
+    // The bot's own user.
+    let me: CurrentUser = serde_json::from_value(json!({"id": "2", "username": "bot",
+        "discriminator": "7", "global_name": "Bot", "avatar": null}))
+    .unwrap();
+    assert_eq!((me.display_name(), me.tag().as_str()), ("Bot", "bot#0007"));
+
+    // A presence's partial user: the discriminator may be missing.
+    let partial: PresenceUser =
+        serde_json::from_value(json!({"id": "3", "discriminator": "1234"})).unwrap();
+    assert_eq!(partial.discriminator, Some(1234));
+    assert_eq!(
+        serde_json::to_value(&partial).unwrap()["discriminator"],
+        "1234"
+    );
+    let bare: PresenceUser = serde_json::from_value(json!({"id": "3"})).unwrap();
+    assert_eq!(bare.discriminator, None);
+    assert!(
+        serde_json::to_value(&bare)
+            .unwrap()
+            .get("discriminator")
+            .is_none()
+    );
+    let null: PresenceUser =
+        serde_json::from_value(json!({"id": "3", "discriminator": null})).unwrap();
+    assert_eq!(null.discriminator, None);
+}

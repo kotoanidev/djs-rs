@@ -1068,6 +1068,154 @@ async fn message_actions_send_the_documented_requests() {
     session.finish().await;
 }
 
+/// The structures' own methods send what their managers send.
+#[tokio::test]
+#[expect(clippy::too_many_lines, reason = "one structure after another")]
+async fn the_structures_act_through_their_managers() {
+    use djs_rs::model::{
+        gateway::payload::GuildMemberUpdate,
+        guild::Guild,
+        rest::{EditMessage, ModifyGuildMember},
+        user::User,
+        util::Patch,
+    };
+
+    let session = Session::start(Some(full_cache())).await;
+    let ctx = &session.ctx;
+    let routes = |session: &Session| -> Vec<String> {
+        session
+            .take()
+            .into_iter()
+            .map(|seen| format!("{} {}", seen.method, seen.path))
+            .collect()
+    };
+
+    // A cached message.
+    let original = ctx
+        .messages(CHANNEL)
+        .fetch(MessageId::new(50))
+        .await
+        .unwrap();
+    let mut edit = EditMessage::default();
+    edit.content = Patch::Set("edited".into());
+    assert_eq!(original.edit(ctx, &edit).await.unwrap().content, "edited");
+    original.remove_reaction(ctx, "🔥", None).await.unwrap();
+    original
+        .remove_reaction(ctx, "🔥", Some(UserId::new(7)))
+        .await
+        .unwrap();
+    drop(original.reaction_collector(ctx).build());
+    assert_eq!(
+        routes(&session),
+        [
+            "GET /channels/20/messages/50",
+            "PATCH /channels/20/messages/50",
+            "DELETE /channels/20/messages/50/reactions/%F0%9F%94%A5/@me",
+            "DELETE /channels/20/messages/50/reactions/%F0%9F%94%A5/7",
+        ]
+    );
+
+    // A channel.
+    let channel = ctx.channels().fetch(CHANNEL).await.unwrap();
+    assert_eq!(
+        channel
+            .messages(ctx)
+            .fetch(MessageId::new(51))
+            .await
+            .unwrap()
+            .content,
+        "fetched"
+    );
+    channel
+        .bulk_delete(ctx, vec![MessageId::new(51), MessageId::new(52)], None)
+        .await
+        .unwrap();
+    // Collectors only start when built or awaited: these are dropped before.
+    drop(channel.message_collector(ctx).build());
+    drop(channel.await_messages(ctx));
+    drop(channel.component_collector(ctx).build());
+    drop(channel.await_component(ctx));
+    assert_eq!(
+        routes(&session),
+        [
+            "GET /channels/20",
+            "GET /channels/20/messages/51",
+            "POST /channels/20/messages/bulk-delete",
+        ]
+    );
+
+    // Users, cached and not.
+    let cached = ctx.users().fetch(UserId::new(7)).await.unwrap();
+    cached.create_dm(ctx).await.unwrap();
+    let model: User = serde_json::from_value(user("8")).unwrap();
+    model.create_dm(ctx).await.unwrap();
+    assert_eq!(
+        routes(&session),
+        [
+            "GET /users/7",
+            "POST /users/@me/channels",
+            "POST /users/@me/channels",
+        ]
+    );
+
+    // A cached member and an update payload.
+    let base = format!("/guilds/{GUILD}");
+    let member = ctx.members(GUILD).fetch(UserId::new(7)).await.unwrap();
+    let mut change = ModifyGuildMember::default();
+    change.mute = Patch::Set(true);
+    member.edit(ctx, &change, Some("noise")).await.unwrap();
+    member.timeout(ctx, None, None).await.unwrap();
+    member
+        .set_nickname(ctx, Some("Ferris"), None)
+        .await
+        .unwrap();
+    member.remove_role(ctx, RoleId::new(5), None).await.unwrap();
+    member
+        .ban(ctx, &CreateGuildBan::default(), None)
+        .await
+        .unwrap();
+    let update: GuildMemberUpdate = serde_json::from_value({
+        let mut update = member_json(9);
+        update["guild_id"] = json!(GUILD.to_string());
+        update
+    })
+    .unwrap();
+    update.kick(ctx, None).await.unwrap();
+    let seen = session.take();
+    assert_eq!(seen[1].body, json!({"mute": true}));
+    assert_eq!(seen[1].reason.as_deref(), Some("noise"));
+    assert_eq!(
+        seen.iter()
+            .map(|seen| format!("{} {}", seen.method, seen.path))
+            .collect::<Vec<_>>(),
+        [
+            format!("GET {base}/members/7"),
+            format!("PATCH {base}/members/7"),
+            format!("PATCH {base}/members/7"),
+            format!("PATCH {base}/members/7"),
+            format!("DELETE {base}/members/7/roles/5"),
+            format!("PUT {base}/bans/7"),
+            format!("DELETE {base}/members/9"),
+        ]
+    );
+
+    // A guild, cached and not.
+    let model: Guild = serde_json::from_value(guild()).unwrap();
+    let guild = ctx.guilds().fetch(GUILD).await.unwrap();
+    assert_eq!(guild.emojis(ctx).list().await.unwrap().len(), 2);
+    let invites = model.invites(ctx).await.unwrap();
+    assert!(invites.get("g3").is_some());
+    assert_eq!(
+        routes(&session),
+        [
+            format!("GET {base}"),
+            format!("GET {base}/emojis"),
+            format!("GET {base}/invites"),
+        ]
+    );
+    session.finish().await;
+}
+
 #[tokio::test]
 async fn users_and_guilds() {
     let session = Session::start(Some(full_cache())).await;

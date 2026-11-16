@@ -619,6 +619,16 @@ fn unknown_responses_and_attachment_ids() {
         serde_json::to_string(&AttachmentRequest::existing(AttachmentId::new(5))).unwrap(),
         r#"{"id":"5"}"#
     );
+    // Neither an index nor a snowflake.
+    for json in [r#"{"id":-1}"#, r#"{"id":true}"#, r#"{"id":"x"}"#] {
+        let error = serde_json::from_str::<AttachmentRequest>(json).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("an upload index or a snowflake ID"),
+            "{json}: {error}"
+        );
+    }
 }
 
 #[test]

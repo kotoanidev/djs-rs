@@ -338,3 +338,64 @@ pub struct ModifyGuildScheduledEvent {
     #[serde(skip_serializing_if = "Patch::is_keep")]
     pub recurrence_rule: Patch<RecurrenceRuleData>,
 }
+
+#[cfg(test)]
+mod tests {
+    use serde_json::{Value, json};
+
+    use super::*;
+    use crate::guild_scheduled_event::{RecurrenceMonth, RecurrenceWeekday};
+
+    fn start() -> Timestamp {
+        Timestamp::parse("2026-12-01T18:00:00.000000+00:00").unwrap()
+    }
+
+    fn json(rule: &RecurrenceRuleData) -> Value {
+        let mut value = serde_json::to_value(rule).unwrap();
+        value.as_object_mut().unwrap().remove("start");
+        value
+    }
+
+    #[test]
+    fn recurrence_rules_as_discord_writes_them() {
+        use RecurrenceWeekday::{Friday, Monday, Tuesday};
+
+        assert_eq!(
+            json(&RecurrenceRuleData::daily(start())),
+            json!({"frequency": 3, "interval": 1})
+        );
+        assert_eq!(
+            json(&RecurrenceRuleData::daily_on(start(), [Monday, Tuesday])),
+            json!({"frequency": 3, "interval": 1, "by_weekday": [0, 1]})
+        );
+        assert_eq!(
+            json(&RecurrenceRuleData::weekly(start(), Friday)),
+            json!({"frequency": 2, "interval": 1, "by_weekday": [4]})
+        );
+        assert_eq!(
+            json(&RecurrenceRuleData::every_other_week(start(), Friday)),
+            json!({"frequency": 2, "interval": 2, "by_weekday": [4]})
+        );
+        assert_eq!(
+            json(&RecurrenceRuleData::monthly(start(), 1, Monday)),
+            json!({"frequency": 1, "interval": 1, "by_n_weekday": [{"n": 1, "day": 0}]})
+        );
+        assert_eq!(
+            json(&RecurrenceRuleData::yearly(
+                start(),
+                RecurrenceMonth::July,
+                4
+            )),
+            json!({"frequency": 0, "interval": 1, "by_month": [7], "by_month_day": [4]})
+        );
+    }
+
+    #[test]
+    fn a_voice_event_names_its_channel() {
+        let event = CreateGuildScheduledEvent::voice(ChannelId::new(5), "Movie night", start());
+        let value = serde_json::to_value(&event).unwrap();
+        assert_eq!(value["channel_id"], "5");
+        assert_eq!(value["entity_type"], 2);
+        assert_eq!(value["name"], "Movie night");
+    }
+}

@@ -56,7 +56,13 @@ REST, sharding, voice (D-380), each with its example in `book/code/examples/`, b
    pause, resume and seek; PCM; Ogg at 0.5 then 1.0 and a seek): **the owner heard
    everything clean**, so the click fixes (C-127) and receiving hold live. The probe is
    deleted again.
-2. [ ] Coverage audit with `cargo-llvm-cov`, tests for the gaps (D-383).
+2. [x] Coverage audit with `cargo-llvm-cov`, tests for the gaps (D-383, C-132): lines
+   90.4 % → 93.5 %, functions 89.8 % → 93.0 %. New tests: every gateway dispatch into the
+   client's events, the cache's views, every CDN path, the gateway config, OAuth2 URLs,
+   JSON values, the managers' and structures' remaining routes, the collectors' limits and
+   disposal, every channel kind's accessors, the model's custom deserializers, recurrence
+   rules and builders. What stays low is ignored measurement code (codec, input, DAVE),
+   macro output, and functions only doctests check (not counted on stable).
 3. [ ] Every benchmark again under the balanced profile: Phases 1–10 (`docs/PERFORMANCE.md`),
    `docs/VS_NODE.md`, `docs/VS_SERENITY.md` (D-384); then a new `docs/VS_TWILIGHT.md`
    (D-385).

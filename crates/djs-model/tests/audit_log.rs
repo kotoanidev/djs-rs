@@ -280,3 +280,37 @@ fn values_round_trip_every_json_shape() {
     assert_eq!(values[0].to_type::<Option<u8>>(), Ok(None));
     assert_eq!(values[2].to_type::<Option<u8>>(), Ok(Some(0)));
 }
+
+#[test]
+fn optional_entry_numbers_are_decimal_strings() {
+    use djs_model::audit_log::AuditLogEntryOptions;
+
+    let options: AuditLogEntryOptions = serde_json::from_value(
+        json!({"count": "5", "delete_member_days": 7, "members_removed": null}),
+    )
+    .unwrap();
+    assert_eq!(options.count, Some(5));
+    assert_eq!(options.delete_member_days, Some(7));
+    assert_eq!(options.members_removed, None);
+    let value = serde_json::to_value(&options).unwrap();
+    assert_eq!(
+        (&value["count"], &value["delete_member_days"]),
+        (&json!("5"), &json!("7"))
+    );
+    assert!(value.get("members_removed").is_none());
+    for wrong in [
+        json!("x"),
+        json!(true),
+        json!(5_000_000_000_u64),
+        json!("5000000000"),
+    ] {
+        let error =
+            serde_json::from_value::<AuditLogEntryOptions>(json!({ "count": wrong })).unwrap_err();
+        assert!(!error.to_string().is_empty(), "{wrong}");
+    }
+    let error = serde_json::from_value::<AuditLogEntryOptions>(json!({"count": true})).unwrap_err();
+    assert!(
+        error.to_string().contains("a number as a decimal string"),
+        "{error}"
+    );
+}

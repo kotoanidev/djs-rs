@@ -415,3 +415,49 @@ fn allowed_mentions() {
     );
     assert!(mentions.replied_user && mentions.roles.is_empty());
 }
+
+#[test]
+fn interaction_metadata_of_every_kind() {
+    use djs_model::id::{InteractionId, MessageId};
+    use serde_json::json;
+
+    for (kind, expected) in [
+        (2, InteractionType::ApplicationCommand),
+        (3, InteractionType::MessageComponent),
+        (5, InteractionType::ModalSubmit),
+        (4, InteractionType::ApplicationCommandAutocomplete),
+    ] {
+        let json = json!({
+            "id": "7", "type": kind,
+            "user": {"id": "8", "username": "nelly", "discriminator": "0",
+                     "global_name": null, "avatar": null},
+            "authorizing_integration_owners": {"0": "9"},
+            "original_response_message_id": "10",
+            // Required for components (the clicked message) and modals (what showed the
+            // modal); the other kinds ignore them.
+            "interacted_message_id": "11",
+            "triggering_interaction_metadata": {
+                "id": "12", "type": 2,
+                "user": {"id": "8", "username": "nelly", "discriminator": "0",
+                         "global_name": null, "avatar": null},
+                "authorizing_integration_owners": {"0": "9"}
+            }
+        });
+        let metadata: InteractionMetadata = serde_json::from_value(json.clone()).unwrap();
+        assert_eq!(metadata.kind(), expected);
+        assert_eq!(metadata.id(), InteractionId::new(7));
+        assert_eq!(metadata.user().username, "nelly");
+        assert!(
+            metadata
+                .authorizing_integration_owners()
+                .guild_install
+                .is_some(),
+            "{kind}"
+        );
+        assert_eq!(
+            metadata.original_response_message_id(),
+            Some(MessageId::new(10))
+        );
+        assert_eq!(serde_json::to_value(&metadata).unwrap()["type"], kind);
+    }
+}

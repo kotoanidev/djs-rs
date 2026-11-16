@@ -5657,6 +5657,12 @@ garbage (±1.0 for a frame). Measured with the listeners' side decoded by libopu
   configuration 97 %, the cache's views 95 %, the guild command and soundboard managers
   97 %. A test found that a manager's `delete` leaves the cache to the gateway's delete event
   (D-236, as designed), so the stage test fetches another channel's stage instead.
+- **Final (2026-11-16):** 93.5 % of lines, 93.0 % of regions, 93.0 % of functions, after
+  tests for OAuth2 URLs, the collectors' limits and disposal, the structures' own methods,
+  every channel kind's accessors, the model's custom deserializers (discriminators, audit
+  log numbers, attachment IDs, interaction metadata), recurrence rules and the link,
+  premium and container builders. No target is enforced in CI: the rest is ignored
+  measurement code (`codec`, `input`, `dave`), macro output, and doctested functions.
 
 ---
 

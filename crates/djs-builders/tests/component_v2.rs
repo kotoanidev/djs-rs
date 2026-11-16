@@ -353,3 +353,24 @@ fn an_oversized_v2_message_is_rejected_for_its_size() {
         })
     );
 }
+
+#[test]
+fn a_container_of_text_and_components() {
+    let card = ContainerBuilder::default()
+        .text("Welcome")
+        .components([
+            TextDisplayBuilder::new("one"),
+            TextDisplayBuilder::new("two"),
+        ])
+        .build()
+        .unwrap();
+    let value = serde_json::to_value(&card).unwrap();
+    let texts: Vec<&str> = value["components"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|text| text["content"].as_str().unwrap())
+        .collect();
+    assert_eq!(texts, ["Welcome", "one", "two"]);
+    assert_eq!(ContainerBuilder::default(), ContainerBuilder::new());
+}
