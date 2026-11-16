@@ -3323,6 +3323,16 @@ and why.
   removes it from the queue (`Ended(Stopped)`); `pause()` makes it start paused.
 - **Alternatives:** a waiting track shown as `Paused` at position 0.
 
+### D-362 — FFmpeg's errors: `InputError::FfmpegMissing` and `InputError::Ffmpeg`
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** `Input::ffmpeg` starts the program when its track starts to play, so its
+  errors end the track (`TrackEnd::Failed`): `InputError::FfmpegMissing` when there is no
+  `ffmpeg` on `PATH` (the most common mistake, with a clear hint), and `InputError::Ffmpeg
+  { code: Option<i32>, message: String }` when FFmpeg exits with an error, `message` being
+  the last lines of its standard error ("No such file", "403 Forbidden", …).
+- **Alternatives:** one `Ffmpeg` variant for both (no program: `code: None` and the
+  system's message); only `InputError::Io`.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
@@ -5287,6 +5297,37 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   against a mock gateway (READY, then the two voice events for the Opcode 4 it gets) and a
   mock voice server: the join through the shard (deafened), Identify's fields, shutdown
   ending the call with `Left` and closing the voice connection; a join before `login`.
+
+### C-126 — The player of step 2 (D-350–D-362)
+- **The queue is shared state, not task state:** a `std::sync::Mutex` (never held across
+  an `await`) holds the current track and the waiting ones, with their inputs. The handles
+  change it at once (`play`, `enqueue`, `skip`, `clear`, `stop`), so `len()` and
+  `current()` are exact right after them; the call's task only reconciles: it starts
+  whatever is current, and moves to the next track when one ends. Whoever ends a track
+  sets its reason once (the first wins) and sends `Ended` to its event streams.
+- **Stopping the current track** (`track.stop()`) moves the queue to the next track, as
+  `skip()` does (reason `Stopped` rather than `Skipped`); `clear()` ends the waiting tracks
+  only (`Stopped`), the current one goes on. `skip()` returns whether there was a track;
+  `len()` counts the current track and the waiting ones (as songbird), with `is_empty()`.
+- **Where audio is processed:** a track's reader task reads ahead (about a second) raw
+  frames: Opus packets of an Ogg input, or 20 ms PCM blocks of `Input::pcm` and FFmpeg.
+  The call's task turns each into one packet when it is due: an Opus packet at volume 1.0
+  as it is, otherwise decoded (a decoder per track, made when first needed), scaled
+  (soft-clipped above 1.0) and encoded with the same duration (one encoder per call), so a
+  volume change is heard at the next frame. About 0.1–0.2 ms of CPU per encoded frame.
+- **FFmpeg** runs as `ffmpeg -nostdin -hide_banner -loglevel error [-ss <s>] [reconnect
+  options for http(s)] -i <source> -vn -f s16le -ar 48000 -ac 2 pipe:1`, killed when its
+  track ends (`kill_on_drop`); this needs tokio's `process` feature (no new crate).
+- **Seeking** an `ogg_file` opens the file again and skips packets until the position (no
+  decoding); FFmpeg starts again with `-ss`. `seek` answers once the first frame from the
+  new place is read; on a waiting track it sets where the track will start and answers at
+  once. **Loops** open the input again at its end; `Loop::Times(n)` counts down the repeats
+  left, shown by `TrackInfo::looping`.
+- **`Playing`** is sent when a track's first frame goes out (and after a pause), so a
+  stream made right after `play` sees it; `TrackEvents` is the stream type, as
+  `CallEvents`.
+- **The encoder:** libopus `Audio` application, 48 kHz stereo, `JoinOptions::bitrate`
+  (128 kb/s by default, clamped to libopus's 500 b/s–512 kb/s), libopus's other defaults.
 
 ---
 

@@ -34,8 +34,9 @@ C-109). The fixes found by the comparison (D-283) ✅: the rebuild time after an
 **Phase 9 — multi-process sharding: ✅ done 2026-11-14** (`djs_rs::sharding` behind the
 `sharding` feature: processes of the same executable, IPC over `127.0.0.1`, the manager as
 IDENTIFY queue, restarts, named commands and stats; benchmarks + extreme-load tests in
-`docs/PERFORMANCE.md` "Phase 9"). **Next: Phase 10 — `djs-voice` (D-017)**: nothing decided
-yet beyond D-017; ask the owner first (see "Next step").
+`docs/PERFORMANCE.md` "Phase 9"). **Phase 10 — `djs-voice` (D-017): in progress**, step 1
+(connection, DAVE, Ogg/Opus, djs-rs's `voice` feature) done and live-tested 2026-11-16;
+**next: step 2, the player** (see item 10 below).
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-075 in `docs/DECISIONS.md`; Claude defaults C-001 …
@@ -749,18 +750,24 @@ fields with `Deref` to `new`). Steps:
    and joined through the owner's client's welcome (transition 0, `can_encrypt`),
    `UserJoined`/`Speaking` events arrived, and the owner **heard a clean 440 Hz tone**
    (DAVE-encrypted, decrypted by the Discord client). **Step 1 is done.**
-   **Next: step 2, the player** (D-318: track queue, PCM, Opus encoding with `audiopus`
-   (D-313), FFmpeg (D-317), volume): ask its public API first (D-316, D-319);
    (e) done (D-334–D-344, C-124): `VoiceManager` (`new`, `process`, `join`,
    `join_with` + `JoinOptions`, `get`), `VoiceGateway`, `Call` (`play`, `events` →
    `CallEvents`, `leave`, `guild_id`, `channel_id`), `CallEvent`, `DisconnectReason`,
    `Input::{ogg, ogg_file}`, `TrackHandle::{play, pause, stop}`, `JoinError`, `InputError`,
-   `TrackError`; 82 unit tests (10 manager E2E tests against a mock gateway and voice
-   server). **Still for step 4:** a divan bench of the Ogg reader through `Input` (C-118)
-   and of DAVE frame encryption.
-   (g) the live test needs the owner's go-ahead (D-275) and a voice channel on the test
-   guild: a temporary `examples/zz_voice.rs` joining, playing `tests/data/sine.opus` (or a
-   longer Ogg/Opus file) and leaving, never committed.
+   `TrackError`. **Still for step 4:** a divan bench of the Ogg reader through `Input`
+   (C-118) and of DAVE frame encryption.
+   **Step 2, the player — decided 2026-11-16 (D-350–D-362, C-126), in progress:**
+   `opus2` + bundled libopus instead of `audiopus` (D-350, CMake 4); one track at a time
+   (D-351); `call.enqueue` + `call.queue()` → `TrackQueue` (`skip`, `clear`, `len`,
+   `current`; D-352); `track.set_volume(f32)` (D-353); `Input::ffmpeg`, `Input::pcm`
+   (D-354); `track.events()` → `TrackEvent::{Playing, Paused, Looped, Ended(TrackEnd)}`
+   (D-355); `track.info()` → `TrackInfo` (D-356); `JoinOptions::bitrate` (D-357);
+   `track.set_loop(Loop)` (D-358); `track.seek(..).await` (D-359);
+   `TrackError::Unsupported` for readers (D-360); `PlayState::Queued` (D-361);
+   `InputError::{FfmpegMissing, Ffmpeg}` (D-362). Commits: (a) the dependency, NOTICE,
+   deny; (b) the shared track state, events, info, volume, the queue; (c) PCM + encoding;
+   (d) FFmpeg; (e) loops and seeking; (f) README/CHANGELOG, live test with the owner's
+   go-ahead (D-275).
 
 > **Heavy runs (D-257, D-259–D-262):** the owner's laptop hard-froze on 2026-11-13 under
 > assistant load. Every cargo build/test/bench/stress test goes through
