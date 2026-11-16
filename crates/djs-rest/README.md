@@ -3,9 +3,10 @@
 A rate-limit-aware client for the Discord REST API, built on hyper — part of
 [djs-rs](https://github.com/kotoanidev/djs-rs).
 
-> **Status:** pre-alpha. Phase 1 (vertical slice) covers the client, rate limiting and the
-> endpoints a minimal bot needs; every other v10 endpoint arrives in Phase 3. Track progress in
-> the [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
+> **Status:** alpha. Every Discord API v10 endpoint a bot or an app uses (232 routes; not the
+> deprecated ones or the Slack- and GitHub-compatible webhooks), with rate limiting,
+> retries, file uploads, CDN URLs and OAuth2. The API may still change between alpha releases; see the
+> [changelog](https://github.com/kotoanidev/djs-rs/blob/main/CHANGELOG.md).
 
 **discord.js counterpart:** `@discordjs/rest`
 

@@ -4,9 +4,9 @@ Discord voice for [djs-rs](https://github.com/kotoanidev/djs-rs): joining voice 
 playing audio into them and receiving it, with the end-to-end encryption (DAVE) Discord
 requires for every call since March 2026.
 
-**Status: complete for Phase 10, not published yet.** The API follows songbird's concepts
-(D-316): a `VoiceManager` per bot, a `Call` per guild, and tracks played into it, one at a
-time, from a queue. It joins voice channels (with DAVE), plays Ogg/Opus, PCM and anything
+**Status: alpha** (the API may still change between alpha releases). It follows
+songbird's concepts (D-316): a `VoiceManager` per bot, a `Call` per guild, and tracks
+played into it, one at a time, from a queue. It joins voice channels (with DAVE), plays Ogg/Opus, PCM and anything
 FFmpeg reads, with a queue, volume, loops and seeking, receives each user's audio, and
 reports the call's and the tracks' events. Measured in `docs/PERFORMANCE.md` ("Phase 10"):
 about 700 calls per core passing Ogg/Opus through, 75–100 encoding, and a call receiving

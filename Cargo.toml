@@ -9,7 +9,8 @@ edition = "2024"
 rust-version = "1.89"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/kotoanidev/djs-rs"
-homepage = "https://github.com/kotoanidev/djs-rs"
+# The guide (D-389); `repository` already points at GitHub.
+homepage = "https://kotoanidev.github.io/djs-rs/"
 keywords = ["discord", "discord-bot", "discord-api", "discordjs", "async"]
 categories = ["api-bindings", "asynchronous", "network-programming"]
 
@@ -23,7 +24,6 @@ djs-formatters = { path = "crates/djs-formatters", version = "0.0.0" }
 djs-gateway = { path = "crates/djs-gateway", version = "0.0.0", default-features = false }
 djs-model = { path = "crates/djs-model", version = "0.0.0" }
 djs-rest = { path = "crates/djs-rest", version = "0.0.0" }
-djs-util = { path = "crates/djs-util", version = "0.0.0" }
 djs-voice = { path = "crates/djs-voice", version = "0.0.0" }
 
 # Approved third-party dependencies (D-033). Features are enabled per crate; defaults are off

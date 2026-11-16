@@ -2,8 +2,7 @@
 
 Shared utilities used across the djs-rs crates.
 
-> **Status:** pre-alpha — this crate is an intentional placeholder with no items yet (D-218).
-> Track progress in the [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
+> **Status:** an intentional placeholder with no items yet (D-218).
 
 **discord.js counterpart:** `@discordjs/util`
 

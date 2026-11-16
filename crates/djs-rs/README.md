@@ -2,14 +2,12 @@
 
 A high-performance, discord.js-style framework for building Discord bots in Rust.
 
-> **Status:** pre-alpha. A working end-to-end bot: client with automatic sharding, every
-> discord.js event (with the previous state from the cache), managers for guilds, channels,
-> users, members, messages, reactions, roles, bans, threads, emojis, stickers, events,
-> stages, soundboard sounds, invites, webhooks, application commands and auto moderation
-> with methods on the structures, interaction responses, typed option getters and a
-> command router, collectors, a `WebhookClient`, presence and an optional cache. The
-> full discord.js surface arrives in later phases — see the
-> [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
+> **Status:** alpha. A complete client: automatic sharding, every discord.js event (with the
+> previous state from the cache), managers for every resource with methods on the
+> structures, interaction responses, typed option getters and routers, collectors, a
+> `WebhookClient`, an optional cache, multi-process sharding (`sharding`) and voice
+> (`voice`). The API may still change between alpha releases; see the
+> [changelog](https://github.com/kotoanidev/djs-rs/blob/main/CHANGELOG.md).
 
 **discord.js counterpart:** `discord.js`
 

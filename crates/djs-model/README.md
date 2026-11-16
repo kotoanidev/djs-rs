@@ -3,9 +3,9 @@
 Discord API v10 types — users, guilds, messages, gateway payloads and events — for
 [djs-rs](https://github.com/kotoanidev/djs-rs).
 
-> **Status:** pre-alpha. Phase 1 (vertical slice) covers the types a minimal bot needs; the
-> rest of the API surface arrives in Phase 2. Track progress in the
-> [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
+> **Status:** alpha. Every documented Discord API v10 type: resources, gateway events and
+> commands, interactions, REST bodies and responses, OAuth2 and webhook events. The API may
+> still change between alpha releases; see the [changelog](https://github.com/kotoanidev/djs-rs/blob/main/CHANGELOG.md).
 
 **discord.js counterpart:** `discord-api-types` (v10)
 

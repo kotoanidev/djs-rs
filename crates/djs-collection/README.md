@@ -2,8 +2,8 @@
 
 A feature-rich map type modelled on discord.js Collection.
 
-> **Status:** pre-alpha. [`Collection`] with discord.js' helpers is here. Track progress in the
-> [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
+> **Status:** alpha. [`Collection`] with discord.js' helpers. The API may still change
+> between alpha releases; see the [changelog](https://github.com/kotoanidev/djs-rs/blob/main/CHANGELOG.md).
 
 **discord.js counterpart:** `@discordjs/collection`
 

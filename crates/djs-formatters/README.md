@@ -2,8 +2,8 @@
 
 Markdown, mention and timestamp formatting helpers for Discord messages.
 
-> **Status:** pre-alpha. Every formatter and escaper of `@discordjs/formatters` is here. Track
-> progress in the [roadmap](https://github.com/kotoanidev/djs-rs/blob/main/ROADMAP.md).
+> **Status:** alpha. Every formatter and escaper of `@discordjs/formatters`. The API may
+> still change between alpha releases; see the [changelog](https://github.com/kotoanidev/djs-rs/blob/main/CHANGELOG.md).
 
 **discord.js counterpart:** `@discordjs/formatters`
 
