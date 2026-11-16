@@ -51,8 +51,11 @@ REST, sharding, voice (D-380), each with its example in `book/code/examples/`, b
 (mdBook 0.5.4) and its links checked against `target/doc`.
 
 ## Current plan (the owner's request of 2026-11-16, D-383–D-390), in this order
-1. [ ] Live voice test: the playback of a recording and step 2's tones (D-383; the probe
-   `examples/zz_voice.rs` is kept in the session scratchpad, never committed).
+1. [x] Live voice test, 2026-11-16 (D-383): the bot recorded the owner (4.5 s of PCM, 272
+   Opus packets, 3 lost), played it back, then step 2's tones (MP3 with a volume change,
+   pause, resume and seek; PCM; Ogg at 0.5 then 1.0 and a seek): **the owner heard
+   everything clean**, so the click fixes (C-127) and receiving hold live. The probe is
+   deleted again.
 2. [ ] Coverage audit with `cargo-llvm-cov`, tests for the gaps (D-383).
 3. [ ] Every benchmark again under the balanced profile: Phases 1–10 (`docs/PERFORMANCE.md`),
    `docs/VS_NODE.md`, `docs/VS_SERENITY.md` (D-384); then a new `docs/VS_TWILIGHT.md`
@@ -864,4 +867,3 @@ fields with `Deref` to `new`). Steps:
   body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").
 
 ## Blocked on the owner
-- The live voice test (plan item 1) needs the owner on the test guild's voice channel.
