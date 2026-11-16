@@ -736,7 +736,7 @@ fields with `Deref` to `new`). Steps:
    a second member decrypts the bot's audio). **For step 4:** benchmark DAVE frame
    encryption in `Sender::send`.
    **Next: implement step 1** in commits:
-   (a) done; (b) done; (c) done; (d) done; **next: (f)**;
+   (a) done; (b) done; (c) done; (d) done; **next: (f)**, decided by D-345–D-348;
    (e) done (D-334–D-344, C-124): `VoiceManager` (`new`, `process`, `join`,
    `join_with` + `JoinOptions`, `get`), `VoiceGateway`, `Call` (`play`, `events` →
    `CallEvents`, `leave`, `guild_id`, `channel_id`), `CallEvent`, `DisconnectReason`,

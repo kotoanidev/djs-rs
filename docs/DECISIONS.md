@@ -3178,6 +3178,37 @@ and why.
 - **Alternatives:** a variant per known code (`Kicked` for 4014, `CallTerminated` for 4022,
   …) and `Other { code }`.
 
+### D-345 — `client.voice()` is always there
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** with djs-rs's `voice` feature, `client.voice()` returns `&VoiceManager`,
+  made with the `Client`: the bot's ID is read from the token (its first part is the ID
+  in base64), and the client picks the guild's shard itself when Opcode 4 is sent (the
+  total shard count is known at `login`). A join before `login`, or for a guild whose shard
+  runs in another process, fails with `JoinError::Gateway`.
+- **Alternatives:** an opt-in `ClientBuilder::voice()` (`client.voice()` `None` without it);
+  `Option<VoiceManager>` until the first READY.
+
+### D-346 — A missing `GUILD_VOICE_STATES` intent is warned about
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** the first `client.voice()` logs a `tracing::warn!` when the client's
+  intents lack `GUILD_VOICE_STATES` (without it the bot never gets its voice state and
+  joins time out), like the other missing-intent warnings; intents stay the user's to set.
+- **Alternatives:** adding the intent automatically with the `voice` feature.
+
+### D-347 — The voice types live in `djs_rs::voice` only
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** `djs_rs::voice` re-exports djs-voice; the prelude does not change.
+- **Alternatives:** also `Input`, `Call` and `CallEvent` in the prelude.
+
+### D-348 — `client.shutdown()` leaves the calls; `VoiceManager::calls()`
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** `shutdown` leaves every call (Opcode 4 without a channel, connections
+  closed; the calls end with `DisconnectReason::Left`) before the shards close. For it,
+  djs-voice gets `VoiceManager::calls() -> Vec<Call>` (the current calls, as
+  `ClusterManager::clusters()`), which bots can use too.
+- **Alternatives:** leaving the calls until Discord closes them; `leave_all()` instead of
+  (or as well as) `calls()`.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
