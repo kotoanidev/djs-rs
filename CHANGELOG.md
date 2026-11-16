@@ -27,8 +27,10 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   MLS session per voice session through `davey`, with its key package, proposals, commits,
   welcomes and transitions, and the end-to-end encryption of the sent Opus frames; tested
   against an MLS external sender built with openmls (dev-dependencies only, D-332). The
-  voice connection runs DAVE (C-123): it joins each new session's group, returns once the
-  bot can send media (within the 10 s, D-322), and the sent audio is end-to-end encrypted.
+  voice connection runs DAVE (C-123): it joins each new session's group, returns after the
+  handshake without waiting for DAVE (D-349: a bot alone in a channel never gets a group),
+  and sends audio only end-to-end encrypted, dropping frames until the bot is in the group;
+  live-tested with a Discord client.
   The public voice API of step 1 (D-334–D-344, C-124): `VoiceManager` (join, move, `get`,
   `process` for the main gateway's events) over a `VoiceGateway` adapter, `Call` (play,
   events, leave), `CallEvent`, `DisconnectReason`, `Input::ogg`/`ogg_file`, `TrackHandle`
