@@ -132,6 +132,10 @@ fn shard(options: &Options, intents: Intents) -> Shard {
 }
 
 /// A bot's event handler, spawned for each event as twilight's README does.
+#[expect(
+    clippy::unused_async,
+    reason = "a task per event, as twilight's README spawns its handler"
+)]
 async fn handle(event: Event, window: Arc<Window>) {
     if let Event::MessageCreate(message) = event {
         black_box(&message.content);
