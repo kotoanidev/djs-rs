@@ -63,7 +63,10 @@ fn play(call: &Call, name: &str) -> Result<String, HandlerError> {
         return Err(format!("music/{name} does not exist").into());
     }
     call.enqueue(Input::ffmpeg(&path));
-    Ok(format!("Queued {name} ({} in the queue).", call.queue().len()))
+    Ok(format!(
+        "Queued {name} ({} in the queue).",
+        call.queue().len()
+    ))
 }
 // ANCHOR_END: play
 

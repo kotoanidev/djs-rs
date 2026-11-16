@@ -79,7 +79,10 @@ fn routes(client: &Client) {
 
     // ANCHOR: select
     client.component("flavor", |ctx, menu| async move {
-        let picked = menu.values.first().map_or("nothing", |value| value.as_str());
+        let picked = menu
+            .values
+            .first()
+            .map_or("nothing", |value| value.as_str());
         let reply = MessageCallbackData::from(format!("You picked {picked}.")).ephemeral();
         menu.reply(&ctx, reply).await?;
         Ok(())

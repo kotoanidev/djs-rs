@@ -37,7 +37,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
     let edit = EditMessage::default().content("Hello again, edited.");
     let edited = rest.edit_message(channel, sent.id, &edit).await?;
-    println!("sent and edited message {}: {:?}", edited.id, edited.content);
+    println!(
+        "sent and edited message {}: {:?}",
+        edited.id, edited.content
+    );
     // ANCHOR_END: send
 
     // ANCHOR: pages
@@ -69,7 +72,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .api_error()
                 .is_some_and(|api| api.code == ErrorCode::UnknownMessage) =>
         {
-            println!("already gone ({})", error.status().map_or(0, |status| status.as_u16()));
+            println!(
+                "already gone ({})",
+                error.status().map_or(0, |status| status.as_u16())
+            );
         }
         Err(error) => return Err(error.into()),
     }

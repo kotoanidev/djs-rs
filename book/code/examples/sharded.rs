@@ -72,23 +72,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let token = std::env::var("DISCORD_TOKEN")?;
     // The manager starts this same program again for each cluster; `process` tells them
     // apart from the first one.
-    match sharding::process()? {
-        Some(assignment) => cluster(token, assignment).await?,
-        None => {
-            let manager = ClusterManager::builder(token)
-                .shards(Shards::Count(2))
-                .shards_per_process(1)
-                .build();
-            let stopping = manager.clone();
-            tokio::spawn(async move {
-                if tokio::signal::ctrl_c().await.is_ok() {
-                    stopping.shutdown();
-                }
-            });
-            // Returns once every process has exited.
-            manager.spawn().await?;
-        }
+    if let Some(assignment) = sharding::process()? {
+        cluster(token, assignment).await?;
+        return Ok(());
     }
+    // The first process: the manager.
+    let manager = ClusterManager::builder(token)
+        .shards(Shards::Count(2))
+        .shards_per_process(1)
+        .build();
+    let stopping = manager.clone();
+    tokio::spawn(async move {
+        if tokio::signal::ctrl_c().await.is_ok() {
+            stopping.shutdown();
+        }
+    });
+    // Returns once every process has exited.
+    manager.spawn().await?;
     Ok(())
 }
 // ANCHOR_END: main
