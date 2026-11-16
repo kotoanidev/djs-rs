@@ -5109,10 +5109,10 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   the task, which sends the replies; Opcodes 11 and 13 are noted and still reach the call;
   `Command::Text`/`Command::Binary` are gone (nothing outside the connection sends DAVE
   messages).
-- **`connect` returns once media can be sent** (D-322): at once without DAVE, once the bot
-  has the group's key with it, all within `Config::timeout` (the handshake included). On a
-  timeout the connection is closed and `Timeout` returned; if the connection ends first,
-  its reason is returned (`Closed(code)` or the last failure).
+- **`connect` returned once DAVE was ready** (D-322) until D-349: it now returns after the
+  handshake. DAVE starts with the Session Description's version inside `connect`, before
+  the `Sender` exists, and after identifying anew before the senders switch to the new
+  session, so no frame can go out under the wrong version.
 - **One `Sender` per connection:** `connect` returns it with the `Handle` (no
   `Handle::sender()`): a second sender would count transport nonces from 0 again under the
   same key, and an AEAD nonce must never repeat.
@@ -5121,11 +5121,9 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   the sequence number and nonce do not. The frame is DAVE-encrypted into `Dave`'s reused
   buffer and copied into the packet, then sealed for the transport.
 - **Tests:** the mock acts as the external sender with a second `davey` member: the bot's
-  key package, Opcodes 25, 11, 30 and 22, the 23 acknowledgement, `connect` not returning
-  before the transition is executed, and the member decrypting the bot's audio; waiting
-  for DAVE past the timeout (closed); a stop code before DAVE is ready; a new session (4006)
-  with a new key package and no audio until its group is joined. 19 connection tests, 20
-  repeated runs: no failure.
+  key package, Opcodes 25, 11, 30 and 22, the 23 acknowledgement, nothing sent before the
+  key (D-349: `connect` returns first), and the member decrypting the bot's audio; a new
+  session (4006) with a new key package and no audio until its group is joined.
 
 ### C-124 — The voice API's details (D-334–D-344, step 1e)
 - **Names not asked, following the project's patterns:** `CallEvents` (the stream of

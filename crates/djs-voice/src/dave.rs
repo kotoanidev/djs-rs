@@ -105,6 +105,7 @@ impl Dave {
     }
 
     /// Whether media can be sent: without DAVE, or with a key to encrypt with.
+    #[cfg(test)]
     pub(crate) fn ready(&self) -> bool {
         self.version == 0 || self.session.as_ref().is_some_and(DaveSession::can_encrypt)
     }
@@ -327,6 +328,11 @@ impl Dave {
 
     /// Media is sent with `version` from now on.
     fn switch(&mut self, version: u16) {
+        tracing::debug!(
+            dave_protocol_version = version,
+            can_encrypt = self.session.as_ref().is_some_and(DaveSession::can_encrypt),
+            "DAVE transition executed"
+        );
         let upgraded = self.version == 0 && version != 0;
         self.version = version;
         if upgraded && let Some(session) = &mut self.session {

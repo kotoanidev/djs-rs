@@ -15,7 +15,7 @@ pub enum JoinError {
     /// The [`VoiceGateway`](crate::VoiceGateway) could not send Opcode 4 (Update Voice
     /// State) through the guild's shard; its error is the [`source`](Error::source).
     Gateway(Box<dyn Error + Send + Sync>),
-    /// Discord did not answer, or the voice connection was not ready to send audio, within
+    /// Discord did not answer, or the voice connection's handshake did not finish, within
     /// 10 seconds (D-322). A bot without the Connect permission in the channel gets no
     /// answer at all, so it sees this too.
     Timeout,

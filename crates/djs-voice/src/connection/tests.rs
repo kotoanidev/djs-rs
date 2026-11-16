@@ -545,45 +545,62 @@ async fn closing_ends_the_connection() {
     ));
 }
 
-/// The mock's side of a call with DAVE: the handshake, then the bot joins the group of
-/// `other` through a welcome with transition 1. Returns the server once the transition is
-/// executed, and the bot's key package.
-pub(crate) async fn dave_handshake(
+/// A client connected to `mock` with DAVE (SSRC 7, `KEY`): it returns before it has DAVE's
+/// key (D-349).
+async fn dave_connected(
     mock: &Mock,
-    sender: &ExternalSender,
-    other: &mut davey::DaveSession,
-    client: &tokio::task::JoinHandle<impl Sized>,
-) -> Server {
-    let mut server = mock.accept().await;
-    mock.handshake_with(&mut server, 7, KEY, 41_250.0, 1).await;
-    let package = recv_binary(&mut server, 26).await;
-    send_binary(&mut server, 2, 25, &sender.package()).await;
+) -> (
+    super::Handle,
+    super::Sender,
+    UnboundedReceiver<ConnectionEvent>,
+    Server,
+) {
+    let (client, server) = tokio::join!(connect(mock.info(), config()), async {
+        let mut server = mock.accept().await;
+        mock.handshake_with(&mut server, 7, KEY, 41_250.0, 1).await;
+        server
+    });
+    let (handle, audio, events) = client.unwrap();
+    (handle, audio, events, server)
+}
+
+/// The mock's side of the bot joining the group of `other` through a welcome with
+/// transition 1, until the transition is executed.
+async fn dave_join(server: &mut Server, sender: &ExternalSender, other: &mut davey::DaveSession) {
+    let package = recv_binary(server, 26).await;
+    send_binary(server, 2, 25, &sender.package()).await;
     send(
-        &mut server,
+        server,
         json!({"op": 11, "d": {"user_ids": [OTHER.to_string()]}, "seq": 3}),
     )
     .await;
     let welcome = sender.create_group(other, &package, &[BOT, OTHER]);
     send_binary(
-        &mut server,
+        server,
         4,
         30,
         &[&1_u16.to_be_bytes()[..], &welcome].concat(),
     )
     .await;
-    assert_eq!(recv_op(&mut server, 23).await["d"]["transition_id"], 1);
-    assert!(
-        !client.is_finished(),
-        "no key before the transition is executed"
-    );
+    assert_eq!(recv_op(server, 23).await["d"]["transition_id"], 1);
     send(
-        &mut server,
+        server,
         json!({"op": 22, "d": {"transition_id": 1}, "seq": 5}),
     )
     .await;
     other.prepare_transition(1, 1).unwrap();
     other.execute_transition(1).unwrap();
-    server
+}
+
+/// Waits until the client has DAVE's key.
+async fn dave_ready(handle: &super::Handle) {
+    timeout(STEP, async {
+        while !handle.dave_ready() {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .expect("DAVE never got ready");
 }
 
 #[tokio::test]
@@ -591,11 +608,13 @@ async fn dave_encrypts_the_audio_end_to_end() {
     let mock = Mock::new().await;
     let sender = ExternalSender::new(CHANNEL);
     let mut other = sender.member(OTHER);
-    let client = tokio::spawn(connect(mock.info(), config()));
-    let _server = dave_handshake(&mock, &sender, &mut other, &client).await;
-    let (handle, mut audio, mut events) = client.await.unwrap().unwrap();
+    let (handle, mut audio, mut events, mut server) = dave_connected(&mock).await;
+    // Connected before the bot is in a group (D-349): nothing goes out without its key.
     assert_eq!(handle.dave_protocol_version(), 1);
-
+    assert!(!handle.dave_ready());
+    assert!(!audio.send(b"too early", 960).await.unwrap());
+    dave_join(&mut server, &sender, &mut other).await;
+    dave_ready(&handle).await;
     for frame in [&b"end to end"[..], b"encrypted"] {
         assert!(audio.send(frame, 960).await.unwrap());
         let (_, payload) = mock.audio(KEY).await;
@@ -618,51 +637,13 @@ async fn dave_encrypts_the_audio_end_to_end() {
 }
 
 #[tokio::test]
-async fn connecting_waits_for_dave_within_the_timeout() {
-    let mock = Mock::new().await;
-    let config = Config {
-        timeout: Duration::from_secs(1),
-        ..config()
-    };
-    let (client, mut server) = tokio::join!(connect(mock.info(), config), async {
-        let mut server = mock.accept().await;
-        mock.handshake_with(&mut server, 7, KEY, 41_250.0, 1).await;
-        recv_binary(&mut server, 26).await;
-        // The bot is never welcomed.
-        server
-    });
-    assert!(matches!(client, Err(ConnectError::Timeout)));
-    // The connection is closed.
-    loop {
-        match timeout(STEP, server.next()).await.expect("not closed") {
-            Some(Ok(message)) if message.is_close() => break,
-            None | Some(Err(_)) => break,
-            Some(Ok(_)) => {}
-        }
-    }
-}
-
-#[tokio::test]
-async fn connecting_reports_a_gateway_that_stops_before_dave_is_ready() {
-    let mock = Mock::new().await;
-    let (client, ()) = tokio::join!(connect(mock.info(), config()), async {
-        let mut server = mock.accept().await;
-        mock.handshake_with(&mut server, 7, KEY, 41_250.0, 1).await;
-        recv_binary(&mut server, 26).await;
-        close(&mut server, 4014).await;
-    });
-    assert!(matches!(client, Err(ConnectError::Closed(Some(4014)))));
-}
-
-#[tokio::test]
 async fn a_new_session_sends_no_audio_until_dave_is_ready_again() {
     let mock = Mock::new().await;
     let sender = ExternalSender::new(CHANNEL);
     let mut other = sender.member(OTHER);
-    let client = tokio::spawn(connect(mock.info(), config()));
-    let mut server = dave_handshake(&mock, &sender, &mut other, &client).await;
-    let (handle, mut audio, mut events) = client.await.unwrap().unwrap();
-
+    let (handle, mut audio, mut events, mut server) = dave_connected(&mock).await;
+    dave_join(&mut server, &sender, &mut other).await;
+    dave_ready(&handle).await;
     assert!(audio.send(b"first session", 960).await.unwrap());
     mock.audio(KEY).await;
     close(&mut server, 4006).await;
@@ -677,7 +658,7 @@ async fn a_new_session_sends_no_audio_until_dave_is_ready_again() {
         }
     }
     assert!(!audio.send(b"no key yet", 960).await.unwrap());
-    assert_eq!(handle.dave_protocol_version(), 1);
+    assert!(!handle.dave_ready());
 }
 
 #[tokio::test]

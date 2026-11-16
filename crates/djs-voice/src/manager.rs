@@ -191,7 +191,12 @@ impl VoiceManager {
     }
 
     /// Joins the voice channel `channel_id` of `guild_id`, deafened and not muted
-    /// ([`JoinOptions::default`]); returns the [`Call`] once it can send audio (D-322).
+    /// ([`JoinOptions::default`]); returns the [`Call`] once it is connected (D-322, D-349).
+    ///
+    /// With end-to-end encryption (DAVE, which Discord requires), audio goes out once the bot
+    /// is in the call's MLS group: about a second after someone else is in the channel. A
+    /// bot alone in a channel has no group, so what it plays is not sent (nobody would hear
+    /// it); nothing is ever sent without end-to-end encryption.
     ///
     /// When the bot already has a call in the guild, it moves to the channel, and the same
     /// call is returned (D-340).

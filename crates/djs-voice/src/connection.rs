@@ -7,10 +7,10 @@
 //! handles DAVE (step 1d) through a [`Dave`] it shares with the senders, passes the other
 //! messages to the call as [`ConnectionEvent`]s, and after a lost connection resumes or
 //! identifies anew as [`payload::after_close`] says, retrying as D-331 says. [`connect`]
-//! returns once media can be sent: right after the handshake without DAVE, once the bot has
-//! the group's key with it (D-322). Audio goes out through a [`Sender`], end-to-end
-//! encrypted with DAVE, then for the transport, straight to the UDP socket of the current
-//! session.
+//! returns after the handshake, without waiting for DAVE (D-349: a bot alone in a channel
+//! never gets an MLS group). Audio goes out through a [`Sender`], end-to-end encrypted with
+//! DAVE (dropped while the bot has no key), then for the transport, straight to the UDP
+//! socket of the current session.
 
 use core::{fmt, time::Duration};
 use std::{
@@ -72,7 +72,7 @@ impl fmt::Debug for Info {
 /// How connections behave.
 #[derive(Clone)]
 pub(crate) struct Config {
-    /// The longest a handshake (or a resume) may take, until DAVE is ready too (D-322).
+    /// The longest a handshake (or a resume) may take (D-322).
     pub(crate) timeout: Duration,
     /// The delays of the attempts to resume after the immediate one (D-331).
     pub(crate) retry_delays: Vec<Duration>,
@@ -221,6 +221,12 @@ impl Handle {
     pub(crate) fn dave_protocol_version(&self) -> u16 {
         lock(&self.dave).version()
     }
+
+    /// Whether media can be sent: without DAVE, or with its key.
+    #[cfg(test)]
+    pub(crate) fn dave_ready(&self) -> bool {
+        lock(&self.dave).ready()
+    }
 }
 
 /// The DAVE state; a sender that panicked while holding it left nothing half-changed that
@@ -229,26 +235,23 @@ fn lock(dave: &Mutex<Dave>) -> MutexGuard<'_, Dave> {
     dave.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
-/// Connects to the voice server of `info`, keeps the connection in a task, and returns once
-/// media can be sent (D-322: DAVE ready too), with the connection's only [`Sender`]: there
-/// is one, as its nonce counter must not repeat under one key.
+/// Connects to the voice server of `info` and keeps the connection in a task; returns after
+/// the handshake (D-349: DAVE is not waited for), with the connection's only [`Sender`]:
+/// there is one, as its nonce counter must not repeat under one key.
 ///
 /// # Errors
 ///
-/// When the handshake fails, the connection ends before DAVE is ready, or both take longer
-/// than [`Config::timeout`] (the connection is closed then).
+/// When the handshake fails or takes longer than [`Config::timeout`].
 pub(crate) async fn connect(
     info: Info,
     config: Config,
 ) -> Result<(Handle, Sender, mpsc::UnboundedReceiver<ConnectionEvent>), ConnectError> {
-    let deadline = Instant::now() + config.timeout;
-    let session = timeout_at(deadline, identify(&info, &config))
+    let mut session = timeout(config.timeout, identify(&info, &config))
         .await
         .map_err(|_| ConnectError::Timeout)??;
     let (commands, commands_rx) = mpsc::unbounded_channel();
-    let (events, mut events_rx) = mpsc::unbounded_channel();
+    let (events, events_rx) = mpsc::unbounded_channel();
     let (udp, udp_rx) = watch::channel(Arc::clone(&session.udp));
-    let (ready, mut ready_rx) = watch::channel(false);
     let dave = Arc::new(Mutex::new(Dave::new(
         info.user_id.get(),
         info.channel_id.get(),
@@ -258,37 +261,15 @@ pub(crate) async fn connect(
         #[cfg(test)]
         dave: Arc::clone(&dave),
     };
-    let sender = Sender::new(udp_rx, Arc::clone(&dave));
-    let shared = Shared {
-        events,
-        udp,
-        dave,
-        ready,
-    };
-    tokio::spawn(run(info, config, session, commands_rx, shared));
-    match timeout_at(deadline, ready_rx.wait_for(|ready| *ready)).await {
-        Ok(Ok(_)) => Ok((handle, sender, events_rx)),
-        // The task ended: it said why.
-        Ok(Err(_)) => Err(ended(&mut events_rx)),
-        Err(_) => {
-            handle.send(Command::Close);
-            Err(ConnectError::Timeout)
-        }
-    }
-}
-
-/// Why a connection that ended before it was ready did: its `Ended` event, as an error.
-fn ended(events: &mut mpsc::UnboundedReceiver<ConnectionEvent>) -> ConnectError {
-    while let Ok(event) = events.try_recv() {
-        if let ConnectionEvent::Ended(end) = event {
-            return match end {
-                End::Lost(error) => error,
-                End::Stopped(code) => ConnectError::Closed(Some(code)),
-                End::Closed => ConnectError::Closed(None),
-            };
-        }
-    }
-    ConnectError::Closed(None)
+    let shared = Shared { events, udp, dave };
+    // DAVE starts before the sender exists: no frame can go out under the wrong version.
+    let replies = session
+        .dave
+        .take()
+        .map_or_else(Vec::new, |version| shared.start(version));
+    let sender = Sender::new(udp_rx, Arc::clone(&shared.dave));
+    tokio::spawn(run(info, config, session, commands_rx, shared, replies));
+    Ok((handle, sender, events_rx))
 }
 
 /// What the connection's task shares with its call.
@@ -297,8 +278,6 @@ struct Shared {
     /// The UDP side of the current session, for the senders.
     udp: watch::Sender<Arc<Udp>>,
     dave: Arc<Mutex<Dave>>,
-    /// Whether media can be sent ([`Dave::ready`]).
-    ready: watch::Sender<bool>,
 }
 
 impl Shared {
@@ -309,33 +288,21 @@ impl Shared {
 
     /// Starts DAVE for a new session; returns the messages to send.
     fn start(&self, version: u16) -> Vec<Reply> {
-        let mut dave = lock(&self.dave);
-        let replies = dave.start(version);
-        self.ready
-            .send_if_modified(|ready| replace(ready, dave.ready()));
-        replies
+        tracing::debug!(dave_protocol_version = version, "voice session started");
+        lock(&self.dave).start(version)
     }
 
     /// Handles an event of the voice gateway: DAVE's here (returns the messages to send),
     /// the others for the call.
     fn handle(&self, event: Event) -> Vec<Reply> {
-        let mut dave = lock(&self.dave);
-        let replies = match dave.handle(event) {
+        match lock(&self.dave).handle(event) {
             Handled::Replies(replies) => replies,
             Handled::Forward(event) => {
                 self.event(ConnectionEvent::Gateway(event));
                 Vec::new()
             }
-        };
-        self.ready
-            .send_if_modified(|ready| replace(ready, dave.ready()));
-        replies
+        }
     }
-}
-
-/// Sets `value` to `new`; whether it changed.
-fn replace(value: &mut bool, new: bool) -> bool {
-    core::mem::replace(value, new) != new
 }
 
 /// An established session.
@@ -346,7 +313,7 @@ struct Session {
     /// The last sequence number received.
     seq: Option<u64>,
     /// The DAVE protocol version of a new session's Session Description, until DAVE starts
-    /// with it; `None` for a resumed session.
+    /// with it (before the senders use the session); `None` for a resumed session.
     dave: Option<u16>,
     /// Messages received during the handshake, for the call.
     pending: Vec<Event>,
@@ -611,14 +578,13 @@ async fn run(
     mut session: Session,
     mut commands: mpsc::UnboundedReceiver<Command>,
     shared: Shared,
+    mut replies: Vec<Reply>,
 ) {
     let mut speaking = None;
     loop {
-        // Failures to send show as a lost connection in `drive`.
-        if let Some(version) = session.dave.take() {
-            let replies = shared.start(version);
-            let _ = send_replies(&mut session.socket, replies).await;
-        }
+        // DAVE's first messages of a new session. Failures to send show as a lost
+        // connection in `drive`.
+        let _ = send_replies(&mut session.socket, core::mem::take(&mut replies)).await;
         for event in core::mem::take(&mut session.pending) {
             let replies = shared.handle(event);
             let _ = send_replies(&mut session.socket, replies).await;
@@ -636,6 +602,10 @@ async fn run(
         match reconnect(&info, &config, &session, code, &mut commands, &mut speaking).await {
             Ok((mut new, resumed)) => {
                 if !resumed {
+                    // DAVE starts before the senders switch to the new session.
+                    if let Some(version) = new.dave.take() {
+                        replies = shared.start(version);
+                    }
                     shared.udp.send_replace(Arc::clone(&new.udp));
                     if let Some(flags) = speaking {
                         let message = Message::text(payload::speaking(flags, new.udp.ssrc));
