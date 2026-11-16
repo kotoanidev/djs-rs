@@ -221,7 +221,10 @@ impl Dave {
         };
         let session = self.session.insert(session);
         match session.create_key_package() {
-            Ok(package) => vec![Reply::Binary(payload::key_package(&package))],
+            Ok(package) => {
+                tracing::debug!(version, "DAVE session ready to join: key package sent");
+                vec![Reply::Binary(payload::key_package(&package))]
+            }
             Err(error) => {
                 tracing::warn!(%error, "could not create a DAVE key package");
                 Vec::new()
@@ -243,11 +246,21 @@ impl Dave {
             ProposalsOperation::Revoke => ProposalsOperationType::REVOKE,
         };
         match session.process_proposals(operation, data, Some(&recognized)) {
-            Ok(Some(commit_welcome)) => vec![Reply::Binary(payload::commit_welcome(
-                &commit_welcome.commit,
-                commit_welcome.welcome.as_deref(),
-            ))],
-            Ok(None) => Vec::new(),
+            Ok(Some(commit_welcome)) => {
+                tracing::debug!(
+                    ?operation,
+                    welcome = commit_welcome.welcome.is_some(),
+                    "DAVE proposals committed"
+                );
+                vec![Reply::Binary(payload::commit_welcome(
+                    &commit_welcome.commit,
+                    commit_welcome.welcome.as_deref(),
+                ))]
+            }
+            Ok(None) => {
+                tracing::debug!(?operation, "DAVE proposals left nothing to commit");
+                Vec::new()
+            }
             Err(error) => {
                 tracing::warn!(%error, "could not process DAVE proposals");
                 Vec::new()
@@ -261,10 +274,14 @@ impl Dave {
         };
         match session.process_commit(commit) {
             Ok(true) => {
+                tracing::debug!(transition_id, "DAVE commit processed");
                 let version = session.protocol_version().get();
                 self.prepare(transition_id, version)
             }
-            Ok(false) => Vec::new(),
+            Ok(false) => {
+                tracing::debug!(transition_id, "DAVE commit ignored");
+                Vec::new()
+            }
             Err(error) => {
                 tracing::warn!(%error, "a DAVE commit could not be processed");
                 self.invalid(transition_id)
@@ -279,6 +296,7 @@ impl Dave {
         };
         match session.process_welcome(welcome, Some(&recognized)) {
             Ok(()) => {
+                tracing::debug!(transition_id, "DAVE welcome processed: in the group");
                 let version = session.protocol_version().get();
                 self.prepare(transition_id, version)
             }
