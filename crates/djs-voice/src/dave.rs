@@ -28,6 +28,8 @@ use crate::payload::{self, Event, ProposalsOperation};
 const UPGRADE_PASSTHROUGH: u32 = 10;
 /// The marker at the end of every frame DAVE encrypted.
 const MAGIC: [u8; 2] = [0xFA, 0xFA];
+/// Opus's frame of silence, which DAVE leaves unencrypted.
+const SILENCE: [u8; 3] = [0xF8, 0xFF, 0xFE];
 
 /// A message the connection sends for DAVE.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -146,19 +148,27 @@ impl Dave {
     ) -> Option<&'a [u8]> {
         out.clear();
         if let Some(session) = &mut self.session {
-            // A plaintext is never longer than its frame.
-            out.resize(frame.len(), 0);
-            match session.decrypt_into(user_id, MediaType::AUDIO, frame, out) {
-                Ok(len) => {
-                    out.truncate(len);
-                    return Some(out);
-                }
-                Err(error) if self.version != 0 || frame.ends_with(&MAGIC) => {
-                    tracing::trace!(%error, user_id, "dropping a frame DAVE cannot decrypt");
-                    return None;
-                }
-                // Downgraded: a frame that is not DAVE's, from a member without a key.
-                Err(_) => out.clear(),
+            if frame.ends_with(&MAGIC) {
+                // A plaintext is never longer than its frame.
+                out.resize(frame.len(), 0);
+                return match session.decrypt_into(user_id, MediaType::AUDIO, frame, out) {
+                    Ok(len) => {
+                        out.truncate(len);
+                        Some(out)
+                    }
+                    Err(error) => {
+                        tracing::trace!(%error, user_id, "dropping a frame DAVE cannot decrypt");
+                        None
+                    }
+                };
+            }
+            // Not a DAVE frame: accepted without DAVE, for silence, and while davey allows a
+            // member's plain frames (after an upgrade). Checked here, not by davey, which
+            // logs an error for each such frame.
+            let allowed = self.version == 0 || frame == SILENCE || session.can_passthrough(user_id);
+            if !allowed {
+                tracing::trace!(user_id, "dropping a frame that is not end-to-end encrypted");
+                return None;
             }
         } else if self.version != 0 {
             return None;
@@ -517,6 +527,8 @@ mod tests {
         damaged[0] ^= 1;
         assert_eq!(dave.decrypt(OTHER, &damaged, &mut out), None);
         assert_eq!(dave.decrypt(BOT + 1, &frame, &mut out), None);
+        // Not DAVE's: refused, once the upgrade's grace for plain frames is over (here, the
+        // group was made with DAVE from the start).
         assert_eq!(dave.decrypt(OTHER, b"plain opus", &mut out), None);
     }
 

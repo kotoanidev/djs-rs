@@ -37,9 +37,9 @@ IDENTIFY queue, restarts, named commands and stats; benchmarks + extreme-load te
 `docs/PERFORMANCE.md` "Phase 9"). **Phase 10 — `djs-voice` (D-017): in progress**, step 1
 (connection, DAVE, Ogg/Opus, djs-rs's `voice` feature) done and live-tested 2026-11-16;
 step 2 (the player) done and live-tested, its clicks fixed (C-127; a second listening test
-later, the owner's choice); step 3 (receiving audio) implemented (D-363–D-373, C-128);
-**next: a live test of steps 2 and 3 with the owner's go-ahead, then step 4** (see item 10
-below).
+later, the owner's choice); step 3 (receiving audio) implemented and partly live-tested (D-363–D-373, C-128; the
+playback and tones rerun later, the owner's choice); **next: step 4, voice benchmarks and
+extreme-load tests** (see item 10 below).
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-075 in `docs/DECISIONS.md`; Claude defaults C-001 …
@@ -798,8 +798,13 @@ fields with `Deref` to `new`). Steps:
    `Receiving`), the call's task reading packets next to the connection's events; the
    mock sends RTP with a header extension. 119 unit tests (17 new for receiving: the reorder
    buffer, speaking, subscriptions, ends, DAVE frames, new sessions, end to end through a
-   call). **Next:** a live test of steps 2 and 3 with the owner's go-ahead (D-275: the bot
-   joins undeafened, records the owner for a few seconds and plays it back), then step 4.
+   call). **Live test 2026-11-16** (owner on the channel, the bot undeafened): the owner's
+   audio came in, `Speaking`, `SpeakingStarted` and `SpeakingStopped` worked, 15 s of PCM
+   were recorded; the run was stopped before the playback and the tones (the probe's
+   output was cut short by davey's "no magic marker" errors for the owner's plain frames
+   during the DAVE upgrade: `Dave::decrypt` now checks the marker itself, so davey logs
+   nothing). A rerun (playback + step 2's tones): later, the owner's choice; ask with
+   D-275. **Next:** step 4.
    **For step 4:** benchmark Opus encoding per frame, decode + re-encode at a volume, the
    start of re-encoding (decoding the 400 ms kept, C-127), the PCM/Ogg readers through
    `Input`, and many calls encoding at once; receiving: opening a packet (transport +
@@ -823,4 +828,6 @@ fields with `Deref` to `new`). Steps:
   body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").
 
 ## Blocked on the owner
-- Nothing.
+- Live voice tests with the owner (D-275) are on hold: since 2026-11-16 they cannot join
+  the voice channel (background noise). Waiting: the playback of a recording (step 3) and
+  step 2's tones after the click fixes (C-127). Do not ask until they say they can.
