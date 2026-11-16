@@ -2904,6 +2904,7 @@ and why.
 
 ### D-313 — Opus through `audiopus`
 - **Date:** 2026-11-14 · **Decided by:** Owner
+- **Amended by D-350:** `opus2` over `libopus_sys` instead (CMake 4).
 - **Decision:** Opus encoding and decoding (48 kHz stereo) use `audiopus`, a binding to
   libopus built statically with the crate (a C compiler and cmake at build time, no system
   library; the `unsafe` is inside the dependency, as songbird does).
@@ -3222,6 +3223,105 @@ and why.
   only.
 - **Alternatives:** as discord.js, sending transport-only frames until DAVE is ready; keeping
   D-322 (no joining an empty channel).
+
+### D-350 — Opus through `opus2` with a bundled libopus (amends D-313)
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Context:** `audiopus` 0.3.0-rc.0 (2021) bundles libopus 1.3, whose CMake file needs a
+  CMake older than 3.5: with CMake 4.x it does not build without a workaround or a system
+  libopus with headers.
+- **Decision:** `opus2` 0.4 (`MIT OR Apache-2.0`) over `libopus_sys` 0.3 (MIT), with
+  `default-features = false` and the features `backend-libopus`, `static` and `bundled`:
+  libopus 1.5 built from the crate's sources with CMake and a C compiler, linked
+  statically, nothing needed at run time; it builds with CMake 4.3 here. Its decoder
+  serves step 3. libopus itself is BSD-3-Clause (noted in `NOTICE`).
+- **Alternatives:** `audiopus` with `CMAKE_POLICY_VERSION_MINIMUM=3.5` set for the
+  workspace (bot authors with CMake 4 would need it too); a system libopus linked
+  dynamically through pkg-config.
+
+### D-351 — One track plays at a time in a call
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** a call plays one track at a time, as discord.js's `AudioPlayer`; no mixing.
+  Ogg/Opus at volume 1.0 is sent as it is (no decoding); other inputs and other volumes are
+  decoded or encoded.
+- **Alternatives:** mixing several tracks at once, as songbird (sound effects over music;
+  decoding, mixing and encoding every 20 ms with two or more).
+
+### D-352 — The queue: `call.enqueue` and `call.queue()`
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** `call.enqueue(input) -> TrackHandle` adds a track to the end of the call's
+  queue; `call.queue()` returns a `TrackQueue` with `skip()`, `clear()`, `len()` and
+  `current()`. `call.play(input)` still plays at once, replacing the current track
+  (D-337); the rest of the queue plays after it.
+- **Alternatives:** everything on `TrackQueue` as songbird (`add`, `skip`, `stop`,
+  `pause`, `resume`, `len`, with `play` clearing the queue); methods on `Call` only
+  (`enqueue`, `skip`, `clear_queue`, `queue_len`).
+
+### D-353 — Volume: `track.set_volume(f32)`, linear, per track
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** `track.set_volume(volume)` on the track, linear (1.0 the original, 0.5
+  half, up to 2.0 with clipping limited), as songbird and discord.js's
+  `volume.setVolume`; at 1.0 Ogg/Opus is not re-encoded.
+- **Alternatives:** a call volume too (`call.set_volume`, multiplied with the track's);
+  decibels (`set_volume_db`).
+
+### D-354 — Inputs: `Input::ffmpeg` and `Input::pcm`
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** `Input::ffmpeg(source)` runs `ffmpeg` from `PATH` on a file path or URL and
+  reads PCM from it; `Input::pcm(reader)` is PCM s16le, 48 kHz, interleaved stereo (what
+  FFmpeg gives, and discord.js's `StreamType.Raw`).
+- **Alternatives:** also `Input::pcm_f32`; an `Ffmpeg` builder (own arguments, the program's
+  path).
+
+### D-355 — Track events: `Playing`, `Paused`, `Ended(TrackEnd)`
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** `track.events()` (a stream, D-321) yields `TrackEvent::{Playing, Paused,
+  Ended(TrackEnd)}` (and `Looped`, D-358), with `TrackEnd::{Finished, Stopped, Replaced,
+  Skipped, Failed(the input's error), CallEnded}`, as discord.js's `AudioPlayer` states
+  and songbird's `TrackEvent`.
+- **Alternatives:** only `Ended(TrackEnd)`; a `Position(Duration)` event every second too.
+
+### D-356 — `track.info()` without `await`
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** `track.info() -> TrackInfo { state: PlayState, position: Duration, volume:
+  f32, … }`, read at once from counters shared with the call's task (atomics).
+- **Alternatives:** `track.info().await` asking the call's task, as songbird's `get_info`;
+  no state on the handle.
+
+### D-357 — Step 2 also has the bitrate, loops and seeking
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** besides the queue, PCM, FFmpeg and volume, step 2 has
+  `JoinOptions::bitrate(bits_per_second)` (128 kb/s by default, as songbird; for encoded
+  audio, Ogg/Opus at 1.0 goes as it is), loops (D-358) and seeking (D-359).
+- **Alternatives:** any of the three later.
+
+### D-358 — Loops: `track.set_loop(Loop)`
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** `track.set_loop(Loop::Off | Loop::Forever | Loop::Times(n))`; each repeat
+  yields `TrackEvent::Looped`, and `TrackInfo` shows the current mode.
+- **Alternatives:** songbird's `enable_loop()`, `disable_loop()`, `loop_for(n)`.
+
+### D-359 — Seeking: `track.seek(Duration).await`
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** `track.seek(position).await -> Result<Duration, TrackError>` waits until the
+  track plays from the new place and returns the actual position (the nearest frame); an
+  error when the input cannot seek or the track has ended. Seeking past the end ends the
+  track (`Finished`).
+- **Alternatives:** `seek` returning at once, its result as a `TrackEvent::Seeked`.
+
+### D-360 — Inputs from a reader cannot loop or seek
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** `Input::ogg(reader)` and `Input::pcm(reader)` cannot be opened again: on
+  their tracks `set_loop` and `seek` return a new `TrackError::Unsupported`. Loops and
+  seeking work with `Input::ogg_file` and `Input::ffmpeg`. Nothing is buffered behind the
+  bot's back.
+- **Alternatives:** keeping a reader's Opus packets in memory so that it loops and seeks back
+  always (about 1 MB per two minutes at 64 kb/s).
+
+### D-361 — `PlayState::Queued` for a waiting track
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** `PlayState::{Queued, Playing, Paused, Ended}`. `stop()` on a waiting track
+  removes it from the queue (`Ended(Stopped)`); `pause()` makes it start paused.
+- **Alternatives:** a waiting track shown as `Paused` at position 0.
 
 ---
 
