@@ -727,18 +727,17 @@ fields with `Deref` to `new`). Steps:
    `Sender` of encrypted RTP packets) and its own `tls.rs` + `native-roots` feature; 13
    tests against a mock voice server (WebSocket + UDP), 54 unit tests in all. **To do in
    step 1f:** djs-rs's `native-roots` feature must also enable `djs-voice?/native-roots`.
-   **Step 1d in progress (C-122, D-332, D-333):** the internal `dave` module (`Dave`: the
-   DAVE state machine over `davey`, opcodes 21–31, `ready`/`encrypt`) and its test helper
-   `dave/mls.rs` (an openmls external sender; openmls dev-dependencies added), 10 tests.
-   **Next in 1d:** wire `Dave` into `connection.rs` — `Info.channel_id`, a shared
-   `Arc<Mutex<Dave>>` for the task and the `Sender`, `dave.start(dave_protocol_version)`
-   after identify and renew (before the pending events), DAVE events through `dave.handle`
-   with the replies sent, a readiness signal, and the `Sender` encrypting with DAVE before
-   the transport seal (nothing sent while not ready); then an E2E connection test where the
-   mock is the external sender and a second member decrypts the bot's audio.
+   **Step 1d done (C-122, C-123, D-332, D-333):** the internal `dave` module (`Dave`: the
+   DAVE state machine over `davey`, opcodes 21–31) with its openmls test helper
+   `dave/mls.rs`, wired into the connection: `Info.channel_id`, a `Dave` shared by the task
+   and the senders, DAVE started for each new session, `connect` returning once DAVE is
+   ready (within the 10 s, D-322), `Sender::send` DAVE-encrypting (and returning `false`
+   while there is no key). 66 unit tests (19 connection tests, incl. an end-to-end one where
+   a second member decrypts the bot's audio). **For step 4:** benchmark DAVE frame
+   encryption in `Sender::send`.
    **Next: implement step 1** in commits:
-   (a) done; (b) done; (c) done;
-   (d) **in progress:** DAVE through `davey`; (e) `VoiceManager`,
+   (a) done; (b) done; (c) done; (d) done;
+   (e) **next** (ask the public names first, D-319); `VoiceManager`,
    `VoiceGateway`, `Call`, `CallEvent`, `Input`, `TrackHandle`, playback pacing; (f) djs-rs
    `voice` feature; (g) a live test only with the owner's go-ahead (D-275). Live tests need the
    owner's go-ahead (D-275) and a voice channel on the test guild.

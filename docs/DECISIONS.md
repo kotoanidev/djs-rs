@@ -4970,6 +4970,32 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   other member decrypts the bot's frames), refused and unprocessable welcomes (31 and a new
   key package), Prepare Epoch, a downgrade, a new voice session, forwarded events.
 
+### C-123 — DAVE in the voice connection (D-322, D-333, step 1d)
+- **`Info` gains `channel_id`** (the DAVE group's ID). The connection's task and every
+  `Sender` share one `Dave` behind a `std::sync::Mutex` (held only for synchronous work,
+  never across an await; a poisoned lock is taken over). `Handle::dave_protocol_version()`
+  is the version media is sent with now.
+- **Each new session** (the first and every one after identifying anew) starts DAVE with
+  its Session Description's version before the messages received during its handshake are
+  handled; a resumed session keeps the DAVE state. DAVE's messages (21–31) are handled by
+  the task, which sends the replies; Opcodes 11 and 13 are noted and still reach the call;
+  `Command::Text`/`Command::Binary` are gone (nothing outside the connection sends DAVE
+  messages).
+- **`connect` returns once media can be sent** (D-322): at once without DAVE, once the bot
+  has the group's key with it, all within `Config::timeout` (the handshake included). On a
+  timeout the connection is closed and `Timeout` returned; if the connection ends first,
+  its reason is returned (`Closed(code)` or the last failure).
+- **`Sender::send` returns `Ok(false)` and sends nothing** while DAVE has no key (after
+  identifying anew, until the bot is in the new group); the RTP timestamp still moves on,
+  the sequence number and nonce do not. The frame is DAVE-encrypted into `Dave`'s reused
+  buffer and copied into the packet, then sealed for the transport.
+- **Tests:** the mock acts as the external sender with a second `davey` member: the bot's
+  key package, Opcodes 25, 11, 30 and 22, the 23 acknowledgement, `connect` not returning
+  before the transition is executed, and the member decrypting the bot's audio; waiting
+  for DAVE past the timeout (closed); a stop code before DAVE is ready; a new session (4006)
+  with a new key package and no audio until its group is joined. 19 connection tests, 20
+  repeated runs: no failure.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

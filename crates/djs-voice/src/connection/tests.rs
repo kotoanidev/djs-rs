@@ -14,8 +14,11 @@ use tokio::{
 use tokio_websockets::{CloseCode, Message, ServerBuilder, WebSocketStream};
 
 use super::{Command, Config, ConnectError, ConnectionEvent, End, Info, connect, jitter, url};
+use davey::MediaType;
+
 use crate::{
     crypto::{Cipher, Mode},
+    dave::mls::ExternalSender,
     payload::{Event, MICROPHONE},
     udp::DISCOVERY,
 };
@@ -28,6 +31,11 @@ const OTHER_KEY: [u8; 32] = [9; 32];
 /// The address the mock says it sees the client at, so Select Protocol must carry it.
 const SEEN_AT: &str = "203.0.113.5";
 const SEEN_PORT: u16 = 4242;
+/// The bot's user ID, and the voice channel's.
+const BOT: u64 = 2;
+const CHANNEL: u64 = 3;
+/// Another user in the call.
+const OTHER: u64 = 5;
 
 struct Mock {
     listener: TcpListener,
@@ -50,7 +58,8 @@ impl Mock {
     fn info(&self) -> Info {
         Info {
             guild_id: djs_model::id::GuildId::new(1),
-            user_id: djs_model::id::UserId::new(2),
+            channel_id: djs_model::id::ChannelId::new(CHANNEL),
+            user_id: djs_model::id::UserId::new(BOT),
             session_id: "session".into(),
             endpoint: self.endpoint.clone(),
             token: "voice-token".into(),
@@ -67,14 +76,26 @@ impl Mock {
         server
     }
 
-    /// The server's side of a handshake: returns the client's Identify. Sends an
-    /// undocumented opcode with sequence number 1 between Ready and Session Description.
+    /// The server's side of a handshake without DAVE: returns the client's Identify. Sends
+    /// an undocumented opcode with sequence number 1 between Ready and Session Description.
     async fn handshake(
         &self,
         server: &mut Server,
         ssrc: u32,
         key: [u8; 32],
         interval: f64,
+    ) -> Value {
+        self.handshake_with(server, ssrc, key, interval, 0).await
+    }
+
+    /// [`Mock::handshake`] with the DAVE protocol version `dave`.
+    async fn handshake_with(
+        &self,
+        server: &mut Server,
+        ssrc: u32,
+        key: [u8; 32],
+        interval: f64,
+        dave: u16,
     ) -> Value {
         send(
             server,
@@ -104,7 +125,7 @@ impl Mock {
         send(
             server,
             json!({"op": 4, "d": {
-                "mode": "aead_aes256_gcm_rtpsize", "secret_key": key, "dave_protocol_version": 0
+                "mode": "aead_aes256_gcm_rtpsize", "secret_key": key, "dave_protocol_version": dave
             }}),
         )
         .await;
@@ -176,6 +197,28 @@ async fn send(server: &mut Server, payload: Value) {
 async fn close(server: &mut Server, code: u16) {
     let code = CloseCode::try_from(code).unwrap();
     server.send(Message::close(Some(code), "")).await.unwrap();
+}
+
+/// Sends a binary DAVE message: sequence number, opcode, payload.
+async fn send_binary(server: &mut Server, seq: u16, op: u8, payload: &[u8]) {
+    let message = [&seq.to_be_bytes()[..], &[op], payload].concat();
+    server.send(Message::binary(message)).await.unwrap();
+}
+
+/// The payload of the client's next binary message, which must have opcode `op`.
+async fn recv_binary(server: &mut Server, op: u8) -> Vec<u8> {
+    loop {
+        let message = timeout(STEP, server.next())
+            .await
+            .expect("the client sent nothing")
+            .expect("the connection ended")
+            .unwrap();
+        if message.is_binary() {
+            let payload = message.as_payload();
+            assert_eq!(payload.first(), Some(&op));
+            return payload[1..].to_vec();
+        }
+    }
 }
 
 /// The next text message from the client, without answering anything.
@@ -273,7 +316,7 @@ async fn connects_identifies_and_sends_audio() {
     let frames: [&[u8]; 3] = [b"frame one", b"frame two", b"three"];
     let mut headers = Vec::new();
     for frame in frames {
-        sender.send(frame, 960).await.unwrap();
+        assert!(sender.send(frame, 960).await.unwrap());
         let (header, payload) = mock.audio(KEY).await;
         assert_eq!(payload, frame);
         headers.push(header);
@@ -351,7 +394,7 @@ async fn a_lost_connection_resumes() {
         ConnectionEvent::Gateway(Event::ClientDisconnect(_))
     ));
     // The same session: the same UDP socket, SSRC and key.
-    handle.sender().send(b"after", 960).await.unwrap();
+    assert!(handle.sender().send(b"after", 960).await.unwrap());
     assert_eq!(mock.audio(KEY).await.1, b"after");
 }
 
@@ -408,7 +451,7 @@ async fn an_invalid_session_identifies_anew() {
         event(&mut events).await,
         ConnectionEvent::Gateway(Event::Other(18))
     ));
-    handle.sender().send(b"new session", 960).await.unwrap();
+    assert!(handle.sender().send(b"new session", 960).await.unwrap());
     let (header, payload) = mock.audio(OTHER_KEY).await;
     assert_eq!(
         (&header[8..12], &payload[..]),
@@ -497,26 +540,139 @@ async fn closing_ends_the_connection() {
     ));
 }
 
+/// The mock's side of a call with DAVE: the handshake, then the bot joins the group of
+/// `other` through a welcome with transition 1. Returns the server once the transition is
+/// executed, and the bot's key package.
+async fn dave_handshake(
+    mock: &Mock,
+    sender: &ExternalSender,
+    other: &mut davey::DaveSession,
+    client: &tokio::task::JoinHandle<impl Sized>,
+) -> Server {
+    let mut server = mock.accept().await;
+    mock.handshake_with(&mut server, 7, KEY, 41_250.0, 1).await;
+    let package = recv_binary(&mut server, 26).await;
+    send_binary(&mut server, 2, 25, &sender.package()).await;
+    send(
+        &mut server,
+        json!({"op": 11, "d": {"user_ids": [OTHER.to_string()]}, "seq": 3}),
+    )
+    .await;
+    let welcome = sender.create_group(other, &package, &[BOT, OTHER]);
+    send_binary(
+        &mut server,
+        4,
+        30,
+        &[&1_u16.to_be_bytes()[..], &welcome].concat(),
+    )
+    .await;
+    assert_eq!(recv_op(&mut server, 23).await["d"]["transition_id"], 1);
+    assert!(
+        !client.is_finished(),
+        "no key before the transition is executed"
+    );
+    send(
+        &mut server,
+        json!({"op": 22, "d": {"transition_id": 1}, "seq": 5}),
+    )
+    .await;
+    other.prepare_transition(1, 1).unwrap();
+    other.execute_transition(1).unwrap();
+    server
+}
+
 #[tokio::test]
-async fn commands_reach_the_gateway() {
+async fn dave_encrypts_the_audio_end_to_end() {
     let mock = Mock::new().await;
-    let (handle, _events, mut server) = connected(&mock, config(), 41_250.0).await;
-    handle.send(Command::Text(
-        json!({"op": 23, "d": {"transition_id": 3}}).to_string(),
+    let sender = ExternalSender::new(CHANNEL);
+    let mut other = sender.member(OTHER);
+    let client = tokio::spawn(connect(mock.info(), config()));
+    let _server = dave_handshake(&mock, &sender, &mut other, &client).await;
+    let (handle, mut events) = client.await.unwrap().unwrap();
+    assert_eq!(handle.dave_protocol_version(), 1);
+    let mut audio = handle.sender();
+    for frame in [&b"end to end"[..], b"encrypted"] {
+        assert!(audio.send(frame, 960).await.unwrap());
+        let (_, payload) = mock.audio(KEY).await;
+        assert_ne!(payload, frame, "only the transport encryption");
+        let decrypted = other.decrypt(BOT, MediaType::AUDIO, &payload).unwrap();
+        assert_eq!(decrypted, frame);
+    }
+    // DAVE's messages stay in the connection; the users in the call reach the call.
+    assert!(matches!(
+        event(&mut events).await,
+        ConnectionEvent::Gateway(Event::Other(18))
     ));
-    assert_eq!(recv_op(&mut server, 23).await["d"]["transition_id"], 3);
-    handle.send(Command::Binary(vec![26, 1, 2, 3]));
-    let message = loop {
-        let message = timeout(STEP, server.next())
-            .await
-            .unwrap()
-            .unwrap()
-            .unwrap();
-        if message.is_binary() {
-            break message;
+    match event(&mut events).await {
+        ConnectionEvent::Gateway(Event::ClientsConnect(users)) => {
+            assert_eq!(users, [djs_model::id::UserId::new(OTHER)]);
         }
+        other => panic!("{other:?}"),
+    }
+    assert!(events.try_recv().is_err());
+}
+
+#[tokio::test]
+async fn connecting_waits_for_dave_within_the_timeout() {
+    let mock = Mock::new().await;
+    let config = Config {
+        timeout: Duration::from_secs(1),
+        ..config()
     };
-    assert_eq!(message.as_payload()[..], [26, 1, 2, 3]);
+    let (client, mut server) = tokio::join!(connect(mock.info(), config), async {
+        let mut server = mock.accept().await;
+        mock.handshake_with(&mut server, 7, KEY, 41_250.0, 1).await;
+        recv_binary(&mut server, 26).await;
+        // The bot is never welcomed.
+        server
+    });
+    assert!(matches!(client, Err(ConnectError::Timeout)));
+    // The connection is closed.
+    loop {
+        match timeout(STEP, server.next()).await.expect("not closed") {
+            Some(Ok(message)) if message.is_close() => break,
+            None | Some(Err(_)) => break,
+            Some(Ok(_)) => {}
+        }
+    }
+}
+
+#[tokio::test]
+async fn connecting_reports_a_gateway_that_stops_before_dave_is_ready() {
+    let mock = Mock::new().await;
+    let (client, ()) = tokio::join!(connect(mock.info(), config()), async {
+        let mut server = mock.accept().await;
+        mock.handshake_with(&mut server, 7, KEY, 41_250.0, 1).await;
+        recv_binary(&mut server, 26).await;
+        close(&mut server, 4014).await;
+    });
+    assert!(matches!(client, Err(ConnectError::Closed(Some(4014)))));
+}
+
+#[tokio::test]
+async fn a_new_session_sends_no_audio_until_dave_is_ready_again() {
+    let mock = Mock::new().await;
+    let sender = ExternalSender::new(CHANNEL);
+    let mut other = sender.member(OTHER);
+    let client = tokio::spawn(connect(mock.info(), config()));
+    let mut server = dave_handshake(&mock, &sender, &mut other, &client).await;
+    let (handle, mut events) = client.await.unwrap().unwrap();
+    let mut audio = handle.sender();
+    assert!(audio.send(b"first session", 960).await.unwrap());
+    mock.audio(KEY).await;
+    close(&mut server, 4006).await;
+    let mut server = mock.accept().await;
+    mock.handshake_with(&mut server, 9, OTHER_KEY, 41_250.0, 1)
+        .await;
+    // A new key package: the bot joins the new session's group anew.
+    recv_binary(&mut server, 26).await;
+    loop {
+        if matches!(event(&mut events).await, ConnectionEvent::Reconnected) {
+            break;
+        }
+    }
+    assert!(!audio.send(b"no key yet", 960).await.unwrap());
+    assert_eq!(handle.dave_protocol_version(), 1);
 }
 
 #[tokio::test]
@@ -615,7 +771,8 @@ fn delays_are_jittered_down_to_half() {
 fn the_token_stays_out_of_debug_output() {
     let info = Info {
         guild_id: djs_model::id::GuildId::new(1),
-        user_id: djs_model::id::UserId::new(2),
+        channel_id: djs_model::id::ChannelId::new(CHANNEL),
+        user_id: djs_model::id::UserId::new(BOT),
         session_id: "session".into(),
         endpoint: "host:1".into(),
         token: "voice-token".into(),

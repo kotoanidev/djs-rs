@@ -26,7 +26,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   connector and `native-roots` feature (D-330). The internal DAVE state machine (C-122): an
   MLS session per voice session through `davey`, with its key package, proposals, commits,
   welcomes and transitions, and the end-to-end encryption of the sent Opus frames; tested
-  against an MLS external sender built with openmls (dev-dependencies only, D-332).
+  against an MLS external sender built with openmls (dev-dependencies only, D-332). The
+  voice connection runs DAVE (C-123): it joins each new session's group, returns once the
+  bot can send media (within the 10 s, D-322), and the sent audio is end-to-end encrypted.
 - Multi-process sharding, first step (D-284, D-285, D-296, D-297, D-300–D-303, C-112), behind
   the new `sharding` feature: `ClusterManager` starts the bot's executable again once per
   group of `shards_per_process` shards (1 by default, Discord's recommended count or a fixed

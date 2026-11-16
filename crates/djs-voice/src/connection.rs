@@ -4,17 +4,24 @@
 //! [`connect`] runs the handshake (the WebSocket, Identify, Hello and Ready, the UDP socket
 //! and IP discovery, Select Protocol, Session Description), then a task that keeps the
 //! connection: it heartbeats with the `seq_ack` of version 8, sends the UDP keepalive,
-//! passes the messages it does not handle itself to the call as [`ConnectionEvent`]s, and
-//! after a lost connection resumes or identifies anew as [`payload::after_close`] says,
-//! retrying as D-331 says. Audio goes out through a [`Sender`], straight to the UDP socket
-//! of the current session.
+//! handles DAVE (step 1d) through a [`Dave`] it shares with the senders, passes the other
+//! messages to the call as [`ConnectionEvent`]s, and after a lost connection resumes or
+//! identifies anew as [`payload::after_close`] says, retrying as D-331 says. [`connect`]
+//! returns once media can be sent: right after the handshake without DAVE, once the bot has
+//! the group's key with it (D-322). Audio goes out through a [`Sender`], end-to-end
+//! encrypted with DAVE, then for the transport, straight to the UDP socket of the current
+//! session.
 
 #![allow(dead_code, reason = "used by `Call` from step 1e")]
 
 use core::{fmt, time::Duration};
-use std::{io, net::SocketAddr, sync::Arc};
+use std::{
+    io,
+    net::SocketAddr,
+    sync::{Arc, Mutex, MutexGuard, PoisonError},
+};
 
-use djs_model::id::{GuildId, UserId};
+use djs_model::id::{ChannelId, GuildId, UserId};
 use futures_util::{SinkExt, StreamExt};
 use tokio::{
     net::{TcpStream, UdpSocket},
@@ -25,6 +32,7 @@ use tokio_websockets::{ClientBuilder, Connector, MaybeTlsStream, Message, WebSoc
 
 use crate::{
     crypto::{Cipher, Mode, OVERHEAD, RTP_HEADER},
+    dave::{Dave, Handled, Reply},
     payload::{self, AfterClose, DecodeError, Event, Incoming},
     tls, udp,
 };
@@ -39,6 +47,8 @@ const CLOSE_TIMEOUT: Duration = Duration::from_secs(1);
 #[derive(Clone)]
 pub(crate) struct Info {
     pub(crate) guild_id: GuildId,
+    /// The voice channel: its ID is the DAVE group's.
+    pub(crate) channel_id: ChannelId,
     pub(crate) user_id: UserId,
     pub(crate) session_id: String,
     /// The voice server's `host:port`, without a scheme (`wss://` is added); one that starts
@@ -52,6 +62,7 @@ impl fmt::Debug for Info {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Info")
             .field("guild_id", &self.guild_id)
+            .field("channel_id", &self.channel_id)
             .field("user_id", &self.user_id)
             .field("session_id", &self.session_id)
             .field("endpoint", &self.endpoint)
@@ -63,7 +74,7 @@ impl fmt::Debug for Info {
 /// How connections behave.
 #[derive(Clone)]
 pub(crate) struct Config {
-    /// The longest a handshake (or a resume) may take (D-322).
+    /// The longest a handshake (or a resume) may take, until DAVE is ready too (D-322).
     pub(crate) timeout: Duration,
     /// The delays of the attempts to resume after the immediate one (D-331).
     pub(crate) retry_delays: Vec<Duration>,
@@ -163,7 +174,7 @@ impl std::error::Error for ConnectError {
 #[derive(Debug)]
 pub(crate) enum ConnectionEvent {
     /// A message the connection does not handle itself: speaking states, users joining and
-    /// leaving, and (from step 1d) DAVE.
+    /// leaving (DAVE's are handled by the connection).
     Gateway(Event),
     /// The connection was lost and resumed: the same session.
     Resumed,
@@ -189,10 +200,6 @@ pub(crate) enum End {
 pub(crate) enum Command {
     /// Send Opcode 5 Speaking with these flags (and again after identifying anew).
     Speaking(u32),
-    /// Send a JSON message (DAVE replies).
-    Text(String),
-    /// Send a binary message (DAVE key packages and commits).
-    Binary(Vec<u8>),
     /// Close the connection.
     Close,
 }
@@ -202,7 +209,7 @@ pub(crate) enum Command {
 pub(crate) struct Handle {
     commands: mpsc::UnboundedSender<Command>,
     udp: watch::Receiver<Arc<Udp>>,
-    dave_protocol_version: u16,
+    dave: Arc<Mutex<Dave>>,
 }
 
 impl Handle {
@@ -213,37 +220,126 @@ impl Handle {
 
     /// A sender of audio packets.
     pub(crate) fn sender(&self) -> Sender {
-        Sender::new(self.udp.clone())
+        Sender::new(self.udp.clone(), Arc::clone(&self.dave))
     }
 
-    /// The DAVE protocol version the call started with (0: no end-to-end encryption).
-    pub(crate) const fn dave_protocol_version(&self) -> u16 {
-        self.dave_protocol_version
+    /// The DAVE protocol version media is sent with now (0: no end-to-end encryption).
+    pub(crate) fn dave_protocol_version(&self) -> u16 {
+        lock(&self.dave).version()
     }
 }
 
-/// Connects to the voice server of `info` and keeps the connection in a task.
+/// The DAVE state; a sender that panicked while holding it left nothing half-changed that
+/// matters more than the call going on.
+fn lock(dave: &Mutex<Dave>) -> MutexGuard<'_, Dave> {
+    dave.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+/// Connects to the voice server of `info`, keeps the connection in a task, and returns once
+/// media can be sent (D-322: DAVE ready too).
 ///
 /// # Errors
 ///
-/// When the handshake fails or takes longer than [`Config::timeout`].
+/// When the handshake fails, the connection ends before DAVE is ready, or both take longer
+/// than [`Config::timeout`] (the connection is closed then).
 pub(crate) async fn connect(
     info: Info,
     config: Config,
 ) -> Result<(Handle, mpsc::UnboundedReceiver<ConnectionEvent>), ConnectError> {
-    let (session, dave_protocol_version) = timeout(config.timeout, identify(&info, &config))
+    let deadline = Instant::now() + config.timeout;
+    let session = timeout_at(deadline, identify(&info, &config))
         .await
         .map_err(|_| ConnectError::Timeout)??;
     let (commands, commands_rx) = mpsc::unbounded_channel();
-    let (events, events_rx) = mpsc::unbounded_channel();
+    let (events, mut events_rx) = mpsc::unbounded_channel();
     let (udp, udp_rx) = watch::channel(Arc::clone(&session.udp));
+    let (ready, mut ready_rx) = watch::channel(false);
+    let dave = Arc::new(Mutex::new(Dave::new(
+        info.user_id.get(),
+        info.channel_id.get(),
+    )));
     let handle = Handle {
         commands,
         udp: udp_rx,
-        dave_protocol_version,
+        dave: Arc::clone(&dave),
     };
-    tokio::spawn(run(info, config, session, commands_rx, events, udp));
-    Ok((handle, events_rx))
+    let shared = Shared {
+        events,
+        udp,
+        dave,
+        ready,
+    };
+    tokio::spawn(run(info, config, session, commands_rx, shared));
+    match timeout_at(deadline, ready_rx.wait_for(|ready| *ready)).await {
+        Ok(Ok(_)) => Ok((handle, events_rx)),
+        // The task ended: it said why.
+        Ok(Err(_)) => Err(ended(&mut events_rx)),
+        Err(_) => {
+            handle.send(Command::Close);
+            Err(ConnectError::Timeout)
+        }
+    }
+}
+
+/// Why a connection that ended before it was ready did: its `Ended` event, as an error.
+fn ended(events: &mut mpsc::UnboundedReceiver<ConnectionEvent>) -> ConnectError {
+    while let Ok(event) = events.try_recv() {
+        if let ConnectionEvent::Ended(end) = event {
+            return match end {
+                End::Lost(error) => error,
+                End::Stopped(code) => ConnectError::Closed(Some(code)),
+                End::Closed => ConnectError::Closed(None),
+            };
+        }
+    }
+    ConnectError::Closed(None)
+}
+
+/// What the connection's task shares with its call.
+struct Shared {
+    events: mpsc::UnboundedSender<ConnectionEvent>,
+    /// The UDP side of the current session, for the senders.
+    udp: watch::Sender<Arc<Udp>>,
+    dave: Arc<Mutex<Dave>>,
+    /// Whether media can be sent ([`Dave::ready`]).
+    ready: watch::Sender<bool>,
+}
+
+impl Shared {
+    fn event(&self, event: ConnectionEvent) {
+        // The call may be gone; the connection ends with its handle.
+        let _ = self.events.send(event);
+    }
+
+    /// Starts DAVE for a new session; returns the messages to send.
+    fn start(&self, version: u16) -> Vec<Reply> {
+        let mut dave = lock(&self.dave);
+        let replies = dave.start(version);
+        self.ready
+            .send_if_modified(|ready| replace(ready, dave.ready()));
+        replies
+    }
+
+    /// Handles an event of the voice gateway: DAVE's here (returns the messages to send),
+    /// the others for the call.
+    fn handle(&self, event: Event) -> Vec<Reply> {
+        let mut dave = lock(&self.dave);
+        let replies = match dave.handle(event) {
+            Handled::Replies(replies) => replies,
+            Handled::Forward(event) => {
+                self.event(ConnectionEvent::Gateway(event));
+                Vec::new()
+            }
+        };
+        self.ready
+            .send_if_modified(|ready| replace(ready, dave.ready()));
+        replies
+    }
+}
+
+/// Sets `value` to `new`; whether it changed.
+fn replace(value: &mut bool, new: bool) -> bool {
+    core::mem::replace(value, new) != new
 }
 
 /// An established session.
@@ -253,6 +349,9 @@ struct Session {
     heartbeat: Heartbeat,
     /// The last sequence number received.
     seq: Option<u64>,
+    /// The DAVE protocol version of a new session's Session Description, until DAVE starts
+    /// with it; `None` for a resumed session.
+    dave: Option<u16>,
     /// Messages received during the handshake, for the call.
     pending: Vec<Event>,
 }
@@ -384,9 +483,8 @@ async fn wait(deadline: Option<Instant>) {
     }
 }
 
-/// A new session: Identify, then UDP, IP discovery and Select Protocol. Returns the DAVE
-/// version the call starts with too.
-async fn identify(info: &Info, config: &Config) -> Result<(Session, u16), ConnectError> {
+/// A new session: Identify, then UDP, IP discovery and Select Protocol.
+async fn identify(info: &Info, config: &Config) -> Result<Session, ConnectError> {
     let mut socket = open(info, config).await?;
     let identify = payload::identify(
         info.guild_id,
@@ -439,14 +537,14 @@ async fn identify(info: &Info, config: &Config) -> Result<(Session, u16), Connec
         ssrc: ready.ssrc,
         cipher: Cipher::new(mode, &description.secret_key),
     };
-    let session = Session {
+    Ok(Session {
         socket,
         udp: Arc::new(udp),
         heartbeat,
         seq,
+        dave: Some(description.dave_protocol_version),
         pending,
-    };
-    Ok((session, description.dave_protocol_version))
+    })
 }
 
 /// IP discovery: asks the voice server for the address it sees this socket at, again every
@@ -497,6 +595,7 @@ async fn resume(
         udp,
         heartbeat,
         seq,
+        dave: None,
         pending,
     })
 }
@@ -515,17 +614,22 @@ async fn run(
     config: Config,
     mut session: Session,
     mut commands: mpsc::UnboundedReceiver<Command>,
-    events: mpsc::UnboundedSender<ConnectionEvent>,
-    udp: watch::Sender<Arc<Udp>>,
+    shared: Shared,
 ) {
     let mut speaking = None;
     loop {
-        for event in session.pending.drain(..) {
-            let _ = events.send(ConnectionEvent::Gateway(event));
+        // Failures to send show as a lost connection in `drive`.
+        if let Some(version) = session.dave.take() {
+            let replies = shared.start(version);
+            let _ = send_replies(&mut session.socket, replies).await;
         }
-        let code = match drive(&mut session, &mut commands, &events, &mut speaking, &config).await {
+        for event in core::mem::take(&mut session.pending) {
+            let replies = shared.handle(event);
+            let _ = send_replies(&mut session.socket, replies).await;
+        }
+        let code = match drive(&mut session, &mut commands, &shared, &mut speaking, &config).await {
             Drive::Closed => {
-                let _ = events.send(ConnectionEvent::Ended(End::Closed));
+                shared.event(ConnectionEvent::Ended(End::Closed));
                 // The closing handshake, bounded: the call does not wait for it.
                 let _ = timeout(CLOSE_TIMEOUT, session.socket.close()).await;
                 return;
@@ -536,7 +640,7 @@ async fn run(
         match reconnect(&info, &config, &session, code, &mut commands, &mut speaking).await {
             Ok((mut new, resumed)) => {
                 if !resumed {
-                    udp.send_replace(Arc::clone(&new.udp));
+                    shared.udp.send_replace(Arc::clone(&new.udp));
                     if let Some(flags) = speaking {
                         let message = Message::text(payload::speaking(flags, new.udp.ssrc));
                         // A failure shows as a lost connection on the next turn.
@@ -544,25 +648,37 @@ async fn run(
                     }
                 }
                 session = new;
-                let _ = events.send(if resumed {
+                shared.event(if resumed {
                     ConnectionEvent::Resumed
                 } else {
                     ConnectionEvent::Reconnected
                 });
             }
             Err(end) => {
-                let _ = events.send(ConnectionEvent::Ended(end));
+                shared.event(ConnectionEvent::Ended(end));
                 return;
             }
         }
     }
 }
 
+/// Sends DAVE's messages.
+async fn send_replies(socket: &mut Socket, replies: Vec<Reply>) -> Result<(), ConnectError> {
+    for reply in replies {
+        let message = match reply {
+            Reply::Text(text) => Message::text(text),
+            Reply::Binary(bytes) => Message::binary(bytes),
+        };
+        send(socket, message).await?;
+    }
+    Ok(())
+}
+
 /// Keeps an established connection until it is lost or the call closes it.
 async fn drive(
     session: &mut Session,
     commands: &mut mpsc::UnboundedReceiver<Command>,
-    events: &mpsc::UnboundedSender<ConnectionEvent>,
+    shared: &Shared,
     speaking: &mut Option<u32>,
     config: &Config,
 ) -> Drive {
@@ -593,7 +709,10 @@ async fn drive(
                                 }
                             }
                             event => {
-                                let _ = events.send(ConnectionEvent::Gateway(event));
+                                let replies = shared.handle(event);
+                                if send_replies(&mut session.socket, replies).await.is_err() {
+                                    return Drive::Lost(None);
+                                }
                             }
                         }
                     }
@@ -620,8 +739,6 @@ async fn drive(
                         *speaking = Some(flags);
                         Message::text(payload::speaking(flags, session.udp.ssrc))
                     }
-                    Some(Command::Text(text)) => Message::text(text),
-                    Some(Command::Binary(bytes)) => Message::binary(bytes),
                 };
                 if send(&mut session.socket, message).await.is_err() {
                     return Drive::Lost(None);
@@ -677,7 +794,6 @@ async fn renew(info: &Info, config: &Config) -> Result<Session, End> {
     timeout(config.timeout, identify(info, config))
         .await
         .unwrap_or(Err(ConnectError::Timeout))
-        .map(|(session, _)| session)
         .map_err(End::Lost)
 }
 
@@ -687,8 +803,7 @@ fn jitter(delay: Duration) -> Duration {
 }
 
 /// Waits `delay` between attempts, still taking commands: a close ends the wait (and the
-/// connection), speaking flags are kept for the next session, the rest is dropped (it
-/// belonged to the lost session).
+/// connection), speaking flags are kept for the next session.
 async fn pause(
     delay: Duration,
     commands: &mut mpsc::UnboundedReceiver<Command>,
@@ -701,16 +816,17 @@ async fn pause(
             command = commands.recv() => match command {
                 None | Some(Command::Close) => return Err(End::Closed),
                 Some(Command::Speaking(flags)) => *speaking = Some(flags),
-                Some(Command::Text(_) | Command::Binary(_)) => {}
             },
         }
     }
 }
 
-/// Sends audio: Opus packets as encrypted RTP packets of the current session.
+/// Sends audio: Opus packets as RTP packets of the current session, end-to-end encrypted
+/// with DAVE when the call uses it, then encrypted for the transport.
 #[derive(Debug)]
 pub(crate) struct Sender {
     udp: watch::Receiver<Arc<Udp>>,
+    dave: Arc<Mutex<Dave>>,
     sequence: u16,
     timestamp: u32,
     nonce: u32,
@@ -719,9 +835,10 @@ pub(crate) struct Sender {
 }
 
 impl Sender {
-    fn new(udp: watch::Receiver<Arc<Udp>>) -> Self {
+    fn new(udp: watch::Receiver<Arc<Udp>>, dave: Arc<Mutex<Dave>>) -> Self {
         Self {
             udp,
+            dave,
             // Random starts, as RTP recommends (RFC 3550, 5.1).
             sequence: fastrand::u16(..),
             timestamp: fastrand::u32(..),
@@ -730,27 +847,37 @@ impl Sender {
         }
     }
 
-    /// Sends one Opus packet that lasts `samples` samples (at 48 kHz).
+    /// Sends one Opus packet that lasts `samples` samples (at 48 kHz). Returns `false`, and
+    /// sends nothing, while DAVE has no key to encrypt with (after identifying anew, until
+    /// the bot is in the new group); the RTP timestamp moves on all the same.
     ///
     /// # Errors
     ///
     /// When the UDP socket fails.
-    pub(crate) async fn send(&mut self, opus: &[u8], samples: u32) -> io::Result<()> {
+    pub(crate) async fn send(&mut self, opus: &[u8], samples: u32) -> io::Result<bool> {
         let udp = Arc::clone(&*self.udp.borrow());
-        let len = RTP_HEADER + opus.len() + OVERHEAD;
-        self.buffer.clear();
-        self.buffer
-            .extend_from_slice(&udp::rtp_header(self.sequence, self.timestamp, udp.ssrc));
-        self.buffer.extend_from_slice(opus);
-        self.buffer.resize(len, 0);
+        let timestamp = self.timestamp;
+        self.timestamp = timestamp.wrapping_add(samples);
+        let len = {
+            let mut dave = lock(&self.dave);
+            let Some(frame) = dave.encrypt(opus) else {
+                return Ok(false);
+            };
+            self.buffer.clear();
+            self.buffer
+                .extend_from_slice(&udp::rtp_header(self.sequence, timestamp, udp.ssrc));
+            self.buffer.extend_from_slice(frame);
+            frame.len()
+        };
+        self.buffer.resize(RTP_HEADER + len + OVERHEAD, 0);
         let sealed = udp
             .cipher
-            .seal(&mut self.buffer, RTP_HEADER, opus.len(), self.nonce)
+            .seal(&mut self.buffer, RTP_HEADER, len, self.nonce)
             .ok_or_else(|| io::Error::other("the packet could not be encrypted"))?;
         self.nonce = self.nonce.wrapping_add(1);
         self.sequence = self.sequence.wrapping_add(1);
-        self.timestamp = self.timestamp.wrapping_add(samples);
-        udp.socket.send(&self.buffer[..sealed]).await.map(|_| ())
+        udp.socket.send(&self.buffer[..sealed]).await?;
+        Ok(true)
     }
 }
 
