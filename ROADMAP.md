@@ -141,7 +141,7 @@ just with narrow scope.
 ## Cross-cutting (continuous)
 - [ ] Guide / book (in progress: an mdBook on GitHub Pages with the API reference,
       D-376–D-382, C-131; written: introduction, installation, the first bot, events and
-      intents)
+      intents, slash commands)
 - [ ] discord.js → djs-rs migration guide (API mapping table)
 - [ ] Benchmarks vs discord.js / serenity / twilight (discord.js: `docs/VS_NODE.md`; serenity:
       `docs/VS_SERENITY.md`; twilight not yet)

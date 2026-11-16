@@ -5579,6 +5579,9 @@ garbage (±1.0 for a frame). Measured with the listeners' side decoded by libopu
   (`../api/djs_rs/struct.Client.html`), so links work on the site (not in a bare local
   build).
 - Listings are `no_run` (bots need a token) and the playground is off.
+- An example's name must not repeat one of another workspace crate (cargo puts every
+  example in `target/*/examples/`): the guide's `/` commands are `commands`, not
+  `slash_commands` (djs-rs's).
 
 ---
 

@@ -161,8 +161,8 @@ limit: read it steadily, or drop it.
 
 ## What's next
 
-Messages that start with `!` are the old way of taking commands. The next chapter turns to
-slash commands, which Discord shows to users with their options, checks their input, and
+Messages that start with `!` are the old way of taking commands. [The next
+chapter](slash-commands.md) turns to slash commands, which Discord shows to users with their options, checks their input, and
 needs no `MESSAGE_CONTENT` at all.
 
 [`Events`]: ../api/djs_rs/event/struct.Events.html

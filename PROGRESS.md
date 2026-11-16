@@ -45,8 +45,9 @@ tones rerun later, the owner's choice); step 4 (benchmarks and extreme-load test
 compiled as examples of `book/code`, published with the API reference on GitHub Pages
 (https://kotoanidev.github.io/djs-rs/, enabled 2026-11-16) by `.github/workflows/book.yml`.
 The site went live 2026-11-16 (the Book workflow's first run). Written: introduction,
-installation, the first bot, events and intents. **Next: the "Slash commands" chapter**,
-then components and embeds, the cache, REST, sharding, voice (D-380), each with its example in `book/code/examples/`, built with `mdbook build book`
+installation, the first bot, events and intents, slash commands. **Next: the "Components
+and embeds" chapter** (embeds, buttons, select menus, modals, collectors), then the cache,
+REST, sharding, voice (D-380), each with its example in `book/code/examples/`, built with `mdbook build book`
 (mdBook 0.5.4) and its links checked against `target/doc`.
 
 ## Done
