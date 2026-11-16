@@ -29,6 +29,11 @@ const STDERR_TAIL: usize = 4 * 1024;
 const STDERR_LINES: usize = 4;
 /// The program `Input::ffmpeg` runs, from `PATH`.
 const FFMPEG: &str = "ffmpeg";
+/// How much of an input's audio before the place a new decoder starts at (a seek's, or where
+/// re-encoding starts) it decodes first, so that it has settled there: 400 ms. RFC 7845
+/// (section 4.2) asks for at least 80 ms; the SILK, hybrid and CELT packets measured here
+/// needed up to 240 ms before their level was right (C-127).
+const PREROLL: u64 = 19_200;
 
 /// What a track plays, given to [`Call::play`](crate::Call::play) or
 /// [`Call::enqueue`](crate::Call::enqueue).
@@ -132,9 +137,53 @@ impl Frame {
     }
 }
 
+/// The last 400 ms of an input's Opus packets ([`PREROLL`]): a new decoder decodes them
+/// first, so that it starts where the listeners' decoders are (C-127).
+#[derive(Debug, Default)]
+pub(crate) struct History {
+    packets: std::collections::VecDeque<(Vec<u8>, u32)>,
+    samples: u64,
+}
+
+impl History {
+    /// Adds the next packet, of `samples` per channel, and drops the oldest ones no longer
+    /// needed.
+    pub(crate) fn push(&mut self, data: Vec<u8>, samples: u32) {
+        self.samples += u64::from(samples);
+        self.packets.push_back((data, samples));
+        while let Some((_, oldest)) = self.packets.front()
+            && self.samples - u64::from(*oldest) >= PREROLL
+        {
+            self.samples -= u64::from(*oldest);
+            self.packets.pop_front();
+        }
+    }
+
+    pub(crate) fn clear(&mut self) {
+        self.packets.clear();
+        self.samples = 0;
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.packets.is_empty()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn len(&self) -> usize {
+        self.packets.len()
+    }
+
+    /// The packets, oldest first.
+    pub(crate) fn packets(&self) -> impl Iterator<Item = &[u8]> {
+        self.packets.iter().map(|(data, _)| &data[..])
+    }
+}
+
 /// What a reader sends the player.
 #[derive(Debug)]
 pub(crate) enum Chunk {
+    /// The Opus packets just before a seek's position: to decode, not to play.
+    Preroll(History),
     /// Where the audio that follows starts, for a read that started past the beginning: the
     /// position (samples per channel) asked for, or the start of the frame holding it.
     Start(u64),
@@ -326,25 +375,42 @@ pub(crate) async fn read(source: Source, start: u64, chunks: Chunks) {
 }
 
 /// Where an Ogg read is, before `start`: packets are skipped (without decoding) until the one
-/// holding it.
+/// holding it, keeping the last 400 ms of them for the decoder ([`Chunk::Preroll`]).
 struct Skip {
     start: u64,
     at: u64,
+    preroll: History,
 }
 
 impl Skip {
-    /// Whether the packet of `samples` that comes next is played: the first one that is
-    /// played after a skip sends [`Chunk::Start`] first.
-    async fn keep(&mut self, samples: u32, chunks: &Chunks) -> Option<bool> {
+    const fn new(start: u64) -> Self {
+        Self {
+            start,
+            at: 0,
+            preroll: History {
+                packets: std::collections::VecDeque::new(),
+                samples: 0,
+            },
+        }
+    }
+
+    /// Whether the packet `data` of `samples` that comes next is played: the first one
+    /// that is played after a skip sends [`Chunk::Preroll`] and [`Chunk::Start`] first.
+    async fn keep(&mut self, data: &[u8], samples: u32, chunks: &Chunks) -> Option<bool> {
         if self.start == 0 {
             return Some(true);
         }
         if self.at + u64::from(samples) <= self.start {
             self.at += u64::from(samples);
+            self.preroll.push(data.to_vec(), samples);
             return Some(false);
         }
         let at = self.at;
         self.start = 0;
+        let preroll = core::mem::take(&mut self.preroll);
+        if !preroll.is_empty() {
+            chunks.send(Ok(Chunk::Preroll(preroll))).await.ok()?;
+        }
         chunks.send(Ok(Chunk::Start(at))).await.ok()?;
         Some(true)
     }
@@ -357,7 +423,7 @@ async fn read_ogg(
     start: u64,
     chunks: &Chunks,
 ) -> Result<(), InputError> {
-    let mut skip = Skip { start, at: 0 };
+    let mut skip = Skip::new(start);
     if let Some(data) = first
         && !forward(data, &mut skip, chunks).await
     {
@@ -391,7 +457,7 @@ async fn forward(data: Vec<u8>, skip: &mut Skip, chunks: &Chunks) -> bool {
         tracing::debug!(len = data.len(), "skipping a packet that is not Opus");
         return true;
     };
-    match skip.keep(samples, chunks).await {
+    match skip.keep(&data, samples, chunks).await {
         Some(true) => chunks
             .send(Ok(Chunk::Frame(Frame::Opus { data, samples })))
             .await
@@ -614,7 +680,9 @@ mod tests {
                 assert!(read.is_empty(), "past the end");
                 continue;
             }
-            assert!(matches!(read[0], Ok(Chunk::Start(position)) if position == at));
+            // 400 ms before the place to decode first: twenty packets of 20 ms.
+            assert!(matches!(&read[0], Ok(Chunk::Preroll(packets)) if packets.len() == 20));
+            assert!(matches!(read[1], Ok(Chunk::Start(position)) if position == at));
             assert_eq!(frames(&read).len(), left);
         }
         let text = dir.join("text.opus");

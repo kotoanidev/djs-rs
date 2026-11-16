@@ -36,7 +36,8 @@ C-109). The fixes found by the comparison (D-283) ✅: the rebuild time after an
 IDENTIFY queue, restarts, named commands and stats; benchmarks + extreme-load tests in
 `docs/PERFORMANCE.md` "Phase 9"). **Phase 10 — `djs-voice` (D-017): in progress**, step 1
 (connection, DAVE, Ogg/Opus, djs-rs's `voice` feature) done and live-tested 2026-11-16;
-**next: step 2, the player** (see item 10 below).
+step 2 (the player) implemented and live-tested, its clicks fixed (C-127); **next: a second
+listening test, then step 3** (see item 10 below).
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-075 in `docs/DECISIONS.md`; Claude defaults C-001 …
@@ -774,10 +775,18 @@ fields with `Deref` to `new`). Steps:
    decode/scale/encode at frame time), `JoinOptions::bitrate`; NOTICE (libopus BSD-3);
    `clippy.toml` knows "FFmpeg". 101 unit tests (8 new player E2E tests in
    `manager/player_tests.rs`, FFmpeg tests skip without `ffmpeg`), 20 repeated runs
-   without a failure. **Next:** a live test of step 2 with the owner's go-ahead (D-275:
-   queue, FFmpeg, volume, seek), then step 3 (receiving audio) — ask its API first.
+   without a failure. **Live test 2026-11-16** (owner on the channel): the queue, FFmpeg,
+   PCM, Ogg, volume and seeking worked; the owner heard single clicks in the FFmpeg tone
+   (a volume change and a seek). **Fixed (C-127):** gain ramps, fades at pauses and seeks,
+   encoder silence while an input opens again, lookahead-aligned re-encoding with warm
+   decoders (400 ms of packets kept), an independent first packet after foreign ones, and
+   back to passthrough only between CELT-only packets; the new test
+   `volume_changes_pauses_and_seeks_make_no_click` checks roughness, levels and gaps (20
+   repeated runs of the player tests without a failure). **Next:** a second listening test
+   with the owner's go-ahead (D-275), then step 3 (receiving audio) — ask its API first.
    **For step 4:** benchmark Opus encoding per frame, decode + re-encode at a volume, the
-   PCM/Ogg readers through `Input`, and many calls encoding at once.
+   start of re-encoding (decoding the 400 ms kept, C-127), the PCM/Ogg readers through
+   `Input`, and many calls encoding at once.
 
 > **Heavy runs (D-257, D-259–D-262):** the owner's laptop hard-froze on 2026-11-13 under
 > assistant load. Every cargo build/test/bench/stress test goes through

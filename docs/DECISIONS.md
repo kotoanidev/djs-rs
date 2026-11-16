@@ -5329,6 +5329,42 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
 - **The encoder:** libopus `Audio` application, 48 kHz stereo, `JoinOptions::bitrate`
   (128 kb/s by default, clamped to libopus's 500 b/s–512 kb/s), libopus's other defaults.
 
+### C-127 — Changes the player makes are smooth (no clicks)
+The owner heard single clicks in the step 2 live test, in the FFmpeg tone that changed its
+volume and was sought. On the mock: a volume step, a 67 ms gap at a seek, and, where Opus
+packets switch between going as they are and being re-encoded, audio far too quiet or
+garbage (±1.0 for a frame). Measured with the listeners' side decoded by libopus:
+- **Gains ramp:** every change of gain (a volume, a fade) ramps linearly across one frame,
+  from the gain the last frame ended at (`codec::ramp`).
+- **Pauses and seeks fade:** a pause fades the next frame out, then silence frames follow;
+  playing again fades in from 0. A seek fades out the frame from before it, then opens the
+  input again; until the new place's audio comes, silence packets from the encoder (stereo,
+  not Discord's mono silence frame) keep the stream going; the new place fades in. A seek
+  while paused, or while the input is opening anyway, opens it again at once.
+- **Re-encoded Opus stays in step:** the encoder's output comes its lookahead (312
+  samples) behind its input, so it is given the decoded audio that far ahead: an Opus frame
+  waits until 20 ms more of the input is read, and a new encoder first encodes (without
+  sending) the 20 ms before the frame, shifted by the lookahead.
+- **Decoders start warm:** the player keeps the input's last 400 ms of Opus packets (the
+  sent packets are moved there, no copy); a new decoder decodes them first, and a seek's
+  reader sends the 400 ms before the position (`Chunk::Preroll`). From one packet, CELT
+  and SILK came out far too quiet for 100–200 ms (RFC 7845 asks for at least 80 ms).
+- **Independent packets:** the first packet the encoder makes after packets it did not make
+  (the file's own, Discord's silence frame, or none sent while there is no connection) is
+  encoded with libopus's prediction disabled, for that packet only. Otherwise the
+  listeners' decoders apply its energy deltas to a state the encoder does not have.
+- **Back to the packets as they are:** at 1.0, after two re-encoded packets (the decoders
+  overlap each frame with the one before), and only between two CELT-only packets: a SILK
+  or hybrid packet after the encoder's CELT ones is decoded from a reset SILK state, far
+  too quiet for about five packets. An input in SILK or hybrid throughout stays re-encoded,
+  as at a volume other than 1.0. Where the packets go as they are again, the level dips by
+  at most 8 % for about four packets (inaudible).
+- After a seek or a loop under the encoder's packets, its stream goes on (no new priming).
+- The test `volume_changes_pauses_and_seeks_make_no_click`: the largest second difference
+  of the audio at each change at most twice the tone's own (it was about 7 times at a
+  volume step, 100 at a pause and 300 at a seek), levels within 12 % from the second packet
+  after a change, no gap over 30 ms.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

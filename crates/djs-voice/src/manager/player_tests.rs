@@ -143,6 +143,8 @@ async fn skip_clear_pause_and_stop_drive_the_queue() {
     tracks[1].pause().unwrap();
     assert!(matches!(next(&mut events[1]).await, TrackEvent::Paused));
     assert_eq!(tracks[1].info().state, PlayState::Paused);
+    // Its last frame fades out after the pause (C-127); then it keeps its place.
+    tokio::time::sleep(Duration::from_millis(60)).await;
     let position = tracks[1].info().position;
     tokio::time::sleep(Duration::from_millis(100)).await;
     assert_eq!(
@@ -245,11 +247,18 @@ async fn the_volume_scales_pcm_and_ogg_opus_goes_as_it_is_at_1() {
         assert_eq!(packet_samples(&payload), Some(960));
     }
     track.set_volume(1.0).unwrap();
-    for _ in 0..3 {
-        audio(&mock, KEY).await;
+    // As it is again from the first CELT-only packet after another (C-127): packet 20 of
+    // this file, whose packets 0 to 8 are hybrid and 9 to 18 SILK.
+    let mut reencoded = 0;
+    loop {
+        let (payload, _, _) = audio(&mock, KEY).await;
+        if let Some(n) = expected.iter().position(|packet| *packet == payload) {
+            assert_eq!(n, 20, "as it is again at 1.0");
+            break;
+        }
+        reencoded += 1;
+        assert!(reencoded < 20, "not as it is again at 1.0");
     }
-    let (payload, _, _) = audio(&mock, KEY).await;
-    assert!(expected.contains(&payload), "as it is again at 1.0");
 }
 
 #[tokio::test]
@@ -279,17 +288,18 @@ async fn files_loop_and_seek_and_readers_cannot() {
     assert!(matches!(ended(&mut events).await, TrackEnd::Finished));
     assert_eq!(track.info().looping, Loop::Times(0));
 
-    // Seeking to 0.5 s: the 26th packet (25 × 20 ms) plays next.
+    // Seeking to 0.5 s: the 26th packet (25 × 20 ms) plays next, faded in, two more are
+    // re-encoded while it settles (C-127), and the 29th goes as it is.
     let track = call.play(Input::ogg_file(&path).await.unwrap());
     audio(&mock, KEY).await;
     let position = track.seek(Duration::from_millis(500)).await.unwrap();
     assert_eq!(position, Duration::from_millis(500));
     let mut in_flight = 0;
-    while audio(&mock, KEY).await.0 != expected[25] {
+    while audio(&mock, KEY).await.0 != expected[28] {
         in_flight += 1;
-        assert!(in_flight < 3, "the new place does not play");
+        assert!(in_flight < 7, "the new place does not play");
     }
-    assert!(track.info().position >= Duration::from_millis(520));
+    assert!(track.info().position >= Duration::from_millis(580));
     // Back to the start, then past the end: the track ends.
     assert_eq!(track.seek(Duration::ZERO).await, Ok(Duration::ZERO));
     let mut events = track.events();
@@ -396,4 +406,149 @@ async fn joining_again_changes_the_bitrate() {
         small * 4 < size,
         "{small} bytes at 8 kb/s, {size} at 128 kb/s"
     );
+}
+
+/// The sent audio decoded in order: the left channel, and when each packet arrived.
+struct Capture {
+    left: Vec<f32>,
+    arrivals: Vec<std::time::Instant>,
+    decoder: Decoder,
+}
+
+impl Capture {
+    fn new() -> Self {
+        Self {
+            left: Vec::new(),
+            arrivals: Vec::new(),
+            decoder: Decoder::new().unwrap(),
+        }
+    }
+
+    /// Reads the next packet; returns it.
+    async fn packet(&mut self, mock: &Mock) -> Vec<u8> {
+        let (payload, _, _) = audio(mock, KEY).await;
+        self.arrivals.push(std::time::Instant::now());
+        let mut pcm = vec![0.0; MAX_PACKET_VALUES];
+        let samples = self.decoder.decode(&payload, &mut pcm).unwrap();
+        self.left.extend(pcm[..samples * 2].iter().step_by(2));
+        payload
+    }
+
+    /// The largest second difference of the audio from `packet` on (960 samples each):
+    /// a click shows as a spike far above a tone's own.
+    fn roughness(&self, from: usize, to: usize) -> f32 {
+        let x = &self.left[from * 960..to * 960];
+        x.windows(3)
+            .map(|w| (w[2] - 2.0 * w[1] + w[0]).abs())
+            .fold(0.0, f32::max)
+    }
+
+    /// The level (RMS) of the audio of packets `from..to`.
+    fn level(&self, from: usize, to: usize) -> f32 {
+        let x = &self.left[from * 960..to * 960];
+        #[expect(clippy::cast_precision_loss, reason = "a few thousand samples")]
+        let len = x.len() as f32;
+        (x.iter().map(|v| v * v).sum::<f32>() / len).sqrt()
+    }
+
+    /// Whether each packet from `from` to `to` is at `level`, give or take 12 %.
+    fn holds(&self, from: usize, to: usize, level: f32) -> bool {
+        (from..to).all(|n| (self.level(n, n + 1) - level).abs() < level * 0.12)
+    }
+
+    /// The first packet from `from` on quieter than `level`.
+    fn below(&self, from: usize, level: f32) -> usize {
+        (from..self.arrivals.len())
+            .find(|&n| self.level(n, n + 1) < level)
+            .expect("no quieter packet")
+    }
+
+    /// The longest time between two packets, in milliseconds, from `packet` on.
+    fn longest_gap(&self, from: usize) -> u128 {
+        self.arrivals[from..]
+            .windows(2)
+            .map(|w| (w[1] - w[0]).as_millis())
+            .max()
+            .unwrap_or(0)
+    }
+}
+
+#[tokio::test]
+async fn volume_changes_pauses_and_seeks_make_no_click() {
+    let mock = Mock::new().await;
+    let (manager, mut commands) = manager();
+    let (call, _events, _server) = joined(&manager, &mut commands, &mock).await;
+
+    // A tone: its own roughness first, then a volume change, a pause and a resume.
+    let track = call.play(Input::pcm(std::io::Cursor::new(tone(400, 0.5))));
+    let mut capture = Capture::new();
+    for _ in 0..30 {
+        capture.packet(&mock).await;
+    }
+    let own = capture.roughness(5, 30);
+    let level = capture.level(5, 30);
+    track.set_volume(0.3).unwrap();
+    for _ in 0..30 {
+        capture.packet(&mock).await;
+    }
+    // The encoder's delay (6.5 ms) spreads the ramp over two packets.
+    let lower = capture.below(30, level * 0.9);
+    assert!(capture.holds(lower + 2, 60, level * 0.3));
+    track.pause().unwrap();
+    let mut silent = 0;
+    while silent < 5 {
+        if capture.packet(&mock).await == SILENCE {
+            silent += 1;
+        }
+    }
+    track.play().unwrap();
+    let resumed = capture.arrivals.len();
+    for _ in 0..30 {
+        capture.packet(&mock).await;
+    }
+    let end = capture.arrivals.len();
+    // Without the ramps (C-127): about 7 times its own at the change, 100 at the pause.
+    let changes = capture.roughness(30, end);
+    assert!(changes < own * 2.0, "{changes} against its own {own}");
+    assert!(capture.longest_gap(resumed) < 30);
+    track.stop().unwrap();
+
+    // A file sought: the old place fades out, the new one fades in, without a gap.
+    let dir = std::env::temp_dir().join(format!("djs-voice-smooth-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("sine.opus");
+    std::fs::write(&path, SINE).unwrap();
+    let expected = sine_packets();
+    let track = call.play(Input::ogg_file(&path).await.unwrap());
+    let mut capture = Capture::new();
+    while capture.packet(&mock).await != expected[0] {}
+    for _ in 0..15 {
+        capture.packet(&mock).await;
+    }
+    let own = capture.roughness(3, 16);
+    let level = capture.level(3, 16);
+    track.seek(Duration::from_millis(300)).await.unwrap();
+    for _ in 0..15 {
+        capture.packet(&mock).await;
+    }
+    let end = capture.arrivals.len();
+    let sought = capture.roughness(16, end);
+    assert!(sought < own * 2.0, "{sought} against its own {own}");
+    assert!(capture.longest_gap(1) < 30);
+    // At its level right after the fade in, and when its packets go as they are again: a
+    // decoder started from one packet was far too quiet for 100 ms (C-127).
+    let faded = capture.below(16, level * 0.5);
+    assert!(capture.holds(faded + 1, end, level));
+
+    // A volume change on the file (its packets re-encoded) is as smooth.
+    track.set_volume(0.5).unwrap();
+    for _ in 0..15 {
+        capture.packet(&mock).await;
+    }
+    let lower = capture.below(end, level * 0.9);
+    let after = capture.arrivals.len();
+    let halved = capture.roughness(end, after);
+    assert!(halved < own * 2.0, "{halved} against its own {own}");
+    assert!(capture.holds(lower + 2, after, level * 0.5));
+    std::fs::remove_dir_all(&dir).unwrap();
 }

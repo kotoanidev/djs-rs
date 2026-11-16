@@ -21,6 +21,12 @@ pub(crate) const DEFAULT_BITRATE: u32 = 128_000;
 const BITRATES: core::ops::RangeInclusive<u32> = 500..=512_000;
 const SAMPLE_RATE: u32 = 48_000;
 
+/// Whether the Opus `packet` is CELT-only (RFC 6716, section 3.1: configurations 16 to 31
+/// of its TOC byte), not SILK or hybrid.
+pub(crate) fn celt_only(packet: &[u8]) -> bool {
+    packet.first().is_some_and(|toc| toc >> 3 >= 16)
+}
+
 /// `bits` per second within what libopus accepts.
 pub(crate) fn clamp_bitrate(bits: u32) -> u32 {
     bits.clamp(*BITRATES.start(), *BITRATES.end())
@@ -31,6 +37,9 @@ pub(crate) struct Encoder {
     opus: opus2::Encoder,
     /// Keeps audio made louder than its original (volume above 1.0) from clipping harshly.
     clip: SoftClip,
+    /// The next packet is encoded without prediction from the ones before
+    /// ([`Encoder::independent_next`]).
+    independent: bool,
 }
 
 impl Encoder {
@@ -44,6 +53,7 @@ impl Encoder {
         Some(Self {
             opus,
             clip: SoftClip::new(Channels::Stereo),
+            independent: false,
         })
     }
 
@@ -51,22 +61,73 @@ impl Encoder {
         set_bitrate(&mut self.opus, bitrate);
     }
 
-    /// Encodes `pcm` (interleaved stereo, a duration Opus can hold: 2.5 to 120 ms) at
-    /// `volume` into `out`; returns the packet's length, or `None` when libopus refuses the
-    /// duration. `pcm` is scaled in place.
-    pub(crate) fn encode(&mut self, pcm: &mut [f32], volume: f32, out: &mut [u8]) -> Option<usize> {
-        if (volume - 1.0).abs() > f32::EPSILON {
-            for value in pcm.iter_mut() {
-                *value *= volume;
-            }
-        }
-        if volume > 1.0 {
+    /// Encodes the next packet without prediction from the ones before (libopus's
+    /// "prediction disabled", for that packet only): for the first one after packets that
+    /// the listeners decoded but the encoder did not make. Its state does not match their
+    /// decoders' then, and the energies it predicts from would be wrong for many packets
+    /// (far too quiet after a fade, C-127).
+    pub(crate) fn independent_next(&mut self) {
+        self.independent = true;
+    }
+
+    /// How far behind its input the audio it encodes comes out: samples per channel (312
+    /// for libopus's `Audio` application at 48 kHz).
+    pub(crate) fn lookahead(&mut self) -> usize {
+        self.opus
+            .get_lookahead()
+            .ok()
+            .and_then(|samples| usize::try_from(samples).ok())
+            .unwrap_or(312)
+            .min(FRAME_VALUES / 2 - 1)
+    }
+
+    /// Encodes `pcm` (interleaved stereo, a duration Opus can hold: 2.5 to 120 ms) into
+    /// `out`, its gain going from `from` to `to` across it (a ramp, so that a change of
+    /// volume, a pause or a seek makes no click); returns the packet's length, or `None`
+    /// when libopus refuses the duration. `pcm` is scaled in place.
+    pub(crate) fn encode(
+        &mut self,
+        pcm: &mut [f32],
+        from: f32,
+        to: f32,
+        out: &mut [u8],
+    ) -> Option<usize> {
+        ramp(pcm, from, to);
+        if from > 1.0 || to > 1.0 {
             self.clip.apply(pcm);
         }
-        self.opus
+        // libopus sets the prediction of each packet from this setting.
+        let independent = core::mem::take(&mut self.independent);
+        if independent {
+            let _ = self.opus.set_prediction_disabled(true);
+        }
+        let encoded = self
+            .opus
             .encode_float(pcm, out)
             .inspect_err(|error| tracing::debug!(%error, len = pcm.len(), "Opus encoding failed"))
-            .ok()
+            .ok();
+        if independent {
+            let _ = self.opus.set_prediction_disabled(false);
+        }
+        encoded
+    }
+}
+
+/// Scales interleaved stereo `pcm` by a gain going linearly from `from` (before the first
+/// sample) to `to` (at the last).
+fn ramp(pcm: &mut [f32], from: f32, to: f32) {
+    let unchanged = (from - 1.0).abs() <= f32::EPSILON && (to - 1.0).abs() <= f32::EPSILON;
+    if unchanged {
+        return;
+    }
+    let (pairs, _) = pcm.as_chunks_mut::<2>();
+    #[expect(clippy::cast_precision_loss, reason = "at most 5 760 samples")]
+    let step = (to - from) / pairs.len().max(1) as f32;
+    let mut gain = from;
+    for pair in pairs {
+        gain += step;
+        pair[0] *= gain;
+        pair[1] *= gain;
     }
 }
 
@@ -112,8 +173,8 @@ pub(crate) fn from_s16le(bytes: &[u8], out: &mut [f32]) {
 #[cfg(test)]
 mod tests {
     use super::{
-        Decoder, Encoder, FRAME_BYTES, FRAME_VALUES, MAX_PACKET, MAX_PACKET_VALUES, clamp_bitrate,
-        from_s16le,
+        Decoder, Encoder, FRAME_BYTES, FRAME_VALUES, MAX_PACKET, MAX_PACKET_VALUES, celt_only,
+        clamp_bitrate, from_s16le,
     };
     use crate::opus::packet_samples;
 
@@ -144,7 +205,7 @@ mod tests {
         // A few frames, so the codec's look-ahead has settled.
         for _ in 0..5 {
             let mut pcm = tone(960);
-            let len = encoder.encode(&mut pcm, 1.0, &mut packet).unwrap();
+            let len = encoder.encode(&mut pcm, 1.0, 1.0, &mut packet).unwrap();
             assert_eq!(packet_samples(&packet[..len]), Some(960));
             assert_eq!(decoder.decode(&packet[..len], &mut output), Some(960));
             last = rms(&output[..FRAME_VALUES]);
@@ -163,7 +224,9 @@ mod tests {
             let mut last = 0.0;
             for _ in 0..5 {
                 let mut pcm = tone(960);
-                let len = encoder.encode(&mut pcm, volume, &mut packet).unwrap();
+                let len = encoder
+                    .encode(&mut pcm, volume, volume, &mut packet)
+                    .unwrap();
                 decoder.decode(&packet[..len], &mut output).unwrap();
                 last = rms(&output[..FRAME_VALUES]);
             }
@@ -183,11 +246,11 @@ mod tests {
         let mut packet = [0; MAX_PACKET];
         for samples in [480, 1920, 2880, 5760] {
             let mut pcm = tone(samples);
-            let len = encoder.encode(&mut pcm, 0.5, &mut packet).unwrap();
+            let len = encoder.encode(&mut pcm, 0.5, 0.5, &mut packet).unwrap();
             assert_eq!(packet_samples(&packet[..len]), u32::try_from(samples).ok());
         }
         // 7.5 ms is not a duration Opus can hold.
-        assert_eq!(encoder.encode(&mut tone(360), 1.0, &mut packet), None);
+        assert_eq!(encoder.encode(&mut tone(360), 1.0, 1.0, &mut packet), None);
     }
 
     #[test]
@@ -198,9 +261,34 @@ mod tests {
         let mut encoder = Encoder::new(u32::MAX).unwrap();
         encoder.set_bitrate(8_000);
         let mut packet = [0; MAX_PACKET];
-        let len = encoder.encode(&mut tone(960), 1.0, &mut packet).unwrap();
+        let len = encoder
+            .encode(&mut tone(960), 1.0, 1.0, &mut packet)
+            .unwrap();
         // 8 kb/s for 20 ms: about 20 bytes.
         assert!(len < 60, "{len} bytes");
+    }
+
+    #[test]
+    fn the_mode_of_a_packet_is_its_configuration() {
+        // SILK wideband, hybrid fullband, CELT narrowband and fullband (20 ms each).
+        assert!(!celt_only(&[9 << 3]));
+        assert!(!celt_only(&[15 << 3]));
+        assert!(celt_only(&[19 << 3]));
+        assert!(celt_only(&[31 << 3 | 0b011]));
+        assert!(!celt_only(&[]));
+    }
+
+    #[test]
+    fn gains_ramp_across_a_frame() {
+        let mut pcm = vec![1.0; 8];
+        super::ramp(&mut pcm, 1.0, 0.0);
+        assert_eq!(pcm, [0.75, 0.75, 0.5, 0.5, 0.25, 0.25, 0.0, 0.0]);
+        let mut pcm = vec![1.0; 4];
+        super::ramp(&mut pcm, 0.5, 0.5);
+        assert_eq!(pcm, [0.5; 4]);
+        let mut pcm = vec![0.3; 4];
+        super::ramp(&mut pcm, 1.0, 1.0);
+        assert_eq!(pcm, [0.3; 4], "unchanged at 1.0");
     }
 
     #[test]

@@ -258,11 +258,15 @@ async fn joins_plays_in_real_time_and_leaves() {
     silence_follows(&mock, &mut server).await;
     track.play().unwrap();
     assert_eq!(recv_op(&mut server, 5).await["d"]["speaking"], 1);
+    // It fades in, re-encoded (C-127), and goes on where it paused: the 10th packet faded
+    // out, so the 11th to the 19th are re-encoded (SILK, and the first CELT-only one), and
+    // the file's packets go as they are again from the 20th.
+    for _ in 11..20 {
+        let (faded, _, _) = audio(&mock, KEY).await;
+        assert!(!expected.contains(&faded), "faded in");
+    }
     let (payload, _, _) = audio(&mock, KEY).await;
-    assert!(
-        expected[10..].contains(&payload),
-        "it goes on where it paused"
-    );
+    assert_eq!(payload, expected[20], "it goes on where it paused");
     track.stop().unwrap();
     silence_follows(&mock, &mut server).await;
     assert_eq!(track.play(), Err(TrackError::Ended));

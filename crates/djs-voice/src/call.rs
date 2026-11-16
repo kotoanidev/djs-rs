@@ -17,7 +17,7 @@ use core::{
     time::Duration,
 };
 use std::{
-    collections::HashMap,
+    collections::{HashMap, VecDeque},
     error::Error,
     sync::{Arc, Mutex, MutexGuard, PoisonError, Weak},
 };
@@ -28,7 +28,10 @@ use djs_model::{
 };
 use futures_util::Stream;
 use tokio::{
-    sync::{mpsc, oneshot, watch},
+    sync::{
+        mpsc::{self, error::TryRecvError},
+        oneshot, watch,
+    },
     task::JoinHandle,
     time::{Instant, sleep_until},
 };
@@ -37,7 +40,7 @@ use crate::{
     Input, InputError, JoinError, TrackError, TrackHandle, TrackQueue, VoiceGateway,
     codec::{self, Decoder, Encoder, MAX_PACKET, MAX_PACKET_VALUES},
     connection::{self, Command, Config, ConnectError, ConnectionEvent, End, Handle, Info, Sender},
-    input::{self as reading, Again, Chunk, Frame, Source},
+    input::{self as reading, Again, Chunk, Frame, History, Source},
     payload::{Event, MICROPHONE},
     queue::{Queue, Shared, Slot},
     track::{Track, TrackEnd, TrackEvent, duration},
@@ -59,6 +62,24 @@ const SILENCE: [u8; 3] = [0xF8, 0xFF, 0xFE];
 const LATE: Duration = Duration::from_millis(100);
 /// How many packets a track's input is read ahead: about a second of 20 ms packets.
 const AHEAD: usize = 50;
+/// How many Opus packets are still re-encoded at gain 1.0 after a change of gain, before
+/// they go out as they are again: the listeners' decoders overlap each frame with the one
+/// before, which must then hold the same audio (C-127).
+const SETTLE: u8 = 2;
+
+/// A chunk read from a track's input.
+type Read = Option<Result<Chunk, InputError>>;
+
+/// An Ogg/Opus track's packets being re-encoded (a gain other than 1.0: a volume, a fade),
+/// in step with the packets as they are (C-127). The encoder's output comes its lookahead
+/// behind its input, so it is given the audio that far ahead: `fifo` holds the decoded audio
+/// from the start of the current frame plus the lookahead on.
+struct Reencode {
+    decoder: Decoder,
+    fifo: VecDeque<f32>,
+    /// Packets re-encoded at gain 1.0 since the gain last changed ([`SETTLE`]).
+    steady: u8,
+}
 
 /// The calls of a manager, by guild.
 pub(crate) type Calls = Mutex<HashMap<GuildId, Call>>;
@@ -992,34 +1013,72 @@ fn spawn_reader(
 }
 
 /// The track the player plays: its input read ahead, and what the player knows of it.
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "independent facts about the track, each changed on its own"
+)]
 struct Playing {
     track: Arc<Track>,
     /// How to open its input again, for loops and seeking; `None` for a reader.
     again: Option<Again>,
     chunks: mpsc::Receiver<Result<Chunk, InputError>>,
     reader: JoinHandle<()>,
-    /// Made when one of its Opus packets is first re-encoded (a volume other than 1.0).
-    decoder: Option<Decoder>,
+    /// While its Opus packets are re-encoded.
+    reencode: Option<Reencode>,
+    /// The input's last Opus packets (those before a seek's position, after one): a new
+    /// decoder decodes them first.
+    history: History,
+    /// The input opened again while the listeners got the encoder's packets: its stream
+    /// goes on, unprimed (C-127).
+    continuing: bool,
+    /// Whether the input's last Opus packet was CELT-only ([`codec::celt_only`]).
+    celt: bool,
+    /// Frames read ahead of `Player::next` for the re-encoding's lookahead, then what came
+    /// after them (an error, the end), returned by `Player::recv` in order.
+    after: VecDeque<Frame>,
+    held: Option<Read>,
+    /// How many frames from `Player::next` on are decoded already (into the `fifo`).
+    decoded: usize,
     /// Paused, as the player last saw it.
     paused: bool,
     /// [`TrackEvent::Playing`] was sent since its audio last stopped.
     announced: bool,
     /// Seeks waiting for the first frame from the new place.
     seeks: Vec<oneshot::Sender<Result<Duration, TrackError>>>,
+    /// The gain at the end of the last frame sent: the next one ramps from it (C-127).
+    gain: f32,
+    /// The next frame fades out to silence: the track pauses or seeks.
+    closing: bool,
+    /// A seek waiting for the frame from before it to fade out: the input is opened again
+    /// at this position then.
+    seek_to: Option<u64>,
+    /// Its input is being opened again (a seek, a loop): frames of silence keep the stream
+    /// going until its audio comes.
+    restarting: bool,
 }
 
 impl Playing {
     fn new(track: Arc<Track>, source: Source, again: Option<Again>) -> Self {
         let (chunks, reader) = spawn_reader(source, track.position());
         Self {
+            gain: track.volume(),
             paused: track.paused(),
             track,
             again,
             chunks,
             reader,
-            decoder: None,
+            reencode: None,
+            history: History::default(),
+            continuing: false,
+            celt: false,
+            after: VecDeque::new(),
+            held: None,
+            decoded: 0,
             announced: false,
             seeks: Vec::new(),
+            closing: false,
+            seek_to: None,
+            restarting: false,
         }
     }
 
@@ -1030,8 +1089,38 @@ impl Playing {
         };
         self.reader.abort();
         (self.chunks, self.reader) = spawn_reader(again.source(), start);
-        self.decoder = None;
+        self.continuing = self.reencode.is_some();
+        self.reencode = None;
+        self.celt = false;
+        self.history.clear();
+        self.after.clear();
+        self.held = None;
+        self.decoded = 0;
         self.track.set_position(start);
+        self.restarting = true;
+    }
+
+    /// Reads the next frame ahead, if the reader has one ready, into `after`; whether it
+    /// did. What is not a frame is kept for `Player::recv`.
+    fn pull(&mut self) -> bool {
+        if self.held.is_some() {
+            return false;
+        }
+        match self.chunks.try_recv() {
+            Ok(Ok(Chunk::Frame(frame))) => {
+                self.after.push_back(frame);
+                true
+            }
+            Ok(other) => {
+                self.held = Some(Some(other));
+                false
+            }
+            Err(TryRecvError::Empty) => false,
+            Err(TryRecvError::Disconnected) => {
+                self.held = Some(None);
+                false
+            }
+        }
     }
 
     fn answer(&mut self, result: &Result<Duration, TrackError>) {
@@ -1131,12 +1220,17 @@ impl Player {
             return;
         }
         playing.paused = paused;
-        if paused {
-            if core::mem::take(&mut playing.announced) {
-                playing.track.emit(&TrackEvent::Paused);
-            }
-            self.quiet();
+        if !paused {
+            // Not paused after all, if its last frame has not gone yet (a seek still fades
+            // it out).
+            playing.closing = playing.seek_to.is_some();
+            return;
         }
+        if core::mem::take(&mut playing.announced) {
+            playing.track.emit(&TrackEvent::Paused);
+        }
+        // The next frame (read now if need be) fades out, then silence follows.
+        playing.closing = true;
     }
 
     fn seek(&mut self, id: u64, samples: u64, done: oneshot::Sender<Result<Duration, TrackError>>) {
@@ -1144,9 +1238,20 @@ impl Player {
             Some(playing)
                 if playing.track.id == id && !playing.track.ended() && playing.again.is_some() =>
             {
-                playing.restart(samples);
                 playing.seeks.push(done);
-                self.next = None;
+                // Nothing audible to fade out: paused, or already opening the input again.
+                let silent = (playing.paused && !playing.closing)
+                    || (playing.restarting && self.next.is_none());
+                if silent {
+                    playing.restart(samples);
+                    playing.seek_to = None;
+                    playing.gain = 0.0;
+                    self.next = None;
+                } else {
+                    // The frame from before fades out, then the input opens again.
+                    playing.seek_to = Some(samples);
+                    playing.closing = true;
+                }
             }
             _ => {
                 let _ = done.send(Err(TrackError::Ended));
@@ -1172,19 +1277,37 @@ impl Player {
     }
 
     fn wants_chunk(&self) -> bool {
-        // A seek is answered by the first frame from the new place, even paused.
-        let seeking = self
+        // A seek is answered by the first frame from the new place, even paused, and a
+        // frame fading out is read even paused.
+        let reading = self
             .track
             .as_ref()
-            .is_some_and(|playing| !playing.seeks.is_empty());
-        self.next.is_none() && self.silence == 0 && (self.playing() || seeking)
+            .is_some_and(|playing| !playing.seeks.is_empty() || playing.closing);
+        (self.next.is_none() || self.ahead()) && self.silence == 0 && (self.playing() || reading)
     }
 
-    async fn recv(&mut self) -> Option<Result<Chunk, InputError>> {
-        match &mut self.track {
-            Some(playing) => playing.chunks.recv().await,
-            None => core::future::pending().await,
+    /// Whether the Opus frame that is next waits for 20 ms more of the input to be read:
+    /// re-encoding it takes the start of what follows too (the encoder's lookahead, C-127).
+    fn ahead(&self) -> bool {
+        matches!(self.next, Some(Frame::Opus { .. }))
+            && self.track.as_ref().is_some_and(|playing| {
+                playing.held.is_none()
+                    && playing.after.iter().map(Frame::samples).sum::<u32>() < 960
+            })
+    }
+
+    async fn recv(&mut self) -> Read {
+        let Some(playing) = &mut self.track else {
+            return core::future::pending().await;
+        };
+        // What was read ahead first, in order.
+        if let Some(frame) = playing.after.pop_front() {
+            return Some(Ok(Chunk::Frame(frame)));
         }
+        if let Some(read) = playing.held.take() {
+            return read;
+        }
+        playing.chunks.recv().await
     }
 
     fn received(&mut self, chunk: Option<Result<Chunk, InputError>>) {
@@ -1192,13 +1315,21 @@ impl Player {
             return;
         };
         match chunk {
+            // Read ahead of the next frame: kept in order for `recv`.
+            Some(Ok(Chunk::Frame(frame))) if self.next.is_some() => playing.after.push_back(frame),
+            chunk if self.next.is_some() => playing.held = Some(chunk),
+            Some(Ok(Chunk::Preroll(packets))) => playing.history = packets,
             Some(Ok(Chunk::Start(at))) => {
                 playing.track.set_position(at);
                 playing.answer(&Ok(duration(at)));
             }
             Some(Ok(Chunk::Frame(frame))) => {
-                if !playing.seeks.is_empty() {
-                    playing.answer(&Ok(duration(playing.track.position())));
+                // Not the frame fading out before a seek: one from the new place.
+                if playing.seek_to.is_none() {
+                    if !playing.seeks.is_empty() {
+                        playing.answer(&Ok(duration(playing.track.position())));
+                    }
+                    playing.restarting = false;
                 }
                 self.next = Some(frame);
             }
@@ -1212,6 +1343,13 @@ impl Player {
         let Some(playing) = &mut self.track else {
             return;
         };
+        if let Some(samples) = playing.seek_to.take() {
+            // The old place ended before a frame could fade out: the seek goes on.
+            playing.closing = false;
+            playing.restart(samples);
+            playing.gain = 0.0;
+            return;
+        }
         if error.is_none()
             && playing.again.is_some()
             && !playing.track.ended()
@@ -1243,9 +1381,22 @@ impl Player {
         self.reconcile();
     }
 
+    /// Whether a frame of silence fills in while the track's input is opened again.
+    fn filling(&self) -> bool {
+        self.speaking
+            && self.next.is_none()
+            && self
+                .track
+                .as_ref()
+                .is_some_and(|playing| playing.restarting && !playing.paused)
+    }
+
     /// When the next frame is due: now for the first after a pause.
     fn due(&self) -> Option<Instant> {
-        let ready = self.silence > 0 || (self.next.is_some() && self.playing());
+        let closing = self.track.as_ref().is_some_and(|playing| playing.closing);
+        let ready = self.silence > 0
+            || (self.next.is_some() && !self.ahead() && (self.playing() || closing))
+            || self.filling();
         ready.then(|| self.at.unwrap_or_else(Instant::now))
     }
 
@@ -1257,16 +1408,25 @@ impl Player {
             // A first frame, or one far too late: the pace starts over.
             _ => now,
         };
+        // Silence filling in while the input opens again keeps the bot speaking.
+        let mut filler = false;
         let frame = if self.silence > 0 {
             self.silence -= 1;
             None
         } else if let Some(frame) = self.next.take() {
             Some(frame)
+        } else if self.filling() {
+            filler = true;
+            None
         } else {
             return;
         };
         let samples = frame.as_ref().map_or(960, Frame::samples);
-        self.at = (frame.is_some() || self.silence > 0).then(|| at + duration(u64::from(samples)));
+        self.at = (frame.is_some() || filler || self.silence > 0)
+            .then(|| at + duration(u64::from(samples)));
+        // The gain the frame ramps from and to, and where the input opens again after it.
+        let mut gains = (1.0, 1.0);
+        let mut restart = None;
         if frame.is_some() {
             let Some(playing) = &mut self.track else {
                 return;
@@ -1275,68 +1435,229 @@ impl Player {
                 // Read before the track was stopped or replaced.
                 return;
             }
+            let to = if playing.closing {
+                0.0
+            } else {
+                playing.track.volume()
+            };
+            gains = (playing.gain, to);
+            playing.gain = to;
             playing.track.advance(samples);
-            if !core::mem::replace(&mut playing.announced, true) {
+            let closing = core::mem::take(&mut playing.closing);
+            // Once it has faded out, the input opens again at the new place.
+            restart = playing.seek_to.take().filter(|_| closing);
+            let pausing = closing && playing.paused;
+            if !pausing && !core::mem::replace(&mut playing.announced, true) {
                 playing.track.emit(&TrackEvent::Playing);
             }
+            if pausing {
+                // Its last frame fades out; silence follows.
+                self.quiet();
+            }
         }
+        self.send(live, frame.as_ref(), gains, filler, samples)
+            .await;
+        if let Some(playing) = &mut self.track {
+            if let Some(Frame::Opus { data, samples }) = frame {
+                playing.history.push(data, samples);
+            }
+            if let Some(samples) = restart {
+                playing.restart(samples);
+            }
+        }
+    }
+
+    /// Sends `frame` (silence when `None`: a filler, or the frames after audio), if the call
+    /// has a connection.
+    async fn send(
+        &mut self,
+        live: Option<&mut Live>,
+        frame: Option<&Frame>,
+        gains: (f32, f32),
+        filler: bool,
+        samples: u32,
+    ) {
         let Some(live) = live else {
             if self.silence == 0 && frame.is_none() {
                 self.speaking = false;
             }
+            if let Some(encoder) = &mut self.encoder {
+                // Nobody decodes this one: the next starts independently.
+                encoder.independent_next();
+            }
             return;
         };
-        let payload = match &frame {
+        // The packet, and whether the encoder made it.
+        let (payload, encoded) = match frame {
             Some(frame) => {
                 if !self.speaking {
                     live.handle.send(Command::Speaking(MICROPHONE));
                     self.speaking = true;
                 }
-                match (self.encode(frame), frame) {
-                    (Some(len), _) => &self.packet[..len],
-                    (None, Frame::Opus { data, .. }) => &data[..],
+                match (self.encode(frame, gains), frame) {
+                    (Some(len), _) => (&self.packet[..len], true),
+                    (None, Frame::Opus { data, .. }) => (&data[..], false),
                     // PCM that could not be encoded: nothing to send.
                     (None, Frame::Pcm(_)) => return,
                 }
             }
-            None => &SILENCE[..],
+            // While the input opens again: silence from the encoder, so that the listeners'
+            // decoders stay in its stereo stream (Discord's silence frame is mono).
+            None if filler => match self.silence_packet() {
+                Some(len) => (&self.packet[..len], true),
+                None => (&SILENCE[..], false),
+            },
+            None => (&SILENCE[..], false),
         };
         if let Err(error) = live.sender.send(payload, samples).await {
             tracing::debug!(%error, "a voice packet could not be sent");
         }
-        if frame.is_none() && self.silence == 0 {
+        if !encoded && let Some(encoder) = &mut self.encoder {
+            // The listeners' decoders now hold what the encoder did not make (C-127).
+            encoder.independent_next();
+        }
+        if frame.is_none() && !filler && self.silence == 0 {
             live.handle.send(Command::Speaking(0));
             self.speaking = false;
         }
     }
 
-    /// Encodes `frame` at its track's volume into `packet`; its length, or `None` for an
-    /// Opus packet sent as it is (at volume 1.0, or one libopus cannot re-encode).
-    fn encode(&mut self, frame: &Frame) -> Option<usize> {
-        let playing = self.track.as_mut()?;
-        let volume = playing.track.volume();
-        let values = match frame {
-            Frame::Opus { data, .. } => {
-                if (volume - 1.0).abs() <= f32::EPSILON {
-                    // Its decoder would miss these packets: a new one next time.
-                    playing.decoder = None;
-                    return None;
-                }
-                let decoder = match &mut playing.decoder {
-                    Some(decoder) => decoder,
-                    None => playing.decoder.insert(Decoder::new()?),
-                };
-                decoder.decode(data, &mut self.pcm)? * 2
-            }
-            Frame::Pcm(bytes) => {
-                codec::from_s16le(bytes, &mut self.pcm[..codec::FRAME_VALUES]);
-                codec::FRAME_VALUES
-            }
-        };
+    /// A 20 ms packet of silence from the encoder, in `packet`; its length.
+    fn silence_packet(&mut self) -> Option<usize> {
         let encoder = match &mut self.encoder {
             Some(encoder) => encoder,
             None => self.encoder.insert(Encoder::new(self.bitrate)?),
         };
-        encoder.encode(&mut self.pcm[..values], volume, &mut self.packet)
+        let pcm = &mut self.pcm[..codec::FRAME_VALUES];
+        pcm.fill(0.0);
+        encoder.encode(pcm, 1.0, 1.0, &mut self.packet)
     }
+
+    /// Encodes `frame` into `packet`, its gain ramping from `gains.0` to `gains.1`; its
+    /// length, or `None` for an Opus packet sent as it is (at 1.0 throughout once
+    /// re-encoding has settled, or one libopus cannot re-encode).
+    fn encode(&mut self, frame: &Frame, (from, to): (f32, f32)) -> Option<usize> {
+        let encoder = match &mut self.encoder {
+            Some(encoder) => encoder,
+            None => self.encoder.insert(Encoder::new(self.bitrate)?),
+        };
+        let playing = self.track.as_mut()?;
+        let (data, samples) = match frame {
+            Frame::Pcm(bytes) => {
+                let pcm = &mut self.pcm[..codec::FRAME_VALUES];
+                codec::from_s16le(bytes, pcm);
+                return encoder.encode(pcm, from, to, &mut self.packet);
+            }
+            Frame::Opus { data, samples } => (data, usize::try_from(*samples).ok()?),
+        };
+        let unity = (from - 1.0).abs() <= f32::EPSILON && (to - 1.0).abs() <= f32::EPSILON;
+        let celt = codec::celt_only(data);
+        let celt_before = core::mem::replace(&mut playing.celt, celt);
+        let as_they_are = match &playing.reencode {
+            // Not right after the input opened again under the encoder's packets.
+            None => !playing.continuing,
+            // Back to the packets as they are once the listeners' decoders hold the same
+            // audio, and only between CELT-only ones: after the encoder's (CELT) packets,
+            // a SILK or hybrid one is decoded from a reset SILK state, far too quiet.
+            Some(reencode) => reencode.steady >= SETTLE && celt && celt_before,
+        };
+        if unity && as_they_are {
+            playing.reencode = None;
+            playing.decoded = 0;
+            return None;
+        }
+        let lookahead = encoder.lookahead();
+        if playing.reencode.is_none() {
+            let mut decoder = Decoder::new()?;
+            let mut fifo = VecDeque::with_capacity(MAX_PACKET_VALUES * 2);
+            // The encoder first takes the 20 ms before this frame shifted by its lookahead:
+            // the end of the packet before (silence if there is none), then the start of
+            // this one. Its next output is then this frame, in step with the packets.
+            let before = 960 - lookahead;
+            // The input's packets before this one bring the decoder where the listeners'
+            // decoders are: from one packet alone, CELT and SILK come out far too quiet, and
+            // the encoder would start from the wrong state.
+            let mut previous = 0;
+            for packet in playing.history.packets() {
+                previous = decoder.decode(packet, &mut self.pcm).unwrap_or(0);
+            }
+            let continuing = core::mem::take(&mut playing.continuing);
+            if !continuing {
+                let kept = previous.min(before);
+                fifo.extend(core::iter::repeat_n(0.0, (before - kept) * 2));
+                fifo.extend(&self.pcm[(previous - kept) * 2..previous * 2]);
+            }
+            let current = decoder.decode(data, &mut self.pcm)?;
+            fifo.extend(&self.pcm[..current * 2]);
+            playing.decoded = 1;
+            let mut reencode = Reencode {
+                decoder,
+                fifo,
+                steady: 0,
+            };
+            if continuing {
+                // The encoder's stream goes on: the listeners decoded its packets. The new
+                // place starts its lookahead in, so that it stays in step.
+                fill(playing, &mut reencode, &mut self.pcm, lookahead * 2);
+                reencode.fifo.drain(..lookahead * 2);
+            } else {
+                fill(playing, &mut reencode, &mut self.pcm, codec::FRAME_VALUES);
+                // At the gain this frame starts at, as the listeners heard it: the packets
+                // as they are (1.0), or nothing (0.0).
+                let mut prime: Vec<f32> = reencode
+                    .fifo
+                    .drain(..codec::FRAME_VALUES)
+                    .map(|value| value * from)
+                    .collect();
+                let _ = encoder.encode(&mut prime, 1.0, 1.0, &mut self.packet);
+                // The listeners did not decode that one: the next starts independently.
+                encoder.independent_next();
+            }
+            playing.reencode = Some(reencode);
+        } else if playing.decoded == 0 {
+            let reencode = playing.reencode.as_mut()?;
+            let decoded = reencode.decoder.decode(data, &mut self.pcm)?;
+            reencode.fifo.extend(&self.pcm[..decoded * 2]);
+            playing.decoded = 1;
+        }
+        let mut reencode = playing.reencode.take()?;
+        reencode.steady = if unity {
+            reencode.steady.saturating_add(1)
+        } else {
+            0
+        };
+        let values = samples * 2;
+        fill(playing, &mut reencode, &mut self.pcm, values);
+        for (out, value) in self.pcm[..values]
+            .iter_mut()
+            .zip(reencode.fifo.drain(..values.min(reencode.fifo.len())))
+        {
+            *out = value;
+        }
+        playing.decoded = playing.decoded.saturating_sub(1);
+        playing.reencode = Some(reencode);
+        encoder.encode(&mut self.pcm[..values], from, to, &mut self.packet)
+    }
+}
+
+/// Decodes frames read ahead until `reencode.fifo` holds `values` (silence completes it at
+/// the input's end, or when the reader is behind).
+fn fill(playing: &mut Playing, reencode: &mut Reencode, pcm: &mut [f32], values: usize) {
+    while reencode.fifo.len() < values {
+        // The frames decoded so far: the current one and `decoded - 1` read ahead.
+        let index = playing.decoded.saturating_sub(1);
+        if index >= playing.after.len() && !playing.pull() {
+            break;
+        }
+        let Some(Frame::Opus { data, .. }) = playing.after.get(index) else {
+            break;
+        };
+        let Some(decoded) = reencode.decoder.decode(data, pcm) else {
+            break;
+        };
+        reencode.fifo.extend(&pcm[..decoded * 2]);
+        playing.decoded += 1;
+    }
+    let missing = values.saturating_sub(reencode.fifo.len());
+    reencode.fifo.extend(core::iter::repeat_n(0.0, missing));
 }
