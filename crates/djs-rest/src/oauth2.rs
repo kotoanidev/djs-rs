@@ -405,4 +405,49 @@ mod tests {
             "https://discord.com/oauth2/authorize?client_id=1"
         );
     }
+
+    #[test]
+    fn a_bot_invite_with_every_parameter() {
+        let url = AuthorizeUrl::bot(ApplicationId::new(2))
+            .scopes([Scope::ApplicationsCommands])
+            .permissions(Permissions::SEND_MESSAGES | Permissions::VIEW_CHANNEL)
+            .guild_id(GuildId::new(3))
+            .disable_guild_select(true)
+            .state("x y")
+            .prompt(Prompt::Consent);
+        let bits = (Permissions::SEND_MESSAGES | Permissions::VIEW_CHANNEL).bits();
+        assert_eq!(
+            url.to_string(),
+            format!(
+                "https://discord.com/oauth2/authorize?client_id=2\
+                 &scope=bot%20applications.commands&state=x%20y&prompt=consent\
+                 &permissions={bits}&guild_id=3&disable_guild_select=true"
+            )
+        );
+    }
+
+    #[test]
+    fn the_code_grant_asks_for_a_code_and_a_redirect() {
+        let url = AuthorizeUrl::code(ApplicationId::new(4), "https://example.com/cb")
+            .scopes([Scope::Identify])
+            .redirect_uri("https://example.com/other");
+        assert_eq!(
+            url.build(),
+            "https://discord.com/oauth2/authorize?response_type=code&client_id=4\
+             &scope=identify&redirect_uri=https%3A%2F%2Fexample.com%2Fother"
+        );
+    }
+
+    #[test]
+    fn credentials_never_show_the_secret() {
+        let credentials = OAuth2Credentials::new(ApplicationId::new(5), "very-secret");
+        assert_eq!(credentials.client_id(), ApplicationId::new(5));
+        let debug = format!("{credentials:?}");
+        assert!(
+            !debug.contains("very-secret") && debug.contains("<redacted>"),
+            "{debug}"
+        );
+        assert_eq!(TokenTypeHint::AccessToken.as_str(), "access_token");
+        assert_eq!(TokenTypeHint::RefreshToken.as_str(), "refresh_token");
+    }
 }

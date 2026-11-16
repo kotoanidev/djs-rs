@@ -487,6 +487,120 @@ async fn reaction_collectors_count_removals_with_dispose() {
     session.finish().await;
 }
 
+/// What a reaction collector yields, written short.
+fn shown(event: &ReactionEvent) -> String {
+    match event {
+        ReactionEvent::Added(added) => {
+            format!("+{} {}", added.user_id, added.emoji.name().unwrap_or("?"))
+        }
+        ReactionEvent::Removed(removed) => {
+            format!(
+                "-{} {}",
+                removed.user_id,
+                removed.emoji.name().unwrap_or("?")
+            )
+        }
+        _ => "cleared".to_owned(),
+    }
+}
+
+#[tokio::test]
+async fn reaction_collectors_end_at_their_user_or_emoji_limit() {
+    let session = Session::start().await;
+    let ctx = &session.ctx;
+    let mut users = the_message().reaction_collector(ctx).max_users(2).build();
+    let mut emojis = the_message().reaction_collector(ctx).max_emojis(2).build();
+    assert!(!users.is_ended());
+    session.send(reaction("MESSAGE_REACTION_ADD", 5, "👍"));
+    session.send(reaction("MESSAGE_REACTION_ADD", 5, "🔥"));
+    session.send(reaction("MESSAGE_REACTION_ADD", 6, "🔥"));
+    session.send(reaction("MESSAGE_REACTION_ADD", 7, "😀"));
+
+    let mut seen = Vec::new();
+    while let Some(event) = next(&mut users).await {
+        seen.push(shown(&event));
+    }
+    // The second user ends it.
+    assert_eq!(seen, ["+5 👍", "+5 🔥", "+6 🔥"]);
+    assert_eq!(users.end_reason(), Some(EndReason::UserLimit));
+    assert!(users.is_ended());
+    let mut seen = Vec::new();
+    while let Some(event) = next(&mut emojis).await {
+        seen.push(shown(&event));
+    }
+    // The second emoji ends it.
+    assert_eq!(seen, ["+5 👍", "+5 🔥"]);
+    assert_eq!(emojis.end_reason(), Some(EndReason::EmojiLimit));
+    session.finish().await;
+}
+
+#[tokio::test]
+async fn a_collector_ends_after_processing_its_maximum() {
+    let session = Session::start().await;
+    let mut messages = session
+        .ctx
+        .message_collector(ChannelId::new(CHANNEL))
+        .filter(|message| message.content == "yes")
+        .max_processed(3)
+        .build();
+    session.send(message_create(CHANNEL, 800, 5, "no"));
+    session.send(message_create(CHANNEL, 801, 5, "yes"));
+    session.send(message_create(CHANNEL, 802, 5, "no"));
+    session.send(message_create(CHANNEL, 803, 5, "yes"));
+    // The inherent `next`, not the stream's.
+    let collected = timeout(STEP, messages.next()).await.unwrap().unwrap();
+    assert_eq!(collected.id, MessageId::new(801));
+    assert!(timeout(STEP, messages.next()).await.unwrap().is_none());
+    assert_eq!(messages.end_reason(), Some(EndReason::ProcessedLimit));
+    assert_eq!((messages.collected(), messages.processed()), (1, 3));
+    session.finish().await;
+}
+
+#[tokio::test]
+async fn a_disposing_collector_sees_every_reaction_cleared() {
+    let session = Session::start().await;
+    let ctx = session.ctx.clone();
+    let mut reactions = the_message().reaction_collector(&ctx).dispose(true).build();
+    let disposing = {
+        let ctx = ctx.clone();
+        tokio::spawn(async move { the_message().await_reactions(&ctx).dispose(true).await })
+    };
+    // Without `dispose` (discord.js's default), removals are not seen.
+    let keeping = {
+        let ctx = ctx.clone();
+        tokio::spawn(async move { the_message().await_reactions(&ctx).await })
+    };
+    sleep(Duration::from_millis(50)).await;
+    session.send(reaction("MESSAGE_REACTION_ADD", 5, "👍"));
+    session.send(reaction("MESSAGE_REACTION_ADD", 6, "👍"));
+    session.send(reaction("MESSAGE_REACTION_REMOVE", 5, "👍"));
+    session.send((
+        "MESSAGE_REACTION_REMOVE_ALL",
+        json!({"channel_id": CHANNEL.to_string(), "message_id": MESSAGE.to_string(),
+               "guild_id": GUILD.to_string()}),
+    ));
+    session.send(reaction("MESSAGE_REACTION_ADD", 8, "😀"));
+    session.send((
+        "MESSAGE_DELETE",
+        json!({"id": MESSAGE.to_string(),
+        "channel_id": CHANNEL.to_string(), "guild_id": GUILD.to_string()}),
+    ));
+    let mut seen = Vec::new();
+    while let Some(event) = next(&mut reactions).await {
+        seen.push(shown(&event));
+    }
+    assert_eq!(seen, ["+5 👍", "+6 👍", "-5 👍", "cleared", "+8 😀"]);
+    assert_eq!(reactions.end_reason(), Some(EndReason::MessageDelete));
+    // With `dispose`, `await_reactions` keeps only what is left after the clearing.
+    let votes = timeout(STEP, disposing).await.unwrap().unwrap();
+    assert_eq!(votes.len(), 1);
+    assert_eq!(votes["😀"].users, [UserId::new(8)]);
+    let votes = timeout(STEP, keeping).await.unwrap().unwrap();
+    assert_eq!(votes["👍"].users, [UserId::new(5), UserId::new(6)]);
+    assert_eq!(votes["😀"].count(), 1);
+    session.finish().await;
+}
+
 #[tokio::test]
 async fn await_reactions_gathers_by_emoji_until_the_message_is_deleted() {
     let session = Session::start().await;
