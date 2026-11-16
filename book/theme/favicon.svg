@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title id="title">djs-rs</title>
+  <defs>
+    <linearGradient id="bubble" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4f6bff"/>
+      <stop offset="1" stop-color="#a24dff"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#bubble)" d="M30 12h68a22 22 0 0 1 22 22v46a22 22 0 0 1-22 22H62l-24 18v-18h-8A22 22 0 0 1 8 80V34a22 22 0 0 1 22-22z"/>
+  <path fill="#fff" d="M73 22 43 64h19l-7 32 31-44H67z"/>
+</svg>
