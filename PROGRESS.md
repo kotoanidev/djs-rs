@@ -738,7 +738,15 @@ fields with `Deref` to `new`). Steps:
    **Next: implement step 1** in commits:
    (a) done; (b) done; (c) done; (d) done; (f) done (D-345–D-348, C-125: djs-rs's
    `voice` feature, `client.voice()`, `djs_rs::voice`, shutdown leaves the calls,
-   `tests/voice.rs`); **next: (g)**, the live test, only with the owner's go-ahead (D-275);
+   `tests/voice.rs`); (g) **live-tested 2026-11-16** (owner's go-ahead, D-275; temporary
+   `examples/zz_voice.rs`, deleted): the first run timed out (a bot alone never gets an MLS
+   group) → D-349 (`join` does not wait for DAVE, audio only with E2EE). Second run, bot
+   alone in the test guild's first voice channel: bot ID from the token = READY's, Opcode 4
+   through the shard, both voice events, handshake with a real voice server (wss, v8, IP
+   discovery, AES-GCM, DAVE v1) in 873 ms, a 10 s Ogg/Opus track to its end (frames dropped:
+   no group), `leave` → `Disconnected(Left)` and a `VOICE_STATE_UPDATE` without channel,
+   clean shutdown. **Not yet verified live:** an MLS group with a real Discord client and
+   heard audio (needs the owner in the channel);
    (e) done (D-334–D-344, C-124): `VoiceManager` (`new`, `process`, `join`,
    `join_with` + `JoinOptions`, `get`), `VoiceGateway`, `Call` (`play`, `events` →
    `CallEvents`, `leave`, `guild_id`, `channel_id`), `CallEvent`, `DisconnectReason`,
