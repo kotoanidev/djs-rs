@@ -64,25 +64,34 @@ REST, sharding, voice (D-380), each with its example in `book/code/examples/`, b
    rules and builders. What stays low is ignored measurement code (codec, input, DAVE),
    macro output, and functions only doctests check (not counted on stable).
 3. [ ] **In progress (2026-11-16).** Resume point:
-   - `.reference/tools/bench-all.sh` (git-ignored) was started through the guard
-     (`safe.sh -n bench-all -T 14400`); every Phase 1–10 bench and stress test, one log each
-     in `.reference/bench/2026-11-16/` with `progress.txt`. If it did not finish, re-run the
-     missing ones with `ONLY='<name glob>'`. Then write the results into `docs/PERFORMANCE.md`
-     (a new "Measured again for 0.1.0-alpha.1, balanced profile" section, old vs new).
-   - **WIP, not compiled yet:** `benches/vs-twilight/` (twilight 0.18.0, own workspace:
-     `src/main.rs` decode/flood/memory/rest, `run.sh`) and `--cache twilight` /
-     `twilight_cache()` in `benches/vs-node`. Next: `cargo build --release` it (after
-     bench-all), fix errors, clippy; add `bots/twilight` (the `!ping` bot as twilight's README
-     writes it: shard + InMemoryCache + twilight-http) and a `build.sh` reusing
-     `../vs-serenity/bots/djs-rs`; a `report.mjs` for `docs/VS_TWILIGHT.md`; log C-135
-     (twilight without its `zstd` feature: it always asks for zstd-stream, the mock sends
-     plain JSON; proxy setup keeps its rate limiter).
+   - bench-all finished (53 steps, all exit 0, peak 85 °C, logs in
+     `.reference/bench/2026-11-16/`; divan medians parsed into
+     `.reference/tools/perf/divan-2026-11-16.tsv` by `.reference/tools/perf/divan.py`).
+     **Caveat found:** it ran unpinned on all 12 CPUs, so single-threaded numbers landed on
+     E-cores by chance (decode `MESSAGE_CREATE` 1.96 µs vs 1.26 µs pinned before; djs-rs
+     1-shard floods 15–45 % below earlier balanced/performance tables). C-072 allows
+     unpinned absolute numbers, but a regression check needs an A/B: running now,
+     `.reference/tools/perf/ab.sh` through the guard (base `4085a57`, the 2026-11-13 D-256
+     re-run, in the worktree `.reference/ab/base`, target `.reference/ab/target-base`;
+     5 single-shard stress tests pinned `taskset -c 0,2` + the decode and interaction divan
+     benches pinned `-c 2`, 3 alternating rounds, `perf stat` instructions; output in
+     `.reference/bench/2026-11-16-ab/`). Then: if no regression, re-run the divan benches
+     pinned to CPU 2 for the published micro numbers, and write the PERFORMANCE.md section
+     ("Measured again for 0.1.0-alpha.1": balanced profile, method, old vs new, the A/B).
+     Remove the worktree afterwards (`git worktree remove .reference/ab/base`).
+   - **WIP, not compiled yet:** `benches/vs-twilight/` (twilight 0.18.0, own workspace,
+     README written) and `--cache twilight` / `twilight_cache()` in `benches/vs-node`.
+     Next: `cargo build --release` it, fix errors, clippy; a `report.mjs` for
+     `docs/VS_TWILIGHT.md`; log C-135 (twilight without its `zstd` feature: it always asks
+     for zstd-stream, the mock sends plain JSON; proxy setup keeps its rate limiter).
    - Then re-run `benches/vs-node/run.sh`, `benches/vs-serenity/run.sh` + `build.sh` +
-     `reliability.sh`, and the new twilight one.
-   Every benchmark again under the balanced profile: Phases 1–10 (`docs/PERFORMANCE.md`),
-   `docs/VS_NODE.md`, `docs/VS_SERENITY.md` (D-384); then a new `docs/VS_TWILIGHT.md`
+     `reliability.sh`, and the twilight ones (`run.sh`, `build.sh`).
+   Every benchmark again under the balanced profile (D-384); then `docs/VS_TWILIGHT.md`
    (D-385).
-4. [ ] Documentation (D-386). Done: the guide's chapters components and embeds, the cache,
+4. [ ] Documentation (D-386). **Rustdoc audit applied** (3472d56: 850 counterpart lines,
+   names validated by `.reference/tools/rustdoc-audit/validate.py`), crate READMEs' status
+   lines and the guide as homepage (a63f9b0), gate OK. Left: CHANGELOG/ROADMAP at release.
+   Done before: the guide's chapters components and embeds, the cache,
    REST, sharding, voice and the migration chapter (examples rustfmt'ed, pass CI's tests;
    clippy fixed blind from CI's log, to run locally after bench-all); ARCHITECTURE and
    CONTRIBUTING rewritten. **Rustdoc audit prepared, not applied** (applying it rebuilds
@@ -99,10 +108,11 @@ REST, sharding, voice (D-380), each with its example in `book/code/examples/`, b
 6. [ ] The release `0.1.0-alpha.1` on crates.io and GitHub (D-387, D-388): versions,
    `publish`, metadata, CHANGELOG section, dry runs, the owner's `cargo login`, the
    publication in dependency order, the tag and the GitHub Release.
-7. [ ] GitHub (D-389). Done (C-134): issue forms, PR template, Dependabot, SECURITY.md.
-   Left: CODE_OF_CONDUCT (Contributor Covenant 2.1; **blocked on the owner**: a contact
-   address for reports, an open question), private vulnerability reporting on, description,
-   homepage, topics, labels, Discussions.
+7. [ ] GitHub (D-389). Done (C-134): issue forms, PR template, Dependabot, SECURITY.md;
+   description, homepage (the guide), 12 topics, Discussions on, private vulnerability
+   reporting on, labels (triage, dependencies, performance, security, guide, one
+   `crate: …` per crate). Left: CODE_OF_CONDUCT (Contributor Covenant 2.1, staged without a
+   contact; **blocked on the owner**: a contact address for reports, an open question).
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-075 in `docs/DECISIONS.md`; Claude defaults C-001 …
