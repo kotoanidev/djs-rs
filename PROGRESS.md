@@ -39,8 +39,10 @@ IDENTIFY queue, restarts, named commands and stats; benchmarks + extreme-load te
 step 2 (the player) done and live-tested, its clicks fixed (C-127; a second listening test
 later, the owner's choice); step 3 (receiving audio) done and live-tested (D-363–D-373, C-128; the playback and
 tones rerun later, the owner's choice); step 4 (benchmarks and extreme-load tests) measured
-2026-11-16 (`docs/PERFORMANCE.md`, "Step 4", C-129); **next: the owner's answer on the
-finding at 200 speakers** (see "Blocked on the owner"), then Phase 10 is done.
+2026-11-16 (`docs/PERFORMANCE.md`, "Step 4", C-129), its finding fixed (D-374, C-130).
+**Phase 10 is done** (live checks with the owner on hold, see "Blocked on the owner");
+**next: ask the owner what comes after Phase 10** (ROADMAP's cross-cutting items: a
+guide, the migration guide, twilight benchmarks, the first crates.io release).
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-075 in `docs/DECISIONS.md`; Claude defaults C-001 …
@@ -817,7 +819,10 @@ fields with `Deref` to `new`). Steps:
    read-ahead is 190 KiB per track, a candidate) and up to 200 speakers with a playing bot
    (nothing lost up to 100; at 200 the call's task, decoding every PCM subscription, lets
    the socket's buffer overflow: the kernel drops 0.1–11 % and the bot's packets go late).
-   **Next:** the owner's choice for that finding (asked 2026-11-16), then Phase 10 is done.
+   **Fixed 2026-11-16 (D-374, C-130):** a PCM stream decodes when it is read (the call's
+   task only routes Opus): 200 speakers lose nothing and the bot's audio stays on time even
+   at 800 (from 400 on, the mock's bursts outgrow the socket's buffer). D-375: the
+   read-ahead stays 1 s. **Phase 10 is done.**
 
 > **Heavy runs (D-257, D-259–D-262):** the owner's laptop hard-froze on 2026-11-13 under
 > assistant load. Every cargo build/test/bench/stress test goes through
@@ -836,9 +841,6 @@ fields with `Deref` to `new`). Steps:
   body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").
 
 ## Blocked on the owner
-- The finding of step 4 at 200 speakers (`docs/PERFORMANCE.md`, "A call receiving many
-  speakers"): decode in `VoiceStream`, a larger socket buffer, or document the limit —
-  asked 2026-11-16.
 - Live voice tests with the owner (D-275) are on hold: since 2026-11-16 they cannot join
   the voice channel (background noise). Waiting: the playback of a recording (step 3) and
   step 2's tones after the click fixes (C-127). Do not ask until they say they can.

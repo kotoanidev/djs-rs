@@ -135,8 +135,8 @@ just with narrow scope.
 - [x] The player: track queue, PCM, Opus encoding, FFmpeg, volume (step 2, live-tested
       2026-11-16; its clicks fixed, C-127)
 - [x] Receiving audio (step 3, D-363–D-373, C-128; receiving live-tested 2026-11-16)
-- [ ] Voice benchmarks and extreme-load tests (step 4, D-041: measured 2026-11-16, C-129;
-      the finding at 200 speakers waits for the owner)
+- [x] Voice benchmarks and extreme-load tests (step 4, D-041, C-129; the finding at 200
+      speakers fixed: decoding in `VoiceStream`, D-374, C-130)
 
 ## Cross-cutting (continuous)
 - [ ] Guide / book (format TBD with owner)

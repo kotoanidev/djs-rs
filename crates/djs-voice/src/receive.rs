@@ -6,12 +6,15 @@
 //! enough for [`CallEvent::SpeakingStarted`](crate::CallEvent::SpeakingStarted) and
 //! [`SpeakingStopped`](crate::CallEvent::SpeakingStopped). Only the packets of users someone
 //! subscribed to are decrypted, put in order by a [`Reorder`] buffer per user (D-366), then
-//! copied to each of their subscriptions (D-373), decoded for those that asked for PCM
-//! (D-364).
+//! copied to each of their subscriptions (D-373). A stream that asked for PCM (D-364)
+//! decodes its packets itself, when it is read (D-374): the call's task only routes Opus, so
+//! a call with many speakers keeps up with its socket and its own audio, and the decoding
+//! is spread over the readers' tasks.
 
 use core::{
+    fmt,
     pin::Pin,
-    task::{Context, Poll},
+    task::{Context, Poll, ready},
     time::Duration,
 };
 use std::collections::{HashMap, VecDeque};
@@ -161,32 +164,174 @@ pub enum VoiceData {
 /// It ends with its call, or as its [`EndBehavior`] says; dropping it unsubscribes.
 ///
 /// A reader that falls more than about 5 s behind loses the packets that do not fit.
+/// A stream of decoded audio ([`ReceiveOptions::decode`]) decodes each packet when it is
+/// read, on the task that reads it (D-374): about 40 µs of that task's time per 20 ms
+/// packet.
+///
 /// Implements [`Stream`]; [`next`](Self::next) is provided so no extension trait is needed.
 ///
 /// discord.js counterpart: `AudioReceiveStream`.
-#[derive(Debug)]
 pub struct VoiceStream {
-    pub(crate) rx: mpsc::Receiver<VoicePacket>,
+    rx: mpsc::Receiver<Item>,
+    /// For PCM; boxed, as most streams are of Opus.
+    decoding: Option<Box<Decoding>>,
 }
 
 impl VoiceStream {
-    /// Waits for the next packet; `None` once the stream has ended.
+    /// The stream of what `rx` receives, decoded if `options` say so. A stream that cannot
+    /// decode (libopus cannot make a decoder, which it always can) ends at once.
+    pub(crate) fn new(mut rx: mpsc::Receiver<Item>, options: ReceiveOptions) -> Self {
+        let decoding = if options.decode {
+            let decoding = Decoder::new().map(|decoder| {
+                Box::new(Decoding {
+                    decoder,
+                    pcm: vec![0; MAX_SAMPLES * 2],
+                    ahead: None,
+                    lost: None,
+                })
+            });
+            if decoding.is_none() {
+                rx.close();
+            }
+            decoding
+        } else {
+            None
+        };
+        Self { rx, decoding }
+    }
+
+    /// Waits for the next packet; `None` once the stream has ended. Cancel safe: a packet
+    /// is never lost by dropping the future before it is ready.
     pub async fn next(&mut self) -> Option<VoicePacket> {
-        self.rx.recv().await
+        core::future::poll_fn(|cx| Pin::new(&mut *self).poll_next(cx)).await
+    }
+
+    /// The next packet if one is there, without waiting.
+    #[cfg(test)]
+    pub(crate) fn try_next(&mut self) -> Result<VoicePacket, mpsc::error::TryRecvError> {
+        let mut cx = Context::from_waker(std::task::Waker::noop());
+        match Pin::new(self).poll_next(&mut cx) {
+            Poll::Ready(Some(packet)) => Ok(packet),
+            Poll::Ready(None) => Err(mpsc::error::TryRecvError::Disconnected),
+            Poll::Pending => Err(mpsc::error::TryRecvError::Empty),
+        }
+    }
+}
+
+impl fmt::Debug for VoiceStream {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("VoiceStream")
+            .field("decode", &self.decoding.is_some())
+            .finish_non_exhaustive()
     }
 }
 
 impl Stream for VoiceStream {
     type Item = VoicePacket;
 
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<VoicePacket>> {
-        self.rx.poll_recv(cx)
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<VoicePacket>> {
+        let Self { rx, decoding } = self.get_mut();
+        let Some(decoding) = decoding else {
+            return rx.poll_recv(cx).map(|item| {
+                item.map(|item| match item {
+                    Item::Packet {
+                        sequence,
+                        timestamp,
+                        opus,
+                    } => VoicePacket {
+                        sequence,
+                        timestamp,
+                        audio: VoiceData::Opus(opus),
+                    },
+                    Item::Lost {
+                        sequence,
+                        timestamp,
+                        ..
+                    } => VoicePacket {
+                        sequence,
+                        timestamp,
+                        audio: VoiceData::Lost,
+                    },
+                })
+            });
+        };
+        decoding.poll(rx, cx)
     }
 }
 
-/// A packet put in order, or one given up.
-#[derive(Debug, PartialEq, Eq)]
-enum Item {
+/// A [`VoiceStream`]'s decoding (D-364, D-374).
+struct Decoding {
+    decoder: Decoder,
+    /// Room for a packet's samples.
+    pcm: Vec<i16>,
+    /// The item after a lost packet, read to rebuild that one: given next.
+    ahead: Option<Item>,
+    /// A lost packet waiting for the item after it (sequence, timestamp, samples).
+    lost: Option<(u16, u32, u32)>,
+}
+
+impl Decoding {
+    fn poll(
+        &mut self,
+        rx: &mut mpsc::Receiver<Item>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<VoicePacket>> {
+        loop {
+            if let Some((sequence, timestamp, samples)) = self.lost {
+                // Every gap given up is followed by a packet that came, sent with it: the
+                // packet after a lost one may carry it (forward error correction).
+                let after = ready!(rx.poll_recv(cx));
+                self.lost = None;
+                let audio = match &after {
+                    Some(Item::Packet {
+                        sequence: next,
+                        opus,
+                        ..
+                    }) if *next == sequence.wrapping_add(1) => {
+                        decode(&mut self.decoder, &mut self.pcm, opus, true, samples)
+                    }
+                    _ => decode(&mut self.decoder, &mut self.pcm, &[], false, samples),
+                };
+                self.ahead = after;
+                return Poll::Ready(Some(VoicePacket {
+                    sequence,
+                    timestamp,
+                    audio,
+                }));
+            }
+            let item = match self.ahead.take() {
+                Some(item) => item,
+                None => match ready!(rx.poll_recv(cx)) {
+                    Some(item) => item,
+                    None => return Poll::Ready(None),
+                },
+            };
+            match item {
+                Item::Packet {
+                    sequence,
+                    timestamp,
+                    opus,
+                } => {
+                    let audio = decode(&mut self.decoder, &mut self.pcm, &opus, false, FRAME);
+                    return Poll::Ready(Some(VoicePacket {
+                        sequence,
+                        timestamp,
+                        audio,
+                    }));
+                }
+                Item::Lost {
+                    sequence,
+                    timestamp,
+                    samples,
+                } => self.lost = Some((sequence, timestamp, samples)),
+            }
+        }
+    }
+}
+
+/// A packet put in order, or one given up: what a call's task sends a [`VoiceStream`].
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum Item {
     Packet {
         sequence: u16,
         timestamp: u32,
@@ -321,58 +466,27 @@ impl Reorder {
 
 /// One [`VoiceStream`], as the call's task holds it.
 struct Subscription {
-    tx: mpsc::Sender<VoicePacket>,
+    tx: mpsc::Sender<Item>,
     end: EndBehavior,
-    /// For PCM (D-364): the decoder, and room for a packet's samples.
-    decoder: Option<(Decoder, Vec<i16>)>,
     /// When it ends ([`EndBehavior`]), once a packet came.
     end_at: Option<Instant>,
 }
 
 impl Subscription {
-    /// Sends `item` (decoded if need be; `after` is the packet after it, for forward error
-    /// correction); whether the stream is still there.
-    fn send(&mut self, item: &Item, after: Option<&[u8]>, now: Instant) -> bool {
-        let (sequence, timestamp) = match item {
-            Item::Packet {
-                sequence,
-                timestamp,
-                opus,
-            } => {
-                match self.end {
-                    EndBehavior::Manual => {}
-                    EndBehavior::AfterSilence(wait) => {
-                        if opus[..] != SILENCE || self.end_at.is_none() {
-                            self.end_at = Some(now + wait);
-                        }
+    /// Sends `item`; whether the stream is still there.
+    fn send(&mut self, item: &Item, now: Instant) -> bool {
+        if let Item::Packet { opus, .. } = item {
+            match self.end {
+                EndBehavior::Manual => {}
+                EndBehavior::AfterSilence(wait) => {
+                    if opus[..] != SILENCE || self.end_at.is_none() {
+                        self.end_at = Some(now + wait);
                     }
-                    EndBehavior::AfterInactivity(wait) => self.end_at = Some(now + wait),
                 }
-                (*sequence, *timestamp)
+                EndBehavior::AfterInactivity(wait) => self.end_at = Some(now + wait),
             }
-            Item::Lost {
-                sequence,
-                timestamp,
-                ..
-            } => (*sequence, *timestamp),
-        };
-        let audio = match (&mut self.decoder, item) {
-            (None, Item::Packet { opus, .. }) => VoiceData::Opus(opus.clone()),
-            (None, Item::Lost { .. }) => VoiceData::Lost,
-            (Some((decoder, pcm)), Item::Packet { opus, .. }) => {
-                decode(decoder, pcm, opus, false, FRAME)
-            }
-            (Some((decoder, pcm)), Item::Lost { samples, .. }) => match after {
-                Some(after) => decode(decoder, pcm, after, true, *samples),
-                None => decode(decoder, pcm, &[], false, *samples),
-            },
-        };
-        let packet = VoicePacket {
-            sequence,
-            timestamp,
-            audio,
-        };
-        match self.tx.try_send(packet) {
+        }
+        match self.tx.try_send(item.clone()) {
             Ok(()) => true,
             Err(TrySendError::Full(_)) => {
                 tracing::trace!("dropping a received packet: its stream's reader is behind");
@@ -422,13 +536,9 @@ struct User {
 impl User {
     /// Sends `items` to every subscription; the closed ones are removed.
     fn send(&mut self, items: &[Item], now: Instant) {
-        for (index, item) in items.iter().enumerate() {
-            let after = match items.get(index + 1) {
-                Some(Item::Packet { opus, .. }) => Some(&opus[..]),
-                _ => None,
-            };
+        for item in items {
             self.subscriptions
-                .retain_mut(|subscription| subscription.send(item, after, now));
+                .retain_mut(|subscription| subscription.send(item, now));
         }
         if self.subscriptions.is_empty() {
             self.order = Reorder::default();
@@ -463,17 +573,8 @@ impl Receiving {
         &mut self,
         user_id: UserId,
         options: ReceiveOptions,
-        tx: mpsc::Sender<VoicePacket>,
+        tx: mpsc::Sender<Item>,
     ) {
-        let decoder = if options.decode {
-            let Some(decoder) = Decoder::new() else {
-                // Dropping `tx` ends the stream.
-                return;
-            };
-            Some((decoder, vec![0; MAX_SAMPLES * 2]))
-        } else {
-            None
-        };
         self.users
             .entry(user_id)
             .or_default()
@@ -481,7 +582,6 @@ impl Receiving {
             .push(Subscription {
                 tx,
                 end: options.end,
-                decoder,
                 end_at: None,
             });
     }

@@ -3412,6 +3412,24 @@ and why.
   packets and its own options (one Opus, another PCM), as several `CallEvents` do.
 - **Alternatives:** the new subscription ends the old one.
 
+### D-374 — Received audio is decoded in `VoiceStream`, not by the call (2026-11-16)
+- **Question:** step 4's stress test found that at 200 simultaneous speakers the call's task,
+  decoding every PCM subscription's packets itself, falls behind: the socket's receive
+  buffer overflows (the kernel drops 0.1–11 % of the datagrams) and the bot's own packets
+  go out late. Up to 100 speakers nothing is lost.
+- **Answer (owner):** decode in `VoiceStream`: the call's task only routes Opus packets (and
+  lost-packet markers), and a PCM stream decodes (with FEC and concealment, D-364/D-366)
+  when it is read, on the subscriber's task, so decoding spreads over cores. The public API
+  does not change; measure again afterwards.
+- Rejected: a larger socket buffer (a direct `socket2` dependency; the decoding would stay
+  on the call's task), both, or only documenting the limit.
+
+### D-375 — A track's read-ahead stays at 1 s for every input (2026-11-16)
+- **Question:** a PCM track (also FFmpeg's) reads 50 frames (1 s) ahead, about 190 KiB per
+  track; shorten it for PCM?
+- **Answer (owner):** keep 1 s: the margin covers FFmpeg's or the network's stalls; 190 KiB
+  per track is affordable.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
@@ -5489,6 +5507,21 @@ garbage (±1.0 for a frame). Measured with the listeners' side decoded by libopu
   mocks' share is included), the kernel's UDP drops from `/proc/net/snmp`. Sizes through
   `DJS_VOICE_CALLS` (200) and `DJS_VOICE_SPEAKERS` (50).
 - `ogg::tests`' stream writer is `pub(crate)`, for the readers' measurement.
+
+### C-130 — Decoding in `VoiceStream` (D-374)
+- The call's task sends each stream the internal `receive::Item` (a packet in order, or a
+  gap given up: sequence, timestamp, assumed length) instead of a `VoicePacket`; an Opus
+  stream maps it to `VoiceData::Opus`/`Lost`, a PCM stream (its `Decoding` boxed in the
+  stream) decodes it in `poll_next`.
+- Forward error correction stays exact: a gap given up is always followed, in the same
+  batch, by a packet that came, so after a lost packet the stream waits for the next item
+  and uses its FEC only when its sequence number is the next one (a packet dropped for a
+  slow reader leaves a gap: concealed). A lost packet before the end of the stream is
+  concealed.
+- `VoiceStream::next` polls `poll_next` (`core::future::poll_fn`), so it stays cancel safe
+  with the state now in the stream; `try_next` (tests only) polls it with a no-op waker.
+  `VoiceStream`'s `Debug` shows whether it decodes.
+- A stream whose decoder libopus cannot make ends at once (its channel closed).
 
 ---
 

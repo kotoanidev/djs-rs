@@ -38,7 +38,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   and ends a stream with `EndBehavior::{Manual, AfterSilence, AfterInactivity}`; packets
   come in order through a 60 ms buffer; `CallEvent::SpeakingStarted` and `SpeakingStopped`
   come from the packets. Members' plain frames while a call upgrades to DAVE are taken as
-  they are, without an error logged for each.
+  they are, without an error logged for each. A PCM stream decodes when it is read, on its
+  reader's task (D-374): a call keeps up with 200 speakers at once.
   The player of step 2 (D-350–D-362, C-126): Opus through `opus2` with a bundled libopus 1.5
   (replacing `audiopus`, which does not build with CMake 4); `Input::pcm` (s16le, 48 kHz,
   stereo) and `Input::ffmpeg` (any file or URL, `ffmpeg` run when the track starts;

@@ -4,11 +4,13 @@ Discord voice for [djs-rs](https://github.com/kotoanidev/djs-rs): joining voice 
 playing audio into them and receiving it, with the end-to-end encryption (DAVE) Discord
 requires for every call since March 2026.
 
-**Status: under construction (Phase 10, step 3).** The API follows songbird's concepts
+**Status: complete for Phase 10, not published yet.** The API follows songbird's concepts
 (D-316): a `VoiceManager` per bot, a `Call` per guild, and tracks played into it, one at a
-time, from a queue. Steps 1 to 3 join voice channels (with DAVE), play Ogg/Opus, PCM and
-anything FFmpeg reads, with a queue, volume, loops and seeking, receive each user's audio,
-and report the call's and the tracks' events; benchmarks come in step 4.
+time, from a queue. It joins voice channels (with DAVE), plays Ogg/Opus, PCM and anything
+FFmpeg reads, with a queue, volume, loops and seeking, receives each user's audio, and
+reports the call's and the tracks' events. Measured in `docs/PERFORMANCE.md` ("Phase 10"):
+about 700 calls per core passing Ogg/Opus through, 75–100 encoding, and a call receiving
+200 speakers at once without a loss.
 
 - Works on its own through a small gateway adapter, `VoiceGateway` (D-315, D-324), or
   through djs-rs's `voice` feature, which plugs it into the `Client`.
@@ -19,8 +21,9 @@ and report the call's and the tracks' events; benchmarks come in step 4.
   each track's handle pauses, stops, sets the volume, loops and seeks, and gives its state
   (`info`) and events (`events`) (D-352–D-361).
 - `call.subscribe(user)` receives a user's audio as a stream of packets, in order (lost
-  ones reported), as Opus or decoded to 48 kHz stereo `i16` (`ReceiveOptions`), ending by
-  itself after silence if asked (`EndBehavior`); `CallEvent::SpeakingStarted` and
+  ones reported), as Opus or decoded to 48 kHz stereo `i16` (`ReceiveOptions`; decoded on
+  the reading task, D-374, so a call keeps up with many speakers), ending by itself after
+  silence if asked (`EndBehavior`); `CallEvent::SpeakingStarted` and
   `SpeakingStopped` say who speaks (D-363–D-373). Join with `JoinOptions::self_deaf(false)`
   to receive: Discord sends a deafened bot nobody's audio.
 - DAVE comes from the [`davey`](https://crates.io/crates/davey) crate (D-312), Opus from

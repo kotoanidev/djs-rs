@@ -152,7 +152,7 @@ fn rtp(sequence: u16) -> Rtp {
 fn stream(receiving: &mut Receiving, options: ReceiveOptions) -> VoiceStream {
     let (tx, rx) = mpsc::channel(QUEUE);
     receiving.subscribe(user(), options, tx);
-    VoiceStream { rx }
+    VoiceStream::new(rx, options)
 }
 
 /// Packet `sequence` of `opus` arrives at `now`; whether it was wanted.
@@ -167,7 +167,7 @@ fn arrive(receiving: &mut Receiving, sequence: u16, opus: &[u8], now: Instant) -
 
 fn received(stream: &mut VoiceStream) -> Vec<VoicePacket> {
     let mut packets = Vec::new();
-    while let Ok(packet) = stream.rx.try_recv() {
+    while let Ok(packet) = stream.try_next() {
         packets.push(packet);
     }
     packets
@@ -237,6 +237,52 @@ fn each_subscription_gets_the_packets_as_it_asked() {
 }
 
 #[test]
+fn a_decoding_stream_waits_for_the_packet_after_a_lost_one() {
+    let packets = sine();
+    let (tx, rx) = mpsc::channel(QUEUE);
+    let mut stream = VoiceStream::new(rx, ReceiveOptions::new().decode(true));
+    let packet = |sequence: u16| Item::Packet {
+        sequence,
+        timestamp: u32::from(sequence) * 960,
+        opus: packets[usize::from(sequence) + 30].clone(),
+    };
+    let lost = |sequence: u16| Item::Lost {
+        sequence,
+        timestamp: u32::from(sequence) * 960,
+        samples: 960,
+    };
+    let decoded = |packet: Result<VoicePacket, mpsc::error::TryRecvError>| {
+        let packet = packet.expect("a packet");
+        let VoiceData::Pcm(samples) = packet.audio else {
+            panic!("not decoded: {:?}", packet.audio);
+        };
+        assert_eq!(samples.len(), 1920, "packet {}", packet.sequence);
+        packet.sequence
+    };
+    tx.try_send(packet(1)).unwrap();
+    tx.try_send(lost(2)).unwrap();
+    assert_eq!(decoded(stream.try_next()), 1);
+    // The lost packet waits for the one after it, which may carry it.
+    assert_eq!(stream.try_next(), Err(mpsc::error::TryRecvError::Empty));
+    tx.try_send(packet(3)).unwrap();
+    assert_eq!(decoded(stream.try_next()), 2);
+    assert_eq!(decoded(stream.try_next()), 3);
+    // Followed by a packet that is not the next one (5 dropped for a slow reader): 4 is
+    // concealed. A lost packet at the end, too.
+    tx.try_send(lost(4)).unwrap();
+    tx.try_send(packet(6)).unwrap();
+    tx.try_send(lost(7)).unwrap();
+    drop(tx);
+    assert_eq!(decoded(stream.try_next()), 4);
+    assert_eq!(decoded(stream.try_next()), 6);
+    assert_eq!(decoded(stream.try_next()), 7);
+    assert_eq!(
+        stream.try_next(),
+        Err(mpsc::error::TryRecvError::Disconnected)
+    );
+}
+
+#[test]
 fn a_dropped_stream_unsubscribes() {
     let now = Instant::now();
     let packets = sine();
@@ -284,21 +330,18 @@ fn streams_end_after_silence_or_inactivity() {
     receiving.tick(now + second);
     assert_eq!(received(&mut silence).len(), 3);
     assert_eq!(
-        silence.rx.try_recv(),
+        silence.try_next(),
         Err(mpsc::error::TryRecvError::Disconnected)
     );
     assert_eq!(received(&mut inactivity).len(), 3);
-    assert_eq!(
-        inactivity.rx.try_recv(),
-        Err(mpsc::error::TryRecvError::Empty)
-    );
+    assert_eq!(inactivity.try_next(), Err(mpsc::error::TryRecvError::Empty));
     receiving.tick(quiet + Duration::from_millis(20) + second);
     assert_eq!(
-        inactivity.rx.try_recv(),
+        inactivity.try_next(),
         Err(mpsc::error::TryRecvError::Disconnected)
     );
     assert_eq!(received(&mut manual).len(), 3);
-    assert_eq!(manual.rx.try_recv(), Err(mpsc::error::TryRecvError::Empty));
+    assert_eq!(manual.try_next(), Err(mpsc::error::TryRecvError::Empty));
 }
 
 #[test]
@@ -404,33 +447,40 @@ fn throughput() {
                 arrive(&mut receiving, sequence, opus, now);
                 if n % 128 == 0 {
                     for stream in &mut streams {
-                        while stream.rx.try_recv().is_ok() {}
+                        while stream.try_next().is_ok() {}
                     }
                 }
             }
         });
         println!("receiving to {subscriptions} Opus stream(s): {per:.0} ns per packet");
     }
-    // Decoded: one PCM stream.
+    // Decoded: one PCM stream; the call's side (routing) and the reader's (decoding, D-374)
+    // timed apart.
     let decoded: u32 = 20_000;
-    let mut best_pcm = f64::MAX;
+    let (mut routing, mut reading) = (f64::MAX, f64::MAX);
     for _ in 0..3 {
         let mut receiving = Receiving::default();
         receiving.map(user(), SSRC, now);
         let mut pcm = stream(&mut receiving, ReceiveOptions::new().decode(true));
-        let started = Clock::now();
+        let (mut routed, mut read) = (0.0, 0.0);
         for n in 0..decoded {
             let sequence = u16::try_from(n % 65_536).unwrap();
             let opus = &packets[usize::try_from(n).unwrap() % packets.len()];
+            let started = Clock::now();
             arrive(&mut receiving, sequence, opus, now);
-            if n % 128 == 0 {
-                while pcm.rx.try_recv().is_ok() {}
+            routed += started.elapsed().as_secs_f64();
+            if n % 128 == 127 {
+                let started = Clock::now();
+                while pcm.try_next().is_ok() {}
+                read += started.elapsed().as_secs_f64();
             }
         }
-        best_pcm = best_pcm.min(started.elapsed().as_secs_f64());
+        routing = routing.min(routed);
+        reading = reading.min(read);
     }
     println!(
-        "receiving to a PCM stream: {:.1} us per packet",
-        best_pcm / f64::from(decoded) * 1e6
+        "receiving to a PCM stream: the call {:.0} ns per packet, its reader decoding {:.1} us",
+        routing / f64::from(decoded) * 1e9,
+        reading / f64::from(decoded) * 1e6
     );
 }

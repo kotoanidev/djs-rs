@@ -45,7 +45,7 @@ use crate::{
     input::{self as reading, Again, Chunk, Frame, History, Source},
     payload::{Event, MICROPHONE},
     queue::{Queue, Shared, Slot},
-    receive::{self, ReceiveOptions, Receiving, VoicePacket, VoiceStream},
+    receive::{self, ReceiveOptions, Receiving, VoiceStream},
     track::{Track, TrackEnd, TrackEvent, duration},
     udp::Rtp,
 };
@@ -199,7 +199,7 @@ pub(crate) enum CallCommand {
     Subscribe {
         user_id: UserId,
         options: ReceiveOptions,
-        tx: mpsc::Sender<VoicePacket>,
+        tx: mpsc::Sender<receive::Item>,
     },
 }
 
@@ -449,7 +449,7 @@ impl Call {
             options,
             tx,
         });
-        VoiceStream { rx }
+        VoiceStream::new(rx, options)
     }
 
     /// Returns a stream of the call's events: connections resumed and made again, users

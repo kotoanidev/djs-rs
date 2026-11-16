@@ -74,7 +74,7 @@ async fn others_audio_comes_in_order_and_decoded_with_speaking_events() {
         event(&mut events).await,
         CallEvent::SpeakingStopped(user_id) if user_id == speaker
     ));
-    assert!(nobody.rx.try_recv().is_err());
+    assert!(nobody.try_next().is_err());
     // The streams end with the call.
     call.leave().await.unwrap();
     assert_eq!(timeout(STEP, opus.next()).await.unwrap(), None);

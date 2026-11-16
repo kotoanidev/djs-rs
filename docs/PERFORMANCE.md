@@ -1570,7 +1570,7 @@ One user's packets, without sockets (200 000 packets, best of 3):
 | The reorder buffer, in order / 2 % swapped | 20 ns / 13 ns |
 | To one Opus stream (the packet copied, sent on its channel) | 138 ns |
 | To ten Opus streams | 1 094 ns (≈ 110 ns per stream) |
-| To a PCM stream (decoded) | 23.8 µs |
+| To a PCM stream (decoded) | 23.8 µs; after D-374: 128 ns for the call, 23.5 µs for the stream's reader |
 
 #### Many calls at once (`manager::stress_tests::many_calls_play_at_once`)
 
@@ -1618,7 +1618,21 @@ receive buffer full; the default `net.core.rmem_default` is 212 992 bytes).
   packets (24–40 µs each, so 5–8 ms per 20 ms burst at 200 speakers). While it decodes, the
   burst fills the socket's buffer and the kernel drops datagrams (exactly the lost
   packets), and the bot's own packets go out late. A voice channel without a limit can hold
-  that many members, so this is rare but possible. Candidates (the owner's decision):
-  decoding on the reader's side (in `VoiceStream`, so the call's task only routes Opus and
-  decoding spreads over the subscribers' tasks), a larger receive buffer for the socket, or
-  documenting the limit.
+  that many members, so this is rare but possible.
+- **Fixed (D-374): a PCM stream decodes when it is read.** The call's task only routes
+  Opus (128 ns per packet for a PCM stream instead of 23.8 µs), and the decoding runs on
+  the readers' tasks, on as many cores as there are. Measured again:
+
+| Speakers | Streams | Lost packets | Dropped by the kernel | Cores busy (with the mock) | The bot's packets | Its longest gap | Gaps over 30 ms |
+|---|---|---|---|---|---|---|---|
+| 50 | 100 | 0 | 0 | 0.38 | 100 % | 22.0 ms | 0 |
+| 100 | 200 | 0 | 0 | 0.63 | 100 % | 26.1 ms | 0 |
+| 200 (3 runs) | 400 | 0 | 0 | 1.06–1.11 | 100 % | 21.6–25.2 ms | 0 |
+| 400 | 800 | 9 037 of 100 000 | 9 449 | 1.85 | 100 % | 22.5 ms | 0 |
+| 800 | 1 600 | 82 032 of 200 000 | 86 846 | 2.32 | 100 % | 28.0 ms | 0 |
+
+- 200 speakers now lose nothing, and the bot's own audio stays on time even at 800. From
+  400 on, the burst itself (every speaker's datagram at the same instant) is larger than
+  the socket's 208 KiB buffer, however fast the call reads: a voice server forwards each
+  client's packets as they come, not in one burst, so this is the mock's limit more than a
+  call's. A larger receive buffer (rejected for now, D-374) is what would raise it.
