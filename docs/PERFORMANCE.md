@@ -6,7 +6,12 @@ optimization candidate found. Benchmarks use [divan](https://docs.rs/divan) with
 profiler (D-042). They are measured locally; CI only checks that they compile.
 
 The side-by-side comparisons are separate pages: with discord.js on Node.js (D-123),
-[`VS_NODE.md`](VS_NODE.md), and with serenity (D-277), [`VS_SERENITY.md`](VS_SERENITY.md).
+[`VS_NODE.md`](VS_NODE.md), with serenity (D-277), [`VS_SERENITY.md`](VS_SERENITY.md), and
+with twilight (D-385), [`VS_TWILIGHT.md`](VS_TWILIGHT.md).
+
+The newest numbers, the whole set measured again for the first release, are in
+[Measured again for 0.1.0-alpha.1](#measured-again-for-010-alpha1-2026-11-16-d-384); the
+phase sections below keep what each phase measured at the time.
 
 ## How to reproduce
 
@@ -45,6 +50,146 @@ only; other systems print `n/a`).
 This is a laptop CPU with turbo and mixed core types. Repeated runs vary by about ±20 %, and the
 same benchmark varied by up to 2× between cold and warm runs (`values::*` below). Compare
 results only from the same machine, and prefer the median over the mean.
+
+---
+
+## Measured again for 0.1.0-alpha.1 (2026-11-16, D-384)
+
+Every benchmark and extreme-load test of Phases 1–10 again, on the same code the first
+release ships, so that the README and the comparisons quote numbers taken under one set of
+conditions.
+
+| | |
+|---|---|
+| Machine | the laptop above: i7-1355U (2 P-cores + 8 E-cores), 15 GiB |
+| OS, toolchain | Fedora 44, Linux 7.3.3; rustc 1.99.1, the `release`/`bench` profiles above |
+| Power | platform profile **`balanced`** (the owner's choice since 2026-11-16; lower clocks than `performance`) |
+| Guard | every run through `.reference/tools/safe.sh`: nice 19, fan at full speed, all 12 CPUs; peak 85 °C, no throttling |
+| Order | all 53 runs one after another (`bench-all`, 29 min), then the A/Bs below |
+
+### Method, and why some rows look slower
+
+The full run let the scheduler place every thread on any of the 12 CPUs, as C-072 says
+absolute numbers are taken. On this hybrid CPU that placement decides a lot: the same
+single-shard flood ran at **220 000 events/s unpinned** and **451 000 events/s pinned to two
+P-cores**, with the same binary and the same instruction count. Rows that depend on one or
+two threads (a single shard, a sequential REST round trip, the decoder in a divan
+benchmark) therefore come out below the earlier tables, most of which were pinned and taken
+under the `performance` profile. To tell the code apart from the placement:
+
+- the hot paths were measured against an earlier commit, both builds alternately and pinned
+  to the same cores, with `perf stat`'s instruction counts ([A/B](#ab-against-13-november));
+- the divan benchmarks were run again pinned to one P-core (CPU 2), as Phases 5–10 did.
+
+### A/B against 13 November
+
+Base: `4085a57` (the D-256 re-run of 2026-11-13, before Phases 9 and 10, the REST futures of
+D-287–D-289 and everything since); new: this release. Three alternating rounds each,
+`taskset -c 0,2`; medians:
+
+| Test (1M events, one shard) | Base | New | Change | Instructions |
+|---|---:|---:|---:|---:|
+| Gateway only, `MESSAGE_CREATE` | 468 461/s | 480 691/s | +2.6 % | −0.1 % |
+| Gateway only, `INTERACTION_CREATE` | 184 465/s | 187 065/s | +1.4 % | +0.1 % |
+| `Client`, `Sequential` handler | 457 228/s | 451 449/s | −1.3 % | +0.7 % |
+| `Client`, `Concurrent` handler | 307 033/s | 302 160/s | −1.6 % | +0.5 % |
+| Interactions through the router, `Sequential` | 172 790/s | 175 118/s | +1.3 % | +0.3 % |
+
+The 41 benchmarks of `djs-model`'s `decode` and `interaction` (pinned to CPU 2): median
+change **+0.1 %**, the same allocations in every one. The largest moves are getters of
+2–25 ns whose code did not change (layout); decoding moved between −2.8 % and +2.6 %.
+
+**No regression** on the hot paths since the decoder, the client and the interactions were
+last tuned.
+
+REST, the same way (base `4085a57`, `djs-rest`'s `stress.rs`, pinned to `0,2`, 3 rounds):
+
+| Test | Base | New | Instructions |
+|---|---:|---:|---:|
+| Sequential round trip, one channel | 21.4 µs | 20.8 µs | +0.2 % |
+| 200 000 requests, 10 000 buckets, 256 in flight | 103 279/s | 101 754/s | −0.1 % |
+| Peak memory of that run | 365–372 MiB | **200–202 MiB** | |
+
+The time is the same; the memory is not: since D-287 (`c88492a`) a REST method's future is
+boxed inside `djs-rest`, so a queued request holds a **16-byte** future instead of the
+1 448 bytes of Phase 3, and 200 000 requests waiting for their buckets need half the
+memory. The full run's 82.7 µs round trip (unpinned) is placement: 20.8 µs on two P-cores.
+
+Voice, against Phase 10 step 4 (base `0afab05`, before D-374), 1 000 calls playing at once,
+unpinned on all 12 CPUs as C-129 measured it, 3 alternating rounds:
+
+| 1 000 calls | Base | New |
+|---|---|---|
+| Ogg/Opus as it is: packets on time, longest gap | 100.0 %, 40.7–41.1 ms | 100.0 %, 40.4–41.4 ms |
+| Ogg/Opus at volume 0.5 (overloaded) | 39.4–39.7 % of packets | 39.1–39.5 % |
+| PCM, encoded (overloaded) | 49.7–49.9 % | 49.0–49.4 % |
+| Memory per call, joined | 59 KiB | 59 KiB |
+
+The same. In the full run this test came out at 89.2 % for Ogg/Opus as it is (longest gap
+548 ms), 27 minutes into the load and straight after the 200-call test; in the A/B, with
+10 s between runs, the same code kept every call on time in all three rounds. The A/B does
+not say what slowed that one run; it does say the code did not change.
+
+### The numbers now
+
+#### Micro-benchmarks (divan, pinned to CPU 2, a P-core)
+
+Compared with the last published value, which was measured under the `performance`
+profile; the allocations are the same in every row:
+
+| Benchmark | Before (`performance`) | Now (`balanced`) |
+|---|---:|---:|
+| Decode `MESSAGE_CREATE`, 1.5 KB (`events::hot`) | 1.69–1.70 µs (Phase 2) | 1.94 µs |
+| Decode `GUILD_CREATE`, 1 000 members, 711 KB | 853 µs (Phase 2) | 1.04 ms |
+| Decode a whole `INTERACTION_CREATE` dispatch | 3.54 µs (2026-11-13, balanced) | 4.59 µs |
+| Cache: apply that `GUILD_CREATE`, discord.js config | 289–320 µs (Phase 5) | 344 µs |
+| Cache: `MESSAGE_CREATE` into a channel at its limit | 228 ns (Phase 5) | 274 ns |
+| `Route::path`, one ID | 44.9 ns (Phase 3) | 54.3 ns |
+| `Request::new(..).json(&CreateMessage).reason(..)` | 31.6 ns (Phase 3) | 38.7 ns |
+| `Cdn::user_avatar`, animated, `size=256` | 75.3 ns (Phase 3) | 92.7 ns |
+| `validate_embeds`, 10 full embeds | 3.2–3.7 µs (Phase 6) | 4.47 µs |
+
+Everything is 15–30 % slower: the `balanced` profile caps the clocks (Phase 10 step 4
+measured the Opus encoder 25 % slower there), and the A/B above shows the code did not
+change these paths. The full tables are in `.reference/tools/perf/divan-2026-11-16-pinned.tsv`
+of the measuring machine; the run's logs are not committed.
+
+#### Extreme load (unpinned, all 12 CPUs)
+
+| Test | Before | Now |
+|---|---:|---:|
+| Gateway: 1M `MESSAGE_CREATE` on one shard, plain / zlib / zstd | 508 000 / 526 000 / 582 000 (Phase 4) | 423 000 / 438 000 / 514 000 |
+| Gateway: 1 000 shards × 1 000 events, plain / zlib / zstd | 2.37–2.45 M / 2.44 M / 2.62 M | 2.22 M / 2.02 M / 2.19 M |
+| Gateway: 100 shards × 10 000 events, plain / zlib / zstd | 2.47 M / 2.53 M / 2.66 M | 2.17 M / 2.14 M / 2.38 M |
+| Gateway: send limit, commands in any 60 s; event lag p99 | 115; 326 µs | 115; 614 µs |
+| Model: 13.2 M hot events on 12 threads | 3.04 M/s (Phase 2) | 2.87 M/s |
+| Model: `GUILD_CREATE` of 100 000 members (64.9 MB) | 102–116 ms | 106–121 ms |
+| Model: decoded size vs JSON, 2 500 guilds kept | 1.21× | 1.22× |
+| REST: 200 000 requests, 10 000 buckets, 256 in flight | 236 000–238 000/s (Phase 3) | 211 000/s |
+| REST: bucket limits, 429 storm, global limit | 0 rejected; exactly 1 000; ≤ 50/s | 0 rejected; exactly 1 000; ≤ 50/s |
+| REST: 64 uploads of 8 MiB | 3 300–4 000 MiB/s | 3 466 MiB/s |
+| REST: peak memory, 200 000 requests queued | 381–385 MiB (Phase 3) | **215 MiB** |
+| REST: a method's future (`create_message`) | 1 448 B (Phase 3) | **16 B** (D-287) |
+| Cache: 500 guilds × 1 000 members, discord.js config | 155 ms, 418 B per member | 230 ms, 418 B per member |
+| Cache: guild churn, 300 × join + leave | 218–226 ms, RSS flat | 251 ms, RSS flat |
+| Client: 1M events, 16 shards, `Concurrent` / `Sequential` | 1.11 M / 2.16 M (Phase 4) | 1.15 M / 1.89 M |
+| Interactions through the router, 16 shards | 447 400/s (2026-11-13) | 372 500/s |
+| Collectors: 1M collectors built and dropped | 263 ns each | 267 ns each |
+| Managers: member fetch answered by the cache | 23–25 ns | 34 ns |
+| Managers: 200 000 members cached, per member + user | 354 B | 356 B |
+| Sharding: 64 processes, RSS per process (median) | 6.8 MiB | 7.4 MiB |
+| Sharding: `send` to one of 16 clusters, 64 in flight | 197 542/s | 222 445/s |
+| Sharding: restart storm | — | 860 processes started per second, every exit restarted |
+| Voice: a call receiving 200 / 400 / 800 speakers (lost packets) | 0 / 9 037 / 82 032 | 0 / 11 349 / 92 424 |
+| Voice: 200 calls playing Ogg/Opus / at volume 0.5 / PCM, cores busy | 0.42 / 2.64 / 2.19 | 0.41 / 2.64 / 2.12 |
+| Voice: 1 000 calls, Ogg/Opus as it is | 100 %, longest gap 41.2 ms | 100 %, 40.4–41.4 ms (in the A/B; see above) |
+
+The memory columns (bytes per member, decoded size, RSS per process) are unchanged, since
+they do not depend on the clocks, but for REST's queued requests, which need half the memory
+(D-287). Throughput on many cores (shards, the model on 12 threads)
+moved by −5 … −17 %, single-threaded paths by more, as explained above. The single-shard
+`Client` floods (220 000 events/s `Sequential` unpinned) are the clearest case of placement:
+451 000 events/s pinned to two P-cores in the A/B.
 
 ---
 
