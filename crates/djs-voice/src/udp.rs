@@ -1,13 +1,13 @@
 //! The bytes of the voice UDP connection that are not encrypted: the RTP header of the
-//! packets djs-voice sends, and IP discovery, which tells a client the address and port the
-//! voice server sees it at (behind NAT), to give back in Select Protocol.
+//! packets djs-voice sends and receives, and IP discovery, which tells a client the address
+//! and port the voice server sees it at (behind NAT), to give back in Select Protocol.
 //!
 //! Discord documents both in "Voice Packet Structure" and "IP Discovery" of
 //! <https://discord.com/developers/docs/topics/voice-connections>.
 
 use core::net::{IpAddr, SocketAddr};
 
-use crate::crypto::RTP_HEADER;
+use crate::crypto::{OVERHEAD, RTP_HEADER};
 
 /// RTP version 2, no padding, no extension, no CSRCs.
 const VERSION_FLAGS: u8 = 0x80;
@@ -23,6 +23,36 @@ pub(crate) fn rtp_header(sequence: u16, timestamp: u32, ssrc: u32) -> [u8; RTP_H
     header[4..8].copy_from_slice(&timestamp.to_be_bytes());
     header[8..12].copy_from_slice(&ssrc.to_be_bytes());
     header
+}
+
+/// The RTP header of a received audio packet.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Rtp {
+    pub(crate) sequence: u16,
+    pub(crate) timestamp: u32,
+    /// The source: one user's audio.
+    pub(crate) ssrc: u32,
+}
+
+/// The header of `packet` if it is an RTP packet of Opus audio (version 2, payload type
+/// 120) long enough to hold the encryption's overhead; `None` for anything else: RTCP
+/// reports (payload types 200 to 204, read as 72 to 76 here), video, keepalives, IP
+/// discovery.
+pub(crate) fn rtp(packet: &[u8]) -> Option<Rtp> {
+    if packet.len() < RTP_HEADER + OVERHEAD
+        || packet[0] >> 6 != 2
+        || packet[1] & 0x7F != OPUS_PAYLOAD_TYPE
+    {
+        return None;
+    }
+    let word = |at: usize| {
+        u32::from_be_bytes([packet[at], packet[at + 1], packet[at + 2], packet[at + 3]])
+    };
+    Some(Rtp {
+        sequence: u16::from_be_bytes([packet[2], packet[3]]),
+        timestamp: word(4),
+        ssrc: word(8),
+    })
 }
 
 /// A UDP keepalive: the SSRC, big-endian. Sent every few seconds while no audio is, so that
@@ -67,7 +97,35 @@ pub(crate) fn discovery_response(packet: &[u8], ssrc: u32) -> Option<SocketAddr>
 mod tests {
     use core::net::SocketAddr;
 
-    use super::{DISCOVERY, discovery_request, discovery_response, rtp_header};
+    use super::{DISCOVERY, Rtp, discovery_request, discovery_response, rtp, rtp_header};
+    use crate::crypto::OVERHEAD;
+
+    #[test]
+    fn received_headers_are_read_and_other_packets_skipped() {
+        let mut packet = rtp_header(65_535, 0x0102_0304, 77).to_vec();
+        packet.resize(12 + OVERHEAD + 3, 0);
+        let header = Rtp {
+            sequence: 65_535,
+            timestamp: 0x0102_0304,
+            ssrc: 77,
+        };
+        assert_eq!(rtp(&packet), Some(header));
+        // With a marker bit, an extension and CSRCs: the same fields.
+        let mut marked = packet.clone();
+        marked[0] |= 0x10 | 0x02;
+        marked[1] |= 0x80;
+        assert_eq!(rtp(&marked), Some(header));
+        // An RTCP receiver report (payload type 201), a keepalive, a short packet.
+        let mut report = packet.clone();
+        report[1] = 201;
+        assert_eq!(rtp(&report), None);
+        assert_eq!(rtp(&super::keepalive(77)), None);
+        assert_eq!(rtp(&packet[..12 + OVERHEAD - 1]), None);
+        // Not version 2.
+        let mut old = packet;
+        old[0] = 0x40;
+        assert_eq!(rtp(&old), None);
+    }
 
     #[test]
     fn headers_follow_discords_layout() {

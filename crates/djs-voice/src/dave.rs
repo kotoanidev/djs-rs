@@ -26,6 +26,8 @@ use crate::payload::{self, Event, ProposalsOperation};
 /// How long frames that are not end-to-end encrypted are still accepted after a call
 /// upgrades to DAVE, in seconds (for receiving).
 const UPGRADE_PASSTHROUGH: u32 = 10;
+/// The marker at the end of every frame DAVE encrypted.
+const MAGIC: [u8; 2] = [0xFA, 0xFA];
 
 /// A message the connection sends for DAVE.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -130,6 +132,39 @@ impl Dave {
                 None
             }
         }
+    }
+
+    /// Decrypts the end-to-end encrypted `frame` the user `user_id` sent into `out`; the Opus
+    /// packet, or `None` when it cannot be decrypted (no key of theirs yet, a damaged frame).
+    /// Without DAVE (and the frames of members not using it yet, while that is allowed), the
+    /// frame as it is; Opus silence frames are never encrypted.
+    pub(crate) fn decrypt<'a>(
+        &mut self,
+        user_id: u64,
+        frame: &[u8],
+        out: &'a mut Vec<u8>,
+    ) -> Option<&'a [u8]> {
+        out.clear();
+        if let Some(session) = &mut self.session {
+            // A plaintext is never longer than its frame.
+            out.resize(frame.len(), 0);
+            match session.decrypt_into(user_id, MediaType::AUDIO, frame, out) {
+                Ok(len) => {
+                    out.truncate(len);
+                    return Some(out);
+                }
+                Err(error) if self.version != 0 || frame.ends_with(&MAGIC) => {
+                    tracing::trace!(%error, user_id, "dropping a frame DAVE cannot decrypt");
+                    return None;
+                }
+                // Downgraded: a frame that is not DAVE's, from a member without a key.
+                Err(_) => out.clear(),
+            }
+        } else if self.version != 0 {
+            return None;
+        }
+        out.extend_from_slice(frame);
+        Some(out)
     }
 
     /// Handles a voice gateway event: DAVE's are handled here (their replies returned), the
@@ -440,6 +475,57 @@ mod tests {
         assert_ne!(frame, b"an opus frame");
         let decrypted = other.decrypt(BOT, davey::MediaType::AUDIO, &frame).unwrap();
         assert_eq!(decrypted, b"an opus frame");
+    }
+
+    /// The bot in a group with `OTHER`, both with keys.
+    fn in_a_group() -> (Dave, davey::DaveSession) {
+        let sender = ExternalSender::new(CHANNEL);
+        let mut dave = Dave::new(BOT, CHANNEL);
+        let package = key_package(&dave.start(1));
+        dave.handle(Event::DaveExternalSender(sender.package()));
+        let mut other = sender.member(OTHER);
+        let welcome = sender.create_group(&mut other, &package, &[BOT, OTHER]);
+        dave.handle(Event::ClientsConnect(vec![UserId::new(OTHER)]));
+        dave.handle(Event::DaveWelcome {
+            transition_id: 3,
+            welcome,
+        });
+        dave.handle(Event::DaveExecuteTransition { transition_id: 3 });
+        other.prepare_transition(3, 1).unwrap();
+        other.execute_transition(3).unwrap();
+        assert!(dave.ready());
+        (dave, other)
+    }
+
+    #[test]
+    fn frames_of_other_members_decrypt() {
+        let (mut dave, mut other) = in_a_group();
+        let frame = other.encrypt_opus(b"their opus frame").unwrap().to_vec();
+        assert_ne!(frame, b"their opus frame");
+        let mut out = Vec::new();
+        assert_eq!(
+            dave.decrypt(OTHER, &frame, &mut out),
+            Some(&b"their opus frame"[..])
+        );
+        // Silence is never encrypted.
+        assert_eq!(
+            dave.decrypt(OTHER, &[0xF8, 0xFF, 0xFE], &mut out),
+            Some(&[0xF8, 0xFF, 0xFE][..])
+        );
+        // A damaged frame, a user without a key, an unencrypted frame under DAVE.
+        let mut damaged = frame.clone();
+        damaged[0] ^= 1;
+        assert_eq!(dave.decrypt(OTHER, &damaged, &mut out), None);
+        assert_eq!(dave.decrypt(BOT + 1, &frame, &mut out), None);
+        assert_eq!(dave.decrypt(OTHER, b"plain opus", &mut out), None);
+    }
+
+    #[test]
+    fn without_dave_received_frames_are_as_they_are() {
+        let mut dave = Dave::new(BOT, CHANNEL);
+        assert_eq!(dave.start(0), NONE);
+        let mut out = Vec::new();
+        assert_eq!(dave.decrypt(OTHER, b"opus", &mut out), Some(&b"opus"[..]));
     }
 
     #[test]

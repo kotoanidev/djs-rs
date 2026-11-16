@@ -37,8 +37,9 @@ IDENTIFY queue, restarts, named commands and stats; benchmarks + extreme-load te
 `docs/PERFORMANCE.md` "Phase 9"). **Phase 10 — `djs-voice` (D-017): in progress**, step 1
 (connection, DAVE, Ogg/Opus, djs-rs's `voice` feature) done and live-tested 2026-11-16;
 step 2 (the player) done and live-tested, its clicks fixed (C-127; a second listening test
-later, the owner's choice); **next: step 3, receiving audio — its API asked first** (see
-item 10 below).
+later, the owner's choice); step 3 (receiving audio) implemented (D-363–D-373, C-128);
+**next: a live test of steps 2 and 3 with the owner's go-ahead, then step 4** (see item 10
+below).
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-075 in `docs/DECISIONS.md`; Claude defaults C-001 …
@@ -784,11 +785,26 @@ fields with `Deref` to `new`). Steps:
    back to passthrough only between CELT-only packets; the new test
    `volume_changes_pauses_and_seeks_make_no_click` checks roughness, levels and gaps (20
    repeated runs of the player tests without a failure). A second listening test: later
-   (the owner, 2026-11-16; ask again with D-275 when step 3 is tested live). **Next:**
-   step 3 (receiving audio) — ask its API first.
+   (the owner, 2026-11-16; ask again with D-275 when step 3 is tested live).
+   **Step 3, receiving audio — decided and implemented 2026-11-16 (D-363–D-373, C-128):**
+   a stream per user, `call.subscribe(user)` / `subscribe_with(user, ReceiveOptions)` →
+   `VoiceStream` of `VoicePacket { sequence, timestamp, audio: VoiceData::{Opus, Pcm,
+   Lost} }`; `ReceiveOptions::new().decode(bool).end(EndBehavior)`, Opus and `Manual` by
+   default; PCM as 48 kHz stereo `i16`; a 60 ms reorder buffer; each subscription its own
+   stream; `CallEvent::SpeakingStarted`/`SpeakingStopped` from the packets (100 ms).
+   Implemented: `udp::rtp` (headers), `Dave::decrypt`, `codec::Decoder::decode_i16`
+   (FEC/PLC), `connection::Receiver` (made by the `Sender`: reads the current session's
+   socket, opens a packet for a user), `receive.rs` (public types, `Reorder`,
+   `Receiving`), the call's task reading packets next to the connection's events; the
+   mock sends RTP with a header extension. 119 unit tests (17 new for receiving: the reorder
+   buffer, speaking, subscriptions, ends, DAVE frames, new sessions, end to end through a
+   call). **Next:** a live test of steps 2 and 3 with the owner's go-ahead (D-275: the bot
+   joins undeafened, records the owner for a few seconds and plays it back), then step 4.
    **For step 4:** benchmark Opus encoding per frame, decode + re-encode at a volume, the
    start of re-encoding (decoding the 400 ms kept, C-127), the PCM/Ogg readers through
-   `Input`, and many calls encoding at once.
+   `Input`, and many calls encoding at once; receiving: opening a packet (transport +
+   DAVE), the reorder buffer, decoding per subscription, many speakers and subscriptions
+   per call.
 
 > **Heavy runs (D-257, D-259–D-262):** the owner's laptop hard-froze on 2026-11-13 under
 > assistant load. Every cargo build/test/bench/stress test goes through

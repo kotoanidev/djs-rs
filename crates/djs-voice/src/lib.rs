@@ -14,6 +14,7 @@ mod ogg;
 mod opus;
 mod payload;
 mod queue;
+mod receive;
 mod tls;
 mod track;
 mod udp;
@@ -25,5 +26,6 @@ pub use crate::{
     input::Input,
     manager::{JoinOptions, VoiceManager},
     queue::TrackQueue,
+    receive::{EndBehavior, ReceiveOptions, VoiceData, VoicePacket, VoiceStream},
     track::{Loop, PlayState, TrackEnd, TrackEvent, TrackEvents, TrackHandle, TrackInfo},
 };

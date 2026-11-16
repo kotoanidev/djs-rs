@@ -134,7 +134,7 @@ just with narrow scope.
       djs-rs's `voice` feature (step 1, live-tested 2026-11-16)
 - [x] The player: track queue, PCM, Opus encoding, FFmpeg, volume (step 2, live-tested
       2026-11-16; its clicks fixed, C-127)
-- [ ] Receiving audio (step 3)
+- [ ] Receiving audio (step 3: implemented 2026-11-16, D-363–D-373, C-128; a live test next)
 - [ ] Voice benchmarks and extreme-load tests (step 4, D-041)
 
 ## Cross-cutting (continuous)

@@ -41,6 +41,8 @@ pub(crate) struct Mock {
     listener: TcpListener,
     pub(crate) udp: UdpSocket,
     pub(crate) endpoint: String,
+    /// The client's UDP address, from its last IP discovery.
+    client: std::sync::Mutex<Option<SocketAddr>>,
 }
 
 impl Mock {
@@ -52,6 +54,7 @@ impl Mock {
             listener,
             udp,
             endpoint,
+            client: std::sync::Mutex::new(None),
         }
     }
 
@@ -160,6 +163,34 @@ impl Mock {
         response[8..8 + SEEN_AT.len()].copy_from_slice(SEEN_AT.as_bytes());
         response[72..].copy_from_slice(&SEEN_PORT.to_be_bytes());
         self.udp.send_to(&response, from).await.unwrap();
+        *self.client.lock().unwrap() = Some(from);
+    }
+
+    /// Sends the client a packet of audio from `ssrc`: `payload` (an Opus packet, or a DAVE
+    /// frame) after a one-word header extension, as Discord clients send, encrypted with
+    /// `key` (AES-GCM, which the handshake chooses).
+    pub(crate) async fn send_audio(
+        &self,
+        key: [u8; 32],
+        ssrc: u32,
+        sequence: u16,
+        timestamp: u32,
+        payload: &[u8],
+    ) {
+        let mut packet = crate::udp::rtp_header(sequence, timestamp, ssrc).to_vec();
+        packet[0] |= 0x10;
+        // The extension's preamble (one 32-bit word), then its body, encrypted.
+        packet.extend_from_slice(&[0xBE, 0xDE, 0, 1]);
+        let header = packet.len();
+        packet.extend_from_slice(&[0x10, 0x7F, 0, 0]);
+        packet.extend_from_slice(payload);
+        let plaintext = packet.len() - header;
+        packet.resize(packet.len() + crate::crypto::OVERHEAD, 0);
+        let len = Cipher::new(Mode::Aes256Gcm, &key)
+            .seal(&mut packet, header, plaintext, u32::from(sequence))
+            .unwrap();
+        let client = self.client.lock().unwrap().expect("no IP discovery yet");
+        self.udp.send_to(&packet[..len], client).await.unwrap();
     }
 
     /// The next UDP packet of at least `min` bytes.
@@ -659,6 +690,57 @@ async fn a_new_session_sends_no_audio_until_dave_is_ready_again() {
     }
     assert!(!audio.send(b"no key yet", 960).await.unwrap());
     assert!(!handle.dave_ready());
+}
+
+#[tokio::test]
+async fn the_receiver_opens_audio_and_follows_new_sessions() {
+    let mock = Mock::new().await;
+    let (_handle, sender, mut events, mut server) = connected(&mock, config(), 41_250.0).await;
+    let mut receiver = sender.receiver();
+    // Not audio: skipped.
+    let client = mock.client.lock().unwrap().unwrap();
+    mock.udp.send_to(&[1, 2, 3, 4], client).await.unwrap();
+    mock.send_audio(KEY, 77, 10, 9_600, b"opus").await;
+    let rtp = timeout(STEP, receiver.recv()).await.unwrap();
+    assert_eq!((rtp.ssrc, rtp.sequence, rtp.timestamp), (77, 10, 9_600));
+    assert_eq!(receiver.open(OTHER), Some(&b"opus"[..]));
+    assert_eq!(receiver.open(OTHER), None, "opened once");
+    // Another key: it does not open.
+    mock.send_audio(OTHER_KEY, 77, 11, 10_560, b"opus").await;
+    timeout(STEP, receiver.recv()).await.unwrap();
+    assert_eq!(receiver.open(OTHER), None);
+    // A new session: its socket and key.
+    close(&mut server, 4006).await;
+    let mut server = mock.accept().await;
+    mock.handshake(&mut server, 9, OTHER_KEY, 41_250.0).await;
+    loop {
+        if matches!(event(&mut events).await, ConnectionEvent::Reconnected) {
+            break;
+        }
+    }
+    mock.send_audio(OTHER_KEY, 78, 1, 0, b"new session").await;
+    let rtp = timeout(STEP, receiver.recv()).await.unwrap();
+    assert_eq!(rtp.ssrc, 78);
+    assert_eq!(receiver.open(OTHER), Some(&b"new session"[..]));
+}
+
+#[tokio::test]
+async fn the_receiver_decrypts_dave_frames() {
+    let mock = Mock::new().await;
+    let sender = ExternalSender::new(CHANNEL);
+    let mut other = sender.member(OTHER);
+    let (handle, audio, _events, mut server) = dave_connected(&mock).await;
+    let mut receiver = audio.receiver();
+    dave_join(&mut server, &sender, &mut other).await;
+    dave_ready(&handle).await;
+    let frame = other.encrypt_opus(b"their voice").unwrap().to_vec();
+    mock.send_audio(KEY, 77, 1, 0, &frame).await;
+    timeout(STEP, receiver.recv()).await.unwrap();
+    assert_eq!(receiver.open(OTHER), Some(&b"their voice"[..]));
+    // Not under the key of another user.
+    mock.send_audio(KEY, 77, 2, 960, &frame).await;
+    timeout(STEP, receiver.recv()).await.unwrap();
+    assert_eq!(receiver.open(OTHER + 1), None);
 }
 
 #[tokio::test]

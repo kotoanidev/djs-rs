@@ -139,7 +139,8 @@ fn set_bitrate(opus: &mut opus2::Encoder, bitrate: u32) {
     }
 }
 
-/// An Opus decoder for one track: 48 kHz stereo (mono packets are upmixed).
+/// An Opus decoder for one stream (a track's packets, a user's): 48 kHz stereo (mono
+/// packets are upmixed).
 pub(crate) struct Decoder {
     opus: opus2::Decoder,
 }
@@ -158,6 +159,23 @@ impl Decoder {
     pub(crate) fn decode(&mut self, packet: &[u8], out: &mut [f32]) -> Option<usize> {
         self.opus
             .decode_float(packet, out, false)
+            .inspect_err(|error| tracing::debug!(%error, "Opus decoding failed"))
+            .ok()
+    }
+
+    /// Decodes `packet` into `out` as `i16`; returns the samples per channel, or `None` for
+    /// a packet libopus cannot decode. For a packet that was lost, `packet` is empty (the
+    /// loss is concealed), or the packet after it with `fec` (its forward error correction
+    /// rebuilds the lost one, concealed when it has none); `out` then holds exactly the
+    /// lost packet's duration.
+    pub(crate) fn decode_i16(
+        &mut self,
+        packet: &[u8],
+        fec: bool,
+        out: &mut [i16],
+    ) -> Option<usize> {
+        self.opus
+            .decode(packet, out, fec)
             .inspect_err(|error| tracing::debug!(%error, "Opus decoding failed"))
             .ok()
     }

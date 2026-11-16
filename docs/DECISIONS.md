@@ -5444,6 +5444,38 @@ garbage (±1.0 for a frame). Measured with the listeners' side decoded by libopu
   volume step, 100 at a pause and 300 at a seek), levels within 12 % from the second packet
   after a change, no gap over 30 ms.
 
+### C-128 — Receiving audio, step 3 (D-363–D-373)
+- **Where packets are read:** the call's task reads the UDP socket of the connection's
+  current session, through a `Receiver` the `Sender` makes (the same session and DAVE
+  state), next to the connection's events in its loop. A session becomes current after IP
+  discovery, so the receiver never takes a discovery response. Datagrams that are not RTP
+  Opus (keepalives, RTCP reports 200–204, video) are skipped; packets of an SSRC the voice
+  gateway has not reported (Opcode 5) are dropped.
+- **Who sends what:** the SSRCs come from Opcode 5. A user's new SSRC starts their order
+  over (the packets held go first); Client Disconnect forgets their SSRC; a new connection
+  (another channel's voice server) forgets every SSRC, and the users speaking stop, but the
+  subscriptions stay, by user ID.
+- **Only the packets of users someone receives are decrypted:** for the transport (the
+  header extension's body skipped), then with DAVE under the sender's user ID (silence
+  frames pass as they are; frames of members without DAVE only while davey allows them,
+  after an upgrade, or after a downgrade when they are not DAVE frames). A packet that does
+  not open is dropped: it shows as lost.
+- **Order (D-366):** a packet that follows the one before passes at once; after a gap the
+  later packets are held until it is filled, for at most 60 ms after the first held one
+  came, then every gap is given up as lost. Late packets and duplicates are dropped; a jump
+  of more than 50 packets either way is a new stream, not lost ones. A lost packet's
+  timestamp is the one before plus its duration.
+- **PCM (D-364, D-370):** a decoder per subscription; a lost packet is rebuilt from the
+  next packet's forward error correction when the next one is there (Opus conceals it when
+  that has none), and concealed otherwise; a packet that does not decode is concealed.
+- **Streams:** a bounded channel of 256 packets (about 5 s); packets for a reader further
+  behind are dropped (logged at trace). A dropped stream is noticed at the next packet for
+  it or at the next due time. `AfterSilence` counts from packets other than Opus's silence
+  frame `F8 FF FE`; both timed ends start at the first packet. Subscribing to a call that
+  has ended gives a stream that has ended.
+- **Speaking (D-369):** from every packet of a known SSRC, silence frames included;
+  stopped 100 ms after the last one.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

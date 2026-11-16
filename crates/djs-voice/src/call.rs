@@ -39,11 +39,15 @@ use tokio::{
 use crate::{
     Input, InputError, JoinError, TrackError, TrackHandle, TrackQueue, VoiceGateway,
     codec::{self, Decoder, Encoder, MAX_PACKET, MAX_PACKET_VALUES},
-    connection::{self, Command, Config, ConnectError, ConnectionEvent, End, Handle, Info, Sender},
+    connection::{
+        self, Command, Config, ConnectError, ConnectionEvent, End, Handle, Info, Receiver, Sender,
+    },
     input::{self as reading, Again, Chunk, Frame, History, Source},
     payload::{Event, MICROPHONE},
     queue::{Queue, Shared, Slot},
+    receive::{self, ReceiveOptions, Receiving, VoicePacket, VoiceStream},
     track::{Track, TrackEnd, TrackEvent, duration},
+    udp::Rtp,
 };
 
 /// The close code of a bot disconnected from its channel (kicked, the channel deleted) or
@@ -191,6 +195,12 @@ pub(crate) enum CallCommand {
     Leave {
         done: oneshot::Sender<()>,
     },
+    /// Receive a user's audio (D-363).
+    Subscribe {
+        user_id: UserId,
+        options: ReceiveOptions,
+        tx: mpsc::Sender<VoicePacket>,
+    },
 }
 
 /// Where the guild's shard is, and what the call is to the manager.
@@ -233,6 +243,7 @@ impl Call {
             connected_once: false,
             leave: None,
             player: Player::new(Arc::clone(&shared)),
+            receiving: Receiving::default(),
         };
         tokio::spawn(task.run());
         Self {
@@ -363,6 +374,84 @@ impl Call {
         }
     }
 
+    /// Receives the audio of the user `user_id` (D-363, D-367): a stream of their packets,
+    /// as Opus, in order, ended manually ([`subscribe_with`](Self::subscribe_with) chooses).
+    ///
+    /// Discord sends a bot nobody's audio while it is deafened, which is how
+    /// [`VoiceManager::join`](crate::VoiceManager::join) joins: join with
+    /// [`JoinOptions::self_deaf(false)`](crate::JoinOptions::self_deaf) to receive. The
+    /// stream may be made before the user speaks or even joins; packets come once the voice
+    /// gateway has said which source is theirs (the first time they speak). Each stream is
+    /// its own, with a copy of the packets (D-373); dropping it unsubscribes. It ends with
+    /// the call.
+    ///
+    /// discord.js counterpart: `VoiceReceiver#subscribe`; songbird: the `VoiceTick` event.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # async fn example(manager: djs_voice::VoiceManager, guild_id: djs_model::id::GuildId,
+    /// #     channel_id: djs_model::id::ChannelId, user_id: djs_model::id::UserId)
+    /// #     -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    /// use djs_voice::{JoinOptions, VoiceData};
+    ///
+    /// let options = JoinOptions::new().self_deaf(false);
+    /// let call = manager.join_with(guild_id, channel_id, options).await?;
+    /// let mut voice = call.subscribe(user_id);
+    /// let mut bytes = 0;
+    /// while let Some(packet) = voice.next().await {
+    ///     if let VoiceData::Opus(opus) = packet.audio {
+    ///         bytes += opus.len();
+    ///     }
+    /// }
+    /// println!("{bytes} bytes of Opus received");
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[must_use]
+    pub fn subscribe(&self, user_id: UserId) -> VoiceStream {
+        self.subscribe_with(user_id, ReceiveOptions::new())
+    }
+
+    /// Receives the audio of the user `user_id` with `options` (D-367, D-372): decoded to
+    /// PCM or not, ended by itself or not. Otherwise as [`subscribe`](Self::subscribe).
+    ///
+    /// discord.js counterpart: `VoiceReceiver#subscribe` with its options.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # async fn example(call: djs_voice::Call, user_id: djs_model::id::UserId) {
+    /// use std::time::Duration;
+    ///
+    /// use djs_voice::{EndBehavior, ReceiveOptions, VoiceData};
+    ///
+    /// // One utterance, decoded: it ends after a second of silence.
+    /// let options = ReceiveOptions::new()
+    ///     .decode(true)
+    ///     .end(EndBehavior::AfterSilence(Duration::from_secs(1)));
+    /// let mut voice = call.subscribe_with(user_id, options);
+    /// let mut samples: Vec<i16> = Vec::new();
+    /// while let Some(packet) = voice.next().await {
+    ///     if let VoiceData::Pcm(pcm) = packet.audio {
+    ///         samples.extend(pcm);
+    ///     }
+    /// }
+    /// println!("{} s of audio", samples.len() / 2 / 48_000);
+    /// # }
+    /// ```
+    #[must_use]
+    pub fn subscribe_with(&self, user_id: UserId, options: ReceiveOptions) -> VoiceStream {
+        let (tx, rx) = mpsc::channel(receive::QUEUE);
+        // A call that has ended drops `tx`: the stream ends at once.
+        self.command(CallCommand::Subscribe {
+            user_id,
+            options,
+            tx,
+        });
+        VoiceStream { rx }
+    }
+
     /// Returns a stream of the call's events: connections resumed and made again, users
     /// joining, leaving and speaking, and the end of the call. Each stream gets every event
     /// from its creation on, and ends with the call.
@@ -426,6 +515,15 @@ pub enum CallEvent {
         /// Their audio's synchronization source.
         ssrc: u32,
     },
+    /// A user's audio started coming (D-369): their first packet after none for 100 ms.
+    /// Discord sends none to a deafened bot (see [`Call::subscribe`]).
+    ///
+    /// discord.js counterpart: the `start` event of `VoiceReceiver#speaking`.
+    SpeakingStarted(UserId),
+    /// 100 ms have passed since a user's last packet (D-369).
+    ///
+    /// discord.js counterpart: the `end` event of `VoiceReceiver#speaking`.
+    SpeakingStopped(UserId),
 }
 
 /// Why a call ended (D-344), in [`CallEvent::Disconnected`].
@@ -509,6 +607,7 @@ struct Live {
     channel_id: ChannelId,
     handle: Handle,
     sender: Sender,
+    receiver: Receiver,
     events: mpsc::UnboundedReceiver<ConnectionEvent>,
 }
 
@@ -540,6 +639,10 @@ enum Step {
     GraceOver,
     Chunk(Option<Result<Chunk, InputError>>),
     Frame,
+    /// An RTP packet of others' audio.
+    Packet(Rtp),
+    /// Something of [`Receiving`] is due.
+    Receive,
 }
 
 /// How the call ends: the event reported (none for a call that never connected), and what
@@ -579,6 +682,7 @@ struct Task {
     /// The [`Call::leave`] waiting for the end.
     leave: Option<oneshot::Sender<()>>,
     player: Player,
+    receiving: Receiving,
 }
 
 impl Task {
@@ -593,9 +697,10 @@ impl Task {
             let grace = self.grace.filter(|_| self.connecting.is_none());
             let due = self.player.due();
             let wants_chunk = self.player.wants_chunk();
+            let receive = self.receiving.deadline();
             let step = tokio::select! {
                 command = self.commands.recv() => Step::Command(command),
-                event = live_event(&mut self.live) => Step::Connection(event),
+                step = live_step(&mut self.live) => step,
                 (channel_id, result) = connected(&mut self.connecting) => {
                     Step::Connected(channel_id, result)
                 }
@@ -603,6 +708,7 @@ impl Task {
                 () = wait(grace) => Step::GraceOver,
                 chunk = self.player.recv(), if wants_chunk => Step::Chunk(chunk),
                 () = wait(due) => Step::Frame,
+                () = wait(receive) => Step::Receive,
             };
             if let Err(ending) = self.step(step).await {
                 self.end(ending);
@@ -644,6 +750,34 @@ impl Task {
                 self.player.frame(self.live.as_mut()).await;
                 Ok(())
             }
+            Step::Packet(rtp) => {
+                self.packet(rtp);
+                Ok(())
+            }
+            Step::Receive => {
+                for user_id in self.receiving.tick(Instant::now()) {
+                    self.emit(&CallEvent::SpeakingStopped(user_id));
+                }
+                Ok(())
+            }
+        }
+    }
+
+    /// An RTP packet of someone's audio came: they speak; it is opened for those who
+    /// receive them.
+    fn packet(&mut self, rtp: Rtp) {
+        let now = Instant::now();
+        let Some(arrival) = self.receiving.arrived(rtp, now) else {
+            return;
+        };
+        if arrival.started {
+            self.emit(&CallEvent::SpeakingStarted(arrival.user_id));
+        }
+        if arrival.wanted
+            && let Some(live) = &mut self.live
+            && let Some(opus) = live.receiver.open(arrival.user_id.get())
+        {
+            self.receiving.opened(arrival.user_id, rtp, opus, now);
         }
     }
 
@@ -713,6 +847,11 @@ impl Task {
                     JoinError::Cancelled,
                 ));
             }
+            CallCommand::Subscribe {
+                user_id,
+                options,
+                tx,
+            } => self.receiving.subscribe(user_id, options, tx),
         }
         Ok(())
     }
@@ -802,10 +941,16 @@ impl Task {
                     // Its end is not this call's.
                     old.handle.send(Command::Close);
                 }
+                // Other users, other sources.
+                for user_id in self.receiving.reset() {
+                    self.emit(&CallEvent::SpeakingStopped(user_id));
+                }
+                let receiver = sender.receiver();
                 self.live = Some(Live {
                     channel_id,
                     handle,
                     sender,
+                    receiver,
                     events,
                 });
                 self.channel.send_replace(Some(channel_id));
@@ -856,11 +1001,18 @@ impl Task {
                             self.emit(&CallEvent::UserJoined(user));
                         }
                     }
-                    Event::ClientDisconnect(user) => self.emit(&CallEvent::UserLeft(user)),
-                    Event::Speaking(speaking) => self.emit(&CallEvent::Speaking {
-                        user_id: speaking.user_id,
-                        ssrc: speaking.ssrc,
-                    }),
+                    Event::ClientDisconnect(user) => {
+                        self.receiving.left(user);
+                        self.emit(&CallEvent::UserLeft(user));
+                    }
+                    Event::Speaking(speaking) => {
+                        self.receiving
+                            .map(speaking.user_id, speaking.ssrc, Instant::now());
+                        self.emit(&CallEvent::Speaking {
+                            user_id: speaking.user_id,
+                            ssrc: speaking.ssrc,
+                        });
+                    }
                     _ => {}
                 }
                 return Ok(());
@@ -974,10 +1126,15 @@ fn answer<T>(waiters: Vec<oneshot::Sender<T>>, mut result: impl FnMut() -> T) {
     }
 }
 
-async fn live_event(live: &mut Option<Live>) -> Option<ConnectionEvent> {
-    match live {
-        Some(live) => live.events.recv().await,
-        None => core::future::pending().await,
+/// What the connection gives next: one of its events, or a packet of others' audio.
+async fn live_step(live: &mut Option<Live>) -> Step {
+    let Some(live) = live else {
+        return core::future::pending().await;
+    };
+    // Both are cancel-safe.
+    tokio::select! {
+        event = live.events.recv() => Step::Connection(event),
+        rtp = live.receiver.recv() => Step::Packet(rtp),
     }
 }
 

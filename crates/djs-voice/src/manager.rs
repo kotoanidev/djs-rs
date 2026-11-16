@@ -349,4 +349,6 @@ impl VoiceManager {
 #[cfg(test)]
 mod player_tests;
 #[cfg(test)]
+mod receive_tests;
+#[cfg(test)]
 mod tests;

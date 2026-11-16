@@ -10,7 +10,8 @@
 //! returns after the handshake, without waiting for DAVE (D-349: a bot alone in a channel
 //! never gets an MLS group). Audio goes out through a [`Sender`], end-to-end encrypted with
 //! DAVE (dropped while the bot has no key), then for the transport, straight to the UDP
-//! socket of the current session.
+//! socket of the current session; others' audio comes in through a [`Receiver`] (step 3),
+//! which reads that socket.
 
 use core::{fmt, time::Duration};
 use std::{
@@ -32,7 +33,8 @@ use crate::{
     crypto::{Cipher, Mode, OVERHEAD, RTP_HEADER},
     dave::{Dave, Handled, Reply},
     payload::{self, AfterClose, DecodeError, Event, Incoming},
-    tls, udp,
+    tls,
+    udp::{self, Rtp},
 };
 
 type Socket = WebSocketStream<MaybeTlsStream<TcpStream>>;
@@ -813,6 +815,18 @@ impl Sender {
         }
     }
 
+    /// A receiver of the same connection: it follows the same sessions and DAVE state.
+    pub(crate) fn receiver(&self) -> Receiver {
+        Receiver {
+            udp: self.udp.clone(),
+            dave: Arc::clone(&self.dave),
+            packet: vec![0; DATAGRAM],
+            len: 0,
+            frame: Vec::with_capacity(DATAGRAM),
+            ended: false,
+        }
+    }
+
     /// Sends one Opus packet that lasts `samples` samples (at 48 kHz). Returns `false`, and
     /// sends nothing, while DAVE has no key to encrypt with (after identifying anew, until
     /// the bot is in the new group); the RTP timestamp moves on all the same.
@@ -844,6 +858,66 @@ impl Sender {
         self.sequence = self.sequence.wrapping_add(1);
         udp.socket.send(&self.buffer[..sealed]).await?;
         Ok(true)
+    }
+}
+
+/// Room for any datagram the voice server sends: its packets fit Ethernet's MTU.
+const DATAGRAM: usize = 2048;
+
+/// Receives audio (step 3): the RTP packets of others on the UDP socket of the current
+/// session, opened for the transport and end-to-end (DAVE) on demand. It does not read the
+/// socket during IP discovery, which comes before a session is current.
+#[derive(Debug)]
+pub(crate) struct Receiver {
+    udp: watch::Receiver<Arc<Udp>>,
+    dave: Arc<Mutex<Dave>>,
+    /// The last audio packet received, `len` bytes of it.
+    packet: Vec<u8>,
+    len: usize,
+    /// The Opus packet DAVE decrypted last, reused.
+    frame: Vec<u8>,
+    /// The connection ended: nothing more comes.
+    ended: bool,
+}
+
+impl Receiver {
+    /// Waits for the next RTP audio packet; others (keepalives, RTCP reports) are skipped.
+    /// Follows the connection to each new session's socket; waits forever once the
+    /// connection has ended. Cancel-safe: a packet is either received whole or not at all.
+    pub(crate) async fn recv(&mut self) -> Rtp {
+        loop {
+            if self.ended {
+                return core::future::pending().await;
+            }
+            let udp = Arc::clone(&*self.udp.borrow_and_update());
+            tokio::select! {
+                received = udp.socket.recv(&mut self.packet) => match received {
+                    Ok(len) => {
+                        if let Some(rtp) = udp::rtp(&self.packet[..len]) {
+                            self.len = len;
+                            return rtp;
+                        }
+                    }
+                    // An ICMP error of an earlier packet, reported once.
+                    Err(error) => tracing::trace!(%error, "a voice datagram could not be received"),
+                },
+                changed = self.udp.changed() => self.ended = changed.is_err(),
+            }
+        }
+    }
+
+    /// The Opus packet of the packet [`recv`](Self::recv) returned last, sent by the user
+    /// `user_id`: decrypted for the transport (its header extension skipped), then
+    /// end-to-end with that user's DAVE key; `None` if either fails.
+    pub(crate) fn open(&mut self, user_id: u64) -> Option<&[u8]> {
+        let range = self
+            .udp
+            .borrow()
+            .cipher
+            .open(&mut self.packet[..self.len])?;
+        // Opened once only.
+        self.len = 0;
+        lock(&self.dave).decrypt(user_id, &self.packet[range], &mut self.frame)
     }
 }
 
