@@ -675,6 +675,7 @@ dependencies = [
  "djs-gateway",
  "djs-model",
  "djs-rest",
+ "djs-voice",
  "futures-core",
  "futures-util",
  "http-body-util",

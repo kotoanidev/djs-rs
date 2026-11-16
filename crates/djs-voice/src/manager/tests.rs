@@ -224,6 +224,9 @@ async fn joins_plays_in_real_time_and_leaves() {
     assert_eq!(call.guild_id(), guild());
     assert_eq!(call.channel_id(), Some(ChannelId::new(CHANNEL)));
     assert!(manager.get(guild()).is_some());
+    let calls = manager.calls();
+    assert_eq!(calls.len(), 1);
+    assert_eq!(calls[0].inner.id, call.inner.id);
 
     let expected = sine_packets();
     assert!(!expected[1..].contains(&expected[0]), "packets tell apart");
@@ -276,6 +279,7 @@ async fn joins_plays_in_real_time_and_leaves() {
     assert!(events.next().await.is_none());
     assert!(call.events().next().await.is_none(), "the call has ended");
     assert!(manager.get(guild()).is_none());
+    assert!(manager.calls().is_empty());
     closed(&mut server).await;
 }
 

@@ -260,6 +260,24 @@ impl VoiceManager {
         lock(&self.inner.calls).get(&guild_id).cloned()
     }
 
+    /// The bot's current calls, in no particular order.
+    ///
+    /// discord.js counterpart: `getVoiceConnections`; songbird: `Songbird::iter`.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # async fn run(manager: djs_voice::VoiceManager) {
+    /// for call in manager.calls() {
+    ///     println!("in {:?} of {}", call.channel_id(), call.guild_id());
+    /// }
+    /// # }
+    /// ```
+    #[must_use]
+    pub fn calls(&self) -> Vec<Call> {
+        lock(&self.inner.calls).values().cloned().collect()
+    }
+
     /// The guild's call, made if there is none.
     fn call(&self, guild_id: GuildId) -> Call {
         lock(&self.inner.calls)

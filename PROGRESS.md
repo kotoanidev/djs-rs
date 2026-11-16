@@ -736,7 +736,9 @@ fields with `Deref` to `new`). Steps:
    a second member decrypts the bot's audio). **For step 4:** benchmark DAVE frame
    encryption in `Sender::send`.
    **Next: implement step 1** in commits:
-   (a) done; (b) done; (c) done; (d) done; **next: (f)**, decided by D-345–D-348;
+   (a) done; (b) done; (c) done; (d) done; (f) done (D-345–D-348, C-125: djs-rs's
+   `voice` feature, `client.voice()`, `djs_rs::voice`, shutdown leaves the calls,
+   `tests/voice.rs`); **next: (g)**, the live test, only with the owner's go-ahead (D-275);
    (e) done (D-334–D-344, C-124): `VoiceManager` (`new`, `process`, `join`,
    `join_with` + `JoinOptions`, `get`), `VoiceGateway`, `Call` (`play`, `events` →
    `CallEvents`, `leave`, `guild_id`, `channel_id`), `CallEvent`, `DisconnectReason`,
@@ -744,9 +746,9 @@ fields with `Deref` to `new`). Steps:
    `TrackError`; 82 unit tests (10 manager E2E tests against a mock gateway and voice
    server). **Still for step 4:** a divan bench of the Ogg reader through `Input` (C-118)
    and of DAVE frame encryption.
-   (f) djs-rs
-   `voice` feature; (g) a live test only with the owner's go-ahead (D-275). Live tests need the
-   owner's go-ahead (D-275) and a voice channel on the test guild.
+   (g) the live test needs the owner's go-ahead (D-275) and a voice channel on the test
+   guild: a temporary `examples/zz_voice.rs` joining, playing `tests/data/sine.opus` (or a
+   longer Ogg/Opus file) and leaving, never committed.
 
 > **Heavy runs (D-257, D-259–D-262):** the owner's laptop hard-froze on 2026-11-13 under
 > assistant load. Every cargo build/test/bench/stress test goes through

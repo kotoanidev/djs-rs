@@ -5153,6 +5153,29 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   disconnection in both orders; a stop code; user events; ignored events. 20 repeated
   runs: no failure.
 
+### C-125 — djs-rs's `voice` feature (D-345–D-348, step 1f)
+- **`voice = ["dep:djs-voice"]`**, and `native-roots` also enables `djs-voice?/native-roots`.
+  `djs_rs::voice` is `pub use djs_voice::*` plus the client's adapter (private).
+- **The adapter (`ClientGateway`)** holds the client's `Shared` (not the `Client`: no
+  cycle) and ignores the manager's shard number (made with a count of 1): it picks the
+  shard from the guild in the command and the total shard count of the current `login`
+  (`Shared::total_shards`, new, set with the plan). Errors: "the client is not logged in",
+  "the guild's shard N does not run in this process", or the shard's `SendError`.
+- **The bot's ID** is decoded from the token's first part (standard or URL-safe base64,
+  padding optional) by a small decoder of our own (no dependency). A token without it gets
+  an ID that matches nobody (`u64::MAX`) and a warning on the first `client.voice()`, next
+  to the missing-intent one (each once, `std::sync::Once`).
+- **Events:** every dispatch goes through `VoiceManager::process` (a match on two
+  variants) before it is converted.
+- **Shutdown (D-348):** each shard's task leaves the calls of its guilds before it closes,
+  waiting 2 s at most; their Opcode 4 is queued, not waited for (the shard closes right
+  after; the closed session takes the bot out of its channels anyway).
+- **README:** the features table gains `sharding` (missing until now) and `voice`.
+- **Tests:** `bot_id` and `shard_of` unit tests; `tests/voice.rs`: a real `Client`
+  against a mock gateway (READY, then the two voice events for the Opcode 4 it gets) and a
+  mock voice server: the join through the shard (deafened), Identify's fields, shutdown
+  ending the call with `Left` and closing the voice connection; a join before `login`.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

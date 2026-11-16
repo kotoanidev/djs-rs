@@ -15,6 +15,9 @@ pub mod router;
 #[cfg(feature = "sharding")]
 #[cfg_attr(docsrs, doc(cfg(feature = "sharding")))]
 pub mod sharding;
+#[cfg(feature = "voice")]
+#[cfg_attr(docsrs, doc(cfg(feature = "voice")))]
+pub mod voice;
 pub mod webhook;
 
 pub use self::{

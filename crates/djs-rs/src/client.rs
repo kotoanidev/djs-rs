@@ -181,6 +181,12 @@ struct Inner<B: Backend> {
     /// The state and latency of each shard of a cluster process, for its stats (D-310).
     #[cfg(feature = "sharding")]
     shard_slots: RwLock<Vec<Arc<crate::sharding::ShardSlot>>>,
+    /// The bot's voice calls (D-345).
+    #[cfg(feature = "voice")]
+    voice: crate::voice::VoiceManager,
+    /// `voice()` checked the intents and the token once (D-346).
+    #[cfg(feature = "voice")]
+    voice_checked: std::sync::Once,
 }
 
 /// A future boxed inside this crate (D-287).
@@ -543,6 +549,68 @@ impl<B: Backend> Client<B> {
         &self.inner.rest
     }
 
+    /// Returns the bot's voice calls: join voice channels, play audio, leave (D-345).
+    ///
+    /// The manager is there from the start; the client sends its Opcode 4 through the
+    /// guild's shard and passes it the voice events. Joins need the client logged in, with
+    /// the guild's shard in this process, and the `GUILD_VOICE_STATES` intent: the first
+    /// call warns when the intent is missing (D-346). [`shutdown`](Self::shutdown) leaves
+    /// every call (D-348).
+    ///
+    /// discord.js counterpart: `joinVoiceChannel({ adapterCreator: guild.voiceAdapterCreator,
+    /// … })` of `@discordjs/voice`.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use djs_rs::{model::id::{ChannelId, GuildId}, prelude::*};
+    /// # async fn run(client: Client, guild: GuildId, channel: ChannelId)
+    /// # -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    /// use djs_rs::voice::Input;
+    ///
+    /// let call = client.voice().join(guild, channel).await?;
+    /// call.play(Input::ogg_file("song.opus").await?);
+    /// # Ok(()) }
+    /// ```
+    #[cfg(feature = "voice")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "voice")))]
+    #[must_use]
+    pub fn voice(&self) -> &crate::voice::VoiceManager {
+        self.inner.voice_checked.call_once(|| {
+            if !self.inner.intents.contains(Intents::GUILD_VOICE_STATES) {
+                tracing::warn!(
+                    "voice needs the GUILD_VOICE_STATES intent: without it the bot never gets \
+                     its voice state and joins time out; add it with ClientBuilder::intents"
+                );
+            }
+            if crate::voice::bot_id(&self.inner.token).is_none() {
+                tracing::warn!(
+                    "the token does not start with the bot's ID, so voice cannot recognize \
+                     the bot's voice state and joins time out"
+                );
+            }
+        });
+        &self.inner.voice
+    }
+
+    /// Leaves the voice calls of shard `number` before it closes (D-348). Their Opcode 4 is
+    /// queued, not waited for: the closed session takes the bot out of its channels anyway.
+    #[cfg(feature = "voice")]
+    async fn leave_calls(&self, number: u32) {
+        let total = self.inner.shared.total_shards.load(Ordering::Acquire);
+        let mut leaving = tokio::task::JoinSet::new();
+        for call in self.inner.voice.calls() {
+            if crate::voice::shard_of(call.guild_id(), total) == number {
+                leaving.spawn(async move {
+                    let _ = call.leave().await;
+                });
+            }
+        }
+        // Closing a voice connection waits for its server a second at most.
+        let all = async { while leaving.join_next().await.is_some() {} };
+        let _ = tokio::time::timeout(core::time::Duration::from_secs(2), all).await;
+    }
+
     /// Returns the cache, or `None` if the client was built without one (the default, D-170).
     ///
     /// Every event is applied to the cache before its handlers run (D-171), so a handler sees
@@ -817,6 +885,10 @@ impl<B: Backend> Client<B> {
         inner
             .shard_count
             .store(plan.range.end - plan.range.start, Ordering::Release);
+        inner
+            .shared
+            .total_shards
+            .store(plan.total, Ordering::Release);
         inner.ready_shards.store(0, Ordering::Release);
 
         let mut sweepers = self.spawn_sweepers();
@@ -940,6 +1012,8 @@ impl<B: Backend> Client<B> {
                 biased;
                 changed = shutdown.changed() => {
                     if changed.is_err() || *shutdown.borrow() {
+                        #[cfg(feature = "voice")]
+                        self.leave_calls(shard.id().number()).await;
                         shard.close().await;
                         return Ok(());
                     }
@@ -954,6 +1028,8 @@ impl<B: Backend> Client<B> {
                         replayed += 1;
                     }
                     let resumed = matches!(event, DispatchEvent::Resumed);
+                    #[cfg(feature = "voice")]
+                    self.inner.voice.process(&event);
                     convert(
                         event,
                         self.inner.cache.as_deref(),
@@ -1401,6 +1477,20 @@ impl<B: Backend> ClientBuilder<B> {
         let cache = self
             .cache
             .map(|config| Arc::new(Cache::with_backend(config, backend)));
+        let shared = Arc::new(Shared {
+            sequential: self.mode == HandlerMode::Sequential,
+            intents: self.intents,
+            ..Shared::default()
+        });
+        // The real ID, or one that matches no voice state (`voice()` warns, D-345).
+        #[cfg(feature = "voice")]
+        let voice = crate::voice::VoiceManager::new(
+            crate::voice::bot_id(&self.token).unwrap_or(crate::model::id::UserId::new(u64::MAX)),
+            1,
+            crate::voice::ClientGateway {
+                shared: Arc::clone(&shared),
+            },
+        );
         Client {
             inner: Arc::new(Inner {
                 token: self.token.into_boxed_str(),
@@ -1418,11 +1508,7 @@ impl<B: Backend> ClientBuilder<B> {
                 running: AtomicBool::new(false),
                 shard_count: AtomicU32::new(0),
                 ready_shards: AtomicU32::new(0),
-                shared: Arc::new(Shared {
-                    sequential: self.mode == HandlerMode::Sequential,
-                    intents: self.intents,
-                    ..Shared::default()
-                }),
+                shared,
                 compiled,
                 #[cfg(feature = "sharding")]
                 cluster: self.cluster,
@@ -1430,6 +1516,10 @@ impl<B: Backend> ClientBuilder<B> {
                 commands: RwLock::default(),
                 #[cfg(feature = "sharding")]
                 shard_slots: RwLock::default(),
+                #[cfg(feature = "voice")]
+                voice,
+                #[cfg(feature = "voice")]
+                voice_checked: std::sync::Once::new(),
             }),
         }
     }

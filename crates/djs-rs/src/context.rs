@@ -30,6 +30,8 @@ pub(crate) struct Shared {
     pub(crate) intents: Intents,
     /// The senders of the running shards, by shard number (empty while not running).
     pub(crate) shards: RwLock<Vec<(u32, MessageSender)>>,
+    /// The bot's total shard count, across processes, of the current `login` (0 before).
+    pub(crate) total_shards: core::sync::atomic::AtomicU32,
     /// Set to `true` to stop the running client ([`Client::shutdown`](crate::Client::shutdown),
     /// [`Context::shutdown`], D-293); `login` sets it back to `false`.
     pub(crate) shutdown: watch::Sender<bool>,
@@ -47,6 +49,7 @@ impl Default for Shared {
             sequential: false,
             intents: Intents::empty(),
             shards: RwLock::default(),
+            total_shards: core::sync::atomic::AtomicU32::new(0),
             shutdown: watch::channel(false).0,
             #[cfg(feature = "sharding")]
             link: std::sync::Mutex::new(None),

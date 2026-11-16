@@ -34,6 +34,11 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   events, leave), `CallEvent`, `DisconnectReason`, `Input::ogg`/`ogg_file`, `TrackHandle`
   (play, pause, stop), `JoinOptions` and the errors `JoinError`, `InputError`,
   `TrackError`; Ogg/Opus played in real time with silence frames when audio stops.
+  `VoiceManager::calls()` (D-348).
+- djs-rs's `voice` feature (D-345–D-348, C-125): `client.voice()` returns the client's
+  `VoiceManager`, which sends Opcode 4 through the guild's shard and gets the voice events;
+  `djs_rs::voice` re-exports djs-voice; `client.shutdown()` leaves every call. A missing
+  `GUILD_VOICE_STATES` intent is warned about.
 - Multi-process sharding, first step (D-284, D-285, D-296, D-297, D-300–D-303, C-112), behind
   the new `sharding` feature: `ClusterManager` starts the bot's executable again once per
   group of `shards_per_process` shards (1 by default, Discord's recommended count or a fixed
