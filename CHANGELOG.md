@@ -254,42 +254,6 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `GuildAvailable` / `GuildUnavailable` / `GuildDelete` are told apart with or without a
   cache; emoji and sticker lists are diffed into per-item events when cached. `ClientReady`
   fires once per login. Payloads are only built for events someone listens to.
-
-### Changed
-- Every REST method of `djs-rest` (`Rest::create_message`, …, 245 of them) returns
-  `impl Future<Output = …> + Send` built inside the crate (D-287), instead of being an
-  `async fn`: their bodies — sending, rate limiting, retries, hyper, serde for the model types
-  — are compiled once in `djs-rest` rather than in every crate that awaits them. Calls do not
-  change (`rest.create_message(id, &body).await`); a method's borrowed arguments now share
-  one lifetime with `&self`. `Rest::request` keeps decoding the caller's `T` in the caller's
-  crate but sends through the crate-built path. Each call costs one allocation (REST runner:
-  the same throughput, +0.27 µs CPU per request); a `!ping` bot that replies rebuilds in
-  6.4 s instead of 7.8 s after an edit.
-- `Client::login` returns `impl Future<Output = Result<(), Error>> + Send` instead of being
-  an `async fn`, and `Client::builder` / `ClientBuilder::build` reach the client's code
-  through a table of functions (D-287): for the default cache backend that code — the event
-  loop, the shards, the cache updates — is compiled once in `djs-rs`, not in the bot's crate;
-  `ClientBuilder::cache_backend` switches to the generic table, so custom backends work as
-  before. Calls do not change. A `!ping` bot rebuilds after an edit in 0.5 s (0.85 s when it
-  replies) instead of 7.1 s (7.8 s), release profile.
-- The managers, the structure methods and `Context` reach the cache through one
-  `dyn` table of cache operations built where the client loop creates the context (D-289),
-  and the gateway member and soundboard requests box their futures inside `djs-rs`: for the
-  default backend none of that code is compiled in the bot's crate any more. No public API
-  change. With the default release profile, a `!ping` bot that replies rebuilds after an edit
-  in 0.77 s (10.8 s before D-287) and the moderation example in 2.1 s (12.7 s); event and
-  REST throughput are unchanged (`docs/PERFORMANCE.md`, "Rebuild time after an edit").
-- **Breaking:** the six maps of interaction `Resolved` data box their values
-  (`BTreeMap<Id, Box<V>>`, D-256): an interaction takes 3.14 KB of heap instead of 8.72 KB
-  at the same decoding time. Field access and method calls work through the box; the getters
-  (`get_user`, `selected_roles`, …) still return plain references.
-- The 16-shard reply flood of `djs-rs/tests/stress_interactions.rs` sends 50 000 interactions
-  instead of 200 000 (D-258).
-- `djs-rs` (breaking): `MessageExt::reply` returns the sent message as cached,
-  `Arc<CachedMessage>`, instead of `Message` (C-093).
-- `djs-rs`: `Dispatch` has one variant per event (replacing `Ready` / `MessageCreate` /
-  `Resumed`), `Dispatch::name` returns discord.js' event name (`"messageCreate"`), and
-  `ClientReady` fires once instead of at every shard's `READY` (`ShardReady` does that).
 - `djs-collection` benchmarks (`benches/collection.rs`) and extreme-load tests
   (`tests/stress.rs`: a model check of random operations, fairness of random picks,
   10 000 000 entries, adversarial removal patterns, all cores), results in
@@ -720,6 +684,40 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `login`/`shutdown`, prelude; `examples/ping.rs`; end-to-end tests with mock REST + gateway.
 
 ### Changed
+- Every REST method of `djs-rest` (`Rest::create_message`, …, 245 of them) returns
+  `impl Future<Output = …> + Send` built inside the crate (D-287), instead of being an
+  `async fn`: their bodies — sending, rate limiting, retries, hyper, serde for the model types
+  — are compiled once in `djs-rest` rather than in every crate that awaits them. Calls do not
+  change (`rest.create_message(id, &body).await`); a method's borrowed arguments now share
+  one lifetime with `&self`. `Rest::request` keeps decoding the caller's `T` in the caller's
+  crate but sends through the crate-built path. Each call costs one allocation (REST runner:
+  the same throughput, +0.27 µs CPU per request); a `!ping` bot that replies rebuilds in
+  6.4 s instead of 7.8 s after an edit.
+- `Client::login` returns `impl Future<Output = Result<(), Error>> + Send` instead of being
+  an `async fn`, and `Client::builder` / `ClientBuilder::build` reach the client's code
+  through a table of functions (D-287): for the default cache backend that code — the event
+  loop, the shards, the cache updates — is compiled once in `djs-rs`, not in the bot's crate;
+  `ClientBuilder::cache_backend` switches to the generic table, so custom backends work as
+  before. Calls do not change. A `!ping` bot rebuilds after an edit in 0.5 s (0.85 s when it
+  replies) instead of 7.1 s (7.8 s), release profile.
+- The managers, the structure methods and `Context` reach the cache through one
+  `dyn` table of cache operations built where the client loop creates the context (D-289),
+  and the gateway member and soundboard requests box their futures inside `djs-rs`: for the
+  default backend none of that code is compiled in the bot's crate any more. No public API
+  change. With the default release profile, a `!ping` bot that replies rebuilds after an edit
+  in 0.77 s (10.8 s before D-287) and the moderation example in 2.1 s (12.7 s); event and
+  REST throughput are unchanged (`docs/PERFORMANCE.md`, "Rebuild time after an edit").
+- **Breaking:** the six maps of interaction `Resolved` data box their values
+  (`BTreeMap<Id, Box<V>>`, D-256): an interaction takes 3.14 KB of heap instead of 8.72 KB
+  at the same decoding time. Field access and method calls work through the box; the getters
+  (`get_user`, `selected_roles`, …) still return plain references.
+- The 16-shard reply flood of `djs-rs/tests/stress_interactions.rs` sends 50 000 interactions
+  instead of 200 000 (D-258).
+- `djs-rs` (breaking): `MessageExt::reply` returns the sent message as cached,
+  `Arc<CachedMessage>`, instead of `Message` (C-093).
+- `djs-rs`: `Dispatch` has one variant per event (replacing `Ready` / `MessageCreate` /
+  `Resumed`), `Dispatch::name` returns discord.js' event name (`"messageCreate"`), and
+  `ClientReady` fires once instead of at every shard's `READY` (`ShardReady` does that).
 - `djs-builders`: an action row holding a text input is now rejected — text inputs belong in
   a modal's label (D-207); the deprecated format stays possible with `build_unchecked()`.
 - **Breaking (`djs-cache`, D-177):** users are cached as the new compact `CachedUser`
