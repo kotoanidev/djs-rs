@@ -70,19 +70,27 @@ REST, sharding, voice (D-380), each with its example in `book/code/examples/`, b
      **Caveat found:** it ran unpinned on all 12 CPUs, so single-threaded numbers landed on
      E-cores by chance (decode `MESSAGE_CREATE` 1.96 µs vs 1.26 µs pinned before; djs-rs
      1-shard floods 15–45 % below earlier balanced/performance tables). C-072 allows
-     unpinned absolute numbers, but a regression check needs an A/B: running now,
-     `.reference/tools/perf/ab.sh` through the guard (base `4085a57`, the 2026-11-13 D-256
-     re-run, in the worktree `.reference/ab/base`, target `.reference/ab/target-base`;
-     5 single-shard stress tests pinned `taskset -c 0,2` + the decode and interaction divan
-     benches pinned `-c 2`, 3 alternating rounds, `perf stat` instructions; output in
-     `.reference/bench/2026-11-16-ab/`). Then: if no regression, re-run the divan benches
-     pinned to CPU 2 for the published micro numbers, and write the PERFORMANCE.md section
-     ("Measured again for 0.1.0-alpha.1": balanced profile, method, old vs new, the A/B).
-     Remove the worktree afterwards (`git worktree remove .reference/ab/base`).
+     unpinned absolute numbers, so a regression check was run as an A/B:
+     `.reference/tools/perf/ab.sh` (base `4085a57`, the 2026-11-13 D-256 re-run, worktree
+     `.reference/ab/base`), results in `.reference/bench/2026-11-16-ab/`: **no regression**:
+     5 single-shard stress tests pinned `0,2` within −1.6 … +2.6 % throughput and +0.7 %
+     instructions at most; 41 divan benches pinned to CPU 2 median +0.1 %, allocations
+     identical (only sub-10-ns getters move, by code layout: their code is unchanged).
+     Still to explain, queued in the background (task waits for the pinned benches):
+     `ab-rest.sh` (REST's sequential round trip is 82.7 µs now vs 39.7–42.3 µs in Phase 3;
+     base `4085a57` vs new, pinned, output `.reference/bench/2026-11-16-ab-rest/`) and
+     `ab-voice.sh` (1000 Ogg/Opus calls: 89.2 % of packets and a 548 ms gap now vs 100 % /
+     41.2 ms at C-129; base `0afab05`, worktree `.reference/ab/voice-base`, output
+     `.reference/bench/2026-11-16-ab-voice/`). The divan benches again pinned to CPU 2:
+     `.reference/tools/perf/bench-pinned.sh` → `.reference/bench/2026-11-16-pinned/` (for the
+     published micro numbers). Then write the PERFORMANCE.md section ("Measured again for
+     0.1.0-alpha.1": balanced profile, method, old vs new, the A/Bs; log the method as
+     C-135) and remove the worktrees (`git worktree remove .reference/ab/base`,
+     `.reference/ab/voice-base`).
    - **WIP, not compiled yet:** `benches/vs-twilight/` (twilight 0.18.0, own workspace,
-     README written) and `--cache twilight` / `twilight_cache()` in `benches/vs-node`.
+     README, `report.mjs` and the `docs/VS_TWILIGHT.md` skeleton written) and `--cache twilight` / `twilight_cache()` in `benches/vs-node`.
      Next: `cargo build --release` it, fix errors, clippy; a `report.mjs` for
-     `docs/VS_TWILIGHT.md`; log C-135 (twilight without its `zstd` feature: it always asks
+     `docs/VS_TWILIGHT.md`; log C-136 (twilight without its `zstd` feature: it always asks
      for zstd-stream, the mock sends plain JSON; proxy setup keeps its rate limiter).
    - Then re-run `benches/vs-node/run.sh`, `benches/vs-serenity/run.sh` + `build.sh` +
      `reliability.sh`, and the twilight ones (`run.sh`, `build.sh`).
