@@ -40,7 +40,7 @@ step 2 (the player) done and live-tested, its clicks fixed (C-127; a second list
 later, the owner's choice); step 3 (receiving audio) done and live-tested (D-363–D-373, C-128; the playback and
 tones rerun later, the owner's choice); step 4 (benchmarks and extreme-load tests) measured
 2026-11-16 (`docs/PERFORMANCE.md`, "Step 4", C-129), its finding fixed (D-374, C-130).
-**Phase 10 is done** (live checks with the owner on hold, see "Blocked on the owner").
+**Phase 10 is done** (and live-tested end to end, 2026-11-16).
 **The guide: in progress** (D-376–D-382, C-131): an mdBook in `book/` with its listings
 compiled as examples of `book/code`, published with the API reference on GitHub Pages
 (https://kotoanidev.github.io/djs-rs/, enabled 2026-11-16) by `.github/workflows/book.yml`.
@@ -867,3 +867,4 @@ fields with `Deref` to `new`). Steps:
   body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").
 
 ## Blocked on the owner
+- Nothing now; the release (plan item 6) will need the owner's `cargo login` for crates.io.

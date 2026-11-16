@@ -1,0 +1,1752 @@
+[
+  {
+    "d": {
+      "application": {
+        "flags": 8912896,
+        "id": "1300000000000000031"
+      },
+      "guilds": [
+        {
+          "id": "1300000000000000001",
+          "unavailable": true
+        }
+      ],
+      "resume_gateway_url": "wss://gateway.discord.gg",
+      "session_id": "0123456789abcdef",
+      "shard": [
+        0,
+        1
+      ],
+      "user": {
+        "avatar": null,
+        "bot": true,
+        "discriminator": "0",
+        "global_name": "Mixo",
+        "id": "1300000000000000003",
+        "username": "mixo",
+        "verified": true
+      },
+      "v": 10
+    },
+    "t": "READY"
+  },
+  {
+    "d": {
+      "meta": {
+        "guild_id": "1300000000000000001",
+        "nonce": "n1"
+      },
+      "opcode": 8,
+      "retry_after": 25.5
+    },
+    "t": "RATE_LIMITED"
+  },
+  {
+    "d": {
+      "application_id": "1300000000000000031",
+      "guild_id": "1300000000000000001",
+      "id": "1300000000000000031",
+      "permissions": [
+        {
+          "id": "1300000000000000005",
+          "permission": true,
+          "type": 1
+        }
+      ]
+    },
+    "t": "APPLICATION_COMMAND_PERMISSIONS_UPDATE"
+  },
+  {
+    "d": {
+      "actions": [
+        {
+          "metadata": {
+            "custom_message": "Please keep financial discussions limited to the #finance channel"
+          },
+          "type": 1
+        },
+        {
+          "metadata": {
+            "channel_id": "123456789123456789"
+          },
+          "type": 2
+        },
+        {
+          "metadata": {
+            "duration_seconds": 60
+          },
+          "type": 3
+        }
+      ],
+      "creator_id": "423457898095789043",
+      "enabled": true,
+      "event_type": 1,
+      "exempt_channels": [
+        "523456789123456789"
+      ],
+      "exempt_roles": [
+        "323456789123456789",
+        "423456789123456789"
+      ],
+      "guild_id": "613425648685547541",
+      "id": "969707018069872670",
+      "name": "Keyword Filter 1",
+      "trigger_metadata": {
+        "keyword_filter": [
+          "cat*",
+          "*dog",
+          "*ana*",
+          "i like c++"
+        ],
+        "regex_patterns": [
+          "(b|c)at",
+          "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$"
+        ]
+      },
+      "trigger_type": 1
+    },
+    "t": "AUTO_MODERATION_RULE_CREATE"
+  },
+  {
+    "d": {
+      "actions": [
+        {
+          "metadata": {
+            "custom_message": "Please keep financial discussions limited to the #finance channel"
+          },
+          "type": 1
+        },
+        {
+          "metadata": {
+            "channel_id": "123456789123456789"
+          },
+          "type": 2
+        },
+        {
+          "metadata": {
+            "duration_seconds": 60
+          },
+          "type": 3
+        }
+      ],
+      "creator_id": "423457898095789043",
+      "enabled": true,
+      "event_type": 1,
+      "exempt_channels": [
+        "523456789123456789"
+      ],
+      "exempt_roles": [
+        "323456789123456789",
+        "423456789123456789"
+      ],
+      "guild_id": "613425648685547541",
+      "id": "969707018069872670",
+      "name": "Keyword Filter 1",
+      "trigger_metadata": {
+        "keyword_filter": [
+          "cat*",
+          "*dog",
+          "*ana*",
+          "i like c++"
+        ],
+        "regex_patterns": [
+          "(b|c)at",
+          "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$"
+        ]
+      },
+      "trigger_type": 1
+    },
+    "t": "AUTO_MODERATION_RULE_UPDATE"
+  },
+  {
+    "d": {
+      "actions": [
+        {
+          "metadata": {
+            "custom_message": "Please keep financial discussions limited to the #finance channel"
+          },
+          "type": 1
+        },
+        {
+          "metadata": {
+            "channel_id": "123456789123456789"
+          },
+          "type": 2
+        },
+        {
+          "metadata": {
+            "duration_seconds": 60
+          },
+          "type": 3
+        }
+      ],
+      "creator_id": "423457898095789043",
+      "enabled": true,
+      "event_type": 1,
+      "exempt_channels": [
+        "523456789123456789"
+      ],
+      "exempt_roles": [
+        "323456789123456789",
+        "423456789123456789"
+      ],
+      "guild_id": "613425648685547541",
+      "id": "969707018069872670",
+      "name": "Keyword Filter 1",
+      "trigger_metadata": {
+        "keyword_filter": [
+          "cat*",
+          "*dog",
+          "*ana*",
+          "i like c++"
+        ],
+        "regex_patterns": [
+          "(b|c)at",
+          "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$"
+        ]
+      },
+      "trigger_type": 1
+    },
+    "t": "AUTO_MODERATION_RULE_DELETE"
+  },
+  {
+    "d": {
+      "action": {
+        "metadata": {
+          "custom_message": "No"
+        },
+        "type": 1
+      },
+      "alert_system_message_id": "1300000000000000051",
+      "channel_id": "1300000000000000002",
+      "content": "a bad word",
+      "guild_id": "1300000000000000001",
+      "matched_content": "bad",
+      "matched_keyword": "bad",
+      "message_id": "1300000000000000004",
+      "rule_id": "1300000000000000050",
+      "rule_trigger_type": 1,
+      "user_id": "1300000000000000003"
+    },
+    "t": "AUTO_MODERATION_ACTION_EXECUTION"
+  },
+  {
+    "d": {
+      "default_auto_archive_duration": 60,
+      "guild_id": "41771983423143937",
+      "id": "41771983423143937",
+      "last_message_id": "155117677105512449",
+      "name": "general",
+      "nsfw": true,
+      "parent_id": "399942396007890945",
+      "permission_overwrites": [],
+      "position": 6,
+      "rate_limit_per_user": 2,
+      "topic": "24/7 chat about how to gank Mike #2",
+      "type": 0
+    },
+    "t": "CHANNEL_CREATE"
+  },
+  {
+    "d": {
+      "default_auto_archive_duration": 60,
+      "guild_id": "41771983423143937",
+      "id": "41771983423143937",
+      "last_message_id": "155117677105512449",
+      "name": "general",
+      "nsfw": true,
+      "parent_id": "399942396007890945",
+      "permission_overwrites": [],
+      "position": 6,
+      "rate_limit_per_user": 2,
+      "topic": "24/7 chat about how to gank Mike #2",
+      "type": 0
+    },
+    "t": "CHANNEL_UPDATE"
+  },
+  {
+    "d": {
+      "default_auto_archive_duration": 60,
+      "guild_id": "41771983423143937",
+      "id": "41771983423143937",
+      "last_message_id": "155117677105512449",
+      "name": "general",
+      "nsfw": true,
+      "parent_id": "399942396007890945",
+      "permission_overwrites": [],
+      "position": 6,
+      "rate_limit_per_user": 2,
+      "topic": "24/7 chat about how to gank Mike #2",
+      "type": 0
+    },
+    "t": "CHANNEL_DELETE"
+  },
+  {
+    "d": {
+      "channels": [
+        {
+          "id": "1300000000000000002",
+          "status": "Chilling",
+          "voice_start_time": 1794398400
+        },
+        {
+          "id": "1300000000000000007"
+        }
+      ],
+      "guild_id": "1300000000000000001"
+    },
+    "t": "CHANNEL_INFO"
+  },
+  {
+    "d": {
+      "channel_id": "1300000000000000002",
+      "guild_id": "1300000000000000001",
+      "last_pin_timestamp": "2026-11-11T12:00:00.000000+00:00"
+    },
+    "t": "CHANNEL_PINS_UPDATE"
+  },
+  {
+    "d": {
+      "guild_id": "41771983423143937",
+      "id": "41771983423143937",
+      "last_message_id": "155117677105512449",
+      "member_count": 5,
+      "message_count": 1,
+      "name": "don't buy dota-2",
+      "newly_created": true,
+      "owner_id": "41771983423143937",
+      "parent_id": "41771983423143937",
+      "rate_limit_per_user": 2,
+      "thread_metadata": {
+        "archive_timestamp": "2021-04-12T23:40:39.855793+00:00",
+        "archived": false,
+        "auto_archive_duration": 1440,
+        "locked": false
+      },
+      "total_message_sent": 1,
+      "type": 11
+    },
+    "t": "THREAD_CREATE"
+  },
+  {
+    "d": {
+      "guild_id": "41771983423143937",
+      "id": "41771983423143937",
+      "last_message_id": "155117677105512449",
+      "member_count": 5,
+      "message_count": 1,
+      "name": "don't buy dota-2",
+      "owner_id": "41771983423143937",
+      "parent_id": "41771983423143937",
+      "rate_limit_per_user": 2,
+      "thread_metadata": {
+        "archive_timestamp": "2021-04-12T23:40:39.855793+00:00",
+        "archived": false,
+        "auto_archive_duration": 1440,
+        "locked": false
+      },
+      "total_message_sent": 1,
+      "type": 11
+    },
+    "t": "THREAD_UPDATE"
+  },
+  {
+    "d": {
+      "guild_id": "1300000000000000001",
+      "id": "1300000000000000006",
+      "parent_id": "1300000000000000002",
+      "type": 11
+    },
+    "t": "THREAD_DELETE"
+  },
+  {
+    "d": {
+      "channel_ids": [
+        "1300000000000000002"
+      ],
+      "guild_id": "1300000000000000001",
+      "members": [
+        {
+          "flags": 0,
+          "id": "1300000000000000006",
+          "join_timestamp": "2026-11-11T12:00:00.000000+00:00",
+          "user_id": "1300000000000000003"
+        }
+      ],
+      "threads": [
+        {
+          "guild_id": "41771983423143937",
+          "id": "41771983423143937",
+          "last_message_id": "155117677105512449",
+          "member_count": 5,
+          "message_count": 1,
+          "name": "don't buy dota-2",
+          "owner_id": "41771983423143937",
+          "parent_id": "41771983423143937",
+          "rate_limit_per_user": 2,
+          "thread_metadata": {
+            "archive_timestamp": "2021-04-12T23:40:39.855793+00:00",
+            "archived": false,
+            "auto_archive_duration": 1440,
+            "locked": false
+          },
+          "total_message_sent": 1,
+          "type": 11
+        }
+      ]
+    },
+    "t": "THREAD_LIST_SYNC"
+  },
+  {
+    "d": {
+      "flags": 0,
+      "guild_id": "1300000000000000001",
+      "id": "1300000000000000006",
+      "join_timestamp": "2026-11-11T12:00:00.000000+00:00",
+      "user_id": "1300000000000000003"
+    },
+    "t": "THREAD_MEMBER_UPDATE"
+  },
+  {
+    "d": {
+      "added_members": [
+        {
+          "flags": 0,
+          "id": "1300000000000000006",
+          "join_timestamp": "2026-11-11T12:00:00.000000+00:00",
+          "member": {
+            "deaf": false,
+            "flags": 0,
+            "joined_at": "2026-11-11T12:00:00.000000+00:00",
+            "mute": false,
+            "nick": "Mix",
+            "pending": false,
+            "roles": [
+              "1300000000000000005"
+            ],
+            "user": {
+              "avatar": null,
+              "discriminator": "0",
+              "global_name": "Mixo",
+              "id": "1300000000000000003",
+              "username": "mixo"
+            }
+          },
+          "presence": {
+            "activities": [
+              {
+                "created_at": 1794398400000,
+                "emoji": {
+                  "name": "🦀"
+                },
+                "name": "Custom Status",
+                "state": "Writing Rust",
+                "type": 4
+              }
+            ],
+            "client_status": {
+              "desktop": "idle",
+              "mobile": "online"
+            },
+            "guild_id": "1300000000000000001",
+            "status": "idle",
+            "user": {
+              "id": "1300000000000000003"
+            }
+          },
+          "user_id": "1300000000000000003"
+        },
+        {
+          "flags": 0,
+          "id": "1300000000000000006",
+          "join_timestamp": "2026-11-11T12:00:00.000000+00:00",
+          "member": {
+            "deaf": false,
+            "flags": 0,
+            "joined_at": "2026-11-11T12:00:00.000000+00:00",
+            "mute": false,
+            "nick": "Mix",
+            "pending": false,
+            "roles": [
+              "1300000000000000005"
+            ],
+            "user": {
+              "avatar": null,
+              "discriminator": "0",
+              "global_name": "Mixo",
+              "id": "1300000000000000003",
+              "username": "mixo"
+            }
+          },
+          "presence": null,
+          "user_id": "1300000000000000003"
+        }
+      ],
+      "guild_id": "1300000000000000001",
+      "id": "1300000000000000006",
+      "member_count": 2,
+      "removed_member_ids": [
+        "1300000000000000008"
+      ]
+    },
+    "t": "THREAD_MEMBERS_UPDATE"
+  },
+  {
+    "d": {
+      "application_id": "1019370614521200640",
+      "consumed": false,
+      "deleted": false,
+      "ends_at": "2022-10-14T17:00:18.704163+00:00",
+      "guild_id": "1015034326372454400",
+      "id": "1019653849998299136",
+      "sku_id": "1019475255913222144",
+      "starts_at": "2022-09-14T17:00:18.704163+00:00",
+      "type": 8,
+      "user_id": "771129655544643584"
+    },
+    "t": "ENTITLEMENT_CREATE"
+  },
+  {
+    "d": {
+      "application_id": "1019370614521200640",
+      "consumed": false,
+      "deleted": false,
+      "ends_at": "2022-10-14T17:00:18.704163+00:00",
+      "guild_id": "1015034326372454400",
+      "id": "1019653849998299136",
+      "sku_id": "1019475255913222144",
+      "starts_at": "2022-09-14T17:00:18.704163+00:00",
+      "type": 8,
+      "user_id": "771129655544643584"
+    },
+    "t": "ENTITLEMENT_UPDATE"
+  },
+  {
+    "d": {
+      "application_id": "1019370614521200640",
+      "consumed": false,
+      "deleted": false,
+      "ends_at": "2022-10-14T17:00:18.704163+00:00",
+      "guild_id": "1015034326372454400",
+      "id": "1019653849998299136",
+      "sku_id": "1019475255913222144",
+      "starts_at": "2022-09-14T17:00:18.704163+00:00",
+      "type": 8,
+      "user_id": "771129655544643584"
+    },
+    "t": "ENTITLEMENT_DELETE"
+  },
+  {
+    "d": {
+      "afk_channel_id": null,
+      "afk_timeout": 300,
+      "application_id": null,
+      "banner": "9b6439a7de04f1d26af92f84ac9e1e4a",
+      "channels": [
+        {
+          "default_auto_archive_duration": 60,
+          "guild_id": "41771983423143937",
+          "id": "41771983423143937",
+          "last_message_id": "155117677105512449",
+          "name": "general",
+          "nsfw": true,
+          "parent_id": "399942396007890945",
+          "permission_overwrites": [],
+          "position": 6,
+          "rate_limit_per_user": 2,
+          "topic": "24/7 chat about how to gank Mike #2",
+          "type": 0
+        }
+      ],
+      "default_message_notifications": 1,
+      "description": "The official place to report Discord Bugs!",
+      "discovery_splash": null,
+      "emojis": [],
+      "explicit_content_filter": 2,
+      "features": [
+        "ANIMATED_ICON",
+        "VERIFIED",
+        "NEWS",
+        "VANITY_URL",
+        "DISCOVERABLE",
+        "MORE_EMOJI",
+        "INVITE_SPLASH",
+        "BANNER",
+        "COMMUNITY"
+      ],
+      "guild_scheduled_events": [
+        {
+          "channel_id": null,
+          "creator_id": "1300000000000000003",
+          "description": "Chapter 4",
+          "entity_id": null,
+          "entity_metadata": {
+            "location": "Library"
+          },
+          "entity_type": 3,
+          "guild_id": "1300000000000000001",
+          "id": "1300000000000000020",
+          "image": null,
+          "name": "Book club",
+          "privacy_level": 2,
+          "recurrence_rule": null,
+          "scheduled_end_time": "2026-11-12T12:00:00.000000+00:00",
+          "scheduled_start_time": "2026-11-11T12:00:00.000000+00:00",
+          "status": 1,
+          "user_count": 7
+        }
+      ],
+      "icon": "f64c482b807da4f539cff778d174971c",
+      "id": "197038439483310086",
+      "joined_at": "2026-11-11T12:00:00.000000+00:00",
+      "large": true,
+      "max_members": 250000,
+      "max_presences": 40000,
+      "member_count": 2,
+      "members": [
+        {
+          "deaf": false,
+          "flags": 0,
+          "joined_at": "2026-11-11T12:00:00.000000+00:00",
+          "mute": false,
+          "nick": "Mix",
+          "pending": false,
+          "roles": [
+            "1300000000000000005"
+          ],
+          "user": {
+            "avatar": null,
+            "discriminator": "0",
+            "global_name": "Mixo",
+            "id": "1300000000000000003",
+            "username": "mixo"
+          }
+        }
+      ],
+      "mfa_level": 1,
+      "name": "Discord Testers",
+      "owner_id": "73193882359173120",
+      "preferred_locale": "en-US",
+      "premium_subscription_count": 33,
+      "premium_tier": 3,
+      "presences": [
+        {
+          "activities": [
+            {
+              "created_at": 1794398400000,
+              "emoji": {
+                "name": "🦀"
+              },
+              "name": "Custom Status",
+              "state": "Writing Rust",
+              "type": 4
+            }
+          ],
+          "client_status": {
+            "desktop": "idle",
+            "mobile": "online"
+          },
+          "guild_id": "1300000000000000001",
+          "status": "idle",
+          "user": {
+            "id": "1300000000000000003"
+          }
+        }
+      ],
+      "public_updates_channel_id": "281283303326089216",
+      "region": null,
+      "roles": [],
+      "rules_channel_id": "441688182833020939",
+      "safety_alerts_channel_id": "281283303326089216",
+      "soundboard_sounds": [
+        {
+          "available": true,
+          "emoji_id": "989193655938064464",
+          "emoji_name": null,
+          "guild_id": "613425648685547541",
+          "name": "Yay",
+          "sound_id": "1106714396018884649",
+          "volume": 1.0
+        }
+      ],
+      "splash": null,
+      "stage_instances": [
+        {
+          "channel_id": "733488538393510049",
+          "discoverable_disabled": false,
+          "guild_id": "197038439483310086",
+          "guild_scheduled_event_id": "947656305244532806",
+          "id": "840647391636226060",
+          "privacy_level": 1,
+          "topic": "Testing Testing, 123"
+        }
+      ],
+      "system_channel_flags": 0,
+      "system_channel_id": null,
+      "threads": [
+        {
+          "guild_id": "41771983423143937",
+          "id": "41771983423143937",
+          "last_message_id": "155117677105512449",
+          "member_count": 5,
+          "message_count": 1,
+          "name": "don't buy dota-2",
+          "owner_id": "41771983423143937",
+          "parent_id": "41771983423143937",
+          "rate_limit_per_user": 2,
+          "thread_metadata": {
+            "archive_timestamp": "2021-04-12T23:40:39.855793+00:00",
+            "archived": false,
+            "auto_archive_duration": 1440,
+            "locked": false
+          },
+          "total_message_sent": 1,
+          "type": 11
+        }
+      ],
+      "vanity_url_code": "discord-testers",
+      "verification_level": 3,
+      "voice_states": [
+        {
+          "channel_id": "157733188964188161",
+          "deaf": false,
+          "mute": false,
+          "request_to_speak_timestamp": "2021-03-31T18:45:31.297561+00:00",
+          "self_deaf": false,
+          "self_mute": true,
+          "session_id": "90326bd25d71d39b9ef95b299e3872ff",
+          "suppress": false,
+          "user_id": "80351110224678912"
+        }
+      ],
+      "widget_channel_id": null,
+      "widget_enabled": true
+    },
+    "t": "GUILD_CREATE"
+  },
+  {
+    "d": {
+      "afk_channel_id": null,
+      "afk_timeout": 300,
+      "application_id": null,
+      "banner": "9b6439a7de04f1d26af92f84ac9e1e4a",
+      "default_message_notifications": 1,
+      "description": "The official place to report Discord Bugs!",
+      "discovery_splash": null,
+      "emojis": [],
+      "explicit_content_filter": 2,
+      "features": [
+        "ANIMATED_ICON",
+        "VERIFIED",
+        "NEWS",
+        "VANITY_URL",
+        "DISCOVERABLE",
+        "MORE_EMOJI",
+        "INVITE_SPLASH",
+        "BANNER",
+        "COMMUNITY"
+      ],
+      "icon": "f64c482b807da4f539cff778d174971c",
+      "id": "197038439483310086",
+      "max_members": 250000,
+      "max_presences": 40000,
+      "mfa_level": 1,
+      "name": "Discord Testers",
+      "owner_id": "73193882359173120",
+      "preferred_locale": "en-US",
+      "premium_subscription_count": 33,
+      "premium_tier": 3,
+      "public_updates_channel_id": "281283303326089216",
+      "region": null,
+      "roles": [],
+      "rules_channel_id": "441688182833020939",
+      "safety_alerts_channel_id": "281283303326089216",
+      "splash": null,
+      "system_channel_flags": 0,
+      "system_channel_id": null,
+      "vanity_url_code": "discord-testers",
+      "verification_level": 3,
+      "widget_channel_id": null,
+      "widget_enabled": true
+    },
+    "t": "GUILD_UPDATE"
+  },
+  {
+    "d": {
+      "id": "1300000000000000001",
+      "unavailable": true
+    },
+    "t": "GUILD_DELETE"
+  },
+  {
+    "d": {
+      "action_type": 25,
+      "changes": [
+        {
+          "key": "$add",
+          "new_value": [
+            {
+              "id": "1300000000000000005",
+              "name": "Tester"
+            }
+          ]
+        }
+      ],
+      "guild_id": "1300000000000000001",
+      "id": "1300000000000000060",
+      "reason": "promotion",
+      "target_id": "1300000000000000003",
+      "user_id": "1300000000000000003"
+    },
+    "t": "GUILD_AUDIT_LOG_ENTRY_CREATE"
+  },
+  {
+    "d": {
+      "guild_id": "1300000000000000001",
+      "user": {
+        "avatar": null,
+        "discriminator": "0",
+        "global_name": "Mixo",
+        "id": "1300000000000000003",
+        "username": "mixo"
+      }
+    },
+    "t": "GUILD_BAN_ADD"
+  },
+  {
+    "d": {
+      "guild_id": "1300000000000000001",
+      "user": {
+        "avatar": null,
+        "discriminator": "0",
+        "global_name": "Mixo",
+        "id": "1300000000000000003",
+        "username": "mixo"
+      }
+    },
+    "t": "GUILD_BAN_REMOVE"
+  },
+  {
+    "d": {
+      "emojis": [
+        {
+          "animated": true,
+          "available": true,
+          "id": "1300000000000000070",
+          "managed": false,
+          "name": "blob",
+          "require_colons": true,
+          "roles": [
+            "1300000000000000005"
+          ]
+        }
+      ],
+      "guild_id": "1300000000000000001"
+    },
+    "t": "GUILD_EMOJIS_UPDATE"
+  },
+  {
+    "d": {
+      "guild_id": "1300000000000000001",
+      "stickers": [
+        {
+          "available": true,
+          "description": null,
+          "format_type": 1,
+          "guild_id": "1300000000000000001",
+          "id": "1300000000000000071",
+          "name": "wave",
+          "tags": "wave",
+          "type": 2
+        }
+      ]
+    },
+    "t": "GUILD_STICKERS_UPDATE"
+  },
+  {
+    "d": {
+      "guild_id": "1300000000000000001"
+    },
+    "t": "GUILD_INTEGRATIONS_UPDATE"
+  },
+  {
+    "d": {
+      "deaf": false,
+      "flags": 0,
+      "guild_id": "1300000000000000001",
+      "joined_at": "2026-11-11T12:00:00.000000+00:00",
+      "mute": false,
+      "nick": "Mix",
+      "pending": false,
+      "roles": [
+        "1300000000000000005"
+      ],
+      "user": {
+        "avatar": null,
+        "discriminator": "0",
+        "global_name": "Mixo",
+        "id": "1300000000000000003",
+        "username": "mixo"
+      }
+    },
+    "t": "GUILD_MEMBER_ADD"
+  },
+  {
+    "d": {
+      "guild_id": "1300000000000000001",
+      "user": {
+        "avatar": null,
+        "discriminator": "0",
+        "global_name": "Mixo",
+        "id": "1300000000000000003",
+        "username": "mixo"
+      }
+    },
+    "t": "GUILD_MEMBER_REMOVE"
+  },
+  {
+    "d": {
+      "avatar": null,
+      "banner": null,
+      "communication_disabled_until": "2026-11-12T12:00:00.000000+00:00",
+      "deaf": false,
+      "flags": 0,
+      "guild_id": "1300000000000000001",
+      "joined_at": "2026-11-11T12:00:00.000000+00:00",
+      "mute": false,
+      "nick": "Mix",
+      "pending": false,
+      "premium_since": null,
+      "roles": [
+        "1300000000000000005"
+      ],
+      "user": {
+        "avatar": null,
+        "discriminator": "0",
+        "global_name": "Mixo",
+        "id": "1300000000000000003",
+        "username": "mixo"
+      }
+    },
+    "t": "GUILD_MEMBER_UPDATE"
+  },
+  {
+    "d": {
+      "chunk_count": 1,
+      "chunk_index": 0,
+      "guild_id": "1300000000000000001",
+      "members": [
+        {
+          "deaf": false,
+          "flags": 0,
+          "joined_at": "2026-11-11T12:00:00.000000+00:00",
+          "mute": false,
+          "nick": "Mix",
+          "pending": false,
+          "roles": [
+            "1300000000000000005"
+          ],
+          "user": {
+            "avatar": null,
+            "discriminator": "0",
+            "global_name": "Mixo",
+            "id": "1300000000000000003",
+            "username": "mixo"
+          }
+        }
+      ],
+      "nonce": "n1",
+      "not_found": [
+        "1300000000000000009"
+      ],
+      "presences": [
+        {
+          "activities": [
+            {
+              "created_at": 1794398400000,
+              "emoji": {
+                "name": "🦀"
+              },
+              "name": "Custom Status",
+              "state": "Writing Rust",
+              "type": 4
+            }
+          ],
+          "client_status": {
+            "desktop": "idle",
+            "mobile": "online"
+          },
+          "guild_id": "1300000000000000001",
+          "status": "idle",
+          "user": {
+            "id": "1300000000000000003"
+          }
+        }
+      ]
+    },
+    "t": "GUILD_MEMBERS_CHUNK"
+  },
+  {
+    "d": {
+      "guild_id": "1300000000000000001",
+      "role": {
+        "color": 0,
+        "colors": {
+          "primary_color": 0,
+          "secondary_color": null,
+          "tertiary_color": null
+        },
+        "flags": 0,
+        "hoist": false,
+        "id": "1300000000000000005",
+        "managed": false,
+        "mentionable": false,
+        "name": "Tester",
+        "permissions": "0",
+        "position": 1
+      }
+    },
+    "t": "GUILD_ROLE_CREATE"
+  },
+  {
+    "d": {
+      "guild_id": "1300000000000000001",
+      "role": {
+        "color": 0,
+        "colors": {
+          "primary_color": 0,
+          "secondary_color": null,
+          "tertiary_color": null
+        },
+        "flags": 0,
+        "hoist": false,
+        "id": "1300000000000000005",
+        "managed": false,
+        "mentionable": false,
+        "name": "Tester",
+        "permissions": "0",
+        "position": 1
+      }
+    },
+    "t": "GUILD_ROLE_UPDATE"
+  },
+  {
+    "d": {
+      "guild_id": "1300000000000000001",
+      "role_id": "1300000000000000005"
+    },
+    "t": "GUILD_ROLE_DELETE"
+  },
+  {
+    "d": {
+      "channel_id": null,
+      "creator_id": "1300000000000000003",
+      "description": "Chapter 4",
+      "entity_id": null,
+      "entity_metadata": {
+        "location": "Library"
+      },
+      "entity_type": 3,
+      "guild_id": "1300000000000000001",
+      "id": "1300000000000000020",
+      "image": null,
+      "name": "Book club",
+      "privacy_level": 2,
+      "recurrence_rule": null,
+      "scheduled_end_time": "2026-11-12T12:00:00.000000+00:00",
+      "scheduled_start_time": "2026-11-11T12:00:00.000000+00:00",
+      "status": 1,
+      "user_count": 7
+    },
+    "t": "GUILD_SCHEDULED_EVENT_CREATE"
+  },
+  {
+    "d": {
+      "channel_id": null,
+      "creator_id": "1300000000000000003",
+      "description": "Chapter 4",
+      "entity_id": null,
+      "entity_metadata": {
+        "location": "Library"
+      },
+      "entity_type": 3,
+      "guild_id": "1300000000000000001",
+      "id": "1300000000000000020",
+      "image": null,
+      "name": "Book club",
+      "privacy_level": 2,
+      "recurrence_rule": null,
+      "scheduled_end_time": "2026-11-12T12:00:00.000000+00:00",
+      "scheduled_start_time": "2026-11-11T12:00:00.000000+00:00",
+      "status": 1,
+      "user_count": 7
+    },
+    "t": "GUILD_SCHEDULED_EVENT_UPDATE"
+  },
+  {
+    "d": {
+      "channel_id": null,
+      "creator_id": "1300000000000000003",
+      "description": "Chapter 4",
+      "entity_id": null,
+      "entity_metadata": {
+        "location": "Library"
+      },
+      "entity_type": 3,
+      "guild_id": "1300000000000000001",
+      "id": "1300000000000000020",
+      "image": null,
+      "name": "Book club",
+      "privacy_level": 2,
+      "recurrence_rule": null,
+      "scheduled_end_time": "2026-11-12T12:00:00.000000+00:00",
+      "scheduled_start_time": "2026-11-11T12:00:00.000000+00:00",
+      "status": 1,
+      "user_count": 7
+    },
+    "t": "GUILD_SCHEDULED_EVENT_DELETE"
+  },
+  {
+    "d": {
+      "guild_id": "1300000000000000001",
+      "guild_scheduled_event_id": "1300000000000000020",
+      "user_id": "1300000000000000003"
+    },
+    "t": "GUILD_SCHEDULED_EVENT_USER_ADD"
+  },
+  {
+    "d": {
+      "guild_id": "1300000000000000001",
+      "guild_scheduled_event_id": "1300000000000000020",
+      "user_id": "1300000000000000003"
+    },
+    "t": "GUILD_SCHEDULED_EVENT_USER_REMOVE"
+  },
+  {
+    "d": {
+      "available": true,
+      "emoji_id": "989193655938064464",
+      "emoji_name": null,
+      "guild_id": "613425648685547541",
+      "name": "Yay",
+      "sound_id": "1106714396018884649",
+      "volume": 1.0
+    },
+    "t": "GUILD_SOUNDBOARD_SOUND_CREATE"
+  },
+  {
+    "d": {
+      "available": true,
+      "emoji_id": "989193655938064464",
+      "emoji_name": null,
+      "guild_id": "613425648685547541",
+      "name": "Yay",
+      "sound_id": "1106714396018884649",
+      "volume": 1.0
+    },
+    "t": "GUILD_SOUNDBOARD_SOUND_UPDATE"
+  },
+  {
+    "d": {
+      "guild_id": "1300000000000000001",
+      "sound_id": "1300000000000000080"
+    },
+    "t": "GUILD_SOUNDBOARD_SOUND_DELETE"
+  },
+  {
+    "d": {
+      "guild_id": "1300000000000000001",
+      "soundboard_sounds": [
+        {
+          "available": true,
+          "emoji_id": "989193655938064464",
+          "emoji_name": null,
+          "guild_id": "613425648685547541",
+          "name": "Yay",
+          "sound_id": "1106714396018884649",
+          "volume": 1.0
+        }
+      ]
+    },
+    "t": "GUILD_SOUNDBOARD_SOUNDS_UPDATE"
+  },
+  {
+    "d": {
+      "guild_id": "1300000000000000001",
+      "soundboard_sounds": [
+        {
+          "available": true,
+          "emoji_id": "989193655938064464",
+          "emoji_name": null,
+          "guild_id": "613425648685547541",
+          "name": "Yay",
+          "sound_id": "1106714396018884649",
+          "volume": 1.0
+        }
+      ]
+    },
+    "t": "SOUNDBOARD_SOUNDS"
+  },
+  {
+    "d": {
+      "account": {
+        "id": "1300000000000000041",
+        "name": "djs-rs"
+      },
+      "enabled": true,
+      "guild_id": "1300000000000000001",
+      "id": "1300000000000000040",
+      "name": "djs-rs",
+      "scopes": [
+        "bot",
+        "applications.commands"
+      ],
+      "type": "discord",
+      "user": {
+        "avatar": null,
+        "discriminator": "0",
+        "global_name": "Mixo",
+        "id": "1300000000000000003",
+        "username": "mixo"
+      }
+    },
+    "t": "INTEGRATION_CREATE"
+  },
+  {
+    "d": {
+      "account": {
+        "id": "1300000000000000041",
+        "name": "djs-rs"
+      },
+      "enabled": true,
+      "guild_id": "1300000000000000001",
+      "id": "1300000000000000040",
+      "name": "djs-rs",
+      "scopes": [
+        "bot",
+        "applications.commands"
+      ],
+      "type": "discord",
+      "user": {
+        "avatar": null,
+        "discriminator": "0",
+        "global_name": "Mixo",
+        "id": "1300000000000000003",
+        "username": "mixo"
+      }
+    },
+    "t": "INTEGRATION_UPDATE"
+  },
+  {
+    "d": {
+      "application_id": "1300000000000000031",
+      "guild_id": "1300000000000000001",
+      "id": "1300000000000000040"
+    },
+    "t": "INTEGRATION_DELETE"
+  },
+  {
+    "d": {
+      "app_permissions": "0",
+      "application_id": "1300000000000000031",
+      "attachment_size_limit": 10485760,
+      "authorizing_integration_owners": {
+        "0": "1300000000000000001"
+      },
+      "channel": {
+        "flags": 0,
+        "guild_id": "1300000000000000001",
+        "id": "1300000000000000002",
+        "name": "general",
+        "nsfw": false,
+        "permissions": "1024",
+        "position": 3,
+        "type": 0
+      },
+      "channel_id": "1300000000000000002",
+      "context": 0,
+      "data": {
+        "id": "1300000000000000032",
+        "name": "ping",
+        "type": 1
+      },
+      "entitlements": [],
+      "guild": {
+        "features": [],
+        "id": "1300000000000000001",
+        "locale": "en-US"
+      },
+      "guild_id": "1300000000000000001",
+      "guild_locale": "en-US",
+      "id": "1300000000000000030",
+      "locale": "pl",
+      "member": {
+        "deaf": false,
+        "flags": 0,
+        "joined_at": "2026-11-11T12:00:00.000000+00:00",
+        "mute": false,
+        "nick": "Mix",
+        "pending": false,
+        "permissions": "8",
+        "roles": [
+          "1300000000000000005"
+        ],
+        "user": {
+          "avatar": null,
+          "discriminator": "0",
+          "global_name": "Mixo",
+          "id": "1300000000000000003",
+          "username": "mixo"
+        }
+      },
+      "token": "token",
+      "type": 2,
+      "version": 1
+    },
+    "t": "INTERACTION_CREATE"
+  },
+  {
+    "d": {
+      "channel_id": "1300000000000000002",
+      "code": "djsrs",
+      "created_at": "2026-11-11T12:00:00.000000+00:00",
+      "expires_at": "2026-11-12T12:00:00.000000+00:00",
+      "guild_id": "1300000000000000001",
+      "inviter": {
+        "avatar": null,
+        "discriminator": "0",
+        "global_name": "Mixo",
+        "id": "1300000000000000003",
+        "username": "mixo"
+      },
+      "max_age": 86400,
+      "max_uses": 0,
+      "role_ids": [
+        "1300000000000000005"
+      ],
+      "target_type": 1,
+      "target_user": {
+        "avatar": null,
+        "discriminator": "0",
+        "global_name": "Mixo",
+        "id": "1300000000000000003",
+        "username": "mixo"
+      },
+      "temporary": false,
+      "uses": 0
+    },
+    "t": "INVITE_CREATE"
+  },
+  {
+    "d": {
+      "channel_id": "1300000000000000002",
+      "code": "djsrs",
+      "guild_id": "1300000000000000001"
+    },
+    "t": "INVITE_DELETE"
+  },
+  {
+    "d": {
+      "attachments": [],
+      "author": {
+        "avatar": "a_bab14f271d565501444b2ca3be944b25",
+        "discriminator": "9999",
+        "id": "53908099506183680",
+        "username": "Mason"
+      },
+      "channel_id": "290926798999357250",
+      "content": "Supa Hot",
+      "edited_timestamp": null,
+      "embeds": [],
+      "id": "334385199974967042",
+      "mention_everyone": false,
+      "mention_roles": [],
+      "mentions": [],
+      "pinned": false,
+      "reactions": [
+        {
+          "burst_colors": [],
+          "count": 1,
+          "count_details": {
+            "burst": 0,
+            "normal": 1
+          },
+          "emoji": {
+            "id": null,
+            "name": "🔥"
+          },
+          "me": false,
+          "me_burst": false
+        }
+      ],
+      "timestamp": "2017-07-11T17:27:07.299000+00:00",
+      "tts": false,
+      "type": 0
+    },
+    "t": "MESSAGE_CREATE"
+  },
+  {
+    "d": {
+      "attachments": [],
+      "author": {
+        "avatar": "a_bab14f271d565501444b2ca3be944b25",
+        "discriminator": "9999",
+        "id": "53908099506183680",
+        "username": "Mason"
+      },
+      "channel_id": "290926798999357250",
+      "content": "Supa Hot",
+      "edited_timestamp": null,
+      "embeds": [],
+      "id": "334385199974967042",
+      "mention_everyone": false,
+      "mention_roles": [],
+      "mentions": [],
+      "pinned": false,
+      "reactions": [
+        {
+          "burst_colors": [],
+          "count": 1,
+          "count_details": {
+            "burst": 0,
+            "normal": 1
+          },
+          "emoji": {
+            "id": null,
+            "name": "🔥"
+          },
+          "me": false,
+          "me_burst": false
+        }
+      ],
+      "timestamp": "2017-07-11T17:27:07.299000+00:00",
+      "tts": false,
+      "type": 0
+    },
+    "t": "MESSAGE_UPDATE"
+  },
+  {
+    "d": {
+      "channel_id": "1300000000000000002",
+      "guild_id": "1300000000000000001",
+      "id": "1300000000000000004"
+    },
+    "t": "MESSAGE_DELETE"
+  },
+  {
+    "d": {
+      "channel_id": "1300000000000000002",
+      "guild_id": "1300000000000000001",
+      "ids": [
+        "1300000000000000004",
+        "1300000000000000010"
+      ]
+    },
+    "t": "MESSAGE_DELETE_BULK"
+  },
+  {
+    "d": {
+      "burst": true,
+      "burst_colors": [
+        "#ff6a00",
+        "#ffc800"
+      ],
+      "channel_id": "1300000000000000002",
+      "emoji": {
+        "id": null,
+        "name": "🔥"
+      },
+      "guild_id": "1300000000000000001",
+      "member": {
+        "deaf": false,
+        "flags": 0,
+        "joined_at": "2026-11-11T12:00:00.000000+00:00",
+        "mute": false,
+        "nick": "Mix",
+        "pending": false,
+        "roles": [
+          "1300000000000000005"
+        ],
+        "user": {
+          "avatar": null,
+          "discriminator": "0",
+          "global_name": "Mixo",
+          "id": "1300000000000000003",
+          "username": "mixo"
+        }
+      },
+      "message_author_id": "1300000000000000003",
+      "message_id": "1300000000000000004",
+      "type": 1,
+      "user_id": "1300000000000000003"
+    },
+    "t": "MESSAGE_REACTION_ADD"
+  },
+  {
+    "d": {
+      "burst": false,
+      "channel_id": "1300000000000000002",
+      "emoji": {
+        "animated": true,
+        "id": "1300000000000000070",
+        "name": "blob"
+      },
+      "guild_id": "1300000000000000001",
+      "message_id": "1300000000000000004",
+      "type": 0,
+      "user_id": "1300000000000000003"
+    },
+    "t": "MESSAGE_REACTION_REMOVE"
+  },
+  {
+    "d": {
+      "channel_id": "1300000000000000002",
+      "guild_id": "1300000000000000001",
+      "message_id": "1300000000000000004"
+    },
+    "t": "MESSAGE_REACTION_REMOVE_ALL"
+  },
+  {
+    "d": {
+      "channel_id": "1300000000000000002",
+      "emoji": {
+        "id": null,
+        "name": "🔥"
+      },
+      "guild_id": "1300000000000000001",
+      "message_id": "1300000000000000004"
+    },
+    "t": "MESSAGE_REACTION_REMOVE_EMOJI"
+  },
+  {
+    "d": {
+      "answer_id": 1,
+      "channel_id": "1300000000000000002",
+      "guild_id": "1300000000000000001",
+      "message_id": "1300000000000000004",
+      "user_id": "1300000000000000003"
+    },
+    "t": "MESSAGE_POLL_VOTE_ADD"
+  },
+  {
+    "d": {
+      "answer_id": 1,
+      "channel_id": "1300000000000000002",
+      "guild_id": "1300000000000000001",
+      "message_id": "1300000000000000004",
+      "user_id": "1300000000000000003"
+    },
+    "t": "MESSAGE_POLL_VOTE_REMOVE"
+  },
+  {
+    "d": {
+      "activities": [
+        {
+          "created_at": 1794398400000,
+          "emoji": {
+            "name": "🦀"
+          },
+          "name": "Custom Status",
+          "state": "Writing Rust",
+          "type": 4
+        }
+      ],
+      "client_status": {
+        "desktop": "idle",
+        "mobile": "online"
+      },
+      "guild_id": "1300000000000000001",
+      "status": "idle",
+      "user": {
+        "id": "1300000000000000003"
+      }
+    },
+    "t": "PRESENCE_UPDATE"
+  },
+  {
+    "d": {
+      "channel_id": "733488538393510049",
+      "discoverable_disabled": false,
+      "guild_id": "197038439483310086",
+      "guild_scheduled_event_id": "947656305244532806",
+      "id": "840647391636226060",
+      "privacy_level": 1,
+      "topic": "Testing Testing, 123"
+    },
+    "t": "STAGE_INSTANCE_CREATE"
+  },
+  {
+    "d": {
+      "channel_id": "733488538393510049",
+      "discoverable_disabled": false,
+      "guild_id": "197038439483310086",
+      "guild_scheduled_event_id": "947656305244532806",
+      "id": "840647391636226060",
+      "privacy_level": 1,
+      "topic": "Testing Testing, 123"
+    },
+    "t": "STAGE_INSTANCE_UPDATE"
+  },
+  {
+    "d": {
+      "channel_id": "733488538393510049",
+      "discoverable_disabled": false,
+      "guild_id": "197038439483310086",
+      "guild_scheduled_event_id": "947656305244532806",
+      "id": "840647391636226060",
+      "privacy_level": 1,
+      "topic": "Testing Testing, 123"
+    },
+    "t": "STAGE_INSTANCE_DELETE"
+  },
+  {
+    "d": {
+      "canceled_at": null,
+      "current_period_end": "2024-09-27T19:48:44.406602+00:00",
+      "current_period_start": "2024-08-27T19:48:44.406602+00:00",
+      "entitlement_ids": [],
+      "id": "1278078770116427839",
+      "renewal_sku_ids": null,
+      "sku_ids": [
+        "1158857122189168803"
+      ],
+      "status": 0,
+      "user_id": "1088605110638227537"
+    },
+    "t": "SUBSCRIPTION_CREATE"
+  },
+  {
+    "d": {
+      "canceled_at": null,
+      "current_period_end": "2024-09-27T19:48:44.406602+00:00",
+      "current_period_start": "2024-08-27T19:48:44.406602+00:00",
+      "entitlement_ids": [],
+      "id": "1278078770116427839",
+      "renewal_sku_ids": null,
+      "sku_ids": [
+        "1158857122189168803"
+      ],
+      "status": 0,
+      "user_id": "1088605110638227537"
+    },
+    "t": "SUBSCRIPTION_UPDATE"
+  },
+  {
+    "d": {
+      "canceled_at": null,
+      "current_period_end": "2024-09-27T19:48:44.406602+00:00",
+      "current_period_start": "2024-08-27T19:48:44.406602+00:00",
+      "entitlement_ids": [],
+      "id": "1278078770116427839",
+      "renewal_sku_ids": null,
+      "sku_ids": [
+        "1158857122189168803"
+      ],
+      "status": 0,
+      "user_id": "1088605110638227537"
+    },
+    "t": "SUBSCRIPTION_DELETE"
+  },
+  {
+    "d": {
+      "channel_id": "1300000000000000002",
+      "guild_id": "1300000000000000001",
+      "member": {
+        "deaf": false,
+        "flags": 0,
+        "joined_at": "2026-11-11T12:00:00.000000+00:00",
+        "mute": false,
+        "nick": "Mix",
+        "pending": false,
+        "roles": [
+          "1300000000000000005"
+        ],
+        "user": {
+          "avatar": null,
+          "discriminator": "0",
+          "global_name": "Mixo",
+          "id": "1300000000000000003",
+          "username": "mixo"
+        }
+      },
+      "timestamp": 1794398400,
+      "user_id": "1300000000000000003"
+    },
+    "t": "TYPING_START"
+  },
+  {
+    "d": {
+      "avatar": null,
+      "bot": true,
+      "discriminator": "0",
+      "flags": 0,
+      "global_name": "Mixo",
+      "id": "1300000000000000003",
+      "mfa_enabled": true,
+      "username": "mixo",
+      "verified": true
+    },
+    "t": "USER_UPDATE"
+  },
+  {
+    "d": {
+      "animation_id": 5,
+      "animation_type": 0,
+      "channel_id": "1300000000000000002",
+      "emoji": {
+        "id": null,
+        "name": "🎉"
+      },
+      "guild_id": "1300000000000000001",
+      "sound_id": "1300000000000000080",
+      "sound_volume": 0.5,
+      "user_id": "1300000000000000003"
+    },
+    "t": "VOICE_CHANNEL_EFFECT_SEND"
+  },
+  {
+    "d": {
+      "guild_id": "1300000000000000001",
+      "id": "1300000000000000002",
+      "voice_start_time": 1794398400
+    },
+    "t": "VOICE_CHANNEL_START_TIME_UPDATE"
+  },
+  {
+    "d": {
+      "guild_id": "1300000000000000001",
+      "id": "1300000000000000002",
+      "status": "Gaming"
+    },
+    "t": "VOICE_CHANNEL_STATUS_UPDATE"
+  },
+  {
+    "d": {
+      "channel_id": "157733188964188161",
+      "deaf": false,
+      "mute": false,
+      "request_to_speak_timestamp": "2021-03-31T18:45:31.297561+00:00",
+      "self_deaf": false,
+      "self_mute": true,
+      "session_id": "90326bd25d71d39b9ef95b299e3872ff",
+      "suppress": false,
+      "user_id": "80351110224678912"
+    },
+    "t": "VOICE_STATE_UPDATE"
+  },
+  {
+    "d": {
+      "endpoint": "sweetwater-12345.discord.media:2048",
+      "guild_id": "1300000000000000001",
+      "token": "my_token"
+    },
+    "t": "VOICE_SERVER_UPDATE"
+  },
+  {
+    "d": {
+      "channel_id": "1300000000000000002",
+      "guild_id": "1300000000000000001"
+    },
+    "t": "WEBHOOKS_UPDATE"
+  }
+]

@@ -379,3 +379,6 @@ fn diff_list<T: PartialEq, K: Hash + Eq>(
         on(Change::Delete(item));
     }
 }
+
+#[cfg(test)]
+mod tests;

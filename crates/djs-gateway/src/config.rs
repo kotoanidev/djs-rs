@@ -233,3 +233,58 @@ impl ConfigBuilder {
         self.config
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use core::time::Duration;
+    use std::sync::Arc;
+
+    use djs_model::gateway::{
+        Intents, Status,
+        payload::{IdentifyProperties, UpdatePresence},
+    };
+
+    use super::Config;
+    use crate::{Compression, LocalIdentifyQueue};
+
+    #[test]
+    fn defaults() {
+        let config = Config::new("a-token", Intents::GUILDS);
+        assert_eq!(config.intents(), Intents::GUILDS);
+        assert_eq!(config.gateway_url(), super::DEFAULT_GATEWAY_URL);
+        assert_eq!(config.compression(), Compression::default());
+        assert!(config.presence().is_none());
+        assert_eq!(config.connect_timeout, Duration::from_secs(30));
+        assert_eq!(config.hello_timeout, Duration::from_secs(60));
+        assert_eq!(config.large_threshold, None);
+    }
+
+    #[test]
+    fn every_setting_is_kept_and_the_token_is_never_shown() {
+        let queue = Arc::new(LocalIdentifyQueue::default());
+        let config = Config::builder("a-secret-token", Intents::GUILD_MESSAGES)
+            .gateway_url("wss://gateway.example.com")
+            .compression(Compression::None)
+            .identify_properties(IdentifyProperties::new("my-bot"))
+            .large_threshold(100)
+            .connect_timeout(Duration::from_secs(5))
+            .hello_timeout(Duration::from_secs(7))
+            .presence(UpdatePresence::new(Status::Idle, []))
+            .identify_queue(queue)
+            .build();
+        assert_eq!(config.gateway_url(), "wss://gateway.example.com");
+        assert_eq!(config.compression(), Compression::None);
+        assert_eq!(config.large_threshold, Some(100));
+        assert_eq!(config.connect_timeout, Duration::from_secs(5));
+        assert_eq!(config.hello_timeout, Duration::from_secs(7));
+        assert!(config.presence().is_some());
+        let debug = format!("{config:?}");
+        assert!(!debug.contains("a-secret-token"), "{debug}");
+        assert!(
+            debug.contains("<redacted>") && debug.contains("my-bot"),
+            "{debug}"
+        );
+        let builder = format!("{:?}", Config::builder("a-secret-token", Intents::GUILDS));
+        assert!(!builder.contains("a-secret-token"), "{builder}");
+    }
+}

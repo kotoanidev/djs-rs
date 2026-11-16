@@ -670,6 +670,101 @@ mod tests {
         );
     }
 
+    /// Every hashed asset at the path of the docs' table of CDN endpoints (and the channel
+    /// icon, which the table leaves out).
+    #[test]
+    fn every_endpoint_has_the_docs_path() {
+        let cdn = Cdn::default();
+        let (id, other) = (1, 2);
+        let options = ImageOptions::new().format(ImageFormat::Png);
+        let hash = hash(STATIC);
+        let urls = [
+            (cdn.guild_icon(GuildId::new(id), hash, options), "icons/1"),
+            (
+                cdn.guild_splash(GuildId::new(id), hash, options),
+                "splashes/1",
+            ),
+            (
+                cdn.guild_discovery_splash(GuildId::new(id), hash, options),
+                "discovery-splashes/1",
+            ),
+            (
+                cdn.guild_banner(GuildId::new(id), hash, options),
+                "banners/1",
+            ),
+            (cdn.user_banner(UserId::new(id), hash, options), "banners/1"),
+            (cdn.user_avatar(UserId::new(id), hash, options), "avatars/1"),
+            (
+                cdn.guild_member_banner(GuildId::new(id), UserId::new(other), hash, options),
+                "guilds/1/users/2/banners",
+            ),
+            (
+                cdn.application_icon(ApplicationId::new(id), hash, options),
+                "app-icons/1",
+            ),
+            (
+                cdn.application_cover(ApplicationId::new(id), hash, options),
+                "app-icons/1",
+            ),
+            (
+                cdn.achievement_icon(ApplicationId::new(id), GenericId::new(other), hash, options),
+                "app-assets/1/achievements/2/icons",
+            ),
+            (
+                cdn.team_icon(TeamId::new(id), hash, options),
+                "team-icons/1",
+            ),
+            (
+                cdn.role_icon(RoleId::new(id), hash, options),
+                "role-icons/1",
+            ),
+            (
+                cdn.guild_scheduled_event_cover(ScheduledEventId::new(id), hash, options),
+                "guild-events/1",
+            ),
+            (
+                cdn.guild_tag_badge(GuildId::new(id), hash, options),
+                "guild-tag-badges/1",
+            ),
+            (
+                cdn.channel_icon(ChannelId::new(id), hash, options),
+                "channel-icons/1",
+            ),
+        ];
+        for (url, path) in urls {
+            assert_eq!(
+                url,
+                format!("https://cdn.discordapp.com/{path}/{STATIC}.png")
+            );
+        }
+        // Assets named by an ID or a key, never animated.
+        assert_eq!(
+            cdn.application_asset(ApplicationId::new(id), "large", options),
+            "https://cdn.discordapp.com/app-assets/1/large.png"
+        );
+        assert_eq!(
+            cdn.store_page_asset(ApplicationId::new(id), GenericId::new(other), options),
+            "https://cdn.discordapp.com/app-assets/1/store/2.png"
+        );
+        assert_eq!(
+            cdn.avatar_decoration(hash),
+            format!("https://cdn.discordapp.com/avatar-decoration-presets/{STATIC}.png")
+        );
+        assert_eq!(cdn.base(), "https://cdn.discordapp.com");
+        assert_eq!(cdn.media_proxy(), "https://media.discordapp.net");
+    }
+
+    #[test]
+    fn default_avatars_follow_the_discriminator_or_the_id() {
+        // Pomelo usernames (no discriminator): the ID's timestamp bits, modulo 6.
+        let user = UserId::new(80_351_110_224_678_912);
+        assert_eq!(default_avatar_index(user, 0), 5);
+        // Legacy discriminators, modulo 5.
+        assert_eq!(default_avatar_index(user, 1337), 2);
+        assert_eq!(default_avatar_index(user, 5), 0);
+        assert!((1..10_000).all(|discriminator| default_avatar_index(user, discriminator) < 5));
+    }
+
     #[test]
     fn sizes_round_trip() {
         for pixels in [16, 32, 64, 128, 256, 512, 1024, 2048, 4096] {

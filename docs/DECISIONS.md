@@ -5634,6 +5634,25 @@ garbage (±1.0 for a frame). Measured with the listeners' side decoded by libopu
   example in `target/*/examples/`): the guide's `/` commands are `commands`, not
   `slash_commands` (djs-rs's).
 
+### C-132 — The coverage audit (D-383)
+- **How:** `cargo llvm-cov --workspace --all-features --exclude djs-vs-node --exclude
+  djs-rs-guide --summary-only` (cargo-llvm-cov 0.9.1, `llvm-tools` from rustup). Ignored
+  measurement tests do not run, and on stable doctests are not counted, so functions only
+  doctests check (such as `cdn::default_avatar_index`) show as missed.
+- **First measurement (2026-11-16):** 90.4 % of lines, 88.3 % of regions, 89.8 % of
+  functions. The gaps worth tests were logic, not measurement code: the dispatch of every
+  gateway event to the client's events (`djs-rs/src/dispatch.rs`, 60 %), the cache's update
+  for every dispatch (`djs-cache/src/update.rs`, 24 %), the CDN's paths (57 %), the gateway's
+  configuration (43 %).
+- **Every dispatch tested:** djs-model's `every_event()` payloads (78 typed dispatches) are
+  written to `crates/djs-rs/tests/fixtures/dispatch_events.json` by
+  `the_dispatch_fixture_of_djs_rs_is_current` (`DJS_BLESS=1` writes it again; it is
+  checked only where the repository has djs-rs next to djs-model). `dispatch::tests` turns
+  each through `convert` with a cache of everything and without a cache, and checks the
+  discord.js event names, the filter of wanted events, guild availability and the
+  per-emoji events. `serde` is a dev-dependency of djs-rs for it (already a workspace
+  dependency).
+
 ---
 
 ## Open questions (to ask the owner when relevant)

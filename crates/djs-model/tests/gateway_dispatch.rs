@@ -498,6 +498,33 @@ fn data_of(name: &str) -> Value {
         .1
 }
 
+/// [`every_event`]'s payloads are also djs-rs's fixture for its dispatch tests (C-132),
+/// `crates/djs-rs/tests/fixtures/dispatch_events.json`: checked against it when the
+/// repository is there, written again with `DJS_BLESS=1`.
+#[test]
+fn the_dispatch_fixture_of_djs_rs_is_current() {
+    let events: Vec<Value> = every_event()
+        .into_iter()
+        .map(|(name, data)| json!({ "t": name, "d": data }))
+        .collect();
+    let expected = serde_json::to_string_pretty(&events).unwrap() + "\n";
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../djs-rs/tests/fixtures/dispatch_events.json");
+    if std::env::var_os("DJS_BLESS").is_some() {
+        std::fs::write(&path, &expected).unwrap();
+        return;
+    }
+    // Packaged alone (crates.io), djs-model has no djs-rs next to it.
+    let Ok(current) = std::fs::read_to_string(&path) else {
+        return;
+    };
+    assert!(
+        current == expected,
+        "{} is out of date: run `DJS_BLESS=1 cargo test -p djs-model --test gateway_dispatch`",
+        path.display()
+    );
+}
+
 #[test]
 fn every_dispatch_event_is_routed_and_round_trips() {
     let events = every_event();
