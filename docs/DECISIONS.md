@@ -3333,6 +3333,85 @@ and why.
 - **Alternatives:** one `Ffmpeg` variant for both (no program: `code: None` and the
   system's message); only `InputError::Io`.
 
+### D-363 — Receiving audio: a stream per user
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** step 3 receives the audio of one user at a time, as a stream of that user's
+  packets (discord.js: `VoiceReceiver#subscribe(userId)`): natural for recording and
+  speech recognition.
+- **Alternatives:** one stream of every user's packets, each with its user ID (songbird's
+  RTP events); both.
+
+### D-364 — Opus or PCM, chosen per subscription
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** received packets are Opus by default (cheap, as discord.js); a subscription
+  may ask for decoded PCM instead: a decoder per subscription, lost packets concealed by
+  Opus's packet loss concealment.
+- **Alternatives:** Opus only (users would need their own Opus library: the codec is
+  private); PCM only (decoding even for those who only store Opus).
+
+### D-365 — When a receive stream ends: `EndBehavior`, as discord.js
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** `EndBehavior::{Manual, AfterSilence(Duration), AfterInactivity(Duration)}`
+  (discord.js: `EndBehaviorType`), `Manual` by default: the stream ends when it is dropped
+  or the call ends. `AfterSilence` ends it after that long without a packet other than
+  silence, `AfterInactivity` after that long without any packet.
+- **Alternatives:** manual only (users detect silence themselves).
+
+### D-366 — A 60 ms buffer puts packets in order
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** received packets are put in order by their RTP sequence number, delayed by
+  at most 60 ms. A packet still missing then is lost: concealed in PCM, reported in Opus.
+- **Alternatives:** packets as they come (discord.js), each with its sequence number and
+  timestamp, ordering left to users.
+
+### D-367 — `call.subscribe(user)` and `call.subscribe_with(user, options)`
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** `Call::subscribe(user_id)` with the default options and
+  `Call::subscribe_with(user_id, ReceiveOptions)`: discord.js's name, and the `x`/`x_with`
+  pair of `VoiceManager::join`/`join_with`.
+- **Alternatives:** `receive`/`receive_with`; `listen`/`listen_with`.
+
+### D-368 — One item type: `VoicePacket`
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** the stream yields `VoicePacket { sequence, timestamp, audio }`, `audio`
+  being `VoiceData::{Opus(Vec<u8>), Pcm(Vec<i16>), Lost}`: one stream type for both
+  formats.
+- **Alternatives:** two stream types (`OpusStream`, `PcmStream`) from two methods, the
+  format enforced by the types.
+
+### D-369 — Speaking from the packets: `CallEvent::SpeakingStarted` and `SpeakingStopped`
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** `CallEvent::SpeakingStarted(UserId)` when a user's packets start coming
+  and `CallEvent::SpeakingStopped(UserId)` 100 ms after their last one (discord.js:
+  `VoiceReceiver#speaking`, its `start` and `end` events). It needs the RTP header of every
+  packet, read without decrypting.
+- **Alternatives:** only the voice gateway's `CallEvent::Speaking { user_id, ssrc }`, the
+  packets of users nobody subscribed to dropped at once.
+
+### D-370 — Decoded audio as `i16`
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** PCM is 48 kHz stereo, interleaved `i16` samples (as songbird), matching
+  `Input::pcm` (s16le) and WAV files.
+- **Alternatives:** `f32` in -1..1 (handy for analysis, speech recognition models).
+
+### D-371 — The stream type: `VoiceStream`
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** `call.subscribe(..)` returns a `VoiceStream` (`Stream<Item = VoicePacket>`,
+  as `CallEvents` and `TrackEvents`), named with `VoicePacket`.
+- **Alternatives:** `AudioReceiveStream` (discord.js's name); `Subscription`.
+
+### D-372 — `ReceiveOptions` is a builder
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** `ReceiveOptions::new().decode(true).end(EndBehavior::AfterSilence(d))`, as
+  `JoinOptions::new().bitrate(..)`; Opus and `Manual` by default.
+- **Alternatives:** a format enum (`.format(VoiceFormat::Pcm)`), easier to grow (`f32`).
+
+### D-373 — Each subscription is its own stream
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Decision:** subscribing to a user again gives another stream, with a copy of the
+  packets and its own options (one Opus, another PCM), as several `CallEvents` do.
+- **Alternatives:** the new subscription ends the old one.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
