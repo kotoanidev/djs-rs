@@ -10,7 +10,8 @@ repository.workspace = true
 publish = false
 
 [dependencies]
-djs-rs = { path = "../../crates/djs-rs" }
+# `sharding` for the "Sharding" chapter, `voice` for "Voice".
+djs-rs = { path = "../../crates/djs-rs", features = ["sharding", "voice"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "signal"] }
 tracing-subscriber = { workspace = true, features = ["ansi", "env-filter", "fmt", "std"] }
 

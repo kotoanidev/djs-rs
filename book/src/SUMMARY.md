@@ -17,5 +17,5 @@
 # Going further
 
 - [The REST API](going-further/rest.md)
-- [Sharding]()
-- [Voice]()
+- [Sharding](going-further/sharding.md)
+- [Voice](going-further/voice.md)
