@@ -1,0 +1,18 @@
+[package]
+name = "djs-rs-guide"
+description = "The code of the djs-rs guide's chapters, built by cargo so it keeps compiling (D-378)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+# The guide's listings, never published (C-131).
+publish = false
+
+[dependencies]
+djs-rs = { path = "../../crates/djs-rs" }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "signal"] }
+tracing-subscriber = { workspace = true, features = ["ansi", "env-filter", "fmt", "std"] }
+
+[lints]
+workspace = true

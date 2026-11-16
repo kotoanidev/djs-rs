@@ -2,8 +2,13 @@
 
 **A high-performance Rust library for building Discord bots, modelled on discord.js v14.**
 
-> ⚠️ **Status: pre-alpha, under active construction.** Nothing is usable yet. See
+> ⚠️ **Status: pre-alpha.** Bots work end to end (events, commands, the cache, sharding,
+> voice), but djs-rs is not on crates.io yet and its API can still change. See
 > [`ROADMAP.md`](ROADMAP.md) for the plan and [`PROGRESS.md`](PROGRESS.md) for where things stand.
+
+**[The guide](https://kotoanidev.github.io/djs-rs/)** walks through building a bot from the
+first lines on; the [API reference](https://kotoanidev.github.io/djs-rs/api/djs_rs/index.html)
+is published next to it.
 
 djs-rs rebuilds the discord.js v14 ecosystem from scratch in Rust. The goal is to offer the
 familiar discord.js developer experience — `Client`, events, rich structures, managers,

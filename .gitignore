@@ -21,3 +21,5 @@
 /benches/vs-node/out/
 # Raw results of the serenity comparison (D-278)
 /benches/vs-serenity/out/
+# The guide, built by mdBook (D-377)
+/book/book/

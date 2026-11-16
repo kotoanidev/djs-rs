@@ -119,6 +119,7 @@ crates/
   djs-collection/     Collection type (≈ @discordjs/collection)
   djs-formatters/     markdown/mention/timestamp formatters (≈ @discordjs/formatters)
   djs-util/           shared utilities (≈ @discordjs/util)
+book/                 the guide (mdBook, D-377); its listings are examples of book/code (D-378)
 docs/
   DECISIONS.md        decision log (binding)
   ARCHITECTURE.md     how the crates fit together
@@ -135,6 +136,7 @@ cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-features
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features
 cargo +1.89 check --workspace --all-features               # MSRV check (rustup toolchain install 1.89 first)
+mdbook build book                                          # the guide (cargo install mdbook --version 0.5.4 --locked)
 ```
 
 Local quality gate before every code commit: `fmt` → `clippy` → `test` → `doc`.

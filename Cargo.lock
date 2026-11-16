@@ -701,6 +701,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "djs-rs-guide"
+version = "0.0.0"
+dependencies = [
+ "djs-rs",
+ "tokio",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "djs-util"
 version = "0.0.0"
 

@@ -1,0 +1,19 @@
+# The djs-rs guide (D-377): `mdbook build book` writes it to `book/book/`, `mdbook serve
+# book` shows it at http://localhost:3000 while it is edited. Its code is in `code/` (D-378).
+[book]
+title = "The djs-rs Guide"
+description = "Building Discord bots in Rust with djs-rs, from the first bot to sharding and voice."
+authors = ["The djs-rs contributors"]
+language = "en"
+src = "src"
+
+[rust]
+edition = "2024"
+
+[output.html]
+git-repository-url = "https://github.com/kotoanidev/djs-rs"
+edit-url-template = "https://github.com/kotoanidev/djs-rs/edit/main/book/{path}"
+site-url = "/djs-rs/"
+# The listings are bots that need a token: never run on the Rust playground.
+[output.html.playground]
+runnable = false

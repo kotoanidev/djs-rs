@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/*", "benches/vs-node"]
+members = ["crates/*", "benches/vs-node", "book/code"]
 
 # Shared package metadata — every crate inherits these with `<field>.workspace = true`.
 [workspace.package]

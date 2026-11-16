@@ -3430,6 +3430,47 @@ and why.
 - **Answer (owner):** keep 1 s: the margin covers FFmpeg's or the network's stalls; 190 KiB
   per track is affordable.
 
+### D-376 — After Phase 10: the guide (2026-11-16)
+- **Question:** Phase 10 is done and the roadmap has only cross-cutting items left: the
+  migration guide, the first crates.io release, the guide/book, twilight benchmarks. Which
+  first?
+- **Answer (owner):** the guide / book (its format asked next).
+- Not chosen now: the migration guide (recommended), the release, twilight benchmarks.
+
+### D-377 — The guide is an mdBook in the repository (2026-11-16)
+- **Answer (owner):** an mdBook in `book/` (chapters, navigation, search), in English
+  (D-009). `mdbook` is a tool, not a dependency of the crates.
+- Rejected: a rustdoc module (`djs_rs::guide`), plain Markdown in `docs/guide`.
+
+### D-378 — The guide's code is included from files cargo compiles (2026-11-16)
+- **Answer (owner):** every code listing lives in a file cargo builds, and the chapters
+  include it (`{{#include}}`, with anchors for parts): the gate and CI catch a listing that
+  stops compiling.
+- Rejected: code written in the chapters' text.
+
+### D-379 — The guide is published on GitHub Pages from the start (2026-11-16)
+- **Answer (owner):** CI publishes the book on every push to `main`; Pages has to be
+  enabled in the repository's settings (by the owner, or by Claude with their go-ahead).
+- Rejected: only building it in CI until the first crates.io release.
+
+### D-380 — The guide starts with the basics, in order (2026-11-16)
+- **Answer (owner):** installation, the first bot, events and intents, slash commands,
+  components and embeds, the cache; then REST, sharding and voice. Laid out like the
+  discord.js guide (behaviour and topics as a reference, text written from scratch, D-004).
+- Rejected: voice and sharding first; a short skeleton of every chapter first.
+
+### D-381 — Claude enables GitHub Pages through `gh` (2026-11-16)
+- **Answer (owner):** Claude enables Pages for kotoanidev/djs-rs with the source "GitHub
+  Actions" (`gh api -X POST repos/kotoanidev/djs-rs/pages -f build_type=workflow`); the
+  site is https://kotoanidev.github.io/djs-rs/.
+- Rejected: the owner enabling it in the settings.
+
+### D-382 — The API reference is published with the guide, under `/api/` (2026-11-16)
+- **Answer (owner):** the book's workflow also builds the workspace's rustdoc (`cargo doc
+  --workspace --no-deps --all-features`) and publishes it at
+  https://kotoanidev.github.io/djs-rs/api/; the chapters link items to it (until docs.rs).
+- Rejected: only the guide, without links to the API.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
@@ -5522,6 +5563,22 @@ garbage (±1.0 for a frame). Measured with the listeners' side decoded by libopu
   with the state now in the stream; `try_next` (tests only) polls it with a no-op waker.
   `VoiceStream`'s `Debug` shows whether it decodes.
 - A stream whose decoder libopus cannot make ends at once (its channel closed).
+
+### C-131 — The guide's layout (D-377–D-382)
+- `book/` holds the mdBook (`book.toml`, `src/`); its output `book/book/` is git-ignored.
+  The planned chapters are mdBook draft chapters (`- [Title]()`) in `SUMMARY.md`.
+- The listings are examples of the crate `book/code` (`djs-rs-guide`, a workspace member,
+  `publish = false`, djs-rs by path, a doc-only `lib.rs`): the workspace's clippy and tests
+  compile them; chapters include them by anchors (`// ANCHOR: name`). Cargo manifests and
+  shell commands are written in the chapters (they are not Rust).
+- mdBook 0.5.4 is pinned: in `.github/workflows/book.yml` (the release binary) and for the
+  local tool (`cargo install --locked`); the local gate also runs `mdbook build book`.
+- The workflow builds on every push and pull request, and deploys only `main`; the API
+  reference is `cargo doc --workspace --no-deps --all-features` without the `djs-vs-node`
+  and `djs-rs-guide` crates, copied to `api/`. The chapters link items relatively
+  (`../api/djs_rs/struct.Client.html`), so links work on the site (not in a bare local
+  build).
+- Listings are `no_run` (bots need a token) and the playground is off.
 
 ---
 

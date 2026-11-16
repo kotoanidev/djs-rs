@@ -40,9 +40,14 @@ step 2 (the player) done and live-tested, its clicks fixed (C-127; a second list
 later, the owner's choice); step 3 (receiving audio) done and live-tested (D-363–D-373, C-128; the playback and
 tones rerun later, the owner's choice); step 4 (benchmarks and extreme-load tests) measured
 2026-11-16 (`docs/PERFORMANCE.md`, "Step 4", C-129), its finding fixed (D-374, C-130).
-**Phase 10 is done** (live checks with the owner on hold, see "Blocked on the owner");
-**next: ask the owner what comes after Phase 10** (ROADMAP's cross-cutting items: a
-guide, the migration guide, twilight benchmarks, the first crates.io release).
+**Phase 10 is done** (live checks with the owner on hold, see "Blocked on the owner").
+**The guide: in progress** (D-376–D-382, C-131): an mdBook in `book/` with its listings
+compiled as examples of `book/code`, published with the API reference on GitHub Pages
+(https://kotoanidev.github.io/djs-rs/, enabled 2026-11-16) by `.github/workflows/book.yml`.
+Written: introduction, installation, the first bot. **Next: the "Events and intents"
+chapter**, then slash commands, components and embeds, the cache, REST, sharding, voice
+(D-380), each with its example in `book/code/examples/`, built with `mdbook build book`
+(mdBook 0.5.4) and its links checked against `target/doc`.
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-075 in `docs/DECISIONS.md`; Claude defaults C-001 …
