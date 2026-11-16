@@ -5068,6 +5068,9 @@ other parts reference, are required (`name`, `preferred_locale`, role/channel `i
   has the group's key with it, all within `Config::timeout` (the handshake included). On a
   timeout the connection is closed and `Timeout` returned; if the connection ends first,
   its reason is returned (`Closed(code)` or the last failure).
+- **One `Sender` per connection:** `connect` returns it with the `Handle` (no
+  `Handle::sender()`): a second sender would count transport nonces from 0 again under the
+  same key, and an AEAD nonce must never repeat.
 - **`Sender::send` returns `Ok(false)` and sends nothing** while DAVE has no key (after
   identifying anew, until the bot is in the new group); the RTP timestamp still moves on,
   the sequence number and nonce do not. The frame is DAVE-encrypted into `Dave`'s reused

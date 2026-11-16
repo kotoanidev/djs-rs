@@ -208,7 +208,6 @@ pub(crate) enum Command {
 #[derive(Debug)]
 pub(crate) struct Handle {
     commands: mpsc::UnboundedSender<Command>,
-    udp: watch::Receiver<Arc<Udp>>,
     dave: Arc<Mutex<Dave>>,
 }
 
@@ -216,11 +215,6 @@ impl Handle {
     /// Sends a command to the connection; `false` once it has ended.
     pub(crate) fn send(&self, command: Command) -> bool {
         self.commands.send(command).is_ok()
-    }
-
-    /// A sender of audio packets.
-    pub(crate) fn sender(&self) -> Sender {
-        Sender::new(self.udp.clone(), Arc::clone(&self.dave))
     }
 
     /// The DAVE protocol version media is sent with now (0: no end-to-end encryption).
@@ -236,7 +230,8 @@ fn lock(dave: &Mutex<Dave>) -> MutexGuard<'_, Dave> {
 }
 
 /// Connects to the voice server of `info`, keeps the connection in a task, and returns once
-/// media can be sent (D-322: DAVE ready too).
+/// media can be sent (D-322: DAVE ready too), with the connection's only [`Sender`]: there
+/// is one, as its nonce counter must not repeat under one key.
 ///
 /// # Errors
 ///
@@ -245,7 +240,7 @@ fn lock(dave: &Mutex<Dave>) -> MutexGuard<'_, Dave> {
 pub(crate) async fn connect(
     info: Info,
     config: Config,
-) -> Result<(Handle, mpsc::UnboundedReceiver<ConnectionEvent>), ConnectError> {
+) -> Result<(Handle, Sender, mpsc::UnboundedReceiver<ConnectionEvent>), ConnectError> {
     let deadline = Instant::now() + config.timeout;
     let session = timeout_at(deadline, identify(&info, &config))
         .await
@@ -260,9 +255,9 @@ pub(crate) async fn connect(
     )));
     let handle = Handle {
         commands,
-        udp: udp_rx,
         dave: Arc::clone(&dave),
     };
+    let sender = Sender::new(udp_rx, Arc::clone(&dave));
     let shared = Shared {
         events,
         udp,
@@ -271,7 +266,7 @@ pub(crate) async fn connect(
     };
     tokio::spawn(run(info, config, session, commands_rx, shared));
     match timeout_at(deadline, ready_rx.wait_for(|ready| *ready)).await {
-        Ok(Ok(_)) => Ok((handle, events_rx)),
+        Ok(Ok(_)) => Ok((handle, sender, events_rx)),
         // The task ended: it said why.
         Ok(Err(_)) => Err(ended(&mut events_rx)),
         Err(_) => {

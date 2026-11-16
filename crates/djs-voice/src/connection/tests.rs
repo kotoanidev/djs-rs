@@ -272,13 +272,18 @@ async fn connected(
     mock: &Mock,
     config: Config,
     interval: f64,
-) -> (super::Handle, UnboundedReceiver<ConnectionEvent>, Server) {
+) -> (
+    super::Handle,
+    super::Sender,
+    UnboundedReceiver<ConnectionEvent>,
+    Server,
+) {
     let (client, mut server) = tokio::join!(connect(mock.info(), config), async {
         let mut server = mock.accept().await;
         mock.handshake(&mut server, 7, KEY, interval).await;
         server
     });
-    let (handle, mut events) = client.unwrap();
+    let (handle, audio, mut events) = client.unwrap();
     // The message sent during the handshake comes first.
     assert!(matches!(
         event(&mut events).await,
@@ -287,7 +292,7 @@ async fn connected(
     // Make sure the client is past the handshake before the test goes on.
     handle.send(Command::Speaking(MICROPHONE));
     assert_eq!(recv_op(&mut server, 5).await["d"]["ssrc"], 7);
-    (handle, events, server)
+    (handle, audio, events, server)
 }
 
 #[tokio::test]
@@ -305,14 +310,14 @@ async fn connects_identifies_and_sends_audio() {
             "token": "voice-token", "max_dave_protocol_version": 1
         }})
     );
-    let (handle, _events) = client.unwrap();
+    let (handle, mut sender, _events) = client.unwrap();
     assert_eq!(handle.dave_protocol_version(), 0);
     assert!(handle.send(Command::Speaking(MICROPHONE)));
     assert_eq!(
         recv_op(&mut server, 5).await["d"],
         json!({"speaking": 1, "delay": 0, "ssrc": 7})
     );
-    let mut sender = handle.sender();
+
     let frames: [&[u8]; 3] = [b"frame one", b"frame two", b"three"];
     let mut headers = Vec::new();
     for frame in frames {
@@ -337,7 +342,7 @@ async fn connects_identifies_and_sends_audio() {
 #[tokio::test]
 async fn heartbeats_acknowledge_the_last_sequence_number() {
     let mock = Mock::new().await;
-    let (_handle, mut events, mut server) = connected(&mock, config(), 100.0).await;
+    let (_handle, _audio, mut events, mut server) = connected(&mock, config(), 100.0).await;
     // The sequence number 1 of the handshake, then 4.
     let first = recv_op(&mut server, 3).await;
     assert_eq!(first["d"]["seq_ack"], 1);
@@ -367,7 +372,7 @@ async fn heartbeats_acknowledge_the_last_sequence_number() {
 #[tokio::test]
 async fn a_lost_connection_resumes() {
     let mock = Mock::new().await;
-    let (handle, mut events, mut server) = connected(&mock, config(), 41_250.0).await;
+    let (_handle, mut audio, mut events, mut server) = connected(&mock, config(), 41_250.0).await;
     close(&mut server, 4015).await;
     let mut server = mock.accept().await;
     assert_eq!(
@@ -394,14 +399,14 @@ async fn a_lost_connection_resumes() {
         ConnectionEvent::Gateway(Event::ClientDisconnect(_))
     ));
     // The same session: the same UDP socket, SSRC and key.
-    assert!(handle.sender().send(b"after", 960).await.unwrap());
+    assert!(audio.send(b"after", 960).await.unwrap());
     assert_eq!(mock.audio(KEY).await.1, b"after");
 }
 
 #[tokio::test]
 async fn a_dropped_connection_resumes() {
     let mock = Mock::new().await;
-    let (_handle, mut events, server) = connected(&mock, config(), 41_250.0).await;
+    let (_handle, _audio, mut events, server) = connected(&mock, config(), 41_250.0).await;
     drop(server);
     let mut server = mock.accept().await;
     assert_eq!(recv(&mut server).await["op"], 7);
@@ -418,7 +423,7 @@ async fn a_dropped_connection_resumes() {
 async fn unacknowledged_heartbeats_reconnect() {
     let mock = Mock::new().await;
     // The mock never reads the first connection again, so its heartbeats go unanswered.
-    let (_handle, mut events, _server) = connected(&mock, config(), 30.0).await;
+    let (_handle, _audio, mut events, _server) = connected(&mock, config(), 30.0).await;
     let mut server = mock.accept().await;
     assert_eq!(recv(&mut server).await["op"], 7);
     send(
@@ -433,7 +438,7 @@ async fn unacknowledged_heartbeats_reconnect() {
 #[tokio::test]
 async fn an_invalid_session_identifies_anew() {
     let mock = Mock::new().await;
-    let (handle, mut events, mut server) = connected(&mock, config(), 41_250.0).await;
+    let (_handle, mut audio, mut events, mut server) = connected(&mock, config(), 41_250.0).await;
     close(&mut server, 4006).await;
     let mut server = mock.accept().await;
     // A new session: another SSRC and key; the speaking flags are sent again.
@@ -451,7 +456,7 @@ async fn an_invalid_session_identifies_anew() {
         event(&mut events).await,
         ConnectionEvent::Gateway(Event::Other(18))
     ));
-    assert!(handle.sender().send(b"new session", 960).await.unwrap());
+    assert!(audio.send(b"new session", 960).await.unwrap());
     let (header, payload) = mock.audio(OTHER_KEY).await;
     assert_eq!(
         (&header[8..12], &payload[..]),
@@ -463,7 +468,7 @@ async fn an_invalid_session_identifies_anew() {
 async fn stop_codes_end_the_connection() {
     for code in [4014, 4022] {
         let mock = Mock::new().await;
-        let (handle, mut events, mut server) = connected(&mock, config(), 41_250.0).await;
+        let (handle, _audio, mut events, mut server) = connected(&mock, config(), 41_250.0).await;
         close(&mut server, code).await;
         assert!(
             matches!(event(&mut events).await, ConnectionEvent::Ended(End::Stopped(found)) if found == code)
@@ -488,7 +493,7 @@ async fn stop_codes_end_the_connection() {
 #[tokio::test]
 async fn resuming_gives_up_after_the_retries() {
     let mock = Mock::new().await;
-    let (_handle, mut events, mut server) = connected(&mock, config(), 41_250.0).await;
+    let (_handle, _audio, mut events, mut server) = connected(&mock, config(), 41_250.0).await;
     close(&mut server, 4015).await;
     // The immediate attempt and one per delay (D-331), each refused the same way.
     for _ in 0..6 {
@@ -510,7 +515,7 @@ async fn resuming_gives_up_after_the_retries() {
 #[tokio::test]
 async fn a_rejected_resume_identifies_anew() {
     let mock = Mock::new().await;
-    let (_handle, mut events, mut server) = connected(&mock, config(), 41_250.0).await;
+    let (_handle, _audio, mut events, mut server) = connected(&mock, config(), 41_250.0).await;
     close(&mut server, 4015).await;
     let mut server = mock.accept().await;
     assert_eq!(recv(&mut server).await["op"], 7);
@@ -530,7 +535,7 @@ async fn a_rejected_resume_identifies_anew() {
 #[tokio::test]
 async fn closing_ends_the_connection() {
     let mock = Mock::new().await;
-    let (handle, mut events, mut server) = connected(&mock, config(), 41_250.0).await;
+    let (handle, _audio, mut events, mut server) = connected(&mock, config(), 41_250.0).await;
     assert!(handle.send(Command::Close));
     let message = timeout(STEP, server.next()).await.unwrap();
     assert!(matches!(&message, Some(Ok(message)) if message.is_close()) || message.is_none());
@@ -588,9 +593,9 @@ async fn dave_encrypts_the_audio_end_to_end() {
     let mut other = sender.member(OTHER);
     let client = tokio::spawn(connect(mock.info(), config()));
     let _server = dave_handshake(&mock, &sender, &mut other, &client).await;
-    let (handle, mut events) = client.await.unwrap().unwrap();
+    let (handle, mut audio, mut events) = client.await.unwrap().unwrap();
     assert_eq!(handle.dave_protocol_version(), 1);
-    let mut audio = handle.sender();
+
     for frame in [&b"end to end"[..], b"encrypted"] {
         assert!(audio.send(frame, 960).await.unwrap());
         let (_, payload) = mock.audio(KEY).await;
@@ -656,8 +661,8 @@ async fn a_new_session_sends_no_audio_until_dave_is_ready_again() {
     let mut other = sender.member(OTHER);
     let client = tokio::spawn(connect(mock.info(), config()));
     let mut server = dave_handshake(&mock, &sender, &mut other, &client).await;
-    let (handle, mut events) = client.await.unwrap().unwrap();
-    let mut audio = handle.sender();
+    let (handle, mut audio, mut events) = client.await.unwrap().unwrap();
+
     assert!(audio.send(b"first session", 960).await.unwrap());
     mock.audio(KEY).await;
     close(&mut server, 4006).await;
