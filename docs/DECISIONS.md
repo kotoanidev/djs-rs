@@ -5664,6 +5664,15 @@ garbage (±1.0 for a frame). Measured with the listeners' side decoded by libopu
   premium and container builders. No target is enforced in CI: the rest is ignored
   measurement code (`codec`, `input`, `dave`), macro output, and doctested functions.
 
+### C-133 — Two tests that failed only on CI runners
+- **The dispatch fixture on Windows:** git checks `dispatch_events.json` out with CRLF
+  there, so `the_dispatch_fixture_of_djs_rs_is_current` compares it with `\r\n` turned into
+  `\n` (no `.gitattributes` for one file).
+- **A voice timing test on macOS:** `volume_changes_pauses_and_seeks_make_no_click` saw 52 ms
+  between two packets on a shared macOS runner once, at a commit that did not touch
+  djs-voice (it had passed there before). The gap limit is 60 ms instead of 50: still under
+  the 67 ms a seek without filler made (C-127), above a runner's hiccup.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

@@ -410,8 +410,9 @@ async fn joining_again_changes_the_bitrate() {
 
 /// More time than this between two packets is a gap in the audio: a seek without filler
 /// made 67 ms (C-127). Packets 20 ms apart can arrive up to about 36 ms apart where timers
-/// tick every 15.6 ms (Windows).
-const GAP: u128 = 50;
+/// tick every 15.6 ms (Windows), and a shared macOS CI runner once delayed one to 52 ms
+/// with nothing changed (C-133).
+const GAP: u128 = 60;
 
 /// The sent audio decoded in order: the left channel, and when each packet arrived.
 struct Capture {

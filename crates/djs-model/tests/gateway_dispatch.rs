@@ -515,7 +515,8 @@ fn the_dispatch_fixture_of_djs_rs_is_current() {
         return;
     }
     // Packaged alone (crates.io), djs-model has no djs-rs next to it.
-    let Ok(current) = std::fs::read_to_string(&path) else {
+    // Git may check the file out with CRLF line endings (Windows).
+    let Ok(current) = std::fs::read_to_string(&path).map(|text| text.replace("\r\n", "\n")) else {
         return;
     };
     assert!(
