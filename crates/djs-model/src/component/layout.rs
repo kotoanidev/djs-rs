@@ -25,6 +25,8 @@ pub struct ActionRow {
 
 impl ActionRow {
     /// Creates an action row.
+    ///
+    /// discord.js counterpart: `ActionRowBuilder` (`@discordjs/builders`).
     #[must_use]
     pub const fn new(components: Vec<Component>) -> Self {
         Self {
@@ -53,6 +55,8 @@ pub struct Section {
 
 impl Section {
     /// Creates a section.
+    ///
+    /// discord.js counterpart: `SectionBuilder` (`@discordjs/builders`).
     #[must_use]
     pub fn new(components: Vec<Component>, accessory: Component) -> Self {
         Self {
@@ -86,6 +90,8 @@ pub struct Container {
 
 impl Container {
     /// Creates a container without accent color.
+    ///
+    /// discord.js counterpart: `ContainerBuilder` (`@discordjs/builders`).
     #[must_use]
     pub const fn new(components: Vec<Component>) -> Self {
         Self {
@@ -116,6 +122,8 @@ pub struct Separator {
 
 impl Separator {
     /// Creates a separator with a line and the default spacing.
+    ///
+    /// discord.js counterpart: `SeparatorBuilder` (`@discordjs/builders`).
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -167,6 +175,8 @@ pub struct Label {
 
 impl Label {
     /// Creates a label for `component`.
+    ///
+    /// discord.js counterpart: `LabelBuilder` (`@discordjs/builders`).
     #[must_use]
     pub fn new(label: impl Into<CompactString>, component: Component) -> Self {
         Self {

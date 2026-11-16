@@ -61,6 +61,8 @@ pub struct GuildTemplate {
 /// The guild snapshot of a [`GuildTemplate`] (a partial guild with placeholder IDs, D-059).
 ///
 /// Fields that the "create guild" format treats as optional are [`Option`]s here.
+///
+/// discord.js counterpart: `APITemplateSerializedSourceGuild` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct SerializedSourceGuild {
@@ -119,6 +121,8 @@ pub struct SerializedSourceGuild {
 }
 
 /// A role in a [`SerializedSourceGuild`] (D-059).
+///
+/// discord.js counterpart: a role of `APITemplateSerializedSourceGuild` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct TemplateRole {
@@ -152,6 +156,8 @@ pub struct TemplateRole {
 }
 
 /// A channel in a [`SerializedSourceGuild`] (D-059).
+///
+/// discord.js counterpart: a channel of `APITemplateSerializedSourceGuild` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct TemplateChannel {
@@ -225,6 +231,8 @@ pub struct TemplateChannel {
 }
 
 /// A permission overwrite in a [`TemplateChannel`] (D-059).
+///
+/// discord.js counterpart: a permission overwrite of `APITemplateSerializedSourceGuild` (discord-api-types).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct TemplateOverwrite {
@@ -244,6 +252,8 @@ pub struct TemplateOverwrite {
 
 /// A forum tag in a [`TemplateChannel`]: like a [`ForumTag`](crate::channel::ForumTag), but
 /// without an ID (D-059).
+///
+/// discord.js counterpart: a forum tag of `APITemplateSerializedSourceGuild` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct TemplateForumTag {

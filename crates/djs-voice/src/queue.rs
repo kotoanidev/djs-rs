@@ -150,6 +150,8 @@ impl TrackQueue {
     /// Removes the waiting tracks ([`TrackEnd::Stopped`]); the current one goes on.
     ///
     /// songbird counterpart: `TrackQueue::stop` (which stops the current one too).
+    ///
+    /// discord.js counterpart: none (`@discordjs/voice` has no queue).
     pub fn clear(&self) {
         let waiting: Vec<Slot> = lock(&self.shared.queue).waiting.drain(..).collect();
         for slot in waiting {
@@ -160,6 +162,8 @@ impl TrackQueue {
     /// The tracks in the queue: the current one and the waiting ones.
     ///
     /// songbird counterpart: `TrackQueue::len`.
+    ///
+    /// discord.js counterpart: none (`@discordjs/voice` has no queue).
     #[must_use]
     pub fn len(&self) -> usize {
         let queue = lock(&self.shared.queue);
@@ -167,6 +171,8 @@ impl TrackQueue {
     }
 
     /// Whether nothing plays and nothing waits.
+    ///
+    /// discord.js counterpart: none (`@discordjs/voice` has no queue).
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
@@ -175,6 +181,8 @@ impl TrackQueue {
     /// The track playing (or paused), if any.
     ///
     /// songbird counterpart: `TrackQueue::current`.
+    ///
+    /// discord.js counterpart: the resource of `AudioPlayer#state` (`@discordjs/voice`).
     #[must_use]
     pub fn current(&self) -> Option<TrackHandle> {
         lock(&self.shared.queue)

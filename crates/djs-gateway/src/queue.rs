@@ -91,6 +91,8 @@ pub struct LocalIdentifyQueue {
 impl LocalIdentifyQueue {
     /// Creates a queue for a bot whose `max_concurrency` (from Get Gateway Bot's
     /// `session_start_limit`) is the given value. `0` is treated as `1`.
+    ///
+    /// discord.js counterpart: `new SimpleIdentifyThrottler(maxConcurrency)` (`@discordjs/ws`).
     #[must_use]
     pub fn new(max_concurrency: u32) -> Self {
         let buckets = (0..max_concurrency.max(1))
@@ -101,6 +103,8 @@ impl LocalIdentifyQueue {
 
     /// Returns the number of rate-limit buckets (the `max_concurrency` the queue was created
     /// with, at least `1`).
+    ///
+    /// discord.js counterpart: the `maxConcurrency` of `SimpleIdentifyThrottler` (`@discordjs/ws`).
     #[must_use]
     pub fn max_concurrency(&self) -> u32 {
         // Created from a `u32`, so this never saturates.

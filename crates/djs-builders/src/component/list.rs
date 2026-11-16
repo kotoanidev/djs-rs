@@ -41,6 +41,8 @@ const V2_TEXT: usize = 4000;
 /// Discord also refuses a request that is too large in bytes (`413`) — for example a single
 /// text display of 4000 emoji —, which this does not check.
 ///
+/// discord.js counterpart: none (`@discordjs/builders` checks each component alone).
+///
 /// # Errors
 ///
 /// The first [`ValidationError`] found: the number or type of top-level components, a

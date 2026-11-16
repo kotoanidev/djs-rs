@@ -47,6 +47,8 @@ pub struct ApplicationRoleConnectionMetadata {
 impl ApplicationRoleConnectionMetadata {
     /// A record without translations.
     ///
+    /// discord.js counterpart: `ApplicationRoleConnectionMetadataEditOptions`.
+    ///
     /// # Examples
     ///
     /// ```

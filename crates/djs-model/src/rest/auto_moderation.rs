@@ -93,6 +93,8 @@ impl CreateAutoModerationRule {
     /// [`regex_patterns`](TriggerMetadata::regex_patterns) and an
     /// [`allow_list`](TriggerMetadata::allow_list) through
     /// [`trigger_metadata`](Self::trigger_metadata).
+    ///
+    /// discord.js counterpart: `AutoModerationRuleCreateOptions` with `AutoModerationRuleTriggerType.Keyword`.
     #[must_use]
     pub fn keyword(
         name: impl Into<CompactString>,
@@ -113,6 +115,8 @@ impl CreateAutoModerationRule {
     }
 
     /// A rule that triggers on messages Discord considers generic spam.
+    ///
+    /// discord.js counterpart: `AutoModerationRuleCreateOptions` with `AutoModerationRuleTriggerType.Spam`.
     #[must_use]
     pub fn spam(name: impl Into<CompactString>, actions: impl IntoIterator<Item = Action>) -> Self {
         Self::with(
@@ -126,6 +130,8 @@ impl CreateAutoModerationRule {
 
     /// A rule that triggers on messages containing words from Discord's predefined word
     /// lists. Exceptions go into the [`allow_list`](TriggerMetadata::allow_list) (up to 1000).
+    ///
+    /// discord.js counterpart: `AutoModerationRuleCreateOptions` with `AutoModerationRuleTriggerType.KeywordPreset`.
     #[must_use]
     pub fn keyword_preset(
         name: impl Into<CompactString>,
@@ -149,6 +155,8 @@ impl CreateAutoModerationRule {
     /// (up to 50). Enable
     /// [`mention_raid_protection_enabled`](TriggerMetadata::mention_raid_protection_enabled)
     /// to also detect mention raids.
+    ///
+    /// discord.js counterpart: `AutoModerationRuleCreateOptions` with `AutoModerationRuleTriggerType.MentionSpam`.
     #[must_use]
     pub fn mention_spam(
         name: impl Into<CompactString>,
@@ -170,6 +178,8 @@ impl CreateAutoModerationRule {
 
     /// A rule that triggers when a member's profile contains one of `keywords`, checked when
     /// they edit it. The keywords work as for [`keyword`](Self::keyword).
+    ///
+    /// discord.js counterpart: `AutoModerationRuleCreateOptions` with `AutoModerationRuleTriggerType.MemberProfile`.
     #[must_use]
     pub fn member_profile(
         name: impl Into<CompactString>,

@@ -110,6 +110,8 @@ fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
 }
 
 /// An error of multi-process sharding.
+///
+/// discord.js counterpart: none (discord.js rejects with plain `Error`s).
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum ClusterError {

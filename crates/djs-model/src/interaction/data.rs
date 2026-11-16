@@ -26,6 +26,8 @@ use crate::{
 ///
 /// The variant decides the interaction's [`type`](super::Interaction::kind): it is decoded
 /// from `type` and `data` together and written back as both.
+///
+/// discord.js counterpart: the `data` of `APIInteraction` (discord-api-types).
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub enum InteractionData {
@@ -57,6 +59,8 @@ pub enum InteractionData {
 
 impl InteractionData {
     /// Returns the interaction type this data belongs to.
+    ///
+    /// discord.js counterpart: `BaseInteraction#type`.
     #[must_use]
     pub const fn kind(&self) -> InteractionType {
         match self {
@@ -72,6 +76,8 @@ impl InteractionData {
     /// Returns the command data of command and autocomplete interactions (see
     /// [`Interaction::command`](super::Interaction::command) and
     /// [`Interaction::autocomplete`](super::Interaction::autocomplete) for one kind).
+    ///
+    /// discord.js counterpart: the command fields of `CommandInteraction`.
     #[must_use]
     pub fn command(&self) -> Option<&CommandData> {
         match self {
@@ -82,6 +88,8 @@ impl InteractionData {
 
     /// Returns the custom ID of the component or modal (component and modal-submit
     /// interactions).
+    ///
+    /// discord.js counterpart: `MessageComponentInteraction#customId` and `ModalSubmitInteraction#customId`.
     #[must_use]
     pub fn custom_id(&self) -> Option<&str> {
         match self {
@@ -92,6 +100,8 @@ impl InteractionData {
     }
 
     /// Returns the resolved users, members, roles, channels, messages and attachments, if any.
+    ///
+    /// discord.js counterpart: `CommandInteractionOptionResolver#resolved`.
     #[must_use]
     pub fn resolved(&self) -> Option<&Resolved> {
         match self {
@@ -157,6 +167,8 @@ pub struct CommandData {
 impl CommandData {
     /// Returns the option that is being typed in an autocomplete interaction, searching
     /// subcommands and groups.
+    ///
+    /// discord.js counterpart: `CommandInteractionOptionResolver#getFocused`.
     #[must_use]
     pub fn focused(&self) -> Option<&CommandDataOption> {
         fn find(options: &[CommandDataOption]) -> Option<&CommandDataOption> {
@@ -187,6 +199,8 @@ pub struct CommandDataOption {
 
 impl CommandDataOption {
     /// Creates an option (for tests and mock servers).
+    ///
+    /// discord.js counterpart: `CommandInteractionOption`.
     #[must_use]
     pub fn new(name: impl Into<CompactString>, value: CommandOptionValue) -> Self {
         Self {
@@ -200,6 +214,8 @@ impl CommandDataOption {
 ///
 /// Snowflake values (users, channels, roles, mentionables, attachments) are IDs; the objects
 /// they refer to are in the command's [`Resolved`] data.
+///
+/// discord.js counterpart: the `value` of an `APIApplicationCommandInteractionDataOption` (discord-api-types).
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub enum CommandOptionValue {
@@ -239,6 +255,8 @@ pub enum CommandOptionValue {
 
 impl CommandOptionValue {
     /// Returns the option type.
+    ///
+    /// discord.js counterpart: `CommandInteractionOption#type`.
     #[must_use]
     pub const fn kind(&self) -> CommandOptionType {
         match self {
@@ -516,6 +534,8 @@ pub struct ComponentData {
 impl ComponentData {
     /// Parses the selected [`values`](Self::values) of a user, role, mentionable or channel
     /// select menu as IDs, skipping values that are not snowflakes.
+    ///
+    /// discord.js counterpart: `UserSelectMenuInteraction#values` and its siblings.
     pub fn ids<T>(&self) -> impl Iterator<Item = Id<T>> + '_ {
         self.values.iter().filter_map(|value| value.parse().ok())
     }
@@ -539,6 +559,8 @@ pub struct ModalSubmitData {
 
 impl ModalSubmitData {
     /// Finds the submitted input with the given custom ID, inside labels and action rows.
+    ///
+    /// discord.js counterpart: `ModalSubmitFields#getField`.
     #[must_use]
     pub fn get(&self, custom_id: &str) -> Option<&SubmittedComponent> {
         fn find<'a>(
@@ -558,6 +580,8 @@ impl ModalSubmitData {
     }
 
     /// Returns the text entered in the text input with the given custom ID.
+    ///
+    /// discord.js counterpart: `ModalSubmitFields#getTextInputValue`.
     #[must_use]
     pub fn text_value(&self, custom_id: &str) -> Option<&str> {
         match self.get(custom_id)? {
@@ -607,6 +631,8 @@ pub enum SubmittedComponent {
 
 impl SubmittedComponent {
     /// Returns the component type.
+    ///
+    /// discord.js counterpart: the `type` of `ModalData`.
     #[must_use]
     pub const fn kind(&self) -> ComponentType {
         match self {
@@ -628,6 +654,8 @@ impl SubmittedComponent {
     }
 
     /// Returns the component's numeric ID.
+    ///
+    /// discord.js counterpart: the `id` of `ModalData`.
     #[must_use]
     pub const fn id(&self) -> Option<u32> {
         match self {
@@ -648,6 +676,8 @@ impl SubmittedComponent {
     }
 
     /// Returns the custom ID of an input (not of action rows, labels and text displays).
+    ///
+    /// discord.js counterpart: the `customId` of `ModalData`.
     #[must_use]
     pub fn custom_id(&self) -> Option<&str> {
         match self {
@@ -668,6 +698,8 @@ impl SubmittedComponent {
 }
 
 /// A submitted [action row](SubmittedComponent::ActionRow).
+///
+/// discord.js counterpart: `ModalSubmitActionRowComponent` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub struct SubmittedActionRow {
@@ -679,6 +711,8 @@ pub struct SubmittedActionRow {
 }
 
 /// A submitted [text input](SubmittedComponent::TextInput).
+///
+/// discord.js counterpart: `APIModalSubmitTextInputComponent` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub struct SubmittedTextInput {
@@ -693,6 +727,8 @@ pub struct SubmittedTextInput {
 
 /// A submitted [string select](SubmittedComponent::StringSelect) or
 /// [checkbox group](SubmittedComponent::CheckboxGroup).
+///
+/// discord.js counterpart: `APIModalSubmitStringSelectComponent` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub struct SubmittedSelect {
@@ -707,6 +743,8 @@ pub struct SubmittedSelect {
 
 /// A submitted user, role, mentionable or channel select menu: the IDs of the selected
 /// entities, whose objects are in [`ModalSubmitData::resolved`].
+///
+/// discord.js counterpart: `APIModalSubmitUserSelectComponent` and the other select components (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(bound = "")]
 #[non_exhaustive]
@@ -721,6 +759,8 @@ pub struct SubmittedEntitySelect<T> {
 }
 
 /// A submitted [text display](SubmittedComponent::TextDisplay).
+///
+/// discord.js counterpart: `ModalSubmitTextDisplayComponent` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub struct SubmittedTextDisplay {
@@ -730,6 +770,8 @@ pub struct SubmittedTextDisplay {
 }
 
 /// A submitted [label](SubmittedComponent::Label) and the input inside it.
+///
+/// discord.js counterpart: `ModalSubmitLabelComponent` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub struct SubmittedLabel {
@@ -742,6 +784,8 @@ pub struct SubmittedLabel {
 
 /// A submitted [file upload](SubmittedComponent::FileUpload): the IDs of the uploaded files,
 /// whose objects are in [`Resolved::attachments`].
+///
+/// discord.js counterpart: `APIModalSubmitFileUploadComponent` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub struct SubmittedFileUpload {
@@ -755,6 +799,8 @@ pub struct SubmittedFileUpload {
 }
 
 /// A submitted [radio group](SubmittedComponent::RadioGroup).
+///
+/// discord.js counterpart: `APIModalSubmitRadioGroupComponent` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub struct SubmittedRadioGroup {
@@ -768,6 +814,8 @@ pub struct SubmittedRadioGroup {
 }
 
 /// A submitted [checkbox](SubmittedComponent::Checkbox).
+///
+/// discord.js counterpart: `APIModalSubmitCheckboxComponent` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub struct SubmittedCheckbox {
@@ -781,6 +829,8 @@ pub struct SubmittedCheckbox {
 }
 
 /// A submitted component of a type this version does not know.
+///
+/// discord.js counterpart: none (a component type unknown to this version, kept as received).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub struct UnknownSubmittedComponent {

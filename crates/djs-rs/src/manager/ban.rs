@@ -40,6 +40,8 @@ impl<'a, B: Backend> BanManager<'a, B> {
     }
 
     /// The guild these bans belong to.
+    ///
+    /// discord.js counterpart: `GuildBanManager#guild`.
     #[must_use]
     pub const fn guild_id(self) -> GuildId {
         self.guild_id

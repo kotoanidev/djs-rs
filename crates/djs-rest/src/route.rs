@@ -326,6 +326,8 @@ macro_rules! routes {
 
         impl Route<'_> {
             /// Returns the HTTP method of the route.
+            ///
+            /// discord.js counterpart: the method `REST#request` is given (`@discordjs/rest`).
             #[must_use]
             pub fn method(self) -> Method {
                 match self {
@@ -335,6 +337,8 @@ macro_rules! routes {
 
             /// Returns the path of the route, relative to the versioned API base
             /// (e.g. `/channels/42/messages`).
+            ///
+            /// discord.js counterpart: the `fullRoute` `REST#request` is given (`@discordjs/rest`).
             #[must_use]
             pub fn path(self) -> String {
                 let mut path = String::with_capacity(64);

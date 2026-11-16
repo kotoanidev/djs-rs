@@ -209,6 +209,8 @@ pub struct Mention {
 
 impl Mention {
     /// Creates a mention of `user` without member data.
+    ///
+    /// discord.js counterpart: an element of the `mentions` of `APIMessage` (discord-api-types).
     #[must_use]
     pub const fn new(user: User) -> Self {
         Self { user, member: None }
@@ -306,6 +308,8 @@ impl Serialize for Mention {
 ///
 /// Discord distinguishes an absent field ("did not try to fetch it") from `null` ("it was
 /// deleted"); this type keeps that distinction.
+///
+/// discord.js counterpart: `Message#fetchReference`'s message; the `referenced_message` of `APIMessage` (discord-api-types).
 #[derive(Clone, Debug, Default, PartialEq)]
 #[non_exhaustive]
 pub enum ReferencedMessage {
@@ -321,6 +325,8 @@ pub enum ReferencedMessage {
 
 impl ReferencedMessage {
     /// Returns the referenced message, if Discord sent it.
+    ///
+    /// discord.js counterpart: `Message#fetchReference`.
     #[must_use]
     pub fn as_message(&self) -> Option<&Message> {
         match self {
@@ -330,6 +336,8 @@ impl ReferencedMessage {
     }
 
     /// Converts into the referenced message, if Discord sent it.
+    ///
+    /// discord.js counterpart: `Message#fetchReference`.
     #[must_use]
     pub fn into_message(self) -> Option<Box<Message>> {
         match self {
@@ -339,12 +347,16 @@ impl ReferencedMessage {
     }
 
     /// Whether the field was absent (the state of the referenced message is unknown).
+    ///
+    /// discord.js counterpart: none (discord.js fetches the reference on demand).
     #[must_use]
     pub const fn is_not_fetched(&self) -> bool {
         matches!(self, Self::NotFetched)
     }
 
     /// Whether the referenced message was deleted.
+    ///
+    /// discord.js counterpart: none (`Message#fetchReference` rejects for a deleted message).
     #[must_use]
     pub const fn is_deleted(&self) -> bool {
         matches!(self, Self::Deleted)
@@ -376,6 +388,8 @@ impl<'de> Deserialize<'de> for ReferencedMessage {
 /// attached to a message: an integer or a string (up to 25 characters).
 ///
 /// Integers outside the `i64` range are kept as their decimal text in [`Nonce::String`].
+///
+/// discord.js counterpart: the `nonce` of `APIMessage` (discord-api-types), a string or a number.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Nonce {
     /// An integer nonce.
@@ -469,6 +483,8 @@ pub struct MessageReference {
 
 impl MessageReference {
     /// Creates a reference that replies to `message_id` in the same channel.
+    ///
+    /// discord.js counterpart: the `reply.messageReference` of `MessageCreateOptions`.
     #[must_use]
     pub const fn reply(message_id: MessageId) -> Self {
         Self {
@@ -483,6 +499,8 @@ impl MessageReference {
 
 int_enum! {
     /// The [type of a message reference](https://docs.discord.com/developers/resources/message#message-reference-types).
+    ///
+    /// discord.js counterpart: `MessageReferenceType` (discord-api-types).
     #[derive(Default)]
     pub enum MessageReferenceType: u8 {
         /// A standard reference used by replies (`referenced_message` is populated).
@@ -586,6 +604,8 @@ impl MessageType {
     /// Based on the "Deletable" column of the Discord documentation. Unknown types are assumed to
     /// be deletable. `AutoModerationAction` messages additionally require the `MANAGE_MESSAGES`
     /// permission.
+    ///
+    /// discord.js counterpart: `Message#deletable`, for the type part.
     #[must_use]
     pub const fn is_deletable(self) -> bool {
         !matches!(
@@ -660,6 +680,8 @@ pub struct MessageSnapshot {
 
 /// The fields of a forwarded message kept in a [`MessageSnapshot`]: a partial [`Message`]
 /// (D-051).
+///
+/// discord.js counterpart: `APIMessageSnapshotFields` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 #[doc(alias = "MessageSnapshotFields")]
@@ -744,6 +766,8 @@ impl Reaction {
     /// Creates a reaction with `emoji` that nobody has used yet (all counts zero), to be
     /// counted up — for example by a cache applying `MESSAGE_REACTION_ADD`.
     ///
+    /// discord.js counterpart: `MessageReaction`.
+    ///
     /// # Examples
     ///
     /// ```
@@ -770,6 +794,8 @@ impl Reaction {
 
 /// The [count of a reaction](https://docs.discord.com/developers/resources/message#reaction-count-details-object),
 /// split into normal and super ("burst") reactions.
+///
+/// discord.js counterpart: `APIReactionCountDetails` (discord-api-types).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct ReactionCountDetails {
@@ -781,6 +807,8 @@ pub struct ReactionCountDetails {
 
 /// A [channel mentioned](https://docs.discord.com/developers/resources/message#channel-mention-object)
 /// in a crossposted message.
+///
+/// discord.js counterpart: `ChannelMention`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct ChannelMention {
@@ -860,6 +888,8 @@ pub struct RoleSubscriptionData {
 
 /// A [pinned message](https://docs.discord.com/developers/resources/message#message-pin-object)
 /// (`GET /channels/{channel.id}/messages/pins`).
+///
+/// discord.js counterpart: `MessagePin`.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct MessagePin {
@@ -871,6 +901,8 @@ pub struct MessagePin {
 
 /// A [client theme shared](https://docs.discord.com/developers/resources/message#shared-client-theme-object)
 /// through a message.
+///
+/// discord.js counterpart: `SharedClientTheme`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct SharedClientTheme {
@@ -887,6 +919,8 @@ pub struct SharedClientTheme {
 
 int_enum! {
     /// The [mode of a shared client theme](https://docs.discord.com/developers/resources/message#base-theme-types).
+    ///
+    /// discord.js counterpart: `BaseThemeType` (discord-api-types).
     pub enum BaseTheme: u8 {
         /// Not set (same as [`Dark`](Self::Dark)).
         Unset = 0,
@@ -986,6 +1020,8 @@ int_flags! {
     /// [Flags of an embed](https://docs.discord.com/developers/resources/message#embed-object-embed-flags).
     ///
     /// Set by Discord on received embeds.
+    ///
+    /// discord.js counterpart: `EmbedFlags` (discord-api-types).
     pub struct EmbedFlags: u64 {
         /// Discord's content scanning flagged the embed's media as explicit.
         const CONTAINS_EXPLICIT_CONTENT = 1 << 4;
@@ -1000,6 +1036,8 @@ int_flags! {
 
 int_flags! {
     /// [Flags of an embed's image, thumbnail or video](https://docs.discord.com/developers/resources/message#embed-object-embed-media-flags).
+    ///
+    /// discord.js counterpart: `EmbedMediaFlags` (discord-api-types).
     pub struct EmbedMediaFlags: u64 {
         /// The media is an animated image.
         const IS_ANIMATED = 1 << 5;

@@ -13,6 +13,8 @@ use crate::gateway::{
 /// A payload received from the gateway, decoded according to its opcode.
 ///
 /// Decode payloads with [`GatewayEventDeserializer`].
+///
+/// discord.js counterpart: `GatewayReceivePayload` (discord-api-types).
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub enum GatewayEvent {
@@ -44,6 +46,8 @@ macro_rules! dispatch_events {
         /// Large payloads are boxed to keep this enum small; small `Copy` payloads are inline.
         /// Events this version does not know are skipped efficiently (validated, not stored)
         /// and reported as [`Unknown`](Self::Unknown) with their name.
+        ///
+        /// discord.js counterpart: `GatewayDispatchPayload` (discord-api-types).
         #[derive(Clone, Debug, PartialEq)]
         #[non_exhaustive]
         pub enum DispatchEvent {
@@ -56,6 +60,8 @@ macro_rules! dispatch_events {
 
         impl DispatchEvent {
             /// Returns the event name as sent by Discord, such as `"MESSAGE_CREATE"`.
+            ///
+            /// discord.js counterpart: `GatewayDispatchEvents` (discord-api-types).
             #[must_use]
             pub fn name(&self) -> &str {
                 match self {
@@ -266,6 +272,8 @@ dispatch_events! {
 /// It works with any serde data format; [`from_json`](Self::from_json) is a JSON-specific
 /// helper.
 ///
+/// discord.js counterpart: none (the decoding step discord.js leaves to `JSON.parse`).
+///
 /// # Examples
 ///
 /// ```
@@ -293,6 +301,8 @@ impl<'a> GatewayEventDeserializer<'a> {
     ///
     /// The `sequence` is used when the payload being deserialized has no `s` field; an `s` field
     /// in the payload takes precedence.
+    ///
+    /// discord.js counterpart: none (discord.js leaves decoding to `JSON.parse`).
     #[must_use]
     pub const fn new(op: OpCode, sequence: Option<u64>, event_type: Option<&'a str>) -> Self {
         Self {
@@ -310,24 +320,32 @@ impl<'a> GatewayEventDeserializer<'a> {
     ///
     /// Returns `None` if the input is not a JSON object with an integer `op` field, or if `t`
     /// contains escape sequences (event names never do).
+    ///
+    /// discord.js counterpart: none (discord.js leaves decoding to `JSON.parse`).
     #[must_use]
     pub fn from_json(json: &'a str) -> Option<Self> {
         scan::top_level(json)
     }
 
     /// Returns the opcode.
+    ///
+    /// discord.js counterpart: the `op` of `GatewayReceivePayload` (discord-api-types).
     #[must_use]
     pub const fn op(&self) -> OpCode {
         self.op
     }
 
     /// Returns the sequence number, if known.
+    ///
+    /// discord.js counterpart: the `s` of `GatewayReceivePayload` (discord-api-types).
     #[must_use]
     pub const fn sequence(&self) -> Option<u64> {
         self.sequence
     }
 
     /// Returns the dispatch event name, if any.
+    ///
+    /// discord.js counterpart: the `t` of `GatewayReceivePayload` (discord-api-types).
     #[must_use]
     pub const fn event_type(&self) -> Option<&'a str> {
         self.event_type

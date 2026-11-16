@@ -100,6 +100,8 @@ impl ActionRowBuilder {
     }
 
     /// Returns the row without any check (D-180).
+    ///
+    /// discord.js counterpart: `ActionRowBuilder#toJSON` with validation off (`disableValidators`).
     #[must_use]
     pub fn build_unchecked(self) -> Component {
         self.into()

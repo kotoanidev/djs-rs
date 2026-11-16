@@ -120,6 +120,8 @@ pub struct Application {
 }
 
 /// A partial [`Application`], as attached to invites (`target_application`) (D-051).
+///
+/// discord.js counterpart: a partial `APIApplication` (discord-api-types), as `IntegrationApplication`.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct PartialApplication {
@@ -157,6 +159,8 @@ int_enum! {
 
 /// The default install settings per installation context; the keys of
 /// [`integration_types_config`](Application::integration_types_config).
+///
+/// discord.js counterpart: `APIApplicationIntegrationTypesConfigMap` (discord-api-types).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct IntegrationTypesConfig {
@@ -169,6 +173,8 @@ pub struct IntegrationTypesConfig {
 }
 
 /// The [install settings of one installation context](https://docs.discord.com/developers/resources/application#application-object-application-integration-type-configuration-object).
+///
+/// discord.js counterpart: `APIApplicationIntegrationTypeConfiguration` (discord-api-types).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct IntegrationTypeConfig {
@@ -192,6 +198,8 @@ pub struct InstallParams {
 impl InstallParams {
     /// An authorization link for `scopes`, requesting `permissions` for the bot role (only
     /// used with the `bot` scope).
+    ///
+    /// discord.js counterpart: the `scopes` and `permissions` of `InviteGenerationOptions`.
     #[must_use]
     pub fn new(scopes: impl IntoIterator<Item = Scope>, permissions: Permissions) -> Self {
         Self {
@@ -216,6 +224,8 @@ int_enum! {
 }
 
 /// A running [Activity instance](https://docs.discord.com/developers/resources/application#get-application-activity-instance-activity-instance-object).
+///
+/// discord.js counterpart: `ActivityInstance`.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct ActivityInstance {
@@ -232,6 +242,8 @@ pub struct ActivityInstance {
 }
 
 /// [Where an Activity instance runs](https://docs.discord.com/developers/resources/application#get-application-activity-instance-activity-location-object).
+///
+/// discord.js counterpart: `ActivityLocation`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct ActivityLocation {
@@ -248,6 +260,8 @@ pub struct ActivityLocation {
 
 str_enum! {
     /// The [kind of an Activity location](https://docs.discord.com/developers/resources/application#get-application-activity-instance-activity-location-kind-enum).
+    ///
+    /// discord.js counterpart: `ActivityLocationKind` (discord-api-types).
     pub enum ActivityLocationKind {
         /// A guild channel.
         GuildChannel = "gc",

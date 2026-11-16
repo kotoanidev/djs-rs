@@ -117,12 +117,16 @@ const _: () = {
 impl Cache {
     /// Creates a cache with the [default configuration](CacheConfig::default) and the
     /// [`DashMapBackend`].
+    ///
+    /// discord.js counterpart: the caches `new Client()` creates (`ClientOptions#makeCache`).
     #[must_use]
     pub fn new() -> Self {
         Self::with_config(CacheConfig::default())
     }
 
     /// Creates a cache with `config` and the [`DashMapBackend`].
+    ///
+    /// discord.js counterpart: the `makeCache` option of `ClientOptions`, with `Options.cacheWithLimits`.
     #[must_use]
     pub fn with_config(config: CacheConfig) -> Self {
         Self::with_backend(config, DashMapBackend::new())
@@ -139,6 +143,8 @@ impl<B: Backend> Cache<B> {
     /// Creates a cache with `config`, keeping its resources in stores created by `backend`.
     ///
     /// [`Backend::store`] is called once for each enabled resource.
+    ///
+    /// discord.js counterpart: the `makeCache` option of `ClientOptions`.
     #[must_use]
     pub fn with_backend(config: CacheConfig, backend: B) -> Self {
         Self {
@@ -166,12 +172,16 @@ impl<B: Backend> Cache<B> {
     }
 
     /// Returns the configuration.
+    ///
+    /// discord.js counterpart: the `makeCache` option of `ClientOptions`.
     #[must_use]
     pub const fn config(&self) -> &CacheConfig {
         &self.config
     }
 
     /// Returns the backend.
+    ///
+    /// discord.js counterpart: none (discord.js caches in `Collection`s).
     #[must_use]
     pub const fn backend(&self) -> &B {
         &self.backend
@@ -187,6 +197,8 @@ impl<B: Backend> Cache<B> {
 
     /// Applies any dispatch event to the cache, returning the previous state as a
     /// [`Previous`]. Events the cache does not use return [`Previous::None`].
+    ///
+    /// discord.js counterpart: none (discord.js' managers update their caches inside the client).
     pub fn update_dispatch(&self, event: &DispatchEvent) -> Previous {
         crate::update::dispatch(self, event)
     }
@@ -356,6 +368,8 @@ impl<B: Backend> Cache<B> {
 /// ```
 impl<B: Backend> Cache<B> {
     /// Sweeps guilds, with everything in them.
+    ///
+    /// discord.js counterpart: none (discord.js does not sweep guilds).
     pub fn sweep_guilds(&self, mut filter: impl FnMut(&CachedGuild) -> bool) -> usize {
         let Some(guilds) = &self.guilds else { return 0 };
         let mut swept = Vec::new();
@@ -374,6 +388,8 @@ impl<B: Backend> Cache<B> {
     }
 
     /// Sweeps channels, with their messages.
+    ///
+    /// discord.js counterpart: none (discord.js does not sweep channels).
     pub fn sweep_channels(&self, mut filter: impl FnMut(&Channel) -> bool) -> usize {
         let Some(channels) = &self.channels else {
             return 0;
@@ -396,6 +412,8 @@ impl<B: Backend> Cache<B> {
     }
 
     /// Sweeps users. Members keep their own reference to their user.
+    ///
+    /// discord.js counterpart: `Sweepers#sweepUsers`.
     pub fn sweep_users(&self, mut filter: impl FnMut(&CachedUser) -> bool) -> usize {
         self.users
             .as_ref()
@@ -403,6 +421,8 @@ impl<B: Backend> Cache<B> {
     }
 
     /// Sweeps threads, with their messages.
+    ///
+    /// discord.js counterpart: `Sweepers#sweepThreads`.
     pub fn sweep_threads(&self, mut filter: impl FnMut(GuildId, &Channel) -> bool) -> usize {
         let Some(threads) = &self.threads else {
             return 0;
@@ -436,6 +456,8 @@ impl<B: Backend> Cache<B> {
     }
 
     /// Sweeps messages.
+    ///
+    /// discord.js counterpart: `Sweepers#sweepMessages`.
     pub fn sweep_messages(
         &self,
         mut filter: impl FnMut(ChannelId, &CachedMessage) -> bool,
@@ -1128,6 +1150,8 @@ impl<B: Backend> Cache<B> {
     /// With [`Resource::User`] enabled, an equal cached user is reused, so a user stays stored
     /// once.
     ///
+    /// discord.js counterpart: what `UserManager#fetch` adds to the cache.
+    ///
     /// # Examples
     ///
     /// ```
@@ -1148,6 +1172,8 @@ impl<B: Backend> Cache<B> {
     /// cached ([`Resource::Member`]; its user is stored as by [`store_user`](Self::store_user)).
     ///
     /// Unlike `GUILD_MEMBER_ADD`, this does not count a join in the guild's member count.
+    ///
+    /// discord.js counterpart: what `GuildMemberManager#fetch` adds to the cache.
     pub fn store_member(&self, guild_id: GuildId, member: &Member) -> Arc<CachedMember> {
         let user = self.share_user(&member.user);
         let id = user.id;
@@ -1160,6 +1186,8 @@ impl<B: Backend> Cache<B> {
 
     /// Stores a message, for example from Get Channel Message or Create Message, and returns
     /// it as cached ([`Resource::Message`]; its author and member as for `MESSAGE_CREATE`).
+    ///
+    /// discord.js counterpart: what `MessageManager#fetch` adds to the cache.
     pub fn store_message(&self, message: &Message) -> Arc<CachedMessage> {
         let author = if message.webhook_id.is_some() {
             Arc::new(CachedUser::new(&message.author))
@@ -1183,6 +1211,8 @@ impl<B: Backend> Cache<B> {
 
     /// Stores a channel or thread, for example from Get Channel, and returns it as cached
     /// ([`Resource::Channel`], or [`Resource::Thread`] for a thread in a guild).
+    ///
+    /// discord.js counterpart: what `ChannelManager#fetch` adds to the cache.
     pub fn store_channel(&self, channel: &Channel) -> Arc<Channel> {
         let cached = Arc::new(channel.clone());
         if cached.as_thread().is_some() {
@@ -1197,6 +1227,8 @@ impl<B: Backend> Cache<B> {
 
     /// Stores a role of `guild_id`, for example from Get Guild Role, and returns it as cached
     /// ([`Resource::Role`]).
+    ///
+    /// discord.js counterpart: what `RoleManager#fetch` adds to the cache.
     pub fn store_role(&self, guild_id: GuildId, role: &Role) -> Arc<Role> {
         let cached = Arc::new(role.clone());
         if let Some(roles) = &self.roles {
@@ -1207,6 +1239,8 @@ impl<B: Backend> Cache<B> {
 
     /// Stores a custom emoji of `guild_id`, for example from Get Guild Emoji, and returns it
     /// as cached ([`Resource::Emoji`]).
+    ///
+    /// discord.js counterpart: what `GuildEmojiManager#fetch` adds to the cache.
     pub fn store_emoji(&self, guild_id: GuildId, emoji: &Emoji) -> Arc<Emoji> {
         let cached = Arc::new(emoji.clone());
         if let Some(emojis) = &self.emojis {
@@ -1217,6 +1251,8 @@ impl<B: Backend> Cache<B> {
 
     /// Stores a sticker of `guild_id`, for example from Get Guild Sticker, and returns it as
     /// cached ([`Resource::Sticker`]).
+    ///
+    /// discord.js counterpart: what `GuildStickerManager#fetch` adds to the cache.
     pub fn store_sticker(&self, guild_id: GuildId, sticker: &Sticker) -> Arc<Sticker> {
         let cached = Arc::new(sticker.clone());
         if let Some(stickers) = &self.stickers {
@@ -1227,6 +1263,8 @@ impl<B: Backend> Cache<B> {
 
     /// Stores a scheduled event of `guild_id`, for example from Get Guild Scheduled Event,
     /// and returns it as cached ([`Resource::ScheduledEvent`]).
+    ///
+    /// discord.js counterpart: what `GuildScheduledEventManager#fetch` adds to the cache.
     pub fn store_scheduled_event(
         &self,
         guild_id: GuildId,
@@ -1241,6 +1279,8 @@ impl<B: Backend> Cache<B> {
 
     /// Stores a stage instance of `guild_id`, for example from Get Stage Instance, and
     /// returns it as cached ([`Resource::StageInstance`]).
+    ///
+    /// discord.js counterpart: what `StageInstanceManager#fetch` adds to the cache.
     pub fn store_stage_instance(
         &self,
         guild_id: GuildId,
@@ -1255,6 +1295,8 @@ impl<B: Backend> Cache<B> {
 
     /// Stores a soundboard sound of `guild_id`, for example from Get Guild Soundboard Sound,
     /// and returns it as cached ([`Resource::SoundboardSound`]).
+    ///
+    /// discord.js counterpart: what `GuildSoundboardSoundManager#fetch` adds to the cache.
     pub fn store_soundboard_sound(
         &self,
         guild_id: GuildId,
@@ -1274,6 +1316,8 @@ impl<B: Backend> Cache<B> {
     /// A guild the cache already holds keeps what only `GUILD_CREATE` sends (`joined_at`,
     /// `large`, `member_count`); a new one takes its member count from
     /// `approximate_member_count` (sent with `with_counts`), or 0.
+    ///
+    /// discord.js counterpart: what `GuildManager#fetch` adds to the cache.
     pub fn store_guild(&self, guild: &Guild) -> Arc<CachedGuild> {
         let previous = self
             .guilds

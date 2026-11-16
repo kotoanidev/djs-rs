@@ -32,6 +32,8 @@ use crate::{
 };
 
 /// The query of [Get Guild](https://docs.discord.com/developers/resources/guild#get-guild).
+///
+/// discord.js counterpart: `RESTGetAPIGuildQuery` (discord-api-types).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub struct GetGuild {
@@ -191,6 +193,8 @@ pub struct CreateGuildChannel {
 
 impl CreateGuildChannel {
     /// A channel named `name`, with Discord's defaults for everything else.
+    ///
+    /// discord.js counterpart: `GuildChannelCreateOptions`.
     #[must_use]
     pub fn new(name: impl Into<CompactString>) -> Self {
         Self {
@@ -220,6 +224,8 @@ impl CreateGuildChannel {
 /// One entry of [Modify Guild Channel Positions](https://docs.discord.com/developers/resources/guild#modify-guild-channel-positions).
 ///
 /// At most one entry per request may change [`parent_id`](Self::parent_id).
+///
+/// discord.js counterpart: an element of `RESTPatchAPIGuildChannelPositionsJSONBody` (discord-api-types).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
 #[non_exhaustive]
 pub struct ModifyGuildChannelPosition {
@@ -238,6 +244,8 @@ pub struct ModifyGuildChannelPosition {
 
 impl ModifyGuildChannelPosition {
     /// Moves channel `id` to `position`.
+    ///
+    /// discord.js counterpart: `ChannelPosition`.
     #[must_use]
     pub const fn new(id: ChannelId, position: i32) -> Self {
         Self {
@@ -264,6 +272,8 @@ pub struct ActiveThreads {
 /// The query of [List Guild Members](https://docs.discord.com/developers/resources/guild#list-guild-members).
 ///
 /// Needs the `GUILD_MEMBERS` privileged intent.
+///
+/// discord.js counterpart: `RESTGetAPIGuildMembersQuery` (discord-api-types).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub struct ListGuildMembers {
@@ -274,6 +284,8 @@ pub struct ListGuildMembers {
 }
 
 /// The query of [Search Guild Members](https://docs.discord.com/developers/resources/guild#search-guild-members).
+///
+/// discord.js counterpart: `RESTGetAPIGuildMembersSearchQuery` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub struct SearchGuildMembers {
@@ -285,6 +297,8 @@ pub struct SearchGuildMembers {
 
 impl SearchGuildMembers {
     /// Members whose username or nickname starts with `query`.
+    ///
+    /// discord.js counterpart: `GuildSearchMembersOptions`.
     #[must_use]
     pub fn new(query: impl Into<CompactString>) -> Self {
         Self {
@@ -297,6 +311,8 @@ impl SearchGuildMembers {
 /// The body of [Add Guild Member](https://docs.discord.com/developers/resources/guild#add-guild-member).
 ///
 /// The access token is redacted in the `Debug` output.
+///
+/// discord.js counterpart: `RESTPutAPIGuildMemberJSONBody` (discord-api-types).
 #[derive(Clone, PartialEq, Eq, Hash, Serialize)]
 #[non_exhaustive]
 pub struct AddGuildMember {
@@ -319,6 +335,8 @@ pub struct AddGuildMember {
 
 impl AddGuildMember {
     /// Adds the user whose access token is `access_token`.
+    ///
+    /// discord.js counterpart: `AddGuildMemberOptions`.
     #[must_use]
     pub fn new(access_token: impl Into<String>) -> Self {
         Self {
@@ -417,6 +435,8 @@ pub struct ModifyCurrentMember {
 /// The query of [Get Guild Bans](https://docs.discord.com/developers/resources/guild#get-guild-bans).
 ///
 /// Bans are sorted by user ID; with both `before` and `after`, only `before` is used.
+///
+/// discord.js counterpart: `RESTGetAPIGuildBansQuery` (discord-api-types).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub struct GetGuildBans {
@@ -429,6 +449,8 @@ pub struct GetGuildBans {
 }
 
 /// The body of [Create Guild Ban](https://docs.discord.com/developers/resources/guild#create-guild-ban).
+///
+/// discord.js counterpart: `RESTPutAPIGuildBanJSONBody` (discord-api-types).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize)]
 #[non_exhaustive]
 pub struct CreateGuildBan {
@@ -438,6 +460,8 @@ pub struct CreateGuildBan {
 }
 
 /// The body of [Bulk Guild Ban](https://docs.discord.com/developers/resources/guild#bulk-guild-ban).
+///
+/// discord.js counterpart: `RESTPostAPIGuildBulkBanJSONBody` (discord-api-types).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize)]
 #[non_exhaustive]
 pub struct BulkGuildBan {
@@ -450,6 +474,8 @@ pub struct BulkGuildBan {
 
 impl BulkGuildBan {
     /// Bans `user_ids`.
+    ///
+    /// discord.js counterpart: `GuildBanManager#bulkCreate`.
     #[must_use]
     pub const fn new(user_ids: Vec<UserId>) -> Self {
         Self {
@@ -505,6 +531,8 @@ pub struct CreateGuildRole {
 }
 
 /// One entry of [Modify Guild Role Positions](https://docs.discord.com/developers/resources/guild#modify-guild-role-positions).
+///
+/// discord.js counterpart: an element of `RESTPatchAPIGuildRolePositionsJSONBody` (discord-api-types).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
 #[non_exhaustive]
 pub struct ModifyGuildRolePosition {
@@ -517,6 +545,8 @@ pub struct ModifyGuildRolePosition {
 
 impl ModifyGuildRolePosition {
     /// Moves role `id` to `position`.
+    ///
+    /// discord.js counterpart: `RolePosition`.
     #[must_use]
     pub const fn new(id: RoleId, position: i32) -> Self {
         Self {
@@ -561,6 +591,8 @@ pub struct ModifyGuildRole {
 ///
 /// By default members with roles are never pruned; members whose roles are all in
 /// [`include_roles`](Self::include_roles) are.
+///
+/// discord.js counterpart: `RESTGetAPIGuildPruneCountQuery` (discord-api-types).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub struct GetGuildPruneCount {
@@ -573,6 +605,8 @@ pub struct GetGuildPruneCount {
 /// The body of [Begin Guild Prune](https://docs.discord.com/developers/resources/guild#begin-guild-prune).
 ///
 /// The reason is the `reason` parameter of the method (the body field is deprecated).
+///
+/// discord.js counterpart: `RESTPostAPIGuildPruneJSONBody` (discord-api-types).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize)]
 #[non_exhaustive]
 pub struct BeginGuildPrune {
@@ -589,6 +623,8 @@ pub struct BeginGuildPrune {
 }
 
 /// The body of [Modify Guild Widget](https://docs.discord.com/developers/resources/guild#modify-guild-widget).
+///
+/// discord.js counterpart: `RESTPatchAPIGuildWidgetSettingsJSONBody` (discord-api-types).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize)]
 #[non_exhaustive]
 pub struct ModifyGuildWidget {
@@ -601,6 +637,8 @@ pub struct ModifyGuildWidget {
 }
 
 /// The response of [Get Guild Vanity URL](https://docs.discord.com/developers/resources/guild#get-guild-vanity-url).
+///
+/// discord.js counterpart: `RESTGetAPIGuildVanityUrlResult` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct VanityUrl {
@@ -613,6 +651,8 @@ pub struct VanityUrl {
 /// The body of [Modify Guild Welcome Screen](https://docs.discord.com/developers/resources/guild#modify-guild-welcome-screen).
 ///
 /// Every field is optional and can be cleared.
+///
+/// discord.js counterpart: `RESTPatchAPIGuildWelcomeScreenJSONBody` (discord-api-types).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize)]
 #[non_exhaustive]
 pub struct ModifyGuildWelcomeScreen {
@@ -678,6 +718,8 @@ pub struct OnboardingPromptData {
 
 impl OnboardingPromptData {
     /// A new multiple-choice prompt titled `title` with `options`, shown during onboarding.
+    ///
+    /// discord.js counterpart: `GuildOnboardingPromptData`.
     #[must_use]
     pub fn new(title: impl Into<CompactString>, options: Vec<PromptOptionData>) -> Self {
         Self {
@@ -798,6 +840,8 @@ pub struct PromptOptionData {
 
 impl PromptOptionData {
     /// A new option titled `title` that gives nothing yet.
+    ///
+    /// discord.js counterpart: `GuildOnboardingPromptOptionData`.
     #[must_use]
     pub fn new(title: impl Into<CompactString>) -> Self {
         Self {
@@ -845,6 +889,8 @@ impl From<PromptOption> for PromptOptionData {
 /// The body of [Modify Guild Incident Actions](https://docs.discord.com/developers/resources/guild#modify-guild-incident-actions).
 ///
 /// Both actions last at most 24 hours; [`Patch::Clear`] ends one.
+///
+/// discord.js counterpart: `RESTPutAPIGuildIncidentActionsJSONBody` (discord-api-types).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize)]
 #[non_exhaustive]
 pub struct ModifyGuildIncidentActions {

@@ -14,6 +14,8 @@ pub(crate) type Hasher = foldhash::fast::RandomState;
 
 /// The default [`Backend`]: every resource is a [`DashMapStore`].
 ///
+/// discord.js counterpart: none (discord.js caches in `Collection`s).
+///
 /// # Examples
 ///
 /// ```
@@ -29,6 +31,8 @@ pub struct DashMapBackend;
 
 impl DashMapBackend {
     /// Creates the backend.
+    ///
+    /// discord.js counterpart: none (discord.js caches in `Collection`s).
     #[must_use]
     pub const fn new() -> Self {
         Self
@@ -57,6 +61,8 @@ impl Backend for DashMapBackend {
 /// Reads and writes lock one shard of the map for the duration of the call only: values are
 /// handed out as [`Arc`] clones, so no lock is held by the caller (D-151).
 ///
+/// discord.js counterpart: `Collection`, which holds discord.js' caches.
+///
 /// # Examples
 ///
 /// ```
@@ -76,6 +82,8 @@ pub struct DashMapStore<K, V> {
 
 impl<K: Eq + Hash, V> DashMapStore<K, V> {
     /// Creates an empty store.
+    ///
+    /// discord.js counterpart: `new Collection()`, which holds discord.js' caches.
     #[must_use]
     pub fn new() -> Self {
         Self {

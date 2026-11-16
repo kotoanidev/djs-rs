@@ -172,6 +172,8 @@ pub struct InviteGuild {
 }
 
 /// The partial channel of an [`Invite`] (D-051).
+///
+/// discord.js counterpart: `APIInviteChannel` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct InviteChannel {
@@ -191,6 +193,8 @@ pub struct InviteChannel {
 }
 
 /// A member of the group DM an [`InviteChannel`] belongs to; only the username is known.
+///
+/// discord.js counterpart: a recipient of `APIInviteChannel` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct InviteRecipient {
@@ -199,6 +203,8 @@ pub struct InviteRecipient {
 }
 
 /// A role given to users who accept an [`Invite`] (D-051).
+///
+/// discord.js counterpart: `InviteRole`.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct InviteRole {

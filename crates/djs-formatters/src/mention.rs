@@ -7,6 +7,8 @@ use core::fmt;
 use djs_model::id::{ChannelId, CommandId, EmojiId, RoleId, UserId};
 
 /// Mentions a user: `<@USER_ID>`. Returned by [`user_mention`].
+///
+/// discord.js counterpart: `UserMention`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[must_use = "a formatter does nothing until it is written"]
 pub struct UserMention(UserId);
@@ -37,6 +39,8 @@ impl fmt::Display for UserMention {
 }
 
 /// Mentions a channel: `<#CHANNEL_ID>`. Returned by [`channel_mention`].
+///
+/// discord.js counterpart: `ChannelMention`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[must_use = "a formatter does nothing until it is written"]
 pub struct ChannelMention(ChannelId);
@@ -65,6 +69,8 @@ impl fmt::Display for ChannelMention {
 }
 
 /// Mentions a role: `<@&ROLE_ID>`. Returned by [`role_mention`].
+///
+/// discord.js counterpart: `RoleMention`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[must_use = "a formatter does nothing until it is written"]
 pub struct RoleMention(RoleId);
@@ -95,6 +101,8 @@ impl fmt::Display for RoleMention {
 }
 
 /// Links to a linked role: `<id:linked-roles:ROLE_ID>`. Returned by [`linked_role_mention`].
+///
+/// discord.js counterpart: the string `linkedRoleMention` returns (`@discordjs/formatters`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[must_use = "a formatter does nothing until it is written"]
 pub struct LinkedRoleMention(RoleId);
@@ -128,6 +136,8 @@ impl fmt::Display for LinkedRoleMention {
 /// Mentions a slash command, a clickable link that fills in the command:
 /// `</NAME:ID>`, `</NAME SUBCOMMAND:ID>` or `</NAME GROUP SUBCOMMAND:ID>`. Returned by
 /// [`slash_command_mention`].
+///
+/// discord.js counterpart: the string `chatInputApplicationCommandMention` returns (`@discordjs/formatters`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[must_use = "a formatter does nothing until it is written"]
 pub struct SlashCommandMention<'a> {
@@ -172,6 +182,8 @@ pub const fn slash_command_mention(name: &str, id: CommandId) -> SlashCommandMen
 
 impl<'a> SlashCommandMention<'a> {
     /// Mentions the command's subcommand `subcommand`, outside a group.
+    ///
+    /// discord.js counterpart: the `subcommandName` argument of `chatInputApplicationCommandMention` (`@discordjs/formatters`).
     pub const fn subcommand(mut self, subcommand: &'a str) -> Self {
         self.group = None;
         self.subcommand = Some(subcommand);
@@ -179,6 +191,8 @@ impl<'a> SlashCommandMention<'a> {
     }
 
     /// Mentions the subcommand `subcommand` of the command's group `group`.
+    ///
+    /// discord.js counterpart: the `subcommandGroupName` argument of `chatInputApplicationCommandMention` (`@discordjs/formatters`).
     pub const fn group(mut self, group: &'a str, subcommand: &'a str) -> Self {
         self.group = Some(group);
         self.subcommand = Some(subcommand);
@@ -199,6 +213,8 @@ impl fmt::Display for SlashCommandMention<'_> {
 }
 
 /// Shows a custom emoji: `<:NAME:ID>` or, animated, `<a:NAME:ID>`. Returned by [`emoji`].
+///
+/// discord.js counterpart: the string `formatEmoji` returns (`@discordjs/formatters`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[must_use = "a formatter does nothing until it is written"]
 pub struct Emoji<'a> {
@@ -235,12 +251,16 @@ pub const fn emoji<'a>(id: EmojiId) -> Emoji<'a> {
 
 impl<'a> Emoji<'a> {
     /// Sets the emoji's name (default: `emoji`).
+    ///
+    /// discord.js counterpart: the `name` of `FormatEmojiOptions` (`@discordjs/formatters`).
     pub const fn name(mut self, name: &'a str) -> Self {
         self.name = Some(name);
         self
     }
 
     /// Sets whether the emoji is animated (default: no).
+    ///
+    /// discord.js counterpart: the `animated` of `FormatEmojiOptions` (`@discordjs/formatters`).
     pub const fn animated(mut self, animated: bool) -> Self {
         self.animated = animated;
         self
@@ -282,6 +302,8 @@ pub enum GuildNavigation {
 
 impl GuildNavigation {
     /// The link as written in a message, such as `<id:browse>`.
+    ///
+    /// discord.js counterpart: the values of `GuildNavigationMentions` (`@discordjs/formatters`).
     #[must_use]
     pub const fn as_str(self) -> &'static str {
         match self {

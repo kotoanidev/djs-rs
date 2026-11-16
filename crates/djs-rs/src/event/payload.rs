@@ -127,6 +127,8 @@ with_old! {
 ///
 /// Dereferences to `new`, a
 /// [`MessageDeleteBulk`](djs_model::gateway::payload::MessageDeleteBulk).
+///
+/// discord.js counterpart: the arguments of `Events.MessageBulkDelete` (`messages`, `channel`).
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct MessageBulkDelete {
@@ -221,6 +223,8 @@ derived!(Emoji: emoji, GuildEmojiCreate, GuildEmojiUpdate, GuildEmojiDelete, "em
 derived!(Sticker: sticker, GuildStickerCreate, GuildStickerUpdate, GuildStickerDelete, "sticker");
 
 /// The payload of [`Events::ShardResume`](crate::Events::ShardResume).
+///
+/// discord.js counterpart: the arguments of `Events.ShardResume`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct ShardResume {
@@ -231,12 +235,16 @@ pub struct ShardResume {
 
 /// The payload of [`Events::ShardReconnecting`](crate::Events::ShardReconnecting). The shard
 /// is [`Context::shard_id`](crate::Context::shard_id).
+///
+/// discord.js counterpart: the arguments of `Events.ShardReconnecting`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct ShardReconnecting;
 
 /// The payload of [`Events::Invalidated`](crate::Events::Invalidated). The shard is
 /// [`Context::shard_id`](crate::Context::shard_id).
+///
+/// discord.js counterpart: `Events.Invalidated`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct Invalidated;

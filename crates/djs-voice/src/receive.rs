@@ -101,6 +101,8 @@ pub struct ReceiveOptions {
 
 impl ReceiveOptions {
     /// The default options: Opus packets, [`EndBehavior::Manual`].
+    ///
+    /// discord.js counterpart: `AudioReceiveStreamOptions` (`@discordjs/voice`).
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -113,6 +115,8 @@ impl ReceiveOptions {
     /// interleaved `i16` samples, lost packets concealed by Opus (rebuilt from the next
     /// packet's forward error correction when it has some). Otherwise [`VoiceData::Opus`],
     /// as they came, and [`VoiceData::Lost`] for the lost ones.
+    ///
+    /// discord.js counterpart: none (`@discordjs/voice` hands Opus packets only).
     #[must_use]
     pub const fn decode(mut self, decode: bool) -> Self {
         self.decode = decode;
@@ -120,6 +124,8 @@ impl ReceiveOptions {
     }
 
     /// When the stream ends by itself (D-365).
+    ///
+    /// discord.js counterpart: the `end` of `AudioReceiveStreamOptions` (`@discordjs/voice`).
     #[must_use]
     pub const fn end(mut self, end: EndBehavior) -> Self {
         self.end = end;
@@ -146,6 +152,8 @@ pub struct VoicePacket {
 }
 
 /// The audio of a [`VoicePacket`] (D-368).
+///
+/// discord.js counterpart: none (`@discordjs/voice` receives Opus only).
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum VoiceData {
@@ -202,6 +210,8 @@ impl VoiceStream {
 
     /// Waits for the next packet; `None` once the stream has ended. Cancel safe: a packet
     /// is never lost by dropping the future before it is ready.
+    ///
+    /// discord.js counterpart: the `data` event of `AudioReceiveStream` (`@discordjs/voice`).
     pub async fn next(&mut self) -> Option<VoicePacket> {
         core::future::poll_fn(|cx| Pin::new(&mut *self).poll_next(cx)).await
     }

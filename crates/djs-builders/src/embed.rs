@@ -505,6 +505,8 @@ pub fn embed_length(embed: &Embed) -> usize {
 ///
 /// The embeds themselves are not checked again; build each with [`EmbedBuilder::build`].
 ///
+/// discord.js counterpart: none (`@discordjs/builders` checks each embed alone).
+///
 /// # Errors
 ///
 /// [`ValidationError::TooMany`] for more than 10 embeds, then
@@ -619,6 +621,8 @@ pub struct EmbedAuthorBuilder {
 
 impl EmbedAuthorBuilder {
     /// Creates an author named `name` (at most 256 characters).
+    ///
+    /// discord.js counterpart: the `name` of `EmbedAuthorOptions`, given to `EmbedBuilder#setAuthor`.
     pub fn new(name: impl Into<CompactString>) -> Self {
         Self {
             author: EmbedAuthor::new(name),
@@ -626,6 +630,8 @@ impl EmbedAuthorBuilder {
     }
 
     /// Sets the URL the name links to (`http://` or `https://`; not `attachment://`).
+    ///
+    /// discord.js counterpart: the `url` of `EmbedAuthorOptions`.
     pub fn url(mut self, url: impl Into<CompactString>) -> Self {
         self.author.url = Some(url.into());
         self
@@ -633,6 +639,8 @@ impl EmbedAuthorBuilder {
 
     /// Sets the icon shown before the name: a link (`http://`, `https://`) or an uploaded
     /// file (`attachment://name.png`).
+    ///
+    /// discord.js counterpart: the `iconURL` of `EmbedAuthorOptions`.
     pub fn icon_url(mut self, url: impl Into<CompactString>) -> Self {
         self.author.icon_url = Some(url.into());
         self
@@ -640,6 +648,8 @@ impl EmbedAuthorBuilder {
 
     /// Checks the author on its own and returns it; the paths in a [`ValidationError`] are
     /// `name`, `url` and `icon_url`.
+    ///
+    /// discord.js counterpart: `EmbedAuthorOptions`, checked by `EmbedBuilder#setAuthor`.
     ///
     /// # Errors
     ///
@@ -651,6 +661,8 @@ impl EmbedAuthorBuilder {
     }
 
     /// Returns the author without any check (D-180).
+    ///
+    /// discord.js counterpart: `EmbedAuthorOptions` with validation off (`disableValidators`).
     #[must_use]
     pub fn build_unchecked(self) -> EmbedAuthor {
         self.author
@@ -685,6 +697,8 @@ pub struct EmbedFooterBuilder {
 
 impl EmbedFooterBuilder {
     /// Creates a footer with `text` (at most 2048 characters).
+    ///
+    /// discord.js counterpart: the `text` of `EmbedFooterOptions`, given to `EmbedBuilder#setFooter`.
     pub fn new(text: impl Into<CompactString>) -> Self {
         Self {
             footer: EmbedFooter::new(text),
@@ -693,6 +707,8 @@ impl EmbedFooterBuilder {
 
     /// Sets the icon shown before the text: a link (`http://`, `https://`) or an uploaded
     /// file (`attachment://name.png`).
+    ///
+    /// discord.js counterpart: the `iconURL` of `EmbedFooterOptions`.
     pub fn icon_url(mut self, url: impl Into<CompactString>) -> Self {
         self.footer.icon_url = Some(url.into());
         self
@@ -700,6 +716,8 @@ impl EmbedFooterBuilder {
 
     /// Checks the footer on its own and returns it; the paths in a [`ValidationError`] are
     /// `text` and `icon_url`.
+    ///
+    /// discord.js counterpart: `EmbedFooterOptions`, checked by `EmbedBuilder#setFooter`.
     ///
     /// # Errors
     ///
@@ -711,6 +729,8 @@ impl EmbedFooterBuilder {
     }
 
     /// Returns the footer without any check (D-180).
+    ///
+    /// discord.js counterpart: `EmbedFooterOptions` with validation off (`disableValidators`).
     #[must_use]
     pub fn build_unchecked(self) -> EmbedFooter {
         self.footer

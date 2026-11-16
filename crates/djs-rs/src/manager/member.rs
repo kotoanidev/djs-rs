@@ -40,6 +40,8 @@ impl<'a, B: Backend> MemberManager<'a, B> {
     }
 
     /// The guild these members belong to.
+    ///
+    /// discord.js counterpart: `GuildMemberManager#guild`.
     #[must_use]
     pub const fn guild_id(self) -> GuildId {
         self.guild_id

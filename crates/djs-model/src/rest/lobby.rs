@@ -17,6 +17,8 @@ pub type LobbyMetadata = BTreeMap<CompactString, CompactString>;
 ///
 /// Social SDK clients cannot join or leave lobbies created this way.
 ///
+/// discord.js counterpart: none (lobbies are not in discord.js v14 or discord-api-types).
+///
 /// # Examples
 ///
 /// ```
@@ -53,6 +55,8 @@ pub struct CreateLobby {
 /// A member in the body of [Create Lobby](https://docs.discord.com/developers/resources/lobby#create-lobby)
 /// or [Modify Lobby](https://docs.discord.com/developers/resources/lobby#modify-lobby), or one
 /// to [upsert](BulkLobbyMember::upsert) with Bulk Update Lobby Members (D-134).
+///
+/// discord.js counterpart: none (lobbies are not in discord.js v14 or discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub struct LobbyMemberData {
@@ -72,6 +76,8 @@ pub struct LobbyMemberData {
 
 impl LobbyMemberData {
     /// The member `id`, without metadata, flags or additional name.
+    ///
+    /// discord.js counterpart: none (lobbies are not in discord.js v14 or discord-api-types).
     #[must_use]
     pub const fn new(id: UserId) -> Self {
         Self {
@@ -86,6 +92,8 @@ impl LobbyMemberData {
 /// The body of [Create or Join Lobby](https://docs.discord.com/developers/resources/lobby#create-or-join-lobby).
 ///
 /// The secret is redacted in the `Debug` output: anyone who knows it can join the lobby.
+///
+/// discord.js counterpart: none (lobbies are not in discord.js v14 or discord-api-types).
 #[derive(Clone, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub struct CreateOrJoinLobby {
@@ -104,6 +112,8 @@ pub struct CreateOrJoinLobby {
 
 impl CreateOrJoinLobby {
     /// Creates the lobby with `secret`, or joins it if it exists.
+    ///
+    /// discord.js counterpart: none (lobbies are not in discord.js v14 or discord-api-types).
     #[must_use]
     pub fn new(secret: impl Into<CompactString>) -> Self {
         Self {
@@ -129,6 +139,8 @@ impl fmt::Debug for CreateOrJoinLobby {
 /// The body of [Modify Lobby](https://docs.discord.com/developers/resources/lobby#modify-lobby).
 ///
 /// Every field is optional.
+///
+/// discord.js counterpart: none (lobbies are not in discord.js v14 or discord-api-types).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub struct ModifyLobby {
@@ -146,6 +158,8 @@ pub struct ModifyLobby {
 /// The body of [Add a Member to a Lobby](https://docs.discord.com/developers/resources/lobby#add-a-member-to-a-lobby)
 /// (D-134). The user is in the path; for a member already in the lobby, the fields that are
 /// set are updated.
+///
+/// discord.js counterpart: none (lobbies are not in discord.js v14 or discord-api-types).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub struct AddLobbyMember {
@@ -162,6 +176,8 @@ pub struct AddLobbyMember {
 
 /// One entry of [Bulk Update Lobby Members](https://docs.discord.com/developers/resources/lobby#bulk-update-lobby-members):
 /// a member to add or update, or one to remove (D-134).
+///
+/// discord.js counterpart: none (lobbies are not in discord.js v14 or discord-api-types).
 ///
 /// # Examples
 ///
@@ -197,6 +213,8 @@ pub struct BulkLobbyMember {
 
 impl BulkLobbyMember {
     /// Adds `member`, or updates it if the user is already in the lobby.
+    ///
+    /// discord.js counterpart: none (lobbies are not in discord.js v14 or discord-api-types).
     #[must_use]
     pub const fn upsert(member: LobbyMemberData) -> Self {
         Self {
@@ -206,6 +224,8 @@ impl BulkLobbyMember {
     }
 
     /// Removes the user `id` from the lobby.
+    ///
+    /// discord.js counterpart: none (lobbies are not in discord.js v14 or discord-api-types).
     #[must_use]
     pub const fn remove(id: UserId) -> Self {
         Self {
@@ -216,6 +236,8 @@ impl BulkLobbyMember {
 }
 
 /// The body of [Send Lobby Message](https://docs.discord.com/developers/resources/lobby#send-lobby-message).
+///
+/// discord.js counterpart: none (lobbies are not in discord.js v14 or discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub struct SendLobbyMessage {
@@ -232,6 +254,8 @@ pub struct SendLobbyMessage {
 
 impl SendLobbyMessage {
     /// A message with `content`.
+    ///
+    /// discord.js counterpart: none (lobbies are not in discord.js v14 or discord-api-types).
     #[must_use]
     pub fn new(content: impl Into<CompactString>) -> Self {
         Self {
@@ -243,6 +267,8 @@ impl SendLobbyMessage {
 }
 
 /// The query of [Get Lobby Messages](https://docs.discord.com/developers/resources/lobby#get-lobby-messages).
+///
+/// discord.js counterpart: none (lobbies are not in discord.js v14 or discord-api-types).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub struct GetLobbyMessages {

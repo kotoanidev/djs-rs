@@ -110,6 +110,8 @@ impl ModalBuilder {
 
     /// Returns the modal without any check (D-180) — also the way to send the deprecated
     /// action-row format (D-207).
+    ///
+    /// discord.js counterpart: `ModalBuilder#toJSON` with validation off (`disableValidators`).
     #[must_use]
     pub fn build_unchecked(self) -> ModalCallbackData {
         self.modal

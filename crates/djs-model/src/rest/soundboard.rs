@@ -42,6 +42,8 @@ pub struct SendSoundboardSound {
 
 impl SendSoundboardSound {
     /// Plays `sound_id`, a default sound or a sound of the voice channel's guild.
+    ///
+    /// discord.js counterpart: `VoiceChannel#sendSoundboardSound`.
     #[must_use]
     pub const fn new(sound_id: SoundboardSoundId) -> Self {
         Self {
@@ -91,6 +93,8 @@ pub struct CreateGuildSoundboardSound {
 
 impl CreateGuildSoundboardSound {
     /// A sound named `name` playing `sound`, at full volume, without an emoji.
+    ///
+    /// discord.js counterpart: `GuildSoundboardSoundCreateOptions`.
     #[must_use]
     pub fn new(name: impl Into<CompactString>, sound: SoundData) -> Self {
         Self {

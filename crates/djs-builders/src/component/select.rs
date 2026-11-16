@@ -74,6 +74,8 @@ macro_rules! select_menu {
 
             /// Checks the menu and returns it as a [`Component`].
             ///
+            /// discord.js counterpart: `toJSON` of the select menu builders.
+            ///
             /// # Errors
             ///
             /// The first [`ValidationError`] found: the `custom_id` (1-100 characters), the
@@ -86,6 +88,8 @@ macro_rules! select_menu {
             }
 
             /// Returns the menu without any check (D-180).
+            ///
+            /// discord.js counterpart: `toJSON` of the select menu builders with validation off (`disableValidators`).
             #[must_use]
             pub fn build_unchecked(self) -> Component {
                 self.into()
@@ -274,6 +278,8 @@ pub struct UserSelectMenuBuilder {
 
 impl UserSelectMenuBuilder {
     /// Creates a menu sending `custom_id` (1-100 characters) to your app.
+    ///
+    /// discord.js counterpart: `new UserSelectMenuBuilder().setCustomId(customId)`.
     pub fn new(custom_id: impl Into<CompactString>) -> Self {
         Self {
             select: AutoPopulatedSelect::new(custom_id),
@@ -297,6 +303,8 @@ pub struct RoleSelectMenuBuilder {
 
 impl RoleSelectMenuBuilder {
     /// Creates a menu sending `custom_id` (1-100 characters) to your app.
+    ///
+    /// discord.js counterpart: `new RoleSelectMenuBuilder().setCustomId(customId)`.
     pub fn new(custom_id: impl Into<CompactString>) -> Self {
         Self {
             select: AutoPopulatedSelect::new(custom_id),
@@ -320,6 +328,8 @@ pub struct MentionableSelectMenuBuilder {
 
 impl MentionableSelectMenuBuilder {
     /// Creates a menu sending `custom_id` (1-100 characters) to your app.
+    ///
+    /// discord.js counterpart: `new MentionableSelectMenuBuilder().setCustomId(customId)`.
     pub fn new(custom_id: impl Into<CompactString>) -> Self {
         Self {
             select: AutoPopulatedSelect::new(custom_id),
@@ -345,6 +355,8 @@ pub struct ChannelSelectMenuBuilder {
 
 impl ChannelSelectMenuBuilder {
     /// Creates a menu sending `custom_id` (1-100 characters) to your app.
+    ///
+    /// discord.js counterpart: `new ChannelSelectMenuBuilder().setCustomId(customId)`.
     pub fn new(custom_id: impl Into<CompactString>) -> Self {
         Self {
             select: ChannelSelect::new(custom_id),

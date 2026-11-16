@@ -172,6 +172,8 @@ impl ButtonBuilder {
     }
 
     /// Returns the button without any check (D-180).
+    ///
+    /// discord.js counterpart: `ButtonBuilder#toJSON` with validation off (`disableValidators`).
     #[must_use]
     pub fn build_unchecked(self) -> Component {
         self.into()
@@ -232,6 +234,8 @@ impl PremiumButtonBuilder {
     /// Returns the button as a [`Component`]. It returns a `Result` like every other builder
     /// (D-179), so code can treat all buttons alike.
     ///
+    /// discord.js counterpart: `ButtonBuilder#toJSON` with `setSKUId`.
+    ///
     /// # Errors
     ///
     /// None: a premium button has nothing that can break a rule.
@@ -240,6 +244,8 @@ impl PremiumButtonBuilder {
     }
 
     /// Returns the button as a [`Component`] (D-180; the same as [`build`](Self::build)).
+    ///
+    /// discord.js counterpart: `ButtonBuilder#toJSON` with `setSKUId`.
     #[must_use]
     pub fn build_unchecked(self) -> Component {
         self.into()

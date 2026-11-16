@@ -37,6 +37,8 @@ impl<'a, B: Backend> StageInstanceManager<'a, B> {
     }
 
     /// The guild these stages belong to.
+    ///
+    /// discord.js counterpart: `StageInstanceManager#guild`.
     #[must_use]
     pub const fn guild_id(self) -> GuildId {
         self.guild_id

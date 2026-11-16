@@ -140,6 +140,8 @@ pub enum EndReason {
 
 impl EndReason {
     /// A short description, as in the error message of [`CollectorError`].
+    ///
+    /// discord.js counterpart: the `reason` string a collector's `end` event passes.
     #[must_use]
     pub const fn as_str(self) -> &'static str {
         match self {
@@ -178,6 +180,8 @@ pub struct CollectorError {
 
 impl CollectorError {
     /// Why the collector ended.
+    ///
+    /// discord.js counterpart: the `reason` of the error `awaitMessageComponent` rejects with.
     #[must_use]
     pub const fn reason(self) -> EndReason {
         self.reason
@@ -213,6 +217,8 @@ pub enum ReactionEvent {
 
 impl ReactionEvent {
     /// The reacting user, unless every reaction was removed.
+    ///
+    /// discord.js counterpart: the `user` a `ReactionCollector`'s `collect` and `remove` events pass.
     #[must_use]
     pub fn user_id(&self) -> Option<UserId> {
         match self {
@@ -223,6 +229,8 @@ impl ReactionEvent {
     }
 
     /// The emoji, unless every reaction was removed.
+    ///
+    /// discord.js counterpart: the `reaction.emoji` a `ReactionCollector`'s events pass.
     #[must_use]
     pub fn emoji(&self) -> Option<&PartialEmoji> {
         match self {
@@ -247,6 +255,8 @@ pub struct CollectedReaction {
 
 impl CollectedReaction {
     /// The number of users who reacted with the emoji.
+    ///
+    /// discord.js counterpart: `MessageReaction#count`.
     #[must_use]
     pub fn count(&self) -> usize {
         self.users.len()
@@ -275,12 +285,16 @@ pub struct Collected<K, V> {
 
 impl<K, V> Collected<K, V> {
     /// Why the collector ended.
+    ///
+    /// discord.js counterpart: the `reason` of a collector's `end` event.
     #[must_use]
     pub const fn reason(&self) -> EndReason {
         self.reason
     }
 
     /// Returns the collection.
+    ///
+    /// discord.js counterpart: the `Collection` `awaitMessages` and `awaitReactions` resolve to.
     #[must_use]
     pub fn into_collection(self) -> Collection<K, V> {
         self.collection
@@ -304,20 +318,28 @@ impl<K, V> DerefMut for Collected<K, V> {
 /// The kinds of builders: what a [`CollectorBuilder`] makes.
 pub mod mode {
     /// [`build`](super::CollectorBuilder::build) makes a [`Collector`](super::Collector).
+    ///
+    /// discord.js counterpart: none (a state of `CollectorBuilder`).
     #[derive(Debug)]
     pub struct Stream;
 
     /// Awaiting the builder waits for the first collected item.
+    ///
+    /// discord.js counterpart: none (a state of `CollectorBuilder`).
     #[derive(Debug)]
     pub struct First;
 
     /// Awaiting the builder collects until the collector ends.
+    ///
+    /// discord.js counterpart: none (a state of `CollectorBuilder`).
     #[derive(Debug)]
     pub struct All;
 }
 
 /// What collectors can yield: [`ComponentInteraction`], [`ModalInteraction`],
 /// `Arc<MessageCreate>` and [`ReactionEvent`]. This trait is sealed.
+///
+/// discord.js counterpart: none (what a collector can collect).
 pub trait Collectable: sealed::Item {}
 
 impl Collectable for ComponentInteraction {}
@@ -837,6 +859,8 @@ impl<T: Collectable> fmt::Debug for Collector<T> {
 
 impl<T: Collectable> Collector<T> {
     /// Waits for the next collected item; `None` once the collector ended.
+    ///
+    /// discord.js counterpart: the `collect` event of `Collector`.
     pub async fn next(&mut self) -> Option<T> {
         core::future::poll_fn(|cx| Pin::new(&mut *self).poll_next(cx)).await
     }
@@ -883,12 +907,16 @@ impl<T: Collectable> Collector<T> {
 
     /// The number of items collected so far (for reactions with `dispose`, without the
     /// removed ones).
+    ///
+    /// discord.js counterpart: `Collector#collected` (its `size`).
     #[must_use]
     pub const fn collected(&self) -> usize {
         self.tally.collected
     }
 
     /// The number of items that arrived so far, whether the filter accepted them or not.
+    ///
+    /// discord.js counterpart: none (discord.js counts only the collected items).
     #[must_use]
     pub const fn processed(&self) -> usize {
         self.tally.processed
@@ -993,6 +1021,8 @@ impl<T: Collectable> Stream for Collector<T> {
 }
 
 /// The future of a shortcut waiting for one item (`await_component`, `await_modal_submit`).
+///
+/// discord.js counterpart: the promise of `awaitMessageComponent` and `awaitModalSubmit`.
 #[must_use = "futures do nothing unless polled"]
 #[derive(Debug)]
 pub struct AwaitFirst<T: Collectable> {
@@ -1015,6 +1045,8 @@ impl<T: Collectable> Future for AwaitFirst<T> {
 }
 
 /// The future of a shortcut collecting until the end (`await_messages`, `await_reactions`).
+///
+/// discord.js counterpart: the promise of `awaitMessages` and `awaitReactions`.
 #[must_use = "futures do nothing unless polled"]
 pub struct AwaitAll<T: Collectable, K, V> {
     collector: Collector<T>,

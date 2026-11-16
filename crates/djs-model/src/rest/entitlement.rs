@@ -77,6 +77,8 @@ pub struct CreateTestEntitlement {
 
 impl CreateTestEntitlement {
     /// A test entitlement granting `guild_id` access to a guild subscription SKU.
+    ///
+    /// discord.js counterpart: `EntitlementManager#createTest` with `GuildEntitlementCreateOptions`.
     #[must_use]
     pub const fn guild(sku_id: SkuId, guild_id: GuildId) -> Self {
         Self {
@@ -87,6 +89,8 @@ impl CreateTestEntitlement {
     }
 
     /// A test entitlement granting `user_id` access to a user subscription SKU.
+    ///
+    /// discord.js counterpart: `EntitlementManager#createTest` with `UserEntitlementCreateOptions`.
     #[must_use]
     pub const fn user(sku_id: SkuId, user_id: UserId) -> Self {
         Self {

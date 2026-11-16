@@ -16,12 +16,16 @@ use crate::{
 ///
 /// Each command knows its [opcode](Self::OPCODE). Wrap a command in [`CommandPayload`] to get
 /// the `{"op": …, "d": …}` envelope the gateway expects.
+///
+/// discord.js counterpart: `GatewaySendPayload` (discord-api-types).
 pub trait GatewayCommand: Serialize {
     /// The opcode of the command.
     const OPCODE: OpCode;
 }
 
 /// The `{"op": …, "d": …}` envelope around a [`GatewayCommand`], ready to be serialized.
+///
+/// discord.js counterpart: `GatewaySendPayload` (discord-api-types), with its `op`.
 ///
 /// # Examples
 ///
@@ -38,6 +42,8 @@ pub struct CommandPayload<'a, T> {
 
 impl<'a, T: GatewayCommand> CommandPayload<'a, T> {
     /// Wraps a command.
+    ///
+    /// discord.js counterpart: none (`WebSocketShard#send` takes the `GatewaySendPayload`).
     #[must_use]
     pub const fn new(command: &'a T) -> Self {
         Self { command }
@@ -56,6 +62,8 @@ impl<T: GatewayCommand> Serialize for CommandPayload<'_, T> {
 /// A [Heartbeat](https://docs.discord.com/developers/events/gateway-events#heartbeat)
 /// (opcode 1): the last sequence number received, or `None` if no dispatch has been received
 /// yet.
+///
+/// discord.js counterpart: `GatewayHeartbeat` (discord-api-types).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
 #[serde(transparent)]
 pub struct Heartbeat(pub Option<u64>);
@@ -71,6 +79,8 @@ impl GatewayCommand for Heartbeat {
 /// the daily limit resets the bot token.
 ///
 /// The [`Debug`] implementation redacts the token.
+///
+/// discord.js counterpart: `GatewayIdentify` (discord-api-types).
 #[derive(Clone, PartialEq, Eq, Serialize)]
 pub struct Identify {
     /// The bot token, **without** the `Bot ` prefix.
@@ -97,6 +107,8 @@ pub struct Identify {
 int_flags! {
     /// [Gateway capabilities](https://docs.discord.com/developers/events/gateway-events#identify-gateway-capabilities)
     /// a client opts into with [`Identify::capabilities`].
+    ///
+    /// discord.js counterpart: `GatewayCapabilityBits` (discord-api-types).
     pub struct GatewayCapabilities: u64 {
         /// Receive obfuscated metadata for channels the bot cannot view.
         const CHANNEL_OBFUSCATION = 1 << 15;
@@ -123,6 +135,8 @@ impl fmt::Debug for Identify {
 
 /// The [connection properties](https://docs.discord.com/developers/events/gateway-events#identify-identify-connection-properties)
 /// sent in [`Identify`].
+///
+/// discord.js counterpart: `GatewayIdentifyProperties` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct IdentifyProperties {
     /// The operating system, e.g. `linux`.
@@ -136,6 +150,8 @@ pub struct IdentifyProperties {
 impl IdentifyProperties {
     /// Creates properties with the given library name and the current operating system
     /// ([`std::env::consts::OS`]).
+    ///
+    /// discord.js counterpart: the `identifyProperties` option of `WebSocketManagerOptions` (`@discordjs/ws`).
     ///
     /// # Examples
     ///
@@ -160,6 +176,8 @@ impl IdentifyProperties {
 /// continues a disconnected session and replays missed events.
 ///
 /// The [`Debug`] implementation redacts the token.
+///
+/// discord.js counterpart: `GatewayResume` (discord-api-types).
 #[derive(Clone, PartialEq, Eq, Serialize)]
 pub struct Resume {
     /// The bot token, **without** the `Bot ` prefix.
@@ -228,6 +246,8 @@ pub struct RequestGuildMembers {
 
 impl RequestGuildMembers {
     /// Requests the members whose username starts with `query`, at most `limit`.
+    ///
+    /// discord.js counterpart: the `query` and `limit` options of `GuildMemberManager#fetch`.
     #[must_use]
     pub fn query(guild_id: GuildId, query: impl Into<CompactString>, limit: u32) -> Self {
         Self {
@@ -241,12 +261,16 @@ impl RequestGuildMembers {
     }
 
     /// Requests all members (requires the `GUILD_MEMBERS` intent).
+    ///
+    /// discord.js counterpart: `GuildMemberManager#fetch` without options.
     #[must_use]
     pub fn all(guild_id: GuildId) -> Self {
         Self::query(guild_id, "", 0)
     }
 
     /// Requests the given users (up to 100).
+    ///
+    /// discord.js counterpart: the `user` option of `GuildMemberManager#fetch`.
     #[must_use]
     pub fn users(guild_id: GuildId, user_ids: impl IntoIterator<Item = UserId>) -> Self {
         Self {
@@ -267,6 +291,8 @@ impl GatewayCommand for RequestGuildMembers {
 /// [Request Soundboard Sounds](https://docs.discord.com/developers/events/gateway-events#request-soundboard-sounds)
 /// (opcode 31): asks for the soundboard sounds of guilds; they arrive in
 /// [`SoundboardSounds`](super::SoundboardSounds) events.
+///
+/// discord.js counterpart: `GatewayRequestSoundboardSounds` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub struct RequestSoundboardSounds {
@@ -276,6 +302,8 @@ pub struct RequestSoundboardSounds {
 
 impl RequestSoundboardSounds {
     /// Requests the sounds of the given guilds.
+    ///
+    /// discord.js counterpart: `GuildManager#fetchSoundboardSounds`.
     #[must_use]
     pub fn new(guild_ids: impl IntoIterator<Item = GuildId>) -> Self {
         Self {
@@ -291,6 +319,8 @@ impl GatewayCommand for RequestSoundboardSounds {
 /// [Request Channel Info](https://docs.discord.com/developers/events/gateway-events#request-channel-info)
 /// (opcode 43): asks for ephemeral data of a guild's channels; it arrives in a
 /// [`ChannelInfo`](super::ChannelInfo) event.
+///
+/// discord.js counterpart: `GatewayRequestChannelInfo` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub struct RequestChannelInfo {
@@ -302,6 +332,8 @@ pub struct RequestChannelInfo {
 
 impl RequestChannelInfo {
     /// Requests the given fields of the guild's channels.
+    ///
+    /// discord.js counterpart: `GatewayRequestChannelInfoData` (discord-api-types).
     #[must_use]
     pub fn new(guild_id: GuildId, fields: impl IntoIterator<Item = ChannelInfoField>) -> Self {
         Self {
@@ -317,6 +349,8 @@ impl GatewayCommand for RequestChannelInfo {
 
 str_enum! {
     /// A field that [`RequestChannelInfo`] can request.
+    ///
+    /// discord.js counterpart: `GatewayRequestChannelInfoField` (discord-api-types).
     pub enum ChannelInfoField {
         /// The voice channel status.
         Status = "status",
@@ -344,6 +378,8 @@ pub struct UpdateVoiceState {
 
 impl UpdateVoiceState {
     /// Joins `channel_id` (or disconnects with `None`).
+    ///
+    /// discord.js counterpart: `joinVoiceChannel` (`@discordjs/voice`).
     #[must_use]
     pub const fn new(
         guild_id: GuildId,
@@ -396,6 +432,8 @@ pub struct UpdatePresence {
 
 impl UpdatePresence {
     /// Sets the status and activities (not idle, not AFK).
+    ///
+    /// discord.js counterpart: `ClientUser#setPresence`.
     #[must_use]
     pub fn new(status: Status, activities: impl IntoIterator<Item = Activity>) -> Self {
         Self {

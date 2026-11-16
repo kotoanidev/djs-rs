@@ -874,6 +874,8 @@ async fn serve(
 }
 
 /// Configures a [`ClusterManager`]. Created by [`ClusterManager::builder`].
+///
+/// discord.js counterpart: `ShardingManagerOptions`.
 #[derive(Debug)]
 #[must_use = "a builder does nothing until `build` is called"]
 pub struct ClusterManagerBuilder {
@@ -892,6 +894,8 @@ pub struct ClusterManagerBuilder {
 
 impl ClusterManagerBuilder {
     /// Uses a preconfigured REST client to ask Discord for the shard count.
+    ///
+    /// discord.js counterpart: none (`ShardingManager` asks Get Gateway Bot with its own client).
     pub fn rest(mut self, rest: Rest) -> Self {
         self.rest = Some(rest);
         self
@@ -953,6 +957,8 @@ impl ClusterManagerBuilder {
 
     /// Adds an environment variable for the processes (they inherit the manager's
     /// environment too).
+    ///
+    /// discord.js counterpart: the `execArgv` and environment of `ShardingManagerOptions`.
     pub fn env(mut self, key: impl Into<OsString>, value: impl Into<OsString>) -> Self {
         self.envs.push((key.into(), value.into()));
         self
@@ -960,6 +966,8 @@ impl ClusterManagerBuilder {
 
     /// Sets how long the clusters get to stop after [`ClusterManager::shutdown`] before they
     /// are killed (default 30 seconds).
+    ///
+    /// discord.js counterpart: none (discord.js kills the shards with `Shard#kill`).
     pub const fn shutdown_timeout(mut self, timeout: Duration) -> Self {
         self.shutdown_timeout = timeout;
         self
@@ -1006,6 +1014,8 @@ impl ClusterManagerBuilder {
     }
 
     /// Builds the manager.
+    ///
+    /// discord.js counterpart: `new ShardingManager(file, options)`.
     #[must_use]
     pub fn build(self) -> ClusterManager {
         ClusterManager {
@@ -1067,6 +1077,8 @@ pub struct Cluster {
 }
 
 /// An event of a [`ClusterManager`]: see [`ClusterManager::events`].
+///
+/// discord.js counterpart: the events of `ShardingManager` and `Shard` (`shardCreate`, `spawn`, `death`, …).
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum ClusterEvent {
@@ -1106,6 +1118,8 @@ pub enum ClusterEvent {
 /// The stream of a [`ClusterManager`]'s events. Created by [`ClusterManager::events`].
 ///
 /// Implements [`Stream`]; [`next`](Self::next) is provided so no extension trait is needed.
+///
+/// discord.js counterpart: `ShardingManager#on`.
 #[derive(Debug)]
 pub struct ClusterEvents {
     rx: mpsc::UnboundedReceiver<ClusterEvent>,
@@ -1113,6 +1127,8 @@ pub struct ClusterEvents {
 
 impl ClusterEvents {
     /// Waits for the next event. Returns `None` once the manager has been dropped.
+    ///
+    /// discord.js counterpart: `ShardingManager#on`.
     pub async fn next(&mut self) -> Option<ClusterEvent> {
         self.rx.recv().await
     }

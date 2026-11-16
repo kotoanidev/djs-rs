@@ -100,6 +100,8 @@ str_enum! {
 }
 
 /// The [footer of an embed](https://docs.discord.com/developers/resources/message#embed-object-embed-footer-structure).
+///
+/// discord.js counterpart: `APIEmbedFooter` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct EmbedFooter {
@@ -117,6 +119,8 @@ impl EmbedFooter {
     /// Creates a footer with `text` and no icon.
     ///
     /// Nothing is validated; `djs-builders` checks Discord's limits.
+    ///
+    /// discord.js counterpart: `EmbedFooterOptions` (`@discordjs/builders`).
     ///
     /// # Examples
     ///
@@ -178,6 +182,8 @@ impl EmbedImage {
     ///
     /// Nothing is validated; `djs-builders` checks the URL scheme.
     ///
+    /// discord.js counterpart: `EmbedImageData`.
+    ///
     /// # Examples
     ///
     /// ```
@@ -204,6 +210,8 @@ impl EmbedImage {
 }
 
 /// The [video of an embed](https://docs.discord.com/developers/resources/message#embed-object-embed-video-structure).
+///
+/// discord.js counterpart: `APIEmbedVideo` (discord-api-types).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct EmbedVideo {
@@ -238,6 +246,8 @@ pub struct EmbedVideo {
 
 /// The [provider of an embed](https://docs.discord.com/developers/resources/message#embed-object-embed-provider-structure),
 /// e.g. the website of a link preview.
+///
+/// discord.js counterpart: `APIEmbedProvider` (discord-api-types).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct EmbedProvider {
@@ -250,6 +260,8 @@ pub struct EmbedProvider {
 }
 
 /// The [author of an embed](https://docs.discord.com/developers/resources/message#embed-object-embed-author-structure).
+///
+/// discord.js counterpart: `APIEmbedAuthor` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct EmbedAuthor {
@@ -270,6 +282,8 @@ impl EmbedAuthor {
     /// Creates an author named `name`, with no URL and no icon.
     ///
     /// Nothing is validated; `djs-builders` checks Discord's limits.
+    ///
+    /// discord.js counterpart: `EmbedAuthorOptions` (`@discordjs/builders`).
     ///
     /// # Examples
     ///
@@ -310,6 +324,8 @@ impl EmbedField {
     /// Creates a field named `name` showing `value`, next to other inline fields if `inline`.
     ///
     /// Nothing is validated; `djs-builders` checks Discord's limits.
+    ///
+    /// discord.js counterpart: `EmbedField`.
     ///
     /// # Examples
     ///

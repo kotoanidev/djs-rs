@@ -38,6 +38,8 @@ impl<'a, B: Backend> SoundboardSoundManager<'a, B> {
     }
 
     /// The guild these sounds belong to.
+    ///
+    /// discord.js counterpart: `GuildSoundboardSoundManager#guild`.
     #[must_use]
     pub const fn guild_id(self) -> GuildId {
         self.guild_id

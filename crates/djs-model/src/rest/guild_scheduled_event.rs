@@ -13,6 +13,8 @@ use crate::{
 };
 
 /// The query of [List Scheduled Events for Guild](https://docs.discord.com/developers/resources/guild-scheduled-event#list-scheduled-events-for-guild).
+///
+/// discord.js counterpart: `RESTGetAPIGuildScheduledEventsQuery` (discord-api-types).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub struct ListScheduledEventsForGuild {
@@ -21,6 +23,8 @@ pub struct ListScheduledEventsForGuild {
 }
 
 /// The query of [Get Guild Scheduled Event](https://docs.discord.com/developers/resources/guild-scheduled-event#get-guild-scheduled-event).
+///
+/// discord.js counterpart: `RESTGetAPIGuildScheduledEventQuery` (discord-api-types).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub struct GetGuildScheduledEvent {
@@ -31,6 +35,8 @@ pub struct GetGuildScheduledEvent {
 /// The query of [Get Guild Scheduled Event Users](https://docs.discord.com/developers/resources/guild-scheduled-event#get-guild-scheduled-event-users).
 ///
 /// Users are sorted by ID; with both `before` and `after`, only `before` is used.
+///
+/// discord.js counterpart: `RESTGetAPIGuildScheduledEventUsersQuery` (discord-api-types).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub struct GetGuildScheduledEventUsers {
@@ -108,6 +114,8 @@ impl RecurrenceRuleData {
     }
 
     /// Every day.
+    ///
+    /// discord.js counterpart: `GuildScheduledEventRecurrenceRuleOptions` with `frequency: Daily`.
     #[must_use]
     pub const fn daily(start: Timestamp) -> Self {
         Self::new(start, RecurrenceFrequency::Daily, 1)
@@ -116,6 +124,8 @@ impl RecurrenceRuleData {
     /// Every day of a set of weekdays. Discord accepts these sets only: Monday–Friday,
     /// Tuesday–Saturday, Sunday–Thursday, Friday and Saturday, Saturday and Sunday, Sunday and
     /// Monday.
+    ///
+    /// discord.js counterpart: `GuildScheduledEventRecurrenceRuleOptions` with `frequency: Daily` and `byWeekday`.
     #[must_use]
     pub fn daily_on(start: Timestamp, days: impl IntoIterator<Item = RecurrenceWeekday>) -> Self {
         Self {
@@ -125,6 +135,8 @@ impl RecurrenceRuleData {
     }
 
     /// Every week on `day`.
+    ///
+    /// discord.js counterpart: `GuildScheduledEventRecurrenceRuleOptions` with `frequency: Weekly`.
     #[must_use]
     pub fn weekly(start: Timestamp, day: RecurrenceWeekday) -> Self {
         Self {
@@ -134,6 +146,8 @@ impl RecurrenceRuleData {
     }
 
     /// Every other week on `day`.
+    ///
+    /// discord.js counterpart: `GuildScheduledEventRecurrenceRuleOptions` with `frequency: Weekly` and `interval: 2`.
     #[must_use]
     pub fn every_other_week(start: Timestamp, day: RecurrenceWeekday) -> Self {
         Self {
@@ -143,6 +157,8 @@ impl RecurrenceRuleData {
     }
 
     /// Every month on the `n`-th (1-5) `day`, e.g. the third Tuesday.
+    ///
+    /// discord.js counterpart: `GuildScheduledEventRecurrenceRuleOptions` with `frequency: Monthly`.
     #[must_use]
     pub fn monthly(start: Timestamp, n: u8, day: RecurrenceWeekday) -> Self {
         Self {
@@ -152,6 +168,8 @@ impl RecurrenceRuleData {
     }
 
     /// Every year on `day` of `month`.
+    ///
+    /// discord.js counterpart: `GuildScheduledEventRecurrenceRuleOptions` with `frequency: Yearly`.
     #[must_use]
     pub fn yearly(start: Timestamp, month: RecurrenceMonth, day: u8) -> Self {
         Self {
@@ -247,6 +265,8 @@ impl CreateGuildScheduledEvent {
     }
 
     /// An event in the stage channel `channel_id`.
+    ///
+    /// discord.js counterpart: `GuildScheduledEventCreateOptions` with a stage channel.
     #[must_use]
     pub fn stage(channel_id: ChannelId, name: impl Into<CompactString>, start: Timestamp) -> Self {
         Self {
@@ -256,6 +276,8 @@ impl CreateGuildScheduledEvent {
     }
 
     /// An event in the voice channel `channel_id`.
+    ///
+    /// discord.js counterpart: `GuildScheduledEventCreateOptions` with a voice channel.
     #[must_use]
     pub fn voice(channel_id: ChannelId, name: impl Into<CompactString>, start: Timestamp) -> Self {
         Self {
@@ -266,6 +288,8 @@ impl CreateGuildScheduledEvent {
 
     /// An event outside Discord's voice channels, at `location` (1-100 characters), from
     /// `start` to `end`.
+    ///
+    /// discord.js counterpart: `GuildScheduledEventCreateOptions` with `entityMetadata.location`.
     #[must_use]
     pub fn external(
         location: impl Into<CompactString>,

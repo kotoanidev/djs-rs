@@ -116,6 +116,8 @@ pub enum ValidationError {
 impl ValidationError {
     /// Returns the path of the value that breaks the rule, e.g. `fields[3].name`.
     ///
+    /// discord.js counterpart: none (the path inside a validation error of `@sapphire/shapeshift`).
+    ///
     /// # Examples
     ///
     /// ```

@@ -22,6 +22,8 @@ macro_rules! component_builder {
 
             /// Checks the component (and what it contains) and returns it.
             ///
+            /// discord.js counterpart: `toJSON` of the component builders.
+            ///
             /// # Errors
             ///
             /// The first [`ValidationError`](crate::ValidationError) found; see the type docs
@@ -35,6 +37,8 @@ macro_rules! component_builder {
             }
 
             /// Returns the component without any check (D-180).
+            ///
+            /// discord.js counterpart: `toJSON` of the component builders with validation off (`disableValidators`).
             #[must_use]
             pub fn build_unchecked(self) -> ::djs_model::component::Component {
                 self.into()

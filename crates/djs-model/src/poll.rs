@@ -80,6 +80,8 @@ pub struct Answer {
 /// While a poll is running, the counts are usually but not always accurate; after it ends, a
 /// final tally runs, and once [`is_finalized`](Self::is_finalized) is `true` they are exact. An
 /// answer without an entry in [`answer_counts`](Self::answer_counts) has no votes.
+///
+/// discord.js counterpart: `APIPollResults` (discord-api-types).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 #[doc(alias = "PollResults")]
@@ -91,6 +93,8 @@ pub struct Results {
 }
 
 /// The [vote count of one answer](https://docs.discord.com/developers/resources/poll#poll-results-object-poll-answer-count-object-structure).
+///
+/// discord.js counterpart: `APIPollAnswerCount` (discord-api-types).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 #[doc(alias = "PollAnswerCount")]
@@ -146,6 +150,8 @@ pub struct CreatePoll {
 
 impl CreatePoll {
     /// Creates a poll with Discord's defaults for everything else.
+    ///
+    /// discord.js counterpart: `PollData`.
     #[must_use]
     pub fn new(
         question: impl Into<CompactString>,
@@ -163,6 +169,8 @@ impl CreatePoll {
 
 impl Media {
     /// Creates media with text and no emoji (set [`emoji`](Self::emoji) for an answer emoji).
+    ///
+    /// discord.js counterpart: `PollAnswerData`.
     #[must_use]
     pub fn new(text: impl Into<CompactString>) -> Self {
         Self {

@@ -279,30 +279,40 @@ impl CachedUser {
     }
 
     /// The user's banner (Nitro).
+    ///
+    /// discord.js counterpart: `User#banner`.
     #[must_use]
     pub fn banner(&self) -> Option<ImageHash> {
         self.extras.as_ref().and_then(|extras| extras.banner)
     }
 
     /// The user's banner color, as an RGB integer.
+    ///
+    /// discord.js counterpart: `User#accentColor`.
     #[must_use]
     pub fn accent_color(&self) -> Option<u32> {
         self.extras.as_ref().and_then(|extras| extras.accent_color)
     }
 
     /// The user's avatar decoration.
+    ///
+    /// discord.js counterpart: `User#avatarDecorationData`.
     #[must_use]
     pub fn avatar_decoration_data(&self) -> Option<&AvatarDecorationData> {
         self.extras.as_ref()?.avatar_decoration_data.as_ref()
     }
 
     /// The user's collectibles (such as a nameplate).
+    ///
+    /// discord.js counterpart: `User#collectibles`.
     #[must_use]
     pub fn collectibles(&self) -> Option<&Collectibles> {
         self.extras.as_ref()?.collectibles.as_ref()
     }
 
     /// The guild whose tag the user displays.
+    ///
+    /// discord.js counterpart: `User#primaryGuild`.
     #[must_use]
     pub fn primary_guild(&self) -> Option<&PrimaryGuild> {
         self.extras.as_ref()?.primary_guild.as_ref()
@@ -491,6 +501,8 @@ impl CachedMember {
     }
 
     /// The member's ID (their user's ID).
+    ///
+    /// discord.js counterpart: `GuildMember#id`.
     #[must_use]
     pub fn id(&self) -> UserId {
         self.user.id
@@ -508,12 +520,16 @@ impl CachedMember {
     }
 
     /// The member's guild avatar (overriding their user's avatar in the guild).
+    ///
+    /// discord.js counterpart: `GuildMember#avatar`.
     #[must_use]
     pub fn avatar(&self) -> Option<ImageHash> {
         self.extras.as_ref().and_then(|extras| extras.avatar)
     }
 
     /// The member's guild banner.
+    ///
+    /// discord.js counterpart: `GuildMember#banner`.
     #[must_use]
     pub fn banner(&self) -> Option<ImageHash> {
         self.extras.as_ref().and_then(|extras| extras.banner)
@@ -538,12 +554,16 @@ impl CachedMember {
     }
 
     /// The member's guild avatar decoration.
+    ///
+    /// discord.js counterpart: `GuildMember#avatarDecorationData`.
     #[must_use]
     pub fn avatar_decoration_data(&self) -> Option<&AvatarDecorationData> {
         self.extras.as_ref()?.avatar_decoration_data.as_ref()
     }
 
     /// The member's guild collectibles.
+    ///
+    /// discord.js counterpart: `GuildMember#collectibles`.
     #[must_use]
     pub fn collectibles(&self) -> Option<&Collectibles> {
         self.extras.as_ref()?.collectibles.as_ref()

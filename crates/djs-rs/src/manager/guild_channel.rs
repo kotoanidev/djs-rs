@@ -41,6 +41,8 @@ impl<'a, B: Backend> GuildChannelManager<'a, B> {
     }
 
     /// The guild these channels belong to.
+    ///
+    /// discord.js counterpart: `GuildChannelManager#guild`.
     #[must_use]
     pub const fn guild_id(self) -> GuildId {
         self.guild_id

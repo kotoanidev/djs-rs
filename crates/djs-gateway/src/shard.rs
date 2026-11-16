@@ -43,6 +43,8 @@ const CLOSE_TIMEOUT: Duration = Duration::from_secs(2);
 const RESUMABLE_CLOSE_CODE: u16 = 4000;
 
 /// The connection state of a [`Shard`].
+///
+/// discord.js counterpart: `WebSocketShardStatus` (`@discordjs/ws`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum ShardState {
@@ -182,6 +184,8 @@ impl Shard {
     /// [`next_event`](Self::next_event) is called.
     ///
     /// Pass the raw token, without the `Bot ` prefix.
+    ///
+    /// discord.js counterpart: `new WebSocketShard(strategy, id)` (`@discordjs/ws`).
     #[must_use]
     pub fn new(
         id: ShardId,
@@ -192,6 +196,8 @@ impl Shard {
     }
 
     /// Creates a shard with a custom [`Config`].
+    ///
+    /// discord.js counterpart: `new WebSocketShard(strategy, id)` (`@discordjs/ws`).
     #[must_use]
     pub fn with_config(id: ShardId, config: Config) -> Self {
         let (commands_tx, commands_rx) = mpsc::unbounded_channel();
@@ -219,18 +225,24 @@ impl Shard {
     }
 
     /// Returns the shard's ID.
+    ///
+    /// discord.js counterpart: `WebSocketShard#id` (`@discordjs/ws`).
     #[must_use]
     pub const fn id(&self) -> ShardId {
         self.id
     }
 
     /// Returns the shard's configuration.
+    ///
+    /// discord.js counterpart: the options of `WebSocketManager` (`@discordjs/ws`).
     #[must_use]
     pub const fn config(&self) -> &Config {
         &self.config
     }
 
     /// Returns the current connection state.
+    ///
+    /// discord.js counterpart: `WebSocketShard#status` (`@discordjs/ws`).
     #[must_use]
     pub const fn state(&self) -> ShardState {
         self.state
@@ -245,12 +257,16 @@ impl Shard {
     }
 
     /// Returns the current session ID, if a session is established.
+    ///
+    /// discord.js counterpart: the `sessionId` of `SessionInfo` (`@discordjs/ws`).
     #[must_use]
     pub fn session_id(&self) -> Option<&str> {
         self.session.as_ref().map(|session| &*session.id)
     }
 
     /// Returns the sequence number of the last dispatch received.
+    ///
+    /// discord.js counterpart: the `sequence` of `SessionInfo` (`@discordjs/ws`).
     #[must_use]
     pub const fn sequence(&self) -> Option<u64> {
         self.sequence
@@ -260,6 +276,8 @@ impl Shard {
     ///
     /// Commands are queued and sent once the session is [active](ShardState::Active), in
     /// order, paced to stay under Discord's send limit (see [`MessageSender`]).
+    ///
+    /// discord.js counterpart: `WebSocketShard#send` (`@discordjs/ws`).
     #[must_use]
     pub fn sender(&self) -> MessageSender {
         MessageSender {
@@ -273,6 +291,8 @@ impl Shard {
     /// Returns `None` once the shard has been [closed](Self::close) or fatally closed by Discord.
     /// Every gateway payload is returned, including control payloads such as
     /// [`GatewayEvent::Hello`], which the shard has already acted upon.
+    ///
+    /// discord.js counterpart: `WebSocketShard#connect` and its `dispatch` event (`@discordjs/ws`).
     ///
     /// # Cancel safety
     ///
@@ -766,6 +786,8 @@ pub struct MessageSender {
 impl MessageSender {
     /// Queues a command.
     ///
+    /// discord.js counterpart: `WebSocketShard#send` (`@discordjs/ws`).
+    ///
     /// # Errors
     ///
     /// Returns [`SendError::Closed`] if the shard has been dropped, or
@@ -810,6 +832,8 @@ impl MessageSender {
     }
 
     /// Returns `true` if the shard has been dropped.
+    ///
+    /// discord.js counterpart: none (`@discordjs/ws` throws when sending on a destroyed shard).
     #[must_use]
     pub fn is_closed(&self) -> bool {
         self.tx.is_closed()

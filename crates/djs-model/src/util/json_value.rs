@@ -22,6 +22,8 @@ use serde::{
 /// `Vec<`[`Overwrite`](crate::channel::Overwrite)`>` for `permission_overwrites`:
 /// `&JsonValue` is a serde [`Deserializer`] that lends out its strings.
 ///
+/// discord.js counterpart: none (plain JavaScript values in discord.js).
+///
 /// # Examples
 ///
 /// ```
@@ -58,6 +60,8 @@ impl JsonValue {
     /// Enums whose JSON is a string (`str_enum`s) convert from strings; other enums are
     /// decoded through their JSON representation as usual.
     ///
+    /// discord.js counterpart: none (plain JavaScript values in discord.js).
+    ///
     /// # Errors
     ///
     /// Returns an error if the value does not have the shape of `T`.
@@ -66,6 +70,8 @@ impl JsonValue {
     }
 
     /// Returns the string, if the value is one.
+    ///
+    /// discord.js counterpart: none (plain JavaScript values in discord.js).
     #[must_use]
     pub fn as_str(&self) -> Option<&str> {
         match self {
@@ -183,6 +189,8 @@ impl<'de> Deserialize<'de> for JsonValue {
 }
 
 /// The error of converting a [`JsonValue`] to a type.
+///
+/// discord.js counterpart: none (plain JavaScript values in discord.js).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct JsonValueError(CompactString);
 

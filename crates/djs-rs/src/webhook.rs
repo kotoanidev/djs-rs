@@ -38,6 +38,8 @@ pub struct WebhookClient {
 
 impl WebhookClient {
     /// A client for the webhook `id` with its `token`.
+    ///
+    /// discord.js counterpart: `new WebhookClient({ id, token })`.
     #[must_use]
     pub fn new(id: WebhookId, token: impl Into<String>) -> Self {
         Self {
@@ -51,6 +53,8 @@ impl WebhookClient {
     /// `https://discord.com/api/webhooks/{id}/{token}` (D-241). The `discordapp.com`, `canary.`
     /// and `ptb.` hosts and a versioned path (`/api/v10/webhooks/…`) are accepted too; a query
     /// string is ignored.
+    ///
+    /// discord.js counterpart: `new WebhookClient({ url })`.
     ///
     /// # Errors
     ///
@@ -73,6 +77,8 @@ impl WebhookClient {
     /// Sends the requests through `rest` instead of a default client, for example one with a
     /// proxy or another API base. A bot token it holds is not sent: webhook routes are
     /// authorized by the webhook's token.
+    ///
+    /// discord.js counterpart: the `rest` option of `WebhookClientOptions`.
     #[must_use]
     pub fn rest(mut self, rest: Rest) -> Self {
         self.rest = rest;
@@ -80,6 +86,8 @@ impl WebhookClient {
     }
 
     /// The webhook's ID.
+    ///
+    /// discord.js counterpart: `WebhookClient#id`.
     #[must_use]
     pub const fn id(&self) -> WebhookId {
         self.id
@@ -159,6 +167,8 @@ impl WebhookClient {
 
     /// The webhook itself ([Get Webhook with Token](djs_rest::Rest::get_webhook_with_token)).
     ///
+    /// discord.js counterpart: none (`WebhookClient` cannot fetch its webhook; `Client#fetchWebhook` can).
+    ///
     /// # Errors
     ///
     /// Returns the REST error if the request failed.
@@ -235,6 +245,8 @@ fn parse_url(url: &str) -> Option<(WebhookId, &str)> {
 }
 
 /// The URL given to [`WebhookClient::from_url`] is not a Discord webhook URL (D-241).
+///
+/// discord.js counterpart: none (`new WebhookClient({ url })` throws an `Error`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("not a Discord webhook URL (https://discord.com/api/webhooks/{{id}}/{{token}})")]
 pub struct InvalidWebhookUrl(());

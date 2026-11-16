@@ -98,6 +98,8 @@ pub enum Component {
 
 /// A component of a type this version of the library does not know about. Only the fields every
 /// component has are kept.
+///
+/// discord.js counterpart: none (a component type unknown to this version, kept as received).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
 #[non_exhaustive]
 pub struct UnknownComponent {
@@ -164,6 +166,8 @@ int_enum! {
 
 impl Component {
     /// Returns the component's type.
+    ///
+    /// discord.js counterpart: `Component#type`.
     #[must_use]
     pub const fn kind(&self) -> ComponentType {
         match self {
@@ -192,6 +196,8 @@ impl Component {
     }
 
     /// Returns the component's numeric identifier, if set.
+    ///
+    /// discord.js counterpart: `Component#id`.
     #[must_use]
     pub const fn id(&self) -> Option<i32> {
         match self {
@@ -220,6 +226,8 @@ impl Component {
     }
 
     /// Returns the developer-defined identifier of an interactive component.
+    ///
+    /// discord.js counterpart: the `customId` of an `ActionRowComponent`.
     #[must_use]
     pub fn custom_id(&self) -> Option<&str> {
         match self {
@@ -249,6 +257,8 @@ impl Component {
 
     /// Returns the child components of an action row, section or container (empty for other
     /// components; see [`Section::accessory`] and [`Label::component`] for single children).
+    ///
+    /// discord.js counterpart: `ActionRow#components`.
     #[must_use]
     pub fn children(&self) -> &[Self] {
         match self {

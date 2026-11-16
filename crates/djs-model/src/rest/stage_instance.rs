@@ -47,6 +47,8 @@ pub struct CreateStageInstance {
 
 impl CreateStageInstance {
     /// Opens the stage channel `channel_id` with `topic`.
+    ///
+    /// discord.js counterpart: `StageInstanceCreateOptions`.
     #[must_use]
     pub fn new(channel_id: ChannelId, topic: impl Into<CompactString>) -> Self {
         Self {

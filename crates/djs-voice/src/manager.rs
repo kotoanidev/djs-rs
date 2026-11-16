@@ -53,6 +53,8 @@ impl Default for JoinOptions {
 
 impl JoinOptions {
     /// The default options: deafened, not muted, 128 kb/s.
+    ///
+    /// discord.js counterpart: `JoinVoiceChannelOptions` (`@discordjs/voice`).
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -64,6 +66,8 @@ impl JoinOptions {
 
     /// Whether the bot mutes itself (others see it muted; it can still send audio, which
     /// Discord drops).
+    ///
+    /// discord.js counterpart: the `selfMute` option of `joinVoiceChannel` (`@discordjs/voice`).
     #[must_use]
     pub const fn self_mute(mut self, self_mute: bool) -> Self {
         self.self_mute = self_mute;
@@ -71,6 +75,8 @@ impl JoinOptions {
     }
 
     /// Whether the bot deafens itself: Discord sends it nobody's audio.
+    ///
+    /// discord.js counterpart: the `selfDeaf` option of `joinVoiceChannel` (`@discordjs/voice`).
     #[must_use]
     pub const fn self_deaf(mut self, self_deaf: bool) -> Self {
         self.self_deaf = self_deaf;
@@ -86,6 +92,8 @@ impl JoinOptions {
     /// Joining again with other options changes the bitrate of the call's next frames.
     ///
     /// songbird counterpart: `Call::set_bitrate`.
+    ///
+    /// discord.js counterpart: none (`@discordjs/voice` encodes at a fixed rate).
     #[must_use]
     pub const fn bitrate(mut self, bits_per_second: u32) -> Self {
         self.bitrate = bits_per_second;
@@ -237,6 +245,8 @@ impl VoiceManager {
     }
 
     /// [`join`](Self::join) with `options`.
+    ///
+    /// discord.js counterpart: `joinVoiceChannel` with options (`@discordjs/voice`).
     ///
     /// # Errors
     ///

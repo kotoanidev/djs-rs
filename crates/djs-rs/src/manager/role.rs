@@ -37,6 +37,8 @@ impl<'a, B: Backend> RoleManager<'a, B> {
     }
 
     /// The guild these roles belong to.
+    ///
+    /// discord.js counterpart: `RoleManager#guild`.
     #[must_use]
     pub const fn guild_id(self) -> GuildId {
         self.guild_id

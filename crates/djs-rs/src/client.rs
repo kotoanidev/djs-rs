@@ -65,6 +65,8 @@ pub(crate) fn warn_missing_intents(intents: Intents, kinds: impl IntoIterator<It
 }
 
 /// How event handlers are executed (D-028).
+///
+/// discord.js counterpart: none (discord.js runs every listener as its event comes, like `HandlerMode::Concurrent`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum HandlerMode {
@@ -250,6 +252,8 @@ impl<B: Backend> core::fmt::Debug for Client<B> {
 
 impl Client {
     /// Returns a builder for a client authenticated with `token` (without the `Bot ` prefix).
+    ///
+    /// discord.js counterpart: `new Client(options)`.
     pub fn builder(token: impl Into<String>) -> ClientBuilder {
         Self::builder_with(token.into())
     }
@@ -380,6 +384,8 @@ impl<B: Backend> Client<B> {
     /// [`AutocompleteInteraction`](crate::router::AutocompleteInteraction) and answers with
     /// [`respond`](crate::ext::InteractionExt::respond).
     ///
+    /// discord.js counterpart: an `interactionCreate` listener checking `isAutocomplete()` and `commandName`.
+    ///
     /// # Examples
     ///
     /// ```no_run
@@ -408,6 +414,8 @@ impl<B: Backend> Client<B> {
     /// [`args`](crate::router::ComponentInteraction::args): a button `delete:123` reaches the
     /// route `"delete"` with the arguments `123`. Registering a name again replaces its
     /// handler.
+    ///
+    /// discord.js counterpart: an `interactionCreate` listener checking `isMessageComponent()` and `customId`.
     ///
     /// # Panics
     ///
@@ -443,6 +451,8 @@ impl<B: Backend> Client<B> {
     /// Routes the modals whose custom ID is `name`, or starts with `name:`, to `handler`, like
     /// [`component`](Self::component). The handler receives a
     /// [`ModalInteraction`](crate::router::ModalInteraction) with the submitted fields.
+    ///
+    /// discord.js counterpart: an `interactionCreate` listener checking `isModalSubmit()` and `customId`.
     ///
     /// # Panics
     ///
@@ -519,6 +529,8 @@ impl<B: Backend> Client<B> {
     /// **Note:** the stream is unbounded — consume it promptly, or drop it, to avoid
     /// accumulating events in memory.
     ///
+    /// discord.js counterpart: none (discord.js delivers events to listeners only).
+    ///
     /// # Examples
     ///
     /// ```no_run
@@ -544,6 +556,8 @@ impl<B: Backend> Client<B> {
     }
 
     /// Returns the REST client.
+    ///
+    /// discord.js counterpart: `Client#rest`.
     #[must_use]
     pub fn rest(&self) -> &Rest {
         &self.inner.rest
@@ -1282,6 +1296,8 @@ impl<B: Backend> ClientBuilder<B> {
     ///
     /// Only request what the bot needs. Privileged intents
     /// ([`Intents::PRIVILEGED`]) must be enabled in the Developer Portal first.
+    ///
+    /// discord.js counterpart: the `intents` option of `ClientOptions`.
     pub const fn intents(mut self, intents: Intents) -> Self {
         self.intents = intents;
         self
@@ -1289,6 +1305,8 @@ impl<B: Backend> ClientBuilder<B> {
 
     /// Uses a preconfigured REST client (for example with a proxy or custom timeouts) instead
     /// of one built from the token.
+    ///
+    /// discord.js counterpart: the `rest` option of `ClientOptions`.
     pub fn rest(mut self, rest: Rest) -> Self {
         self.rest = Some(rest);
         self
@@ -1296,6 +1314,8 @@ impl<B: Backend> ClientBuilder<B> {
 
     /// Sets the gateway transport compression (default: `zstd-stream` when the feature is
     /// enabled).
+    ///
+    /// discord.js counterpart: the `ws.compression` option of `ClientOptions`.
     pub const fn compression(mut self, compression: Compression) -> Self {
         self.compression = compression;
         self
@@ -1306,12 +1326,16 @@ impl<B: Backend> ClientBuilder<B> {
     ///
     /// Get Gateway Bot is still called for [`Shards::Auto`]; with a fixed shard count too, the
     /// client does not call it at all and shards identify one at a time (`max_concurrency` 1).
+    ///
+    /// discord.js counterpart: none (discord.js always asks Get Gateway Bot).
     pub fn gateway_url(mut self, url: impl Into<String>) -> Self {
         self.gateway_url = Some(url.into().into_boxed_str());
         self
     }
 
     /// Sets which shards to run (default [`Shards::Auto`]: as many as Discord recommends).
+    ///
+    /// discord.js counterpart: the `shards` and `shardCount` options of `ClientOptions`.
     ///
     /// # Panics
     ///
@@ -1387,6 +1411,8 @@ impl<B: Backend> ClientBuilder<B> {
     }
 
     /// Sets how handlers are executed (default [`HandlerMode::Concurrent`]).
+    ///
+    /// discord.js counterpart: none (discord.js runs every listener as its event comes).
     pub const fn handler_mode(mut self, mode: HandlerMode) -> Self {
         self.mode = mode;
         self
@@ -1434,6 +1460,8 @@ impl<B: Backend> ClientBuilder<B> {
     /// [`DashMapBackend`] (D-172), and enables the cache: with
     /// [`CacheConfig::default`] unless [`cache`](Self::cache) is called too (in any order).
     ///
+    /// discord.js counterpart: the `makeCache` option of `ClientOptions`.
+    ///
     /// # Examples
     ///
     /// ```
@@ -1464,6 +1492,8 @@ impl<B: Backend> ClientBuilder<B> {
     }
 
     /// Builds the client. It does not connect until [`Client::login`] is called.
+    ///
+    /// discord.js counterpart: `new Client(options)`.
     #[must_use]
     pub fn build(self) -> Client<B> {
         (self.compiled.build)(self)
@@ -1528,6 +1558,8 @@ impl<B: Backend> ClientBuilder<B> {
 /// A stream of every event a [`Client`] receives. Created by [`Client::events`].
 ///
 /// Implements [`Stream`]; [`next`](Self::next) is provided so no extension trait is needed.
+///
+/// discord.js counterpart: none (discord.js delivers events to listeners only).
 #[derive(Debug)]
 pub struct EventStream {
     rx: mpsc::UnboundedReceiver<ShardEvent>,
@@ -1535,6 +1567,8 @@ pub struct EventStream {
 
 impl EventStream {
     /// Waits for the next event. Returns `None` once the client has been dropped.
+    ///
+    /// discord.js counterpart: none (discord.js delivers events to listeners only).
     pub async fn next(&mut self) -> Option<ShardEvent> {
         self.rx.recv().await
     }

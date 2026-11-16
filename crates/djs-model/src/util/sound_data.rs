@@ -38,6 +38,8 @@ impl SoundData {
     /// A sound whose media type is detected from its file signature: MP3 (with an ID3 tag
     /// or starting with a frame) or Ogg.
     ///
+    /// discord.js counterpart: `BufferResolvable` and `Base64Resolvable`, as `GuildSoundboardSoundCreateOptions#file` takes them.
+    ///
     /// # Errors
     ///
     /// [`SoundDataError`] when `data` is neither; use
@@ -52,6 +54,8 @@ impl SoundData {
     }
 
     /// A sound of the given media type (e.g. `audio/mpeg`), which is not checked.
+    ///
+    /// discord.js counterpart: `BufferResolvable` and `Base64Resolvable`, as `GuildSoundboardSoundCreateOptions#file` takes them.
     #[must_use]
     pub fn with_content_type(
         data: impl Into<Bytes>,
@@ -64,12 +68,16 @@ impl SoundData {
     }
 
     /// The sound file's contents.
+    ///
+    /// discord.js counterpart: none (discord.js turns sounds into data URIs internally).
     #[must_use]
     pub const fn data(&self) -> &Bytes {
         &self.data
     }
 
     /// The sound's media type (e.g. `audio/ogg`).
+    ///
+    /// discord.js counterpart: none (discord.js detects the type internally).
     #[must_use]
     pub fn content_type(&self) -> &str {
         &self.content_type
@@ -103,6 +111,8 @@ impl Serialize for SoundData {
 }
 
 /// The error of [`SoundData::new`]: the data is not an MP3 or Ogg file.
+///
+/// discord.js counterpart: none (discord.js accepts any buffer and lets Discord refuse it).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub struct SoundDataError;

@@ -117,12 +117,16 @@ pub struct AttachmentRequest {
 
 impl AttachmentRequest {
     /// Describes the file uploaded as `files[index]` in the same request.
+    ///
+    /// discord.js counterpart: an `AttachmentPayload` of `files`.
     #[must_use]
     pub fn upload(index: u32, filename: impl Into<CompactString>) -> Self {
         Self::with_id(AttachmentRequestId::Upload(index), Some(filename.into()))
     }
 
     /// Keeps an existing attachment (when editing a message).
+    ///
+    /// discord.js counterpart: an existing `Attachment` in `MessageEditOptions#attachments`.
     #[must_use]
     pub fn existing(id: AttachmentId) -> Self {
         Self::with_id(AttachmentRequestId::Existing(id), None)
@@ -143,6 +147,8 @@ impl AttachmentRequest {
 
 /// The `id` of an [`AttachmentRequest`]: the index `n` of a file uploaded as `files[n]`, or
 /// the ID of an existing attachment.
+///
+/// discord.js counterpart: the `id` of an attachment in `RESTPostAPIChannelMessageJSONBody` (discord-api-types).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum AttachmentRequestId {
     /// A new file, uploaded as `files[n]` in the same multipart request (written as a number).

@@ -34,6 +34,8 @@ pub struct CreateGuildTemplate {
 
 impl CreateGuildTemplate {
     /// A template named `name`, without a description.
+    ///
+    /// discord.js counterpart: `Guild#createTemplate`.
     #[must_use]
     pub fn new(name: impl Into<CompactString>) -> Self {
         Self {

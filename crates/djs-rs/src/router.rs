@@ -63,6 +63,8 @@ macro_rules! wrapper {
             }
 
             /// Returns the whole interaction: its guild, channel, member, locale, …
+            ///
+            /// discord.js counterpart: the interaction itself (discord.js routes nothing).
             #[must_use]
             pub fn interaction(&self) -> &Interaction {
                 &self.event
@@ -70,6 +72,8 @@ macro_rules! wrapper {
 
             /// Returns the event payload, shared with the
             /// [`InteractionCreate`](crate::Events::InteractionCreate) handlers.
+            ///
+            /// discord.js counterpart: the event's arguments.
             #[must_use]
             pub const fn event(&self) -> &Arc<InteractionCreate> {
                 &self.event
@@ -153,6 +157,8 @@ impl ComponentInteraction {
     /// Returns the part of the custom ID after the route name and its `:` (D-254): `"42"`
     /// for `vote:42`, `"a:b"` for `vote:a:b`, `""` for `vote`.
     ///
+    /// discord.js counterpart: none (discord.js leaves the `customId` to the bot).
+    ///
     /// # Examples
     ///
     /// ```no_run
@@ -174,6 +180,8 @@ impl ComponentInteraction {
 impl ModalInteraction {
     /// Returns the part of the modal's custom ID after the route name and its `:` (D-254),
     /// `""` if none.
+    ///
+    /// discord.js counterpart: none (discord.js leaves the `customId` to the bot).
     #[must_use]
     pub fn args(&self) -> &str {
         args(&self.custom_id)

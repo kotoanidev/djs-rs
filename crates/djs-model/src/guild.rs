@@ -41,6 +41,8 @@ pub struct UnavailableGuild {
 
 impl UnavailableGuild {
     /// Creates an unavailable guild entry.
+    ///
+    /// discord.js counterpart: `APIUnavailableGuild` (discord-api-types).
     #[must_use]
     pub const fn new(id: GuildId, unavailable: bool) -> Self {
         Self { id, unavailable }
@@ -194,6 +196,8 @@ pub struct PartialMember {
 impl PartialMember {
     /// Completes this member with its user, typically the author of the message the member
     /// came with.
+    ///
+    /// discord.js counterpart: none (discord.js builds the `GuildMember` itself).
     #[must_use]
     pub fn into_member(self, user: User) -> Member {
         Member {
@@ -284,6 +288,8 @@ impl RoleColors {
     };
 
     /// A solid color.
+    ///
+    /// discord.js counterpart: the `primaryColor` of `RoleColorsResolvable`.
     #[must_use]
     pub const fn solid(color: u32) -> Self {
         Self {
@@ -299,6 +305,8 @@ impl RoleColors {
 ///
 /// On the wire, the boolean tags are keys whose value is `null` when true and that are absent
 /// when false; here they are plain `bool`s.
+///
+/// discord.js counterpart: `APIRoleTags` (discord-api-types).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct RoleTags {
@@ -476,6 +484,8 @@ pub struct Guild {
 }
 
 /// A partial [`Guild`], as attached to an application (D-051).
+///
+/// discord.js counterpart: `APIPartialGuild` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct PartialGuild {
@@ -787,6 +797,8 @@ pub struct Widget {
 }
 
 /// A channel listed in a [`Widget`].
+///
+/// discord.js counterpart: `WidgetChannel`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct WidgetChannel {
@@ -800,6 +812,8 @@ pub struct WidgetChannel {
 
 /// An online member listed in a [`Widget`]. Members are anonymized: the ID is an index, not a
 /// user ID.
+///
+/// discord.js counterpart: `WidgetMember`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct WidgetMember {
@@ -821,6 +835,8 @@ pub struct WidgetMember {
 }
 
 /// The activity of a [`WidgetMember`].
+///
+/// discord.js counterpart: `WidgetActivity`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct WidgetActivity {
@@ -909,6 +925,8 @@ pub struct Integration {
 /// (D-051).
 ///
 /// Discord does not document which fields are present; only the ID is required here.
+///
+/// discord.js counterpart: the `integrations` of `APIConnection` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct PartialIntegration {
@@ -967,6 +985,8 @@ pub struct PartialIntegration {
 
 str_enum! {
     /// The kind of an [`Integration`].
+    ///
+    /// discord.js counterpart: `IntegrationType`.
     pub enum IntegrationType {
         /// A Twitch subscription.
         Twitch = "twitch",
@@ -994,6 +1014,8 @@ int_enum! {
 
 /// The [account of an integration](https://docs.discord.com/developers/resources/guild#integration-account-object)
 /// (e.g. the Twitch channel).
+///
+/// discord.js counterpart: `IntegrationAccount`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct IntegrationAccount {
@@ -1065,6 +1087,8 @@ pub struct WelcomeScreenChannel {
 
 impl WelcomeScreenChannel {
     /// A suggested channel without an emoji.
+    ///
+    /// discord.js counterpart: `WelcomeChannelData`.
     #[must_use]
     pub fn new(channel_id: ChannelId, description: impl Into<CompactString>) -> Self {
         Self {

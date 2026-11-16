@@ -46,6 +46,8 @@ newtype_event! {
 /// The data of the [Channel Info](https://docs.discord.com/developers/events/gateway-events#channel-info)
 /// dispatch event: the ephemeral data of a guild's channels, sent in response to a
 /// [`RequestChannelInfo`](crate::gateway::payload::RequestChannelInfo) command.
+///
+/// discord.js counterpart: `GatewayChannelInfoDispatchData` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct ChannelInfo {
@@ -58,6 +60,8 @@ pub struct ChannelInfo {
 
 /// The [ephemeral data of a channel](https://docs.discord.com/developers/events/gateway-events#channel-info-channel-info-channel-structure)
 /// in a [`ChannelInfo`] event.
+///
+/// discord.js counterpart: `GatewayChannelInfoChannel` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct ChannelInfoChannel {
@@ -92,6 +96,8 @@ pub struct VoiceChannelStatusUpdate {
 
 /// The data of the [Voice Channel Start Time Update](https://docs.discord.com/developers/events/gateway-events#voice-channel-start-time-update)
 /// dispatch event.
+///
+/// discord.js counterpart: `GatewayVoiceChannelStartTimeUpdateDispatchData` (discord-api-types).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct VoiceChannelStartTimeUpdate {
@@ -266,6 +272,8 @@ pub struct ThreadMembersUpdate {
 /// [`ThreadMember::member`]) and presence.
 ///
 /// Dereferences to the contained [`ThreadMember`].
+///
+/// discord.js counterpart: an element of `GatewayThreadMembersUpdate`'s `added_members` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct AddedThreadMember {

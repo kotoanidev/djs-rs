@@ -86,6 +86,8 @@ int_enum! {
 }
 
 /// The guild of the channel a channel follower webhook follows.
+///
+/// discord.js counterpart: `APIWebhookSourceGuild` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct SourceGuild {
@@ -98,6 +100,8 @@ pub struct SourceGuild {
 }
 
 /// The channel a channel follower webhook follows.
+///
+/// discord.js counterpart: `APIWebhookSourceChannel` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct SourceChannel {

@@ -34,6 +34,8 @@ pub struct ModifyCurrentUser {
 }
 
 /// The query of [Get Current User Guilds](https://docs.discord.com/developers/resources/user#get-current-user-guilds).
+///
+/// discord.js counterpart: `RESTGetAPICurrentUserGuildsQuery` (discord-api-types).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub struct GetCurrentUserGuilds {
@@ -81,6 +83,8 @@ pub struct CurrentUserGuild {
 }
 
 /// The body of [Create DM](https://docs.discord.com/developers/resources/user#create-dm).
+///
+/// discord.js counterpart: `RESTPostAPICurrentUserCreateDMChannelJSONBody` (discord-api-types).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
 #[non_exhaustive]
 pub struct CreateDm {
@@ -90,6 +94,8 @@ pub struct CreateDm {
 
 impl CreateDm {
     /// Opens a DM with `recipient_id`.
+    ///
+    /// discord.js counterpart: `User#createDM`.
     #[must_use]
     pub const fn new(recipient_id: UserId) -> Self {
         Self { recipient_id }
@@ -99,6 +105,8 @@ impl CreateDm {
 /// The body of [Create Group DM](https://docs.discord.com/developers/resources/user#create-group-dm).
 ///
 /// The access tokens are redacted in the `Debug` output.
+///
+/// discord.js counterpart: none (discord-api-types has no type for Create Group DM's body).
 #[derive(Clone, Default, PartialEq, Eq, Hash, Serialize)]
 #[non_exhaustive]
 pub struct CreateGroupDm {
@@ -111,6 +119,8 @@ pub struct CreateGroupDm {
 
 impl CreateGroupDm {
     /// A group DM with the users whose access tokens are `access_tokens`.
+    ///
+    /// discord.js counterpart: none (discord-api-types has no type for Create Group DM's body).
     #[must_use]
     pub fn new(access_tokens: Vec<String>) -> Self {
         Self {

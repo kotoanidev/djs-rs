@@ -42,6 +42,8 @@ impl<'a, B: Backend> ScheduledEventManager<'a, B> {
     }
 
     /// The guild these events belong to.
+    ///
+    /// discord.js counterpart: `GuildScheduledEventManager#guild`.
     #[must_use]
     pub const fn guild_id(self) -> GuildId {
         self.guild_id

@@ -37,6 +37,8 @@ impl<'a, B: Backend> StickerManager<'a, B> {
     }
 
     /// The guild these stickers belong to.
+    ///
+    /// discord.js counterpart: `GuildStickerManager#guild`.
     #[must_use]
     pub const fn guild_id(self) -> GuildId {
         self.guild_id

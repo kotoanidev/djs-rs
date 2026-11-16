@@ -237,6 +237,8 @@ fn tag(username: &str, discriminator: u16) -> CompactString {
 
 /// An [avatar decoration](https://docs.discord.com/developers/resources/user#avatar-decoration-data-object):
 /// the animated frame shown around a user's avatar.
+///
+/// discord.js counterpart: `AvatarDecorationData`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct AvatarDecorationData {
@@ -248,6 +250,8 @@ pub struct AvatarDecorationData {
 
 /// The [collectibles](https://docs.discord.com/developers/resources/user#collectibles) a user
 /// has equipped.
+///
+/// discord.js counterpart: `Collectibles`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct Collectibles {
@@ -258,6 +262,8 @@ pub struct Collectibles {
 
 /// A [nameplate](https://docs.discord.com/developers/resources/user#nameplate): the background
 /// shown behind a user's name in member lists.
+///
+/// discord.js counterpart: `APINameplateData` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct Nameplate {
@@ -273,6 +279,8 @@ pub struct Nameplate {
 
 str_enum! {
     /// The background color of a [`Nameplate`].
+    ///
+    /// discord.js counterpart: `NameplatePalette` (discord-api-types).
     pub enum NameplatePalette {
         /// Crimson.
         Crimson = "crimson",
@@ -310,6 +318,8 @@ str_enum! {
 
 /// The [primary guild](https://docs.discord.com/developers/resources/user#user-object-user-primary-guild)
 /// of a user: the guild whose server tag is shown next to their name.
+///
+/// discord.js counterpart: `APIUserPrimaryGuild` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct PrimaryGuild {
@@ -555,6 +565,8 @@ str_enum! {
     /// A [connection service](https://docs.discord.com/developers/resources/user#connection-object-services).
     ///
     /// discord-api-types counterpart: `ConnectionService`.
+    ///
+    /// discord.js counterpart: `ConnectionService` (discord-api-types).
     #[doc(alias = "Services")]
     pub enum ConnectionService {
         /// Amazon Music.
@@ -624,6 +636,8 @@ int_enum! {
     /// a [`Connection`].
     ///
     /// discord-api-types counterpart: `ConnectionVisibility`.
+    ///
+    /// discord.js counterpart: `ConnectionVisibility` (discord-api-types).
     pub enum ConnectionVisibility: u8 {
         /// Only the user.
         None = 0,

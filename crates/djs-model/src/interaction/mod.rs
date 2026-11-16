@@ -100,6 +100,8 @@ pub struct Interaction {
 
 impl Interaction {
     /// Returns the interaction type.
+    ///
+    /// discord.js counterpart: `BaseInteraction#type`.
     #[must_use]
     pub const fn kind(&self) -> InteractionType {
         self.data.kind()
@@ -107,6 +109,8 @@ impl Interaction {
 
     /// Returns the invoking user, from [`member`](Self::member) in guilds or
     /// [`user`](Self::user) in DMs.
+    ///
+    /// discord.js counterpart: `BaseInteraction#user`.
     #[must_use]
     pub fn author(&self) -> Option<&User> {
         self.member
@@ -333,6 +337,8 @@ impl Serialize for Interaction {
 
 /// The [partial guild](https://docs.discord.com/developers/interactions/receiving-and-responding#interaction-object-interaction-structure)
 /// an interaction was triggered in (D-051).
+///
+/// discord.js counterpart: `APIPartialInteractionGuild` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct InteractionGuild {
@@ -586,6 +592,8 @@ pub struct AuthorizingIntegrationOwners {
 }
 
 /// The owner of a guild install in [`AuthorizingIntegrationOwners`].
+///
+/// discord.js counterpart: the guild install entry of `APIAuthorizingIntegrationOwnersMap` (discord-api-types).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum GuildInstallOwner {
@@ -597,6 +605,8 @@ pub enum GuildInstallOwner {
 
 impl GuildInstallOwner {
     /// Returns the guild ID, unless the interaction happened in a DM with the bot.
+    ///
+    /// discord.js counterpart: `BaseInteraction#authorizingIntegrationOwners`'s guild entry.
     #[must_use]
     pub const fn guild_id(self) -> Option<GuildId> {
         match self {

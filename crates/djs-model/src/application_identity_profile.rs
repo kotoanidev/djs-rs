@@ -19,6 +19,8 @@ use crate::{
 
 /// An [application identity](https://docs.discord.com/developers/resources/application-identity-profile#application-identity-object):
 /// a user's account in the app's external system.
+///
+/// discord.js counterpart: `APIApplicationIdentity` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct ApplicationIdentity {
@@ -38,6 +40,8 @@ pub struct ApplicationIdentity {
 /// the user's game stats.
 ///
 /// Contains floats, so it is `PartialEq` but not `Eq` (D-064).
+///
+/// discord.js counterpart: `APIApplicationIdentityProfile` (discord-api-types).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct ApplicationIdentityProfile {
@@ -53,6 +57,8 @@ pub struct ApplicationIdentityProfile {
 /// of a profile: preconfigured fields and custom ones.
 ///
 /// Also the `data` sent to update a profile (max 10 KB serialized, up to 30 dynamic fields).
+///
+/// discord.js counterpart: `APIApplicationIdentityProfileData` (discord-api-types).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct ProfileData {
@@ -66,6 +72,8 @@ pub struct ProfileData {
 
 /// The [preconfigured stat fields](https://docs.discord.com/developers/resources/application-identity-profile#primary-profile-data-object)
 /// of a profile (text values: max 100 characters).
+///
+/// discord.js counterpart: `APIApplicationIdentityProfilePrimaryData` (discord-api-types).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct PrimaryProfileData {
@@ -126,6 +134,8 @@ pub struct PrimaryProfileData {
 }
 
 /// An image in profile data ([media object](https://docs.discord.com/developers/resources/application-identity-profile#media-object)).
+///
+/// discord.js counterpart: `APIApplicationIdentityProfileMedia` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct ProfileMedia {
@@ -135,6 +145,8 @@ pub struct ProfileMedia {
 
 impl ProfileMedia {
     /// Creates a media object.
+    ///
+    /// discord.js counterpart: `APIApplicationIdentityProfileMedia` (discord-api-types).
     #[must_use]
     pub fn new(url: impl Into<CompactString>) -> Self {
         Self { url: url.into() }
@@ -143,6 +155,8 @@ impl ProfileMedia {
 
 /// A [custom stat field](https://docs.discord.com/developers/resources/application-identity-profile#dynamic-field-object):
 /// a name and a typed value.
+///
+/// discord.js counterpart: `APIApplicationIdentityProfileDynamicField` (discord-api-types).
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct DynamicField {
@@ -154,6 +168,8 @@ pub struct DynamicField {
 
 impl DynamicField {
     /// Creates a field.
+    ///
+    /// discord.js counterpart: `APIApplicationIdentityProfileDynamicField` (discord-api-types).
     #[must_use]
     pub fn new(name: impl Into<CompactString>, value: DynamicFieldValue) -> Self {
         Self {
@@ -164,6 +180,8 @@ impl DynamicField {
 }
 
 /// The value of a [`DynamicField`], by [field type](DynamicFieldType).
+///
+/// discord.js counterpart: none (the `value` of an `APIApplicationIdentityProfileDynamicField`, typed by its type).
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub enum DynamicFieldValue {
@@ -179,6 +197,8 @@ pub enum DynamicFieldValue {
 
 impl DynamicFieldValue {
     /// Returns the field type.
+    ///
+    /// discord.js counterpart: `ApplicationIdentityProfileDynamicFieldType` (discord-api-types).
     #[must_use]
     pub const fn kind(&self) -> DynamicFieldType {
         match self {
@@ -192,6 +212,8 @@ impl DynamicFieldValue {
 
 int_enum! {
     /// The [type of a dynamic field](https://docs.discord.com/developers/resources/application-identity-profile#dynamic-field-object-dynamic-field-types).
+    ///
+    /// discord.js counterpart: `ApplicationIdentityProfileDynamicFieldType` (discord-api-types).
     pub enum DynamicFieldType: u8 {
         /// [`DynamicFieldValue::String`].
         String = 1,

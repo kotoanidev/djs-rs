@@ -64,6 +64,8 @@ pub const DISCORD_EPOCH_MS: u64 = 1_420_070_400_000;
 ///
 /// IDs are ordered chronologically: an ID created later always compares greater.
 ///
+/// discord.js counterpart: `Snowflake` (a string in discord.js).
+///
 /// # Examples
 ///
 /// ```
@@ -85,6 +87,8 @@ pub struct Id<T> {
 
 impl<T> Id<T> {
     /// Creates an ID from a raw non-zero value.
+    ///
+    /// discord.js counterpart: none (a `Snowflake` is a string in discord.js).
     ///
     /// # Panics
     ///
@@ -109,6 +113,8 @@ impl<T> Id<T> {
 
     /// Creates an ID from a raw value, returning `None` if it is `0`.
     ///
+    /// discord.js counterpart: none (a `Snowflake` is a string in discord.js).
+    ///
     /// # Examples
     ///
     /// ```
@@ -126,6 +132,8 @@ impl<T> Id<T> {
     }
 
     /// Creates an ID from a [`NonZeroU64`]. This can never fail.
+    ///
+    /// discord.js counterpart: none (a `Snowflake` is a string in discord.js).
     #[must_use]
     pub const fn from_nonzero(value: NonZeroU64) -> Self {
         Self {
@@ -135,12 +143,16 @@ impl<T> Id<T> {
     }
 
     /// Returns the raw value of the ID.
+    ///
+    /// discord.js counterpart: none (a `Snowflake` is a string in discord.js).
     #[must_use]
     pub const fn get(self) -> u64 {
         self.value.get()
     }
 
     /// Returns the raw value of the ID as a [`NonZeroU64`].
+    ///
+    /// discord.js counterpart: none (a `Snowflake` is a string in discord.js).
     #[must_use]
     pub const fn into_nonzero(self) -> NonZeroU64 {
         self.value
@@ -150,6 +162,8 @@ impl<T> Id<T> {
     ///
     /// Some Discord resources deliberately share IDs — for example the `@everyone` role of a
     /// guild has the same ID as the guild itself. `cast` makes such conversions explicit.
+    ///
+    /// discord.js counterpart: none (a `Snowflake` is a string in discord.js).
     ///
     /// # Examples
     ///
@@ -195,18 +209,24 @@ impl<T> Id<T> {
     }
 
     /// Returns the internal worker ID encoded in the snowflake (5 bits).
+    ///
+    /// discord.js counterpart: `SnowflakeUtil.deconstruct`'s `workerId` (`@sapphire/snowflake`).
     #[must_use]
     pub const fn worker_id(self) -> u8 {
         ((self.get() & 0x003E_0000) >> 17) as u8
     }
 
     /// Returns the internal process ID encoded in the snowflake (5 bits).
+    ///
+    /// discord.js counterpart: `SnowflakeUtil.deconstruct`'s `processId` (`@sapphire/snowflake`).
     #[must_use]
     pub const fn process_id(self) -> u8 {
         ((self.get() & 0x0001_F000) >> 12) as u8
     }
 
     /// Returns the per-process increment encoded in the snowflake (12 bits).
+    ///
+    /// discord.js counterpart: `SnowflakeUtil.deconstruct`'s `increment` (`@sapphire/snowflake`).
     #[must_use]
     pub const fn increment(self) -> u16 {
         (self.get() & 0x0FFF) as u16
@@ -334,6 +354,8 @@ impl<T> FromStr for Id<T> {
 }
 
 /// The error returned when parsing an [`Id`] from a string or integer fails.
+///
+/// discord.js counterpart: none (discord.js keeps IDs as strings).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ParseIdError {
     kind: ParseIdErrorKind,
@@ -347,6 +369,8 @@ enum ParseIdErrorKind {
 
 impl ParseIdError {
     /// Returns `true` if parsing failed because the value was `0`.
+    ///
+    /// discord.js counterpart: none (a `Snowflake` is a string in discord.js).
     #[must_use]
     pub fn is_zero(&self) -> bool {
         self.kind == ParseIdErrorKind::Zero

@@ -51,24 +51,32 @@ pub enum Patch<T> {
 
 impl<T> Patch<T> {
     /// Returns `true` for [`Keep`](Self::Keep) (used to skip the field when serializing).
+    ///
+    /// discord.js counterpart: none (an omitted option in discord.js).
     #[must_use]
     pub const fn is_keep(&self) -> bool {
         matches!(self, Self::Keep)
     }
 
     /// Returns `true` for [`Clear`](Self::Clear).
+    ///
+    /// discord.js counterpart: none (a `null` option in discord.js).
     #[must_use]
     pub const fn is_clear(&self) -> bool {
         matches!(self, Self::Clear)
     }
 
     /// Returns `true` for [`Set`](Self::Set).
+    ///
+    /// discord.js counterpart: none (a given option in discord.js).
     #[must_use]
     pub const fn is_set(&self) -> bool {
         matches!(self, Self::Set(_))
     }
 
     /// Returns the value of [`Set`](Self::Set), if any.
+    ///
+    /// discord.js counterpart: none (a given option in discord.js).
     #[must_use]
     pub fn into_set(self) -> Option<T> {
         match self {
@@ -78,6 +86,8 @@ impl<T> Patch<T> {
     }
 
     /// Borrows the value: `Patch<&T>`.
+    ///
+    /// discord.js counterpart: none (options are plain objects in discord.js).
     #[must_use]
     pub const fn as_ref(&self) -> Patch<&T> {
         match self {
@@ -88,6 +98,8 @@ impl<T> Patch<T> {
     }
 
     /// Converts the value of [`Set`](Self::Set) with `f`, keeping `Keep` and `Clear`.
+    ///
+    /// discord.js counterpart: none (options are plain objects in discord.js).
     #[must_use]
     pub fn map<U>(self, f: impl FnOnce(T) -> U) -> Patch<U> {
         match self {

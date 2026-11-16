@@ -40,6 +40,8 @@ pub struct CreateGuildSticker {
 
 impl CreateGuildSticker {
     /// A sticker named `name`, suggested for `tags`, showing `file`, without a description.
+    ///
+    /// discord.js counterpart: `GuildStickerCreateOptions`.
     #[must_use]
     pub fn new(
         name: impl Into<CompactString>,

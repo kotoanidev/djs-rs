@@ -40,6 +40,8 @@ impl<'a, B: Backend> AutoModerationRuleManager<'a, B> {
     }
 
     /// The guild these rules belong to.
+    ///
+    /// discord.js counterpart: `AutoModerationRuleManager#guild`.
     #[must_use]
     pub const fn guild_id(self) -> GuildId {
         self.guild_id

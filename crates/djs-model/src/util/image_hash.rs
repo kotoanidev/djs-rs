@@ -17,6 +17,8 @@ use serde::{
 /// Formatting with [`Display`](fmt::Display) reproduces the original string, which is what
 /// [CDN URLs](https://docs.discord.com/developers/reference#image-formatting) need.
 ///
+/// discord.js counterpart: none (a string in discord.js).
+///
 /// # Examples
 ///
 /// ```
@@ -34,12 +36,16 @@ pub struct ImageHash {
 
 impl ImageHash {
     /// Creates an image hash from its raw 16 bytes.
+    ///
+    /// discord.js counterpart: none (a string in discord.js).
     #[must_use]
     pub const fn new(bytes: [u8; 16], animated: bool) -> Self {
         Self { bytes, animated }
     }
 
     /// Returns the raw 16 bytes of the hash.
+    ///
+    /// discord.js counterpart: none (a string in discord.js).
     #[must_use]
     pub const fn bytes(self) -> [u8; 16] {
         self.bytes
@@ -48,6 +54,8 @@ impl ImageHash {
     /// Returns `true` if the image is animated (the hash had an `a_` prefix).
     ///
     /// Animated images are available as GIF (and WebP/AVIF animations) on the CDN.
+    ///
+    /// discord.js counterpart: the `a_` check `User#avatarURL` makes.
     #[must_use]
     pub const fn is_animated(self) -> bool {
         self.animated
@@ -56,6 +64,8 @@ impl ImageHash {
     /// Parses an image hash such as `a_1269e74af4df7417b13759eae50c83dc`.
     ///
     /// Both lowercase and uppercase hexadecimal digits are accepted.
+    ///
+    /// discord.js counterpart: none (a string in discord.js).
     ///
     /// # Errors
     ///
@@ -124,6 +134,8 @@ impl fmt::Display for ImageHash {
 }
 
 /// The error returned when parsing an [`ImageHash`] fails.
+///
+/// discord.js counterpart: none (discord.js keeps image hashes as strings).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ParseImageHashError(());
 

@@ -30,6 +30,8 @@ pub enum InteractionMetadata {
 }
 
 /// The [metadata of an application command interaction](https://docs.discord.com/developers/resources/message#message-interaction-metadata-object-application-command-interaction-metadata-structure).
+///
+/// discord.js counterpart: `APIApplicationCommandInteractionMetadata` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 #[doc(alias = "ApplicationCommandInteractionMetadata")]
@@ -52,6 +54,8 @@ pub struct CommandMetadata {
 }
 
 /// The [metadata of a message component interaction](https://docs.discord.com/developers/resources/message#message-interaction-metadata-object-message-component-interaction-metadata-structure).
+///
+/// discord.js counterpart: `APIMessageComponentInteractionMetadata` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 #[doc(alias = "MessageComponentInteractionMetadata")]
@@ -70,6 +74,8 @@ pub struct ComponentMetadata {
 }
 
 /// The [metadata of a modal submit interaction](https://docs.discord.com/developers/resources/message#message-interaction-metadata-object-modal-submit-interaction-metadata-structure).
+///
+/// discord.js counterpart: `APIModalSubmitInteractionMetadata` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 #[doc(alias = "ModalSubmitInteractionMetadata")]
@@ -89,6 +95,8 @@ pub struct ModalSubmitMetadata {
 
 /// The metadata of an interaction type this version of the library does not know about: the
 /// fields every interaction metadata has.
+///
+/// discord.js counterpart: none (an interaction type unknown to this version, kept as received).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub struct UnknownMetadata {
@@ -108,6 +116,8 @@ pub struct UnknownMetadata {
 
 impl InteractionMetadata {
     /// Returns the interaction's ID.
+    ///
+    /// discord.js counterpart: `MessageInteractionMetadata#id`.
     #[must_use]
     pub const fn id(&self) -> InteractionId {
         match self {
@@ -119,6 +129,8 @@ impl InteractionMetadata {
     }
 
     /// Returns the interaction type.
+    ///
+    /// discord.js counterpart: `MessageInteractionMetadata#type`.
     #[must_use]
     pub const fn kind(&self) -> InteractionType {
         match self {
@@ -130,6 +142,8 @@ impl InteractionMetadata {
     }
 
     /// Returns the user who triggered the interaction.
+    ///
+    /// discord.js counterpart: `MessageInteractionMetadata#user`.
     #[must_use]
     pub const fn user(&self) -> &User {
         match self {
@@ -141,6 +155,8 @@ impl InteractionMetadata {
     }
 
     /// Returns the installations that authorized the interaction.
+    ///
+    /// discord.js counterpart: `MessageInteractionMetadata#authorizingIntegrationOwners`.
     #[must_use]
     pub const fn authorizing_integration_owners(&self) -> &AuthorizingIntegrationOwners {
         match self {
@@ -152,6 +168,8 @@ impl InteractionMetadata {
     }
 
     /// Returns the original response message, on follow-up messages.
+    ///
+    /// discord.js counterpart: `MessageInteractionMetadata#originalResponseMessageId`.
     #[must_use]
     pub const fn original_response_message_id(&self) -> Option<MessageId> {
         match self {

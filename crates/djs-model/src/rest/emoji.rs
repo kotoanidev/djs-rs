@@ -43,6 +43,8 @@ pub struct CreateGuildEmoji {
 
 impl CreateGuildEmoji {
     /// An emoji named `name` showing `image`, usable by everyone.
+    ///
+    /// discord.js counterpart: `GuildEmojiCreateOptions`.
     #[must_use]
     pub fn new(name: impl Into<CompactString>, image: ImageData) -> Self {
         Self {
@@ -98,6 +100,8 @@ pub struct CreateApplicationEmoji {
 
 impl CreateApplicationEmoji {
     /// An emoji named `name` showing `image`.
+    ///
+    /// discord.js counterpart: `ApplicationEmojiCreateOptions`.
     #[must_use]
     pub fn new(name: impl Into<CompactString>, image: ImageData) -> Self {
         Self {

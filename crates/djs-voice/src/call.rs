@@ -367,6 +367,8 @@ impl Call {
     /// see what plays.
     ///
     /// songbird counterpart: `Call::queue`.
+    ///
+    /// discord.js counterpart: none (`@discordjs/voice` has no queue).
     #[must_use]
     pub fn queue(&self) -> TrackQueue {
         TrackQueue {
@@ -572,6 +574,8 @@ impl Error for DisconnectReason {
 /// The stream of a [`Call`]'s events. Created by [`Call::events`].
 ///
 /// Implements [`Stream`]; [`next`](Self::next) is provided so no extension trait is needed.
+///
+/// discord.js counterpart: `VoiceConnection#on` (`@discordjs/voice`).
 #[derive(Debug)]
 pub struct CallEvents {
     rx: mpsc::UnboundedReceiver<CallEvent>,
@@ -580,6 +584,8 @@ pub struct CallEvents {
 impl CallEvents {
     /// Waits for the next event. Returns `None` once the call has ended (after
     /// [`CallEvent::Disconnected`]).
+    ///
+    /// discord.js counterpart: `VoiceConnection#on` (`@discordjs/voice`).
     pub async fn next(&mut self) -> Option<CallEvent> {
         self.rx.recv().await
     }

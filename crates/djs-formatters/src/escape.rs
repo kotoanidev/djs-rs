@@ -113,6 +113,8 @@ impl EscapeOptions {
     }
 
     /// Nothing escaped, but code content not skipped: a start for escaping a few kinds.
+    ///
+    /// discord.js counterpart: `EscapeMarkdownOptions` with every option `false` (`@discordjs/formatters`).
     #[must_use]
     pub const fn none() -> Self {
         Self {

@@ -1,6 +1,8 @@
 //! The error type of the high-level client.
 
 /// An error that stops [`Client::login`](crate::Client::login).
+///
+/// discord.js counterpart: none (`Client#login` rejects with the error that stopped it).
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum Error {

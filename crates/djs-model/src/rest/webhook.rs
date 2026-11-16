@@ -31,6 +31,8 @@ pub struct CreateWebhook {
 
 impl CreateWebhook {
     /// A webhook named `name`, with the default avatar.
+    ///
+    /// discord.js counterpart: `ChannelWebhookCreateOptions`.
     #[must_use]
     pub fn new(name: impl Into<CompactString>) -> Self {
         Self {

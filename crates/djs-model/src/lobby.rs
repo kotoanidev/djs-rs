@@ -17,6 +17,8 @@ use crate::{
 };
 
 /// A [lobby](https://docs.discord.com/developers/resources/lobby#lobby-object).
+///
+/// discord.js counterpart: none (lobbies are not in discord.js v14 or discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct Lobby {
@@ -41,6 +43,8 @@ pub struct Lobby {
 }
 
 /// A [lobby member](https://docs.discord.com/developers/resources/lobby#lobby-member-object).
+///
+/// discord.js counterpart: none (lobbies are not in discord.js v14 or discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct LobbyMember {
@@ -63,6 +67,8 @@ pub struct LobbyMember {
 
 int_flags! {
     /// [Flags of a lobby member](https://docs.discord.com/developers/resources/lobby#lobby-member-object-lobby-member-flags).
+    ///
+    /// discord.js counterpart: none (lobbies are not in discord.js v14 or discord-api-types).
     pub struct LobbyMemberFlags: u64 {
         /// The member can link a text channel to the lobby.
         const CAN_LINK_LOBBY = 1 << 0;
@@ -75,6 +81,8 @@ int_flags! {
 /// Also the data of the `LOBBY_MESSAGE_CREATE` and `LOBBY_MESSAGE_UPDATE`
 /// [webhook events](crate::webhook_event), where `application_id` is optional and updates add
 /// `timestamp` and `edited_timestamp` (D-078).
+///
+/// discord.js counterpart: none (lobbies are not in discord.js v14 or discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct LobbyMessage {
@@ -125,6 +133,8 @@ pub struct LobbyMessage {
 }
 
 /// The author's lobby member data in a [`LobbyMessage`].
+///
+/// discord.js counterpart: none (lobbies are not in discord.js v14 or discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct LobbyMessageMember {
@@ -134,6 +144,8 @@ pub struct LobbyMessageMember {
 
 /// A [lobby invite](https://docs.discord.com/developers/resources/lobby#create-lobby-channel-invite-for-self):
 /// an invite to the lobby's linked channel.
+///
+/// discord.js counterpart: none (lobbies are not in discord.js v14 or discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct LobbyInvite {

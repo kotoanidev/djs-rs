@@ -96,6 +96,8 @@ wrapper! {
 }
 
 /// A code block: ```` ```language\ncontent\n``` ````. Returned by [`code_block`].
+///
+/// discord.js counterpart: the string `codeBlock` returns (`@discordjs/formatters`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[must_use = "a formatter does nothing until it is written"]
 pub struct CodeBlock<'a, T> {
@@ -127,6 +129,8 @@ pub const fn code_block<'a, T: fmt::Display>(content: T) -> CodeBlock<'a, T> {
 
 impl<'a, T> CodeBlock<'a, T> {
     /// Sets the language the code is highlighted for (`rust`, `json`, `diff`, …).
+    ///
+    /// discord.js counterpart: the `language` argument of `codeBlock` (`@discordjs/formatters`).
     pub const fn language(mut self, language: &'a str) -> Self {
         self.language = Some(language);
         self
@@ -160,6 +164,8 @@ pub enum HeadingLevel {
 }
 
 /// A heading: `# content`, `## content` or `### content`. Returned by [`heading`].
+///
+/// discord.js counterpart: the string `heading` returns (`@discordjs/formatters`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[must_use = "a formatter does nothing until it is written"]
 pub struct Heading<T> {
@@ -189,6 +195,8 @@ pub const fn heading<T: fmt::Display>(content: T) -> Heading<T> {
 
 impl<T> Heading<T> {
     /// Sets the size of the heading.
+    ///
+    /// discord.js counterpart: the `level` argument of `heading`, a `HeadingLevel` (`@discordjs/formatters`).
     pub const fn level(mut self, level: HeadingLevel) -> Self {
         self.level = level;
         self
@@ -207,6 +215,8 @@ impl<T: fmt::Display> fmt::Display for Heading<T> {
 }
 
 /// A masked link: `[content](url)` or `[content](url "title")`. Returned by [`hyperlink`].
+///
+/// discord.js counterpart: the string `hyperlink` returns (`@discordjs/formatters`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[must_use = "a formatter does nothing until it is written"]
 pub struct Hyperlink<'a, T, U> {
@@ -250,6 +260,8 @@ pub const fn hyperlink<'a, T: fmt::Display, U: fmt::Display>(
 
 impl<'a, T, U> Hyperlink<'a, T, U> {
     /// Sets the text shown when the link is hovered.
+    ///
+    /// discord.js counterpart: the `title` argument of `hyperlink` (`@discordjs/formatters`).
     pub const fn title(mut self, title: &'a str) -> Self {
         self.title = Some(title);
         self
@@ -296,6 +308,8 @@ pub enum ListItem<'a, T> {
 /// What a list can hold: any [`Display`](fmt::Display) value, or a [`ListItem`].
 ///
 /// Implemented by this crate only: every `Display` type and `ListItem` already are.
+///
+/// discord.js counterpart: an item of `unorderedList` and `orderedList` (`@discordjs/formatters`).
 pub trait ListEntry: private::WriteEntry {}
 
 impl<T: private::WriteEntry + ?Sized> ListEntry for T {}
@@ -378,6 +392,8 @@ impl<T: fmt::Display> private::WriteEntry for ListItem<'_, T> {
 }
 
 /// A bulleted list: one `- item` per line. Returned by [`unordered_list`].
+///
+/// discord.js counterpart: the string `unorderedList` returns (`@discordjs/formatters`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[must_use = "a formatter does nothing until it is written"]
 pub struct UnorderedList<'a, T> {
@@ -411,6 +427,8 @@ impl<T: ListEntry> fmt::Display for UnorderedList<'_, T> {
 }
 
 /// A numbered list: `1. item`, `2. item`, … Returned by [`ordered_list`].
+///
+/// discord.js counterpart: the string `orderedList` returns (`@discordjs/formatters`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[must_use = "a formatter does nothing until it is written"]
 pub struct OrderedList<'a, T> {
@@ -481,6 +499,8 @@ pub enum Face {
 
 impl Face {
     /// The face as written in a message.
+    ///
+    /// discord.js counterpart: the values of `Faces` (`@discordjs/formatters`).
     #[must_use]
     pub const fn as_str(self) -> &'static str {
         match self {

@@ -16,6 +16,8 @@ use serde::{
 ///
 /// Timestamps are ordered chronologically.
 ///
+/// discord.js counterpart: none (discord.js turns timestamps into `Date`s).
+///
 /// # Examples
 ///
 /// ```
@@ -39,6 +41,8 @@ const SECONDS_PER_DAY: i64 = 86_400;
 
 impl Timestamp {
     /// Creates a timestamp from microseconds since the Unix epoch.
+    ///
+    /// discord.js counterpart: `new Date(ms)`.
     #[must_use]
     pub const fn from_unix_micros(unix_micros: i64) -> Self {
         Self { unix_micros }
@@ -47,6 +51,8 @@ impl Timestamp {
     /// Creates a timestamp from milliseconds since the Unix epoch.
     ///
     /// Returns `None` if the value overflows the microsecond representation.
+    ///
+    /// discord.js counterpart: `new Date(ms)`.
     #[must_use]
     pub const fn from_unix_millis(unix_millis: i64) -> Option<Self> {
         match unix_millis.checked_mul(1_000) {
@@ -58,6 +64,8 @@ impl Timestamp {
     /// Creates a timestamp from seconds since the Unix epoch.
     ///
     /// Returns `None` if the value overflows the microsecond representation.
+    ///
+    /// discord.js counterpart: `new Date(seconds * 1000)`.
     #[must_use]
     pub const fn from_unix_secs(unix_secs: i64) -> Option<Self> {
         match unix_secs.checked_mul(MICROS_PER_SECOND) {
@@ -67,6 +75,8 @@ impl Timestamp {
     }
 
     /// Returns the current system time.
+    ///
+    /// discord.js counterpart: `Date.now()`.
     ///
     /// # Panics
     ///
@@ -83,6 +93,8 @@ impl Timestamp {
     }
 
     /// Returns the number of microseconds since the Unix epoch.
+    ///
+    /// discord.js counterpart: `Date#getTime`.
     #[must_use]
     pub const fn as_unix_micros(self) -> i64 {
         self.unix_micros
@@ -90,6 +102,8 @@ impl Timestamp {
 
     /// Returns the number of whole milliseconds since the Unix epoch (rounded towards negative
     /// infinity).
+    ///
+    /// discord.js counterpart: `Date#getTime`.
     #[must_use]
     pub const fn as_unix_millis(self) -> i64 {
         self.unix_micros.div_euclid(1_000)
@@ -99,6 +113,8 @@ impl Timestamp {
     /// infinity).
     ///
     /// This is the value expected by Discord's `<t:…>` timestamp markdown.
+    ///
+    /// discord.js counterpart: `Date#getTime`.
     #[must_use]
     pub const fn as_unix_secs(self) -> i64 {
         self.unix_micros.div_euclid(MICROS_PER_SECOND)
@@ -109,6 +125,8 @@ impl Timestamp {
     /// Accepted format: `YYYY-MM-DDTHH:MM:SS`, an optional fraction of 1–9 digits (digits
     /// beyond microseconds are truncated), and a `Z` or `±HH:MM` offset. A space is accepted in
     /// place of `T`.
+    ///
+    /// discord.js counterpart: `new Date(string)`, as discord.js parses timestamps.
     ///
     /// # Errors
     ///
@@ -156,6 +174,8 @@ impl fmt::Display for Timestamp {
 }
 
 /// The error returned when parsing a [`Timestamp`] fails.
+///
+/// discord.js counterpart: none (discord.js turns timestamps into `Date`s).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ParseTimestampError(());
 

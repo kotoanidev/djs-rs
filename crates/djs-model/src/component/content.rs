@@ -24,6 +24,8 @@ pub struct TextDisplay {
 
 impl TextDisplay {
     /// Creates a text display.
+    ///
+    /// discord.js counterpart: `TextDisplayBuilder` (`@discordjs/builders`).
     #[must_use]
     pub fn new(content: impl Into<CompactString>) -> Self {
         Self {
@@ -55,6 +57,8 @@ pub struct Thumbnail {
 
 impl Thumbnail {
     /// Creates a thumbnail.
+    ///
+    /// discord.js counterpart: `ThumbnailBuilder` (`@discordjs/builders`).
     #[must_use]
     pub fn new(media: UnfurledMediaItem) -> Self {
         Self {
@@ -82,6 +86,8 @@ pub struct MediaGallery {
 
 impl MediaGallery {
     /// Creates a media gallery.
+    ///
+    /// discord.js counterpart: `MediaGalleryBuilder` (`@discordjs/builders`).
     #[must_use]
     pub const fn new(items: Vec<MediaGalleryItem>) -> Self {
         Self { id: None, items }
@@ -106,6 +112,8 @@ pub struct MediaGalleryItem {
 
 impl MediaGalleryItem {
     /// Creates an item.
+    ///
+    /// discord.js counterpart: `MediaGalleryItemBuilder` (`@discordjs/builders`).
     #[must_use]
     pub const fn new(media: UnfurledMediaItem) -> Self {
         Self {
@@ -141,6 +149,8 @@ pub struct File {
 
 impl File {
     /// Creates a file component.
+    ///
+    /// discord.js counterpart: `FileBuilder` (`@discordjs/builders`).
     #[must_use]
     pub fn new(file: UnfurledMediaItem) -> Self {
         Self {
@@ -158,6 +168,8 @@ impl File {
 ///
 /// When sending, only [`url`](Self::url) is used; Discord fills in the other fields in
 /// responses.
+///
+/// discord.js counterpart: `UnfurledMediaItem`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct UnfurledMediaItem {
@@ -201,6 +213,8 @@ pub struct UnfurledMediaItem {
 
 impl UnfurledMediaItem {
     /// Creates a media item from a URL or `attachment://<filename>` reference.
+    ///
+    /// discord.js counterpart: `UnfurledMediaItemData`.
     #[must_use]
     pub fn new(url: impl Into<CompactString>) -> Self {
         Self {
@@ -224,6 +238,8 @@ int_enum! {
     ///
     /// **Undocumented:** known from discord-api-types (`UnfurledMediaItemLoadingState`), not in
     /// the official docs; may change without notice.
+    ///
+    /// discord.js counterpart: `UnfurledMediaItemLoadingState` (discord-api-types).
     #[doc(alias = "UnfurledMediaItemLoadingState")]
     pub enum LoadingState: u8 {
         /// The state is not known.
@@ -239,6 +255,8 @@ int_enum! {
 
 int_flags! {
     /// [Flags of an unfurled media item](https://docs.discord.com/developers/components/reference#unfurled-media-item-unfurled-media-item-flags).
+    ///
+    /// discord.js counterpart: `UnfurledMediaItemFlags` (discord-api-types).
     pub struct UnfurledMediaItemFlags: u64 {
         /// The image is animated.
         const IS_ANIMATED = 1 << 0;
@@ -247,6 +265,8 @@ int_flags! {
 
 /// The [results of Discord's content scanning](https://docs.discord.com/developers/components/reference#unfurled-media-item-content-scan-metadata-structure)
 /// of an [`UnfurledMediaItem`].
+///
+/// discord.js counterpart: `UnfurledMediaItemContentScanMetadata` (discord-api-types).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct ContentScanMetadata {
@@ -256,6 +276,8 @@ pub struct ContentScanMetadata {
 
 int_flags! {
     /// [Flags of content scan metadata](https://docs.discord.com/developers/components/reference#unfurled-media-item-content-scan-metadata-flags).
+    ///
+    /// discord.js counterpart: `UnfurledMediaItemContentScanMetadataFlags` (discord-api-types).
     pub struct ContentScanMetadataFlags: u64 {
         /// The media was flagged as explicit.
         const IS_EXPLICIT_CONTENT = 1 << 0;

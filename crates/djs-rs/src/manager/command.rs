@@ -50,6 +50,8 @@ impl<'a, B: Backend> CommandManager<'a, B> {
     }
 
     /// The application these commands belong to.
+    ///
+    /// discord.js counterpart: `ClientApplication#id`, whose commands `ApplicationCommandManager` holds.
     #[must_use]
     pub const fn application_id(self) -> ApplicationId {
         self.application_id
@@ -211,6 +213,8 @@ impl<'a, B: Backend> GuildCommandManager<'a, B> {
     }
 
     /// The guild these commands belong to.
+    ///
+    /// discord.js counterpart: `GuildApplicationCommandManager#guild`.
     #[must_use]
     pub const fn guild_id(self) -> GuildId {
         self.guild_id

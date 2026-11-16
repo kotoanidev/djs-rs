@@ -214,6 +214,8 @@ impl CreateMessage {
     }
 
     /// Shares a client theme through the message.
+    ///
+    /// discord.js counterpart: none (not in discord.js v14).
     #[must_use]
     pub fn shared_client_theme(mut self, theme: SharedClientTheme) -> Self {
         self.shared_client_theme = Some(theme);
@@ -364,6 +366,8 @@ pub struct BulkDeleteMessages {
 
 impl BulkDeleteMessages {
     /// Deletes `messages`.
+    ///
+    /// discord.js counterpart: `TextChannel#bulkDelete`.
     #[must_use]
     pub const fn new(messages: Vec<MessageId>) -> Self {
         Self { messages }
@@ -385,6 +389,8 @@ pub struct GetChannelPins {
 }
 
 /// The response of [Get Channel Pins](https://docs.discord.com/developers/resources/message#get-channel-pins).
+///
+/// discord.js counterpart: `RESTGetAPIChannelMessagesPinsResult` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct ChannelPins {
@@ -401,6 +407,8 @@ pub struct ChannelPins {
 /// The endpoint needs `READ_MESSAGE_HISTORY` and depends on the `MESSAGE_CONTENT` privileged
 /// intent. While the guild is not indexed yet, the request fails with
 /// `ErrorKind::NotYetIndexed` of `djs-rest` (D-104).
+///
+/// discord.js counterpart: `RESTGetAPIGuildMessagesSearchQuery` (discord-api-types).
 ///
 /// # Examples
 ///
@@ -467,6 +475,8 @@ pub struct SearchGuildMessages {
 
 /// A search filter value that includes or excludes matching messages (Discord writes an
 /// exclusion with a leading `-`).
+///
+/// discord.js counterpart: none (a value of `RESTGetAPIGuildMessagesSearchQuery` that may be negated).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SearchFilter<T> {
     /// Only messages that match.
@@ -485,6 +495,8 @@ impl<T> From<T> for SearchFilter<T> {
 str_enum! {
     /// An [author type](https://docs.discord.com/developers/resources/message#search-guild-messages-author-types)
     /// of a message search.
+    ///
+    /// discord.js counterpart: `MessageSearchAuthorType` (discord-api-types).
     pub enum SearchAuthorType {
         /// Messages of user accounts.
         User = "user",
@@ -498,6 +510,8 @@ str_enum! {
 str_enum! {
     /// Something a message [has](https://docs.discord.com/developers/resources/message#search-guild-messages-search-has-types),
     /// for a message search.
+    ///
+    /// discord.js counterpart: `MessageSearchHasType` (discord-api-types).
     pub enum SearchHasType {
         /// An image.
         Image = "image",
@@ -523,6 +537,8 @@ str_enum! {
 str_enum! {
     /// An [embed type](https://docs.discord.com/developers/resources/message#search-guild-messages-search-embed-types)
     /// of a message search (broader than the embed types of messages).
+    ///
+    /// discord.js counterpart: `MessageSearchEmbedType` (discord-api-types).
     pub enum SearchEmbedType {
         /// Image embeds.
         Image = "image",
@@ -540,6 +556,8 @@ str_enum! {
 str_enum! {
     /// A [sort mode](https://docs.discord.com/developers/resources/message#search-guild-messages-search-sort-modes)
     /// of a message search.
+    ///
+    /// discord.js counterpart: `MessageSearchSortMode` (discord-api-types).
     pub enum SearchSortMode {
         /// By creation time (the default).
         Timestamp = "timestamp",
@@ -550,6 +568,8 @@ str_enum! {
 
 str_enum! {
     /// The direction of a message search's sorting.
+    ///
+    /// discord.js counterpart: the `sort_order` of `RESTGetAPIGuildMessagesSearchQuery` (discord-api-types).
     pub enum SearchSortOrder {
         /// Oldest first.
         Ascending = "asc",
@@ -562,6 +582,8 @@ str_enum! {
 ///
 /// Messages come without their `reactions`. Do not paginate by the number of messages
 /// returned: the search may return fewer than the limit.
+///
+/// discord.js counterpart: `APIMessageSearchResult` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct MessageSearchResults {

@@ -56,6 +56,8 @@ pub const AUTHORIZE_URL: &str = "https://discord.com/oauth2/authorize";
 /// The secret is never shown in the `Debug` output. Keep it out of source code; load it from
 /// the environment or a secret store.
 ///
+/// discord.js counterpart: none (the `client_id` and `client_secret` of a token request).
+///
 /// # Examples
 ///
 /// ```
@@ -73,6 +75,8 @@ pub struct OAuth2Credentials {
 
 impl OAuth2Credentials {
     /// The credentials of the application `client_id` (its application ID).
+    ///
+    /// discord.js counterpart: none (the `client_id` and `client_secret` of a token request).
     #[must_use]
     pub fn new(client_id: ApplicationId, client_secret: impl Into<String>) -> Self {
         Self {
@@ -82,6 +86,8 @@ impl OAuth2Credentials {
     }
 
     /// The application's client ID.
+    ///
+    /// discord.js counterpart: the `client_id` of `RESTPostOAuth2AccessTokenURLEncodedData` (discord-api-types).
     #[must_use]
     pub const fn client_id(&self) -> ApplicationId {
         self.client_id
@@ -99,6 +105,8 @@ impl fmt::Debug for OAuth2Credentials {
 
 /// What kind of token [`revoke_token`](crate::Rest::revoke_token) revokes. Discord revokes
 /// every token of the authorization either way.
+///
+/// discord.js counterpart: the `token_type_hint` of `RESTPostOAuth2TokenRevocationQuery` (discord-api-types).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum TokenTypeHint {
@@ -110,6 +118,8 @@ pub enum TokenTypeHint {
 
 impl TokenTypeHint {
     /// The hint as Discord expects it (`access_token` or `refresh_token`).
+    ///
+    /// discord.js counterpart: the `token_type_hint` of `RESTPostOAuth2TokenRevocationQuery` (discord-api-types).
     #[must_use]
     pub const fn as_str(self) -> &'static str {
         match self {
@@ -120,6 +130,8 @@ impl TokenTypeHint {
 }
 
 /// How the authorization page treats a user who already authorized the same scopes.
+///
+/// discord.js counterpart: the `prompt` of `RESTOAuth2AuthorizationQuery` (discord-api-types).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum Prompt {
@@ -195,6 +207,8 @@ impl AuthorizeUrl {
     /// A URL with only the client ID: Discord uses the application's default install settings
     /// from the Developer Portal (unless scopes, an integration type or a redirect URI are
     /// added).
+    ///
+    /// discord.js counterpart: `RESTOAuth2AuthorizationQuery` (discord-api-types).
     pub const fn new(client_id: ApplicationId) -> Self {
         Self {
             client_id,
@@ -213,6 +227,8 @@ impl AuthorizeUrl {
     /// A [bot authorization](https://docs.discord.com/developers/topics/oauth2#bot-authorization-flow)
     /// URL: the `bot` scope, which adds the bot to a guild the user picks. No redirect is
     /// needed.
+    ///
+    /// discord.js counterpart: `Client#generateInvite`.
     pub fn bot(client_id: ApplicationId) -> Self {
         Self::new(client_id).scopes([Scope::Bot])
     }
@@ -220,6 +236,8 @@ impl AuthorizeUrl {
     /// An [authorization code grant](https://docs.discord.com/developers/topics/oauth2#authorization-code-grant)
     /// URL: Discord redirects the user to `redirect_uri` (one registered for the application)
     /// with a `code` to exchange with [`exchange_code`](crate::Rest::exchange_code).
+    ///
+    /// discord.js counterpart: `RESTOAuth2AuthorizationQuery` (discord-api-types).
     pub fn code(client_id: ApplicationId, redirect_uri: impl Into<String>) -> Self {
         let mut url = Self::new(client_id);
         url.code = true;
@@ -227,6 +245,8 @@ impl AuthorizeUrl {
     }
 
     /// Adds scopes to request.
+    ///
+    /// discord.js counterpart: the `scopes` option of `Client#generateInvite`.
     pub fn scopes(mut self, scopes: impl IntoIterator<Item = Scope>) -> Self {
         self.scopes.extend(scopes);
         self
@@ -235,36 +255,48 @@ impl AuthorizeUrl {
     /// Sets the [`state`](https://docs.discord.com/developers/topics/oauth2#state-and-security)
     /// that Discord sends back with the redirect: a value tied to the user's session, which
     /// protects against cross-site request forgery.
+    ///
+    /// discord.js counterpart: the `state` of `RESTOAuth2AuthorizationQuery` (discord-api-types).
     pub fn state(mut self, state: impl Into<String>) -> Self {
         self.state = Some(state.into());
         self
     }
 
     /// Sets where Discord redirects the user after the authorization.
+    ///
+    /// discord.js counterpart: the `redirect_uri` of `RESTOAuth2AuthorizationQuery` (discord-api-types).
     pub fn redirect_uri(mut self, redirect_uri: impl Into<String>) -> Self {
         self.redirect_uri = Some(redirect_uri.into());
         self
     }
 
     /// Sets how a user who already authorized the scopes is treated.
+    ///
+    /// discord.js counterpart: the `prompt` of `RESTOAuth2AuthorizationQuery` (discord-api-types).
     pub const fn prompt(mut self, prompt: Prompt) -> Self {
         self.prompt = Some(prompt);
         self
     }
 
     /// Sets the permissions requested for the bot (with the `bot` scope).
+    ///
+    /// discord.js counterpart: the `permissions` option of `Client#generateInvite`.
     pub const fn permissions(mut self, permissions: Permissions) -> Self {
         self.permissions = Some(permissions);
         self
     }
 
     /// Preselects a guild in the guild picker (with the `bot` scope).
+    ///
+    /// discord.js counterpart: the `guild` option of `Client#generateInvite`.
     pub const fn guild_id(mut self, guild_id: GuildId) -> Self {
         self.guild_id = Some(guild_id);
         self
     }
 
     /// Whether the user may not pick another guild than [`guild_id`](Self::guild_id).
+    ///
+    /// discord.js counterpart: the `disableGuildSelect` option of `Client#generateInvite`.
     pub const fn disable_guild_select(mut self, disable: bool) -> Self {
         self.disable_guild_select = disable;
         self
@@ -272,12 +304,16 @@ impl AuthorizeUrl {
 
     /// Sets where the application is installed: in a guild or for the user (only relevant
     /// with the `applications.commands` scope).
+    ///
+    /// discord.js counterpart: the `integration_type` of `RESTOAuth2AuthorizationQuery` (discord-api-types).
     pub const fn integration_type(mut self, integration_type: IntegrationType) -> Self {
         self.integration_type = Some(integration_type);
         self
     }
 
     /// Returns the URL.
+    ///
+    /// discord.js counterpart: `Client#generateInvite`.
     #[must_use]
     pub fn build(&self) -> String {
         self.to_string()

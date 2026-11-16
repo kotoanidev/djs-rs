@@ -74,6 +74,8 @@ impl ContextMenuCommandBuilder {
     }
 
     /// Returns the command without any check (D-180).
+    ///
+    /// discord.js counterpart: `ContextMenuCommandBuilder#toJSON` with validation off (`disableValidators`).
     #[must_use]
     pub fn build_unchecked(self) -> CreateApplicationCommand {
         self.command

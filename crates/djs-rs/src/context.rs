@@ -216,6 +216,8 @@ impl<B: Backend> Context<B> {
     }
 
     /// Returns the REST client.
+    ///
+    /// discord.js counterpart: `Client#rest`.
     #[must_use]
     pub fn rest(&self) -> &Rest {
         &self.inner.core.rest
@@ -231,12 +233,16 @@ impl<B: Backend> Context<B> {
     }
 
     /// Returns the ID of the shard that received the event.
+    ///
+    /// discord.js counterpart: the `shardId` some discord.js events pass; `Guild#shardId`.
     #[must_use]
     pub fn shard_id(&self) -> ShardId {
         self.inner.core.shard
     }
 
     /// Returns a sender for gateway commands on the shard that received the event.
+    ///
+    /// discord.js counterpart: `Guild#shard`.
     #[must_use]
     pub fn shard(&self) -> &MessageSender {
         &self.inner.core.sender

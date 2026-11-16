@@ -37,6 +37,8 @@ impl<'a, B: Backend> EmojiManager<'a, B> {
     }
 
     /// The guild these emojis belong to.
+    ///
+    /// discord.js counterpart: `GuildEmojiManager#guild`.
     #[must_use]
     pub const fn guild_id(self) -> GuildId {
         self.guild_id

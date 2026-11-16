@@ -113,6 +113,8 @@ pub struct Gateway {
 
 /// The response of [Get Gateway Bot](https://docs.discord.com/developers/events/gateway#get-gateway-bot)
 /// (`GET /gateway/bot`): where and how to connect to the gateway.
+///
+/// discord.js counterpart: `APIGatewayBotInfo` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct GatewayBot {
@@ -126,6 +128,8 @@ pub struct GatewayBot {
 
 /// How many gateway sessions the bot may still start
 /// ([session start limit object](https://docs.discord.com/developers/events/gateway#session-start-limit-object)).
+///
+/// discord.js counterpart: `APIGatewaySessionStartLimit` (discord-api-types).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct SessionStartLimit {
@@ -199,6 +203,8 @@ impl FileUpload {
     ///
     /// `data` can be anything that converts into [`Bytes`] without copying: a `Vec<u8>`, a
     /// `String`, a `&'static [u8]` or a `&'static str`.
+    ///
+    /// discord.js counterpart: `AttachmentBuilder`.
     #[must_use]
     pub fn new(name: impl Into<CompactString>, data: impl Into<Bytes>) -> Self {
         Self {
@@ -215,6 +221,8 @@ impl FileUpload {
 
     /// A CSV file named `users.csv` listing `user_ids`, one per line (D-127): the
     /// `target_users_file` of Update Target Users and Create Channel Invite.
+    ///
+    /// discord.js counterpart: the `targetUsersFile` of `RESTPutAPIInviteTargetUsersFormDataBody` (discord-api-types).
     ///
     /// # Examples
     ///

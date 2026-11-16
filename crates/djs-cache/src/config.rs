@@ -165,6 +165,8 @@ pub enum Limit {
 
 impl Limit {
     /// Returns whether the resource is cached at all.
+    ///
+    /// discord.js counterpart: none (a manager's cache always exists in discord.js).
     #[must_use]
     pub const fn is_enabled(self) -> bool {
         !matches!(self, Self::Disabled | Self::Max(0))
@@ -172,6 +174,8 @@ impl Limit {
 
     /// Returns the maximum number of entries per scope, or `None` if there is no maximum
     /// ([`Limit::Unlimited`]) or nothing is cached ([`Limit::Disabled`]).
+    ///
+    /// discord.js counterpart: the `maxSize` of `LimitedCollection`.
     #[must_use]
     pub const fn max(self) -> Option<usize> {
         match self {
@@ -221,6 +225,8 @@ pub struct CacheConfig {
 
 impl CacheConfig {
     /// Returns a builder that starts from the [default](Self::default) configuration.
+    ///
+    /// discord.js counterpart: `Options.cacheWithLimits`.
     pub fn builder() -> CacheConfigBuilder {
         CacheConfigBuilder {
             config: Self::default(),
@@ -249,12 +255,16 @@ impl CacheConfig {
     }
 
     /// Returns the limit of `resource`.
+    ///
+    /// discord.js counterpart: a manager's entry in `Options.cacheWithLimits`.
     #[must_use]
     pub const fn limit(&self, resource: Resource) -> Limit {
         self.limits[resource.index()]
     }
 
     /// Returns whether `resource` is cached.
+    ///
+    /// discord.js counterpart: none (a manager's cache always exists in discord.js).
     #[must_use]
     pub const fn is_enabled(&self, resource: Resource) -> bool {
         self.limit(resource).is_enabled()
@@ -262,6 +272,8 @@ impl CacheConfig {
 
     /// Returns which sweeps run periodically (D-167). The cache itself runs nothing: the
     /// djs-rs `Client` runs them, or call the [`Cache`](crate::Cache) sweep methods yourself.
+    ///
+    /// discord.js counterpart: the `sweepers` option of `ClientOptions`.
     #[must_use]
     pub const fn sweepers(&self) -> &SweepConfig {
         &self.sweepers
@@ -340,80 +352,110 @@ pub struct CacheConfigBuilder {
 
 impl CacheConfigBuilder {
     /// Sets the limit of any resource.
+    ///
+    /// discord.js counterpart: a manager's entry in `Options.cacheWithLimits`.
     pub const fn limit(mut self, resource: Resource, limit: Limit) -> Self {
         self.config.set(resource, limit);
         self
     }
 
     /// Sets the limit of [`Resource::Guild`] (default [`Limit::Unlimited`]).
+    ///
+    /// discord.js counterpart: the `GuildManager` entry of `Options.cacheWithLimits`.
     pub const fn guilds(self, limit: Limit) -> Self {
         self.limit(Resource::Guild, limit)
     }
 
     /// Sets the limit of [`Resource::Channel`] (default [`Limit::Unlimited`]).
+    ///
+    /// discord.js counterpart: the `ChannelManager` entry of `Options.cacheWithLimits`.
     pub const fn channels(self, limit: Limit) -> Self {
         self.limit(Resource::Channel, limit)
     }
 
     /// Sets the limit of [`Resource::Thread`], per guild (default [`Limit::Disabled`]).
+    ///
+    /// discord.js counterpart: the `ThreadManager` entry of `Options.cacheWithLimits`.
     pub const fn threads(self, limit: Limit) -> Self {
         self.limit(Resource::Thread, limit)
     }
 
     /// Sets the limit of [`Resource::Role`], per guild (default [`Limit::Unlimited`]).
+    ///
+    /// discord.js counterpart: the `RoleManager` entry of `Options.cacheWithLimits`.
     pub const fn roles(self, limit: Limit) -> Self {
         self.limit(Resource::Role, limit)
     }
 
     /// Sets the limit of [`Resource::Emoji`], per guild (default [`Limit::Disabled`]).
+    ///
+    /// discord.js counterpart: the `GuildEmojiManager` entry of `Options.cacheWithLimits`.
     pub const fn emojis(self, limit: Limit) -> Self {
         self.limit(Resource::Emoji, limit)
     }
 
     /// Sets the limit of [`Resource::Sticker`], per guild (default [`Limit::Disabled`]).
+    ///
+    /// discord.js counterpart: the `GuildStickerManager` entry of `Options.cacheWithLimits`.
     pub const fn stickers(self, limit: Limit) -> Self {
         self.limit(Resource::Sticker, limit)
     }
 
     /// Sets the limit of [`Resource::Member`], per guild (default [`Limit::Disabled`]).
+    ///
+    /// discord.js counterpart: the `GuildMemberManager` entry of `Options.cacheWithLimits`.
     pub const fn members(self, limit: Limit) -> Self {
         self.limit(Resource::Member, limit)
     }
 
     /// Sets the limit of [`Resource::User`] (default [`Limit::Disabled`]).
+    ///
+    /// discord.js counterpart: the `UserManager` entry of `Options.cacheWithLimits`.
     pub const fn users(self, limit: Limit) -> Self {
         self.limit(Resource::User, limit)
     }
 
     /// Sets the limit of [`Resource::Message`], per channel (default [`Limit::Disabled`]).
+    ///
+    /// discord.js counterpart: the `MessageManager` entry of `Options.cacheWithLimits`.
     pub const fn messages(self, limit: Limit) -> Self {
         self.limit(Resource::Message, limit)
     }
 
     /// Sets the limit of [`Resource::Presence`], per guild (default [`Limit::Disabled`]).
+    ///
+    /// discord.js counterpart: the `PresenceManager` entry of `Options.cacheWithLimits`.
     pub const fn presences(self, limit: Limit) -> Self {
         self.limit(Resource::Presence, limit)
     }
 
     /// Sets the limit of [`Resource::VoiceState`], per guild (default [`Limit::Disabled`]).
+    ///
+    /// discord.js counterpart: the `VoiceStateManager` entry of `Options.cacheWithLimits`.
     pub const fn voice_states(self, limit: Limit) -> Self {
         self.limit(Resource::VoiceState, limit)
     }
 
     /// Sets the limit of [`Resource::ScheduledEvent`], per guild (default
     /// [`Limit::Disabled`]).
+    ///
+    /// discord.js counterpart: the `GuildScheduledEventManager` entry of `Options.cacheWithLimits`.
     pub const fn scheduled_events(self, limit: Limit) -> Self {
         self.limit(Resource::ScheduledEvent, limit)
     }
 
     /// Sets the limit of [`Resource::StageInstance`], per guild (default
     /// [`Limit::Disabled`]).
+    ///
+    /// discord.js counterpart: the `StageInstanceManager` entry of `Options.cacheWithLimits`.
     pub const fn stage_instances(self, limit: Limit) -> Self {
         self.limit(Resource::StageInstance, limit)
     }
 
     /// Sets the limit of [`Resource::SoundboardSound`], per guild (default
     /// [`Limit::Disabled`]).
+    ///
+    /// discord.js counterpart: the `GuildSoundboardSoundManager` entry of `Options.cacheWithLimits`.
     pub const fn soundboard_sounds(self, limit: Limit) -> Self {
         self.limit(Resource::SoundboardSound, limit)
     }
@@ -437,6 +479,8 @@ impl CacheConfigBuilder {
     }
 
     /// Builds the configuration.
+    ///
+    /// discord.js counterpart: `Options.cacheWithLimits`.
     #[must_use]
     pub fn build(self) -> CacheConfig {
         self.config
@@ -475,6 +519,8 @@ pub struct Sweep {
 
 impl Sweep {
     /// Creates a sweep running every `interval` over entries older than `lifetime`.
+    ///
+    /// discord.js counterpart: a `SweeperDefinitions` entry with `interval` and `lifetime`.
     #[must_use]
     pub const fn new(interval: Duration, lifetime: Duration) -> Self {
         Self { interval, lifetime }

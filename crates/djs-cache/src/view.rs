@@ -61,6 +61,8 @@ where
     }
 
     /// Returns whether the resource is cached at all.
+    ///
+    /// discord.js counterpart: none (a manager's cache always exists in discord.js).
     #[must_use]
     pub const fn is_enabled(&self) -> bool {
         self.entries.is_some()
@@ -91,18 +93,24 @@ where
     }
 
     /// Returns whether nothing is cached.
+    ///
+    /// discord.js counterpart: `cache.size === 0`.
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
     /// Returns the IDs of every cached entry, in no particular order.
+    ///
+    /// discord.js counterpart: `Collection#keys` of a manager's `cache`.
     #[must_use]
     pub fn keys(&self) -> Vec<K> {
         self.entries.map(Global::keys).unwrap_or_default()
     }
 
     /// Returns every cached entry, in no particular order.
+    ///
+    /// discord.js counterpart: `Collection#values` of a manager's `cache`.
     #[must_use]
     pub fn values(&self) -> Vec<Arc<V>> {
         self.entries.map(Global::values).unwrap_or_default()
@@ -178,12 +186,16 @@ where
     }
 
     /// Returns the guild this view is about.
+    ///
+    /// discord.js counterpart: a guild manager's `guild`.
     #[must_use]
     pub const fn guild_id(&self) -> GuildId {
         self.guild_id
     }
 
     /// Returns whether the resource is cached at all.
+    ///
+    /// discord.js counterpart: none (a manager's cache always exists in discord.js).
     #[must_use]
     pub const fn is_enabled(&self) -> bool {
         self.entries.is_some()
@@ -215,12 +227,16 @@ where
     }
 
     /// Returns whether nothing of the guild is cached.
+    ///
+    /// discord.js counterpart: `cache.size === 0`.
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
     /// Returns the IDs of the guild's cached entries, in no particular order.
+    ///
+    /// discord.js counterpart: `Collection#keys` of a guild manager's `cache`.
     #[must_use]
     pub fn keys(&self) -> Vec<K> {
         self.entries
@@ -229,6 +245,8 @@ where
     }
 
     /// Returns the guild's cached entries, in no particular order.
+    ///
+    /// discord.js counterpart: `Collection#values` of a guild manager's `cache`.
     #[must_use]
     pub fn values(&self) -> Vec<Arc<V>> {
         self.entries
@@ -298,12 +316,16 @@ where
     }
 
     /// Returns the channel this view is about.
+    ///
+    /// discord.js counterpart: a channel manager's `channel`.
     #[must_use]
     pub const fn channel_id(&self) -> ChannelId {
         self.channel_id
     }
 
     /// Returns whether the resource is cached at all.
+    ///
+    /// discord.js counterpart: none (a manager's cache always exists in discord.js).
     #[must_use]
     pub const fn is_enabled(&self) -> bool {
         self.entries.is_some()
@@ -335,12 +357,16 @@ where
     }
 
     /// Returns whether nothing of the channel is cached.
+    ///
+    /// discord.js counterpart: `cache.size === 0`.
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
     /// Returns the IDs of the channel's cached entries, in no particular order.
+    ///
+    /// discord.js counterpart: `Collection#keys` of `MessageManager#cache`.
     #[must_use]
     pub fn keys(&self) -> Vec<K> {
         self.entries
@@ -349,6 +375,8 @@ where
     }
 
     /// Returns the channel's cached entries, in no particular order.
+    ///
+    /// discord.js counterpart: `Collection#values` of `MessageManager#cache`.
     #[must_use]
     pub fn values(&self) -> Vec<Arc<V>> {
         self.entries

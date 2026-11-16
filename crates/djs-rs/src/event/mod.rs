@@ -166,6 +166,8 @@ macro_rules! events {
         ///
         /// [`Raw`] is only delivered to handlers, never to event streams (they already receive
         /// every event).
+        ///
+        /// discord.js counterpart: none (one variant per member of `Events`).
         #[derive(Clone, Debug)]
         #[non_exhaustive]
         pub enum Dispatch {
@@ -203,6 +205,8 @@ macro_rules! events {
 ///
 /// Implemented by the zero-sized event types on [`Events`]; sealed, so the set of events is
 /// controlled by this crate.
+///
+/// discord.js counterpart: a member of `Events` (each one a type here).
 pub trait Event: Copy + Send + Sync + 'static + sealed::Sealed {
     /// The data a handler of this event receives (behind an `Arc`).
     type Payload: Send + Sync + 'static;
@@ -812,6 +816,8 @@ events! {
 
 /// An event delivered by [`Client::events`](crate::Client::events): the shard it came from
 /// and the event.
+///
+/// discord.js counterpart: none (some discord.js events pass a `shardId` argument).
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct ShardEvent {

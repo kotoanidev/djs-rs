@@ -41,6 +41,8 @@ impl ShardId {
 
     /// Creates a shard ID.
     ///
+    /// discord.js counterpart: `ShardClientUtil.shardIdForGuildId`'s numbers.
+    ///
     /// # Panics
     ///
     /// Panics if `total` is `0` or `number >= total`.
@@ -54,6 +56,8 @@ impl ShardId {
     }
 
     /// Creates a shard ID, returning `None` if `total` is `0` or `number >= total`.
+    ///
+    /// discord.js counterpart: none (discord.js keeps shard IDs as numbers).
     #[must_use]
     pub const fn new_checked(number: u32, total: u32) -> Option<Self> {
         if number < total {
@@ -82,12 +86,16 @@ impl ShardId {
     }
 
     /// Returns the shard number (zero-based).
+    ///
+    /// discord.js counterpart: `WebSocketShard#id` (`@discordjs/ws`).
     #[must_use]
     pub const fn number(self) -> u32 {
         self.number
     }
 
     /// Returns the total number of shards.
+    ///
+    /// discord.js counterpart: `ShardClientUtil#count`.
     #[must_use]
     pub const fn total(self) -> u32 {
         self.total

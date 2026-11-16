@@ -12,6 +12,8 @@ use crate::application_identity_profile::ProfileData;
 ///
 /// Contains floats, so it is `PartialEq` but not `Eq` (D-064).
 ///
+/// discord.js counterpart: `RESTPatchAPIApplicationIdentityProfileJSONBody` (discord-api-types).
+///
 /// # Examples
 ///
 /// ```
@@ -34,6 +36,8 @@ pub struct UpdateApplicationIdentityProfile {
 }
 
 /// The query of [Get Application Identities by External ID](https://docs.discord.com/developers/resources/application-identity-profile#get-application-identities-by-external-id).
+///
+/// discord.js counterpart: `RESTGetAPIApplicationIdentitiesQuery` (discord-api-types).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub struct GetApplicationIdentitiesByExternalId {
@@ -42,6 +46,8 @@ pub struct GetApplicationIdentitiesByExternalId {
 }
 
 /// The optional body of [Delete Application Identity](https://docs.discord.com/developers/resources/application-identity-profile#delete-application-identity).
+///
+/// discord.js counterpart: `RESTPostAPIApplicationIdentityDeleteJSONBody` (discord-api-types).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize)]
 #[non_exhaustive]
 pub struct DeleteApplicationIdentity {

@@ -150,6 +150,8 @@ pub struct Action {
 /// ```
 impl Action {
     /// Blocks the message with Discord's default explanation.
+    ///
+    /// discord.js counterpart: an `AutoModerationActionOptions` of type `AutoModerationActionType.BlockMessage`.
     #[must_use]
     pub const fn block_message() -> Self {
         Self {
@@ -159,6 +161,8 @@ impl Action {
     }
 
     /// Blocks the message and shows `custom_message` (up to 150 characters) to the member.
+    ///
+    /// discord.js counterpart: an `AutoModerationActionOptions` of type `AutoModerationActionType.BlockMessage`, with `customMessage`.
     #[must_use]
     pub fn block_message_with(custom_message: impl Into<CompactString>) -> Self {
         Self {
@@ -171,6 +175,8 @@ impl Action {
     }
 
     /// Logs the content to `channel_id`.
+    ///
+    /// discord.js counterpart: an `AutoModerationActionOptions` of type `AutoModerationActionType.SendAlertMessage`.
     #[must_use]
     pub const fn send_alert_message(channel_id: ChannelId) -> Self {
         Self {
@@ -185,6 +191,8 @@ impl Action {
 
     /// Times the member out for `duration_seconds` (up to 2 419 200, four weeks). Only for
     /// `Keyword` and `MentionSpam` rules; needs the `MODERATE_MEMBERS` permission.
+    ///
+    /// discord.js counterpart: an `AutoModerationActionOptions` of type `AutoModerationActionType.Timeout`.
     #[must_use]
     pub const fn timeout(duration_seconds: u32) -> Self {
         Self {
@@ -198,6 +206,8 @@ impl Action {
     }
 
     /// Stops the member from using text, voice and other interactions.
+    ///
+    /// discord.js counterpart: an `AutoModerationActionOptions` of type `AutoModerationActionType.BlockMemberInteraction`.
     #[must_use]
     pub const fn block_member_interaction() -> Self {
         Self {

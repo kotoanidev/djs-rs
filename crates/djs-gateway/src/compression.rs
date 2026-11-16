@@ -5,6 +5,8 @@ use std::io;
 /// Transport compression applied by Discord to everything it sends on the connection.
 ///
 /// See [transport compression](https://docs.discord.com/developers/events/gateway#transport-compression).
+///
+/// discord.js counterpart: `CompressionMethod` (`@discordjs/ws`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum Compression {

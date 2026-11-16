@@ -111,6 +111,8 @@ pub enum InteractionResponse {
 impl InteractionResponse {
     /// Returns the files to upload with the response (those of its message data); empty for
     /// responses without a message.
+    ///
+    /// discord.js counterpart: the `files` of `InteractionReplyOptions`.
     #[must_use]
     pub fn files(&self) -> &[FileUpload] {
         match self {
@@ -120,6 +122,8 @@ impl InteractionResponse {
     }
 
     /// Returns the response type.
+    ///
+    /// discord.js counterpart: `InteractionResponseType` (discord-api-types).
     #[must_use]
     pub const fn kind(&self) -> InteractionCallbackType {
         match self {
@@ -373,6 +377,8 @@ setters::message_body!(MessageCallbackData {
 
 /// The data of a [deferred message response](InteractionResponse::DeferredChannelMessageWithSource):
 /// only the flags of the message that follows.
+///
+/// discord.js counterpart: the `data` of `APIInteractionResponseDeferredChannelMessageWithSource` (discord-api-types).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub struct DeferredCallbackData {
@@ -383,6 +389,8 @@ pub struct DeferredCallbackData {
 
 impl DeferredCallbackData {
     /// Creates the data with the given flags.
+    ///
+    /// discord.js counterpart: `InteractionDeferReplyOptions`.
     #[must_use]
     pub const fn new(flags: MessageFlags) -> Self {
         Self { flags }
@@ -391,6 +399,8 @@ impl DeferredCallbackData {
 
 /// The [data of an autocomplete response](https://docs.discord.com/developers/interactions/receiving-and-responding#interaction-response-object-autocomplete):
 /// the suggested choices.
+///
+/// discord.js counterpart: `APICommandAutocompleteInteractionResponseCallbackData` (discord-api-types).
 ///
 /// # Examples
 ///
@@ -417,6 +427,8 @@ pub struct AutocompleteCallbackData {
 
 impl AutocompleteCallbackData {
     /// Creates the data.
+    ///
+    /// discord.js counterpart: `AutocompleteInteraction#respond`.
     #[must_use]
     pub const fn new(choices: AutocompleteChoices) -> Self {
         Self { choices }
@@ -424,6 +436,8 @@ impl AutocompleteCallbackData {
 }
 
 /// Autocomplete suggestions, typed like the option being completed.
+///
+/// discord.js counterpart: the `choices` of `APICommandAutocompleteInteractionResponseCallbackData` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(untagged)]
 #[non_exhaustive]
@@ -494,6 +508,8 @@ pub struct ModalCallbackData {
 
 impl ModalCallbackData {
     /// Creates the data.
+    ///
+    /// discord.js counterpart: `ModalBuilder` (`@discordjs/builders`).
     #[must_use]
     pub fn new(
         custom_id: impl Into<CompactString>,
@@ -570,6 +586,8 @@ pub struct CallbackResource {
 
 /// The [Activity instance](https://docs.discord.com/developers/interactions/receiving-and-responding#interaction-callback-interaction-callback-activity-instance-resource)
 /// a [`LaunchActivity`](InteractionResponse::LaunchActivity) response launched.
+///
+/// discord.js counterpart: `RESTAPIInteractionCallbackActivityInstanceResource` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct ActivityInstanceResource {

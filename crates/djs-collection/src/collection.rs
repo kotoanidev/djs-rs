@@ -78,6 +78,8 @@ impl<K, V> Collection<K, V> {
     }
 
     /// Creates an empty collection with room for `capacity` entries before it reallocates.
+    ///
+    /// discord.js counterpart: none (JavaScript maps have no capacity).
     #[must_use]
     pub fn with_capacity(capacity: usize) -> Self {
         Self::with_capacity_and_hasher(capacity, DefaultHashBuilder::default())
@@ -86,6 +88,8 @@ impl<K, V> Collection<K, V> {
 
 impl<K, V, S> Collection<K, V, S> {
     /// Creates an empty collection hashing keys with `hasher`.
+    ///
+    /// discord.js counterpart: none (JavaScript maps have no hasher).
     #[must_use]
     pub const fn with_hasher(hasher: S) -> Self {
         Self {
@@ -94,6 +98,8 @@ impl<K, V, S> Collection<K, V, S> {
     }
 
     /// Creates an empty collection with room for `capacity` entries, hashing with `hasher`.
+    ///
+    /// discord.js counterpart: none (JavaScript maps have no capacity or hasher).
     #[must_use]
     pub fn with_capacity_and_hasher(capacity: usize, hasher: S) -> Self {
         Self {
@@ -110,12 +116,16 @@ impl<K, V, S> Collection<K, V, S> {
     }
 
     /// Whether there are no entries.
+    ///
+    /// discord.js counterpart: `collection.size === 0`.
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.map.is_empty()
     }
 
     /// How many entries fit before the collection reallocates.
+    ///
+    /// discord.js counterpart: none (JavaScript maps have no capacity).
     #[must_use]
     pub fn capacity(&self) -> usize {
         self.map.capacity()
@@ -129,6 +139,8 @@ impl<K, V, S> Collection<K, V, S> {
     }
 
     /// The hasher keys are hashed with.
+    ///
+    /// discord.js counterpart: none (JavaScript maps have no hasher).
     #[must_use]
     pub fn hasher(&self) -> &S {
         self.map.hasher()
@@ -142,6 +154,8 @@ impl<K, V, S> Collection<K, V, S> {
     }
 
     /// The entries in order, with mutable values.
+    ///
+    /// discord.js counterpart: none (JavaScript values are mutated in place).
     pub fn iter_mut(&mut self) -> IterMut<'_, K, V> {
         IterMut(self.map.iter_mut())
     }
@@ -161,32 +175,44 @@ impl<K, V, S> Collection<K, V, S> {
     }
 
     /// The values in order, mutable.
+    ///
+    /// discord.js counterpart: none (JavaScript values are mutated in place).
     pub fn values_mut(&mut self) -> ValuesMut<'_, K, V> {
         ValuesMut(self.map.values_mut())
     }
 
     /// The keys in order, moved out of the collection.
+    ///
+    /// discord.js counterpart: `Map#keys`.
     pub fn into_keys(self) -> IntoKeys<K, V> {
         IntoKeys(self.map.into_keys())
     }
 
     /// The values in order, moved out of the collection.
+    ///
+    /// discord.js counterpart: `Map#values`.
     pub fn into_values(self) -> IntoValues<K, V> {
         IntoValues(self.map.into_values())
     }
 
     /// The inner `IndexMap`, for operations this type does not offer (D-217).
+    ///
+    /// discord.js counterpart: none (the `Map` a `Collection` extends).
     #[must_use]
     pub const fn as_index_map(&self) -> &IndexMap<K, V, S> {
         &self.map
     }
 
     /// The inner `IndexMap`, mutable (D-217).
+    ///
+    /// discord.js counterpart: none (the `Map` a `Collection` extends).
     pub const fn as_index_map_mut(&mut self) -> &mut IndexMap<K, V, S> {
         &mut self.map
     }
 
     /// Turns the collection into its inner `IndexMap` (D-217).
+    ///
+    /// discord.js counterpart: none (the `Map` a `Collection` extends).
     #[must_use]
     pub fn into_index_map(self) -> IndexMap<K, V, S> {
         self.map
@@ -444,6 +470,8 @@ where
     }
 
     /// The value of `key`, mutable.
+    ///
+    /// discord.js counterpart: none (JavaScript values are mutated in place).
     #[must_use]
     pub fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut V>
     where
@@ -454,6 +482,8 @@ where
     }
 
     /// The stored key equal to `key`, with its value.
+    ///
+    /// discord.js counterpart: none (`Map#get` returns the value only).
     #[must_use]
     pub fn get_key_value<Q>(&self, key: &Q) -> Option<(&K, &V)>
     where
@@ -476,6 +506,8 @@ where
     }
 
     /// The position of `key` in insertion order.
+    ///
+    /// discord.js counterpart: none (the inverse of `Collection#keyAt`).
     #[must_use]
     pub fn index_of<Q>(&self, key: &Q) -> Option<usize>
     where
@@ -510,6 +542,8 @@ where
     }
 
     /// Removes `key`, returning the stored key and its value, keeping the order.
+    ///
+    /// discord.js counterpart: `Map#delete`.
     pub fn remove_entry<Q>(&mut self, key: &Q) -> Option<(K, V)>
     where
         K: Borrow<Q>,
@@ -519,6 +553,8 @@ where
     }
 
     /// Removes `key` in O(1) by moving the last entry into its place, so the order changes.
+    ///
+    /// discord.js counterpart: none (`Map#delete` keeps the order).
     pub fn swap_remove<Q>(&mut self, key: &Q) -> Option<V>
     where
         K: Borrow<Q>,
@@ -569,6 +605,8 @@ where
 
     /// Keeps only the entries for which `keep(&key, &mut value)` is true, in one pass that
     /// keeps the order.
+    ///
+    /// discord.js counterpart: `Collection#sweep`, with the condition inverted.
     pub fn retain(&mut self, mut keep: impl FnMut(&K, &mut V) -> bool) {
         self.map.retain(|key, value| keep(key, value));
     }

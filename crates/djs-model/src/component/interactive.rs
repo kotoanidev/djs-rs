@@ -34,6 +34,8 @@ pub enum Button {
 
 impl Button {
     /// Returns the component's numeric identifier, if set.
+    ///
+    /// discord.js counterpart: `ButtonComponent#id`.
     #[must_use]
     pub const fn id(&self) -> Option<i32> {
         match self {
@@ -45,6 +47,8 @@ impl Button {
     }
 
     /// Returns the button's style.
+    ///
+    /// discord.js counterpart: `ButtonComponent#style`.
     #[must_use]
     pub const fn style(&self) -> ButtonStyle {
         match self {
@@ -56,6 +60,8 @@ impl Button {
     }
 
     /// Returns the developer-defined identifier of an interactive button.
+    ///
+    /// discord.js counterpart: `ButtonComponent#customId`.
     #[must_use]
     pub fn custom_id(&self) -> Option<&str> {
         match self {
@@ -66,6 +72,8 @@ impl Button {
     }
 
     /// Whether the button is disabled.
+    ///
+    /// discord.js counterpart: `ButtonComponent#disabled`.
     #[must_use]
     pub const fn disabled(&self) -> bool {
         match self {
@@ -99,6 +107,8 @@ impl Serialize for Button {
 
 /// A button that sends an interaction with its [`custom_id`](Self::custom_id) when clicked
 /// (styles [`Primary`](ButtonStyle::Primary) to [`Danger`](ButtonStyle::Danger)).
+///
+/// discord.js counterpart: `APIButtonComponentWithCustomId` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub struct InteractiveButton {
@@ -123,6 +133,8 @@ pub struct InteractiveButton {
 
 impl InteractiveButton {
     /// Creates an enabled button without label or emoji (set at least one before sending).
+    ///
+    /// discord.js counterpart: `ButtonBuilder` (`@discordjs/builders`).
     #[must_use]
     pub fn new(style: ButtonStyle, custom_id: impl Into<CompactString>) -> Self {
         Self {
@@ -137,6 +149,8 @@ impl InteractiveButton {
 }
 
 /// A button that opens a [`url`](Self::url) (style [`Link`](ButtonStyle::Link)).
+///
+/// discord.js counterpart: `APIButtonComponentWithURL` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub struct LinkButton {
@@ -158,6 +172,8 @@ pub struct LinkButton {
 
 impl LinkButton {
     /// Creates an enabled link button without label or emoji (set at least one before sending).
+    ///
+    /// discord.js counterpart: `ButtonBuilder` with `setURL` (`@discordjs/builders`).
     #[must_use]
     pub fn new(url: impl Into<CompactString>) -> Self {
         Self {
@@ -173,6 +189,8 @@ impl LinkButton {
 /// A button that starts the purchase of an [SKU](crate::sku) (style
 /// [`Premium`](ButtonStyle::Premium)). It shows the SKU's name and price; it cannot have a
 /// label or emoji.
+///
+/// discord.js counterpart: `APIButtonComponentWithSKUId` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub struct PremiumButton {
@@ -188,6 +206,8 @@ pub struct PremiumButton {
 
 impl PremiumButton {
     /// Creates an enabled premium button.
+    ///
+    /// discord.js counterpart: `ButtonBuilder` with `setSKUId` (`@discordjs/builders`).
     #[must_use]
     pub const fn new(sku_id: SkuId) -> Self {
         Self {
@@ -200,6 +220,8 @@ impl PremiumButton {
 
 /// A button whose style this version of the library does not know about; every button field is
 /// kept.
+///
+/// discord.js counterpart: none (a button style unknown to this version, kept as received).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub struct UnknownButton {
@@ -282,6 +304,8 @@ pub struct StringSelect {
 
 impl StringSelect {
     /// Creates a select menu with the given options.
+    ///
+    /// discord.js counterpart: `StringSelectMenuBuilder` (`@discordjs/builders`).
     #[must_use]
     pub fn new(custom_id: impl Into<CompactString>, options: Vec<SelectOption>) -> Self {
         Self {
@@ -320,6 +344,8 @@ pub struct SelectOption {
 
 impl SelectOption {
     /// Creates an option.
+    ///
+    /// discord.js counterpart: `StringSelectMenuOptionBuilder` (`@discordjs/builders`).
     #[must_use]
     pub fn new(label: impl Into<CompactString>, value: impl Into<CompactString>) -> Self {
         Self {
@@ -368,6 +394,8 @@ pub struct TextInput {
 
 impl TextInput {
     /// Creates a required text input.
+    ///
+    /// discord.js counterpart: `TextInputBuilder` (`@discordjs/builders`).
     #[must_use]
     pub fn new(custom_id: impl Into<CompactString>, style: TextInputStyle) -> Self {
         Self {
@@ -438,6 +466,8 @@ pub struct AutoPopulatedSelect {
 
 impl AutoPopulatedSelect {
     /// Creates a select menu.
+    ///
+    /// discord.js counterpart: `UserSelectMenuBuilder` and its siblings (`@discordjs/builders`).
     #[must_use]
     pub fn new(custom_id: impl Into<CompactString>) -> Self {
         Self {
@@ -490,6 +520,8 @@ pub struct ChannelSelect {
 
 impl ChannelSelect {
     /// Creates a channel select menu.
+    ///
+    /// discord.js counterpart: `ChannelSelectMenuBuilder` (`@discordjs/builders`).
     #[must_use]
     pub fn new(custom_id: impl Into<CompactString>) -> Self {
         Self {
@@ -522,6 +554,8 @@ pub struct SelectDefaultValue {
 
 impl SelectDefaultValue {
     /// Creates a default value.
+    ///
+    /// discord.js counterpart: `APISelectMenuDefaultValue` (discord-api-types).
     #[must_use]
     pub fn new(id: GenericId, kind: SelectDefaultValueType) -> Self {
         Self { id, kind }
@@ -571,6 +605,8 @@ pub struct FileUpload {
 
 impl FileUpload {
     /// Creates a required file upload for one file of any type.
+    ///
+    /// discord.js counterpart: `AttachmentBuilder`.
     #[must_use]
     pub fn new(custom_id: impl Into<CompactString>) -> Self {
         Self {
@@ -604,6 +640,8 @@ pub struct RadioGroup {
 
 impl RadioGroup {
     /// Creates a required radio group.
+    ///
+    /// discord.js counterpart: `APIRadioGroupComponent` (discord-api-types).
     #[must_use]
     pub fn new(custom_id: impl Into<CompactString>, options: Vec<GroupOption>) -> Self {
         Self {
@@ -641,6 +679,8 @@ pub struct CheckboxGroup {
 
 impl CheckboxGroup {
     /// Creates a required checkbox group.
+    ///
+    /// discord.js counterpart: `APICheckboxGroupComponent` (discord-api-types).
     #[must_use]
     pub fn new(custom_id: impl Into<CompactString>, options: Vec<GroupOption>) -> Self {
         Self {
@@ -656,6 +696,8 @@ impl CheckboxGroup {
 
 /// An option of a [`RadioGroup`] or [`CheckboxGroup`] (the docs define two identical
 /// structures).
+///
+/// discord.js counterpart: `APIRadioGroupOption` / `APICheckboxGroupOption` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, serde::Deserialize)]
 #[non_exhaustive]
 #[doc(alias = "RadioGroupOption", alias = "CheckboxGroupOption")]
@@ -674,6 +716,8 @@ pub struct GroupOption {
 
 impl GroupOption {
     /// Creates an option.
+    ///
+    /// discord.js counterpart: `APIRadioGroupOption` (discord-api-types).
     #[must_use]
     pub fn new(label: impl Into<CompactString>, value: impl Into<CompactString>) -> Self {
         Self {
@@ -704,6 +748,8 @@ pub struct Checkbox {
 
 impl Checkbox {
     /// Creates an unchecked checkbox.
+    ///
+    /// discord.js counterpart: `APICheckboxComponent` (discord-api-types).
     #[must_use]
     pub fn new(custom_id: impl Into<CompactString>) -> Self {
         Self {

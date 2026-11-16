@@ -102,6 +102,8 @@ pub trait UpdateCache: sealed::Sealed {
 
 /// The previous state returned by [`Cache::update_dispatch`]: the
 /// [`UpdateCache::Previous`] of the event, in a variant per kind.
+///
+/// discord.js counterpart: the old values discord.js' events pass (`oldMessage`, `oldMember`, …).
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub enum Previous {

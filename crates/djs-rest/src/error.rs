@@ -16,6 +16,8 @@ pub(crate) type BoxError = Box<dyn std::error::Error + Send + Sync>;
 /// stays cheap to move around. Inspect it with [`kind`](Self::kind), or use the shortcuts
 /// [`status`](Self::status) and [`api_error`](Self::api_error).
 ///
+/// discord.js counterpart: `DiscordAPIError`, `HTTPError` and `RateLimitError` (`@discordjs/rest`).
+///
 /// # Examples
 ///
 /// ```no_run
@@ -56,18 +58,24 @@ impl Error {
     }
 
     /// Returns what went wrong.
+    ///
+    /// discord.js counterpart: the class of the error `@discordjs/rest` rejects with (`DiscordAPIError`, `HTTPError`, `RateLimitError`).
     #[must_use]
     pub const fn kind(&self) -> &ErrorKind {
         &self.kind
     }
 
     /// Consumes the error, returning its kind and underlying source.
+    ///
+    /// discord.js counterpart: none (JavaScript errors are not taken apart).
     #[must_use]
     pub fn into_parts(self) -> (ErrorKind, Option<Box<dyn std::error::Error + Send + Sync>>) {
         (self.kind, self.source)
     }
 
     /// Returns the HTTP status code, if Discord responded with an error status.
+    ///
+    /// discord.js counterpart: `DiscordAPIError#status` (`@discordjs/rest`).
     #[must_use]
     pub fn status(&self) -> Option<StatusCode> {
         match &self.kind {
@@ -77,6 +85,8 @@ impl Error {
     }
 
     /// Returns the error body Discord sent, if any.
+    ///
+    /// discord.js counterpart: `DiscordAPIError#rawError` (`@discordjs/rest`).
     #[must_use]
     pub fn api_error(&self) -> Option<&ApiError> {
         match &self.kind {
@@ -87,6 +97,8 @@ impl Error {
 }
 
 /// The kind of an [`Error`].
+///
+/// discord.js counterpart: `DiscordAPIError`, `HTTPError` and `RateLimitError` (`@discordjs/rest`).
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum ErrorKind {

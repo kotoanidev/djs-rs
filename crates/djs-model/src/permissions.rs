@@ -302,6 +302,8 @@ impl Permissions {
     ///
     /// See [Permissions for Timed Out
     /// Members](https://docs.discord.com/developers/topics/permissions#permissions-for-timed-out-members).
+    ///
+    /// discord.js counterpart: none (discord.js applies the timeout inside `GuildMember#permissions`).
     #[must_use]
     pub const fn during_timeout(self) -> Self {
         if self.contains(Self::ADMINISTRATOR) {

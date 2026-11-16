@@ -52,6 +52,8 @@ const STICKER_PACK_APPLICATION: u64 = 710_982_414_301_790_216;
 /// An [image format](https://docs.discord.com/developers/reference#image-formatting-image-formats)
 /// (the file extension of the URL, D-139). Which formats an endpoint supports is listed on its
 /// method; GIF is only animated for animated hashes.
+///
+/// discord.js counterpart: `ImageFormat` (discord-api-types).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum ImageFormat {
@@ -67,6 +69,8 @@ pub enum ImageFormat {
 
 impl ImageFormat {
     /// The file extension, without the dot.
+    ///
+    /// discord.js counterpart: the `extension` of `ImageURLOptions` (`@discordjs/rest`).
     #[must_use]
     pub const fn extension(self) -> &'static str {
         match self {
@@ -79,6 +83,8 @@ impl ImageFormat {
 }
 
 /// The size of an image: a power of two from 16 to 4096 pixels (D-139).
+///
+/// discord.js counterpart: `ImageSize` (discord-api-types).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[non_exhaustive]
 pub enum ImageSize {
@@ -104,6 +110,8 @@ pub enum ImageSize {
 
 impl ImageSize {
     /// The size in pixels.
+    ///
+    /// discord.js counterpart: the `size` of `ImageURLOptions` (`@discordjs/rest`).
     #[must_use]
     pub const fn pixels(self) -> u16 {
         match self {
@@ -120,6 +128,8 @@ impl ImageSize {
     }
 
     /// The size for `pixels`, if it is a power of two from 16 to 4096.
+    ///
+    /// discord.js counterpart: the `size` of `ImageURLOptions` (`@discordjs/rest`).
     ///
     /// # Examples
     ///
@@ -147,6 +157,8 @@ impl ImageSize {
 }
 
 /// The format and size of an image URL.
+///
+/// discord.js counterpart: `ImageURLOptions` (`@discordjs/rest`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 #[must_use]
@@ -161,6 +173,8 @@ pub struct ImageOptions {
 
 impl ImageOptions {
     /// The default options: WebP (animated when the image is), original size.
+    ///
+    /// discord.js counterpart: `ImageURLOptions` (`@discordjs/rest`).
     pub const fn new() -> Self {
         Self {
             format: None,
@@ -170,18 +184,24 @@ impl ImageOptions {
     }
 
     /// Sets the format.
+    ///
+    /// discord.js counterpart: the `extension` of `ImageURLOptions` (`@discordjs/rest`).
     pub const fn format(mut self, format: ImageFormat) -> Self {
         self.format = Some(format);
         self
     }
 
     /// Sets the size.
+    ///
+    /// discord.js counterpart: the `size` of `ImageURLOptions` (`@discordjs/rest`).
     pub const fn size(mut self, size: ImageSize) -> Self {
         self.size = Some(size);
         self
     }
 
     /// Returns a still image even for an animated one.
+    ///
+    /// discord.js counterpart: the `forceStatic` of `ImageURLOptions` (`@discordjs/rest`).
     pub const fn force_static(mut self, force_static: bool) -> Self {
         self.force_static = force_static;
         self
@@ -191,6 +211,8 @@ impl ImageOptions {
 /// The index of the [default avatar](https://docs.discord.com/developers/reference#image-formatting-cdn-endpoints)
 /// of a user without one: `(user_id >> 22) % 6` for users on the new username system
 /// (discriminator `0`), `discriminator % 5` for the others.
+///
+/// discord.js counterpart: the index `User#defaultAvatarURL` uses.
 ///
 /// # Examples
 ///
@@ -211,6 +233,8 @@ pub const fn default_avatar_index(user_id: UserId, discriminator: u16) -> u8 {
 }
 
 /// Builds CDN URLs (D-137). See the [module](self) documentation.
+///
+/// discord.js counterpart: `CDN` (`@discordjs/rest`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Cdn {
     cdn: String,
@@ -226,6 +250,8 @@ impl Default for Cdn {
 
 impl Cdn {
     /// A CDN with other base URLs (e.g. a proxy). Trailing slashes are ignored.
+    ///
+    /// discord.js counterpart: `new CDN(cdn, mediaProxy)` (`@discordjs/rest`).
     #[must_use]
     pub fn new(cdn: impl Into<String>, media_proxy: impl Into<String>) -> Self {
         let trim = |mut url: String| {
@@ -240,12 +266,16 @@ impl Cdn {
     }
 
     /// The CDN base URL.
+    ///
+    /// discord.js counterpart: the `cdn` option of `RESTOptions` (`@discordjs/rest`).
     #[must_use]
     pub fn base(&self) -> &str {
         &self.cdn
     }
 
     /// The media proxy base URL.
+    ///
+    /// discord.js counterpart: the `mediaProxy` option of `RESTOptions` (`@discordjs/rest`).
     #[must_use]
     pub fn media_proxy(&self) -> &str {
         &self.media_proxy

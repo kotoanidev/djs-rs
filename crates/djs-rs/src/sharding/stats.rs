@@ -65,6 +65,8 @@ pub struct ShardStats {
 
 /// The connection state of a shard in a [`ShardStats`]: its
 /// [`ShardState`](djs_gateway::ShardState), which crosses the processes.
+///
+/// discord.js counterpart: `Status`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]

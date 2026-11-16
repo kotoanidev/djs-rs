@@ -70,6 +70,8 @@ use crate::{
 ///
 /// This trait is sealed.
 ///
+/// discord.js counterpart: the methods of `Message`.
+///
 /// # Examples
 ///
 /// ```no_run
@@ -396,6 +398,8 @@ impl MessageExt for CachedMessage {}
 ///
 /// This trait is sealed.
 ///
+/// discord.js counterpart: the methods of `BaseChannel` and its subclasses.
+///
 /// # Examples
 ///
 /// ```no_run
@@ -676,6 +680,8 @@ impl ChannelExt for Channel {}
 ///
 /// This trait is sealed.
 ///
+/// discord.js counterpart: the methods of `User`.
+///
 /// # Examples
 ///
 /// ```no_run
@@ -725,6 +731,8 @@ impl UserExt for CachedUser {}
 /// [`Events::GuildMemberUpdate`](crate::Events::GuildMemberUpdate).
 ///
 /// This trait is sealed.
+///
+/// discord.js counterpart: the methods of `GuildMember`.
 ///
 /// # Examples
 ///
@@ -931,6 +939,8 @@ impl MemberExt for GuildMemberUpdate {}
 ///
 /// This trait is sealed.
 ///
+/// discord.js counterpart: the methods and managers of `Guild`.
+///
 /// # Examples
 ///
 /// ```no_run
@@ -1129,6 +1139,8 @@ impl GuildExt for CachedGuild {}
 ///
 /// This trait is sealed.
 ///
+/// discord.js counterpart: the methods of `Webhook`.
+///
 /// # Examples
 ///
 /// ```no_run
@@ -1206,6 +1218,8 @@ impl WebhookExt for Webhook {}
 /// dereferences to the interaction.
 ///
 /// This trait is sealed.
+///
+/// discord.js counterpart: the methods of `CommandInteraction`, `MessageComponentInteraction` and `ModalSubmitInteraction`.
 ///
 /// # The order of responses
 ///

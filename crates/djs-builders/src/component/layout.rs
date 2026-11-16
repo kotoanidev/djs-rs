@@ -85,6 +85,8 @@ impl ContainerBuilder {
     }
 
     /// Adds several components.
+    ///
+    /// discord.js counterpart: `ContainerBuilder#addTextDisplayComponents` and its siblings.
     pub fn components<C: Into<Component>>(
         mut self,
         components: impl IntoIterator<Item = C>,

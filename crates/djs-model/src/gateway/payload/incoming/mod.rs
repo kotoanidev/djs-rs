@@ -149,6 +149,8 @@ use guild_id_event;
 
 /// The data of a [Hello](https://docs.discord.com/developers/events/gateway-events#hello) event
 /// (opcode 10), sent immediately after the WebSocket connection opens.
+///
+/// discord.js counterpart: `GatewayHello` (discord-api-types).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct Hello {
@@ -186,6 +188,8 @@ pub struct Ready {
 }
 
 /// The partial application included in [`Ready`]: its ID and flags.
+///
+/// discord.js counterpart: the `application` of `GatewayReadyDispatchData` (discord-api-types).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct ReadyApplication {
@@ -205,6 +209,8 @@ pub struct ReadyApplication {
 
 /// The data of the [Rate Limited](https://docs.discord.com/developers/events/gateway-events#rate-limited)
 /// dispatch event: a gateway command was rate limited.
+///
+/// discord.js counterpart: `GatewayRateLimitedDispatchData` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct RateLimited {
@@ -219,6 +225,8 @@ pub struct RateLimited {
 }
 
 /// The [metadata of a rate-limited `REQUEST_GUILD_MEMBERS`](https://docs.discord.com/developers/events/gateway-events#rate-limited-request-guild-member-rate-limit-metadata-structure).
+///
+/// discord.js counterpart: `GatewayRateLimitedMetadata` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct RateLimitMetadata {

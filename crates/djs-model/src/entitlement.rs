@@ -44,6 +44,8 @@ pub struct Entitlement {
 impl Entitlement {
     /// Whether the entitlement grants access at `now`: not deleted, not consumed, and within
     /// its validity period (open ends count as unbounded).
+    ///
+    /// discord.js counterpart: `Entitlement#isActive`.
     #[must_use]
     pub fn is_active(&self, now: Timestamp) -> bool {
         !self.deleted

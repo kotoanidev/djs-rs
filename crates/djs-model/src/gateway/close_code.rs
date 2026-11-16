@@ -47,6 +47,8 @@ impl CloseCode {
     /// Unknown codes are assumed to allow reconnecting, matching the documented behaviour of
     /// unexpected disconnects.
     ///
+    /// discord.js counterpart: none (`@discordjs/ws` decides inside the shard).
+    ///
     /// # Examples
     ///
     /// ```

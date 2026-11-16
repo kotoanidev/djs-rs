@@ -178,6 +178,8 @@ pub enum CommandOption {
 }
 
 /// The fields every [`CommandOption`] has, as returned by [`CommandOption::common`].
+///
+/// discord.js counterpart: none (a borrowed view of the fields every `APIApplicationCommandOption` has).
 #[derive(Clone, Copy, Debug)]
 #[non_exhaustive]
 pub struct OptionInfo<'a> {
@@ -271,6 +273,8 @@ macro_rules! common_fields {
 
 impl CommandOption {
     /// Returns the option's type.
+    ///
+    /// discord.js counterpart: the `type` of `ApplicationCommandOption`.
     #[must_use]
     pub const fn kind(&self) -> CommandOptionType {
         match self {
@@ -290,18 +294,24 @@ impl CommandOption {
     }
 
     /// Returns the fields every option has (name, description and their translations).
+    ///
+    /// discord.js counterpart: none (the fields every `APIApplicationCommandOption` has).
     #[must_use]
     pub fn common(&self) -> OptionInfo<'_> {
         common_fields!(self)
     }
 
     /// Returns the option's name.
+    ///
+    /// discord.js counterpart: the `name` of `ApplicationCommandOption`.
     #[must_use]
     pub fn name(&self) -> &str {
         self.common().name
     }
 
     /// Returns the nested options of a subcommand or subcommand group (empty otherwise).
+    ///
+    /// discord.js counterpart: `ApplicationCommandSubCommand#options`.
     #[must_use]
     pub fn options(&self) -> &[Self] {
         match self {
@@ -343,6 +353,8 @@ int_enum! {
 }
 
 /// A subcommand or a subcommand group.
+///
+/// discord.js counterpart: `APIApplicationCommandSubcommandOption` / `APIApplicationCommandSubcommandGroupOption` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct SubCommandOption {
@@ -372,6 +384,8 @@ impl SubCommandOption {
     /// Creates a subcommand or a subcommand group, named `name` and described by `description`, without translations.
     ///
     /// Nothing is validated; `djs-builders` checks Discord's rules.
+    ///
+    /// discord.js counterpart: `SlashCommandSubcommandBuilder` (`@discordjs/builders`).
     #[must_use]
     pub fn new(name: impl Into<CompactString>, description: impl Into<CompactString>) -> Self {
         Self {
@@ -387,6 +401,8 @@ impl SubCommandOption {
 }
 
 /// A string option.
+///
+/// discord.js counterpart: `APIApplicationCommandStringOption` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub struct StringOption {
@@ -429,6 +445,8 @@ impl StringOption {
     /// Creates an optional string option without choices or bounds, named `name` and described by `description`, without translations.
     ///
     /// Nothing is validated; `djs-builders` checks Discord's rules.
+    ///
+    /// discord.js counterpart: `SlashCommandStringOption` (`@discordjs/builders`).
     #[must_use]
     pub fn new(name: impl Into<CompactString>, description: impl Into<CompactString>) -> Self {
         Self {
@@ -448,6 +466,8 @@ impl StringOption {
 }
 
 /// An integer option.
+///
+/// discord.js counterpart: `APIApplicationCommandIntegerOption` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub struct IntegerOption {
@@ -489,6 +509,8 @@ impl IntegerOption {
     /// Creates an optional integer option without choices or bounds, named `name` and described by `description`, without translations.
     ///
     /// Nothing is validated; `djs-builders` checks Discord's rules.
+    ///
+    /// discord.js counterpart: `SlashCommandIntegerOption` (`@discordjs/builders`).
     #[must_use]
     pub fn new(name: impl Into<CompactString>, description: impl Into<CompactString>) -> Self {
         Self {
@@ -508,6 +530,8 @@ impl IntegerOption {
 }
 
 /// A number (double) option.
+///
+/// discord.js counterpart: `APIApplicationCommandNumberOption` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct NumberOption {
@@ -549,6 +573,8 @@ impl NumberOption {
     /// Creates an optional number option without choices or bounds, named `name` and described by `description`, without translations.
     ///
     /// Nothing is validated; `djs-builders` checks Discord's rules.
+    ///
+    /// discord.js counterpart: `SlashCommandNumberOption` (`@discordjs/builders`).
     #[must_use]
     pub fn new(name: impl Into<CompactString>, description: impl Into<CompactString>) -> Self {
         Self {
@@ -568,6 +594,8 @@ impl NumberOption {
 }
 
 /// A boolean, user, role or mentionable option (they share this structure).
+///
+/// discord.js counterpart: `APIApplicationCommandBasicOption` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub struct BasicOption {
@@ -597,6 +625,8 @@ impl BasicOption {
     /// Creates an optional boolean, user, role or mentionable option, named `name` and described by `description`, without translations.
     ///
     /// Nothing is validated; `djs-builders` checks Discord's rules.
+    ///
+    /// discord.js counterpart: `SlashCommandBooleanOption` and its siblings (`@discordjs/builders`).
     #[must_use]
     pub fn new(name: impl Into<CompactString>, description: impl Into<CompactString>) -> Self {
         Self {
@@ -612,6 +642,8 @@ impl BasicOption {
 }
 
 /// A channel option.
+///
+/// discord.js counterpart: `APIApplicationCommandChannelOption` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub struct ChannelOption {
@@ -644,6 +676,8 @@ impl ChannelOption {
     /// Creates an optional channel option offering every channel type, named `name` and described by `description`, without translations.
     ///
     /// Nothing is validated; `djs-builders` checks Discord's rules.
+    ///
+    /// discord.js counterpart: `SlashCommandChannelOption` (`@discordjs/builders`).
     #[must_use]
     pub fn new(name: impl Into<CompactString>, description: impl Into<CompactString>) -> Self {
         Self {
@@ -660,6 +694,8 @@ impl ChannelOption {
 }
 
 /// An attachment option.
+///
+/// discord.js counterpart: `APIApplicationCommandAttachmentOption` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub struct AttachmentOption {
@@ -693,6 +729,8 @@ impl AttachmentOption {
     /// Creates an optional attachment option accepting every file type, named `name` and described by `description`, without translations.
     ///
     /// Nothing is validated; `djs-builders` checks Discord's rules.
+    ///
+    /// discord.js counterpart: `SlashCommandAttachmentOption` (`@discordjs/builders`).
     #[must_use]
     pub fn new(name: impl Into<CompactString>, description: impl Into<CompactString>) -> Self {
         Self {
@@ -710,6 +748,8 @@ impl AttachmentOption {
 
 /// An option of a type this version of the library does not know about; the fields every
 /// option has are kept.
+///
+/// discord.js counterpart: none (an option type unknown to this version, kept as received).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub struct UnknownOption {
@@ -761,6 +801,8 @@ pub struct Choice<T> {
 
 impl<T> Choice<T> {
     /// Creates a choice without translations.
+    ///
+    /// discord.js counterpart: `ApplicationCommandOptionChoiceData`.
     #[must_use]
     pub fn new(name: impl Into<CompactString>, value: T) -> Self {
         Self {
@@ -1077,6 +1119,8 @@ pub struct CommandPermission {
 
 impl CommandPermission {
     /// Creates a permission.
+    ///
+    /// discord.js counterpart: `ApplicationCommandPermissions`.
     #[must_use]
     pub const fn new(id: GenericId, kind: CommandPermissionType, permission: bool) -> Self {
         Self {
@@ -1087,6 +1131,8 @@ impl CommandPermission {
     }
 
     /// The ID that stands for `@everyone` (all members) in `guild_id`: the guild ID itself.
+    ///
+    /// discord.js counterpart: `Guild#roles.everyone`'s ID (the guild's ID).
     #[must_use]
     pub const fn everyone(guild_id: GuildId) -> GenericId {
         guild_id.cast()
@@ -1094,6 +1140,8 @@ impl CommandPermission {
 
     /// The ID that stands for all channels in `guild_id`: the guild ID minus one, or `None`
     /// for the (impossible) guild ID `1`.
+    ///
+    /// discord.js counterpart: none (discord.js leaves the guild ID minus one to the bot).
     #[must_use]
     pub const fn all_channels(guild_id: GuildId) -> Option<GenericId> {
         GenericId::new_checked(guild_id.get() - 1)

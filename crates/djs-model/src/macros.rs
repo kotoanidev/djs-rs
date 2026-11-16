@@ -41,6 +41,8 @@ macro_rules! int_enum {
 
         impl $name {
             /// Returns the raw integer value Discord uses for this variant.
+            ///
+            /// discord.js counterpart: the enum's numeric value in discord-api-types.
             #[must_use]
             pub const fn value(self) -> $repr {
                 match self {
@@ -50,12 +52,16 @@ macro_rules! int_enum {
             }
 
             /// Returns `true` if this is a value the library does not know about.
+            ///
+            /// discord.js counterpart: none (discord.js passes unknown numbers through).
             #[must_use]
             pub const fn is_unknown(self) -> bool {
                 matches!(Self::from_value(self.value()), Self::Unknown(_))
             }
 
             /// Converts a raw value into the matching variant, or [`Self::Unknown`].
+            ///
+            /// discord.js counterpart: none (discord.js passes unknown numbers through).
             #[must_use]
             pub const fn from_value(value: $repr) -> Self {
                 match value {
@@ -200,6 +206,8 @@ macro_rules! str_enum {
 
         impl $name {
             /// Returns the string Discord uses for this value.
+            ///
+            /// discord.js counterpart: the enum's string value in discord-api-types.
             #[must_use]
             pub fn as_str(&self) -> &str {
                 match self {
@@ -209,6 +217,8 @@ macro_rules! str_enum {
             }
 
             /// Returns `true` for a value this version of the library does not know about.
+            ///
+            /// discord.js counterpart: none (discord.js passes unknown strings through).
             #[must_use]
             pub const fn is_unknown(&self) -> bool {
                 matches!(self, Self::Unknown(_))

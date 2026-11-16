@@ -5,6 +5,8 @@ use serde::Serialize;
 use crate::id::{ScheduledEventId, UserId};
 
 /// The query of [Get Invite](https://docs.discord.com/developers/resources/invite#get-invite).
+///
+/// discord.js counterpart: `RESTGetAPIInviteQuery` (discord-api-types).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub struct GetInvite {
@@ -16,6 +18,8 @@ pub struct GetInvite {
 
 /// The body of [Bulk-Add Target Users](https://docs.discord.com/developers/resources/invite#bulk-add-target-users)
 /// and [Bulk-Delete Target Users](https://docs.discord.com/developers/resources/invite#bulk-delete-target-users).
+///
+/// discord.js counterpart: `RESTPutAPIInviteTargetUsersFormDataBody` (discord-api-types).
 ///
 /// # Examples
 ///
@@ -35,6 +39,8 @@ pub struct BulkTargetUsers {
 
 impl BulkTargetUsers {
     /// Adds or removes `user_ids` (max 1000).
+    ///
+    /// discord.js counterpart: `RESTPutAPIInviteTargetUsersFormDataBody` (discord-api-types).
     #[must_use]
     pub fn new(user_ids: impl IntoIterator<Item = UserId>) -> Self {
         Self {

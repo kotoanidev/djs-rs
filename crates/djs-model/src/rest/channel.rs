@@ -188,6 +188,8 @@ pub struct ForumTagData {
 
 impl ForumTagData {
     /// A new tag named `name`, without an emoji.
+    ///
+    /// discord.js counterpart: `GuildForumTagData`.
     #[must_use]
     pub fn new(name: impl Into<CompactString>) -> Self {
         Self {
@@ -228,6 +230,8 @@ impl From<&ForumTag> for ForumTagData {
 
 /// The query of [Get Channel Member Permissions](https://docs.discord.com/developers/resources/channel#get-channel-member-permissions)
 /// and [Get Channel Role Permissions](https://docs.discord.com/developers/resources/channel#get-channel-role-permissions).
+///
+/// discord.js counterpart: `RESTGetAPIChannelMemberPermissionsQuery` (discord-api-types).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub struct GetChannelPermissions {
@@ -238,6 +242,8 @@ pub struct GetChannelPermissions {
 }
 
 /// The body of [Set Voice Channel Status](https://docs.discord.com/developers/resources/channel#set-voice-channel-status).
+///
+/// discord.js counterpart: `RESTPutAPIChannelVoiceStatusJSONBody` (discord-api-types).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize)]
 #[non_exhaustive]
 pub struct SetVoiceChannelStatus {
@@ -247,6 +253,8 @@ pub struct SetVoiceChannelStatus {
 
 impl SetVoiceChannelStatus {
     /// Sets the status to `status`, or removes it.
+    ///
+    /// discord.js counterpart: `RESTPutAPIChannelVoiceStatusJSONBody` (discord-api-types).
     #[must_use]
     pub fn new(status: Option<impl Into<CompactString>>) -> Self {
         Self {
@@ -285,6 +293,8 @@ pub struct EditChannelPermissions {
 
 impl EditChannelPermissions {
     /// An overwrite for a role or member that allows and denies nothing yet.
+    ///
+    /// discord.js counterpart: `PermissionOverwriteOptions`.
     #[must_use]
     pub const fn new(kind: OverwriteType) -> Self {
         Self {
@@ -342,6 +352,8 @@ pub struct CreateChannelInvite {
 }
 
 /// The body of [Follow Announcement Channel](https://docs.discord.com/developers/resources/channel#follow-announcement-channel).
+///
+/// discord.js counterpart: `RESTPostAPIChannelFollowersJSONBody` (discord-api-types).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
 #[non_exhaustive]
 pub struct FollowAnnouncementChannel {
@@ -351,6 +363,8 @@ pub struct FollowAnnouncementChannel {
 
 impl FollowAnnouncementChannel {
     /// Follows into `webhook_channel_id`.
+    ///
+    /// discord.js counterpart: `NewsChannel#addFollower`.
     #[must_use]
     pub const fn new(webhook_channel_id: ChannelId) -> Self {
         Self { webhook_channel_id }
@@ -360,6 +374,8 @@ impl FollowAnnouncementChannel {
 /// The body of [Group DM Add Recipient](https://docs.discord.com/developers/resources/channel#group-dm-add-recipient).
 ///
 /// The access token is redacted in the `Debug` output.
+///
+/// discord.js counterpart: `RESTPutAPIChannelRecipientJSONBody` (discord-api-types).
 #[derive(Clone, PartialEq, Eq, Hash, Serialize)]
 #[non_exhaustive]
 pub struct GroupDmAddRecipient {
@@ -372,6 +388,8 @@ pub struct GroupDmAddRecipient {
 
 impl GroupDmAddRecipient {
     /// Adds the user whose access token is `access_token`.
+    ///
+    /// discord.js counterpart: `RESTPutAPIChannelRecipientJSONBody` (discord-api-types).
     #[must_use]
     pub fn new(access_token: impl Into<String>) -> Self {
         Self {
@@ -408,6 +426,8 @@ pub struct StartThreadFromMessage {
 
 impl StartThreadFromMessage {
     /// A thread named `name`.
+    ///
+    /// discord.js counterpart: `StartThreadOptions`.
     #[must_use]
     pub fn new(name: impl Into<CompactString>) -> Self {
         Self {
@@ -453,6 +473,8 @@ pub struct StartThreadWithoutMessage {
 
 impl StartThreadWithoutMessage {
     /// A thread of type `kind` named `name`.
+    ///
+    /// discord.js counterpart: `GuildTextThreadCreateOptions`.
     #[must_use]
     pub fn new(name: impl Into<CompactString>, kind: ChannelType) -> Self {
         Self {
@@ -503,6 +525,8 @@ pub struct StartThreadInForumOrMediaChannel {
 
 impl StartThreadInForumOrMediaChannel {
     /// A post named `name` starting with `message`.
+    ///
+    /// discord.js counterpart: `GuildForumThreadCreateOptions`.
     #[must_use]
     pub fn new(name: impl Into<CompactString>, message: ForumThreadMessage) -> Self {
         Self {
@@ -521,6 +545,8 @@ impl StartThreadInForumOrMediaChannel {
 /// At least one of `content`, `embeds`, `sticker_ids`, `components` or `files` is required.
 /// Like [`CreateMessage`](super::CreateMessage), every file gets an `attachments` entry
 /// automatically (D-094).
+///
+/// discord.js counterpart: the `message` of `RESTPostAPIGuildForumThreadsJSONBody` (discord-api-types).
 #[derive(Clone, Debug, Default, PartialEq)]
 #[non_exhaustive]
 pub struct ForumThreadMessage {
@@ -609,6 +635,8 @@ impl Serialize for ForumThreadMessage {
 
 /// The response of [Start Thread in Forum or Media Channel](https://docs.discord.com/developers/resources/channel#start-thread-in-forum-or-media-channel):
 /// the created post and its first message (D-115).
+///
+/// discord.js counterpart: `RESTPostAPIChannelThreadsResult` (discord-api-types), with its first message.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct ForumThread {
@@ -635,6 +663,8 @@ impl<'de> Deserialize<'de> for ForumThread {
 }
 
 /// The query of [Get Thread Member](https://docs.discord.com/developers/resources/channel#get-thread-member).
+///
+/// discord.js counterpart: `RESTGetAPIChannelThreadMemberQuery` (discord-api-types).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub struct GetThreadMember {
@@ -646,6 +676,8 @@ pub struct GetThreadMember {
 ///
 /// Needs the `GUILD_MEMBERS` privileged intent. With `with_member`, the results are
 /// paginated (100 per page by default).
+///
+/// discord.js counterpart: `RESTGetAPIChannelThreadMembersQuery` (discord-api-types).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub struct ListThreadMembers {
@@ -659,6 +691,8 @@ pub struct ListThreadMembers {
 
 /// The query of [List Public Archived Threads](https://docs.discord.com/developers/resources/channel#list-public-archived-threads)
 /// and [List Private Archived Threads](https://docs.discord.com/developers/resources/channel#list-private-archived-threads).
+///
+/// discord.js counterpart: `RESTGetAPIChannelThreadsArchivedQuery` (discord-api-types).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub struct ListArchivedThreads {
@@ -669,6 +703,8 @@ pub struct ListArchivedThreads {
 }
 
 /// The query of [List Joined Private Archived Threads](https://docs.discord.com/developers/resources/channel#list-joined-private-archived-threads).
+///
+/// discord.js counterpart: `RESTGetAPIChannelThreadsArchivedQuery` (discord-api-types).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub struct ListJoinedPrivateArchivedThreads {

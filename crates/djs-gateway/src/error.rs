@@ -10,6 +10,8 @@ pub(crate) type BoxError = Box<dyn std::error::Error + Send + Sync>;
 /// Most errors are **not fatal**: the shard has already scheduled a reconnect (or skipped the
 /// offending payload) and the next call to `next_event` continues normally. Only
 /// [`is_fatal`](Self::is_fatal) errors end the shard; after one, `next_event` returns `None`.
+///
+/// discord.js counterpart: the `error` event of `WebSocketShard` (`@discordjs/ws`).
 #[derive(Debug, thiserror::Error)]
 #[error("{kind}")]
 pub struct ReceiveError {
@@ -31,6 +33,8 @@ impl ReceiveError {
     }
 
     /// Returns what went wrong.
+    ///
+    /// discord.js counterpart: the `error` event of `WebSocketShard` (`@discordjs/ws`).
     #[must_use]
     pub const fn kind(&self) -> &ReceiveErrorKind {
         &self.kind
@@ -38,12 +42,16 @@ impl ReceiveError {
 
     /// Returns `true` if the shard cannot continue (for example because the token is invalid
     /// or a privileged intent is not enabled). No further events will be produced.
+    ///
+    /// discord.js counterpart: none (`@discordjs/ws` throws on fatal close codes).
     #[must_use]
     pub const fn is_fatal(&self) -> bool {
         matches!(self.kind, ReceiveErrorKind::FatallyClosed { .. })
     }
 
     /// Consumes the error, returning its kind and underlying source.
+    ///
+    /// discord.js counterpart: none (JavaScript errors are not taken apart).
     #[must_use]
     pub fn into_parts(
         self,
@@ -56,6 +64,8 @@ impl ReceiveError {
 }
 
 /// The kind of a [`ReceiveError`].
+///
+/// discord.js counterpart: the `error` event of `WebSocketShard` (`@discordjs/ws`).
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum ReceiveErrorKind {
@@ -81,6 +91,8 @@ pub enum ReceiveErrorKind {
 }
 
 /// An error returned by [`MessageSender`](crate::MessageSender).
+///
+/// discord.js counterpart: none (`WebSocketShard#send` rejects with a plain `Error`).
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum SendError {

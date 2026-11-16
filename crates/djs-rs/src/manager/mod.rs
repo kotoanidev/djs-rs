@@ -136,6 +136,8 @@ impl<T, F> Fetch<T, F> {
 
     /// Whether the cache holds the value, so awaiting this fetch (without
     /// [`force`](Self::force)) makes no request.
+    ///
+    /// discord.js counterpart: none (discord.js answers from the cache inside `fetch`).
     #[must_use]
     pub const fn is_cached(&self) -> bool {
         self.cached.is_some()
@@ -164,6 +166,8 @@ impl<T: Unpin, F: Future<Output = Result<T, Error>>> IntoFuture for Fetch<T, F> 
 }
 
 /// The future of an awaited [`Fetch`].
+///
+/// discord.js counterpart: the promise a manager's `fetch` returns.
 #[must_use = "futures do nothing unless polled"]
 pub struct FetchFuture<T, F>(State<T, F>);
 

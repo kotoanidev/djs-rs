@@ -82,6 +82,8 @@ pub enum Channel {
 
 impl Channel {
     /// The channel's ID.
+    ///
+    /// discord.js counterpart: `BaseChannel#id`.
     #[must_use]
     pub const fn id(&self) -> ChannelId {
         match self {
@@ -100,6 +102,8 @@ impl Channel {
     }
 
     /// The kind of channel.
+    ///
+    /// discord.js counterpart: `BaseChannel#type`.
     #[must_use]
     pub const fn kind(&self) -> ChannelType {
         match self {
@@ -122,6 +126,8 @@ impl Channel {
 
     /// The guild the channel belongs to. `None` for DMs, and for guild channels inside
     /// `GUILD_CREATE` (where Discord omits it).
+    ///
+    /// discord.js counterpart: `GuildChannel#guildId`.
     #[must_use]
     pub const fn guild_id(&self) -> Option<GuildId> {
         match self {
@@ -139,6 +145,8 @@ impl Channel {
     }
 
     /// The channel's name. `None` for DMs and unnamed group DMs.
+    ///
+    /// discord.js counterpart: `GuildChannel#name`.
     #[must_use]
     pub fn name(&self) -> Option<&str> {
         match self {
@@ -157,6 +165,8 @@ impl Channel {
     }
 
     /// The parent: the category of a guild channel, or the channel a thread was created in.
+    ///
+    /// discord.js counterpart: `GuildChannel#parentId`.
     #[must_use]
     pub const fn parent_id(&self) -> Option<ChannelId> {
         match self {
@@ -173,6 +183,8 @@ impl Channel {
     }
 
     /// The channel's [flags](ChannelFlags).
+    ///
+    /// discord.js counterpart: `BaseChannel#flags`.
     #[must_use]
     pub const fn flags(&self) -> ChannelFlags {
         match self {
@@ -191,6 +203,8 @@ impl Channel {
     }
 
     /// The permission overwrites of a guild channel; empty for DMs and threads.
+    ///
+    /// discord.js counterpart: `GuildChannel#permissionOverwrites`.
     #[must_use]
     pub fn permission_overwrites(&self) -> &[Overwrite] {
         match self {
@@ -209,6 +223,8 @@ impl Channel {
     }
 
     /// Returns the thread data if this channel is a thread.
+    ///
+    /// discord.js counterpart: `BaseChannel#isThread`.
     #[must_use]
     pub const fn as_thread(&self) -> Option<&ThreadChannel> {
         match self {
@@ -256,6 +272,8 @@ int_enum! {
 
 impl ChannelType {
     /// Whether channels of this type are threads.
+    ///
+    /// discord.js counterpart: `BaseChannel#isThread`.
     #[must_use]
     pub const fn is_thread(self) -> bool {
         matches!(
@@ -516,6 +534,8 @@ pub struct GroupDmChannel {
 }
 
 /// The directory channel of a Student Hub.
+///
+/// discord.js counterpart: `DirectoryChannel`.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub struct DirectoryChannel {
@@ -538,6 +558,8 @@ pub struct DirectoryChannel {
 
 /// A channel of a [`ChannelType`] this version of the library does not know about. Only the
 /// fields every channel has are kept.
+///
+/// discord.js counterpart: none (a channel type unknown to this version, kept as received).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub struct UnknownChannel {
@@ -842,6 +864,8 @@ pub struct Overwrite {
 
 impl Overwrite {
     /// An overwrite of `kind` for the role or user `id`.
+    ///
+    /// discord.js counterpart: `OverwriteData`.
     #[must_use]
     pub const fn new(
         id: GenericId,
@@ -859,6 +883,8 @@ impl Overwrite {
 
     /// An overwrite for a role (`@everyone` has the guild's ID).
     ///
+    /// discord.js counterpart: `OverwriteData` with `type: OverwriteType.Role`.
+    ///
     /// # Examples
     ///
     /// ```
@@ -873,18 +899,24 @@ impl Overwrite {
     }
 
     /// An overwrite for a member.
+    ///
+    /// discord.js counterpart: `OverwriteData` with `type: OverwriteType.Member`.
     #[must_use]
     pub const fn member(user_id: UserId, allow: Permissions, deny: Permissions) -> Self {
         Self::new(user_id.cast(), OverwriteType::Member, allow, deny)
     }
 
     /// The role this overwrite applies to, if it is a role overwrite.
+    ///
+    /// discord.js counterpart: `PermissionOverwrites#id` of a role overwrite.
     #[must_use]
     pub fn role_id(&self) -> Option<RoleId> {
         (self.kind == OverwriteType::Role).then(|| self.id.cast())
     }
 
     /// The member this overwrite applies to, if it is a member overwrite.
+    ///
+    /// discord.js counterpart: `PermissionOverwrites#id` of a member overwrite.
     #[must_use]
     pub fn user_id(&self) -> Option<UserId> {
         (self.kind == OverwriteType::Member).then(|| self.id.cast())
@@ -1050,6 +1082,8 @@ pub struct DefaultReaction {
 
 impl DefaultReaction {
     /// A custom emoji of the guild.
+    ///
+    /// discord.js counterpart: the `id` of `DefaultReactionEmoji`.
     #[must_use]
     pub const fn custom(emoji_id: EmojiId) -> Self {
         Self {
@@ -1059,6 +1093,8 @@ impl DefaultReaction {
     }
 
     /// A Unicode emoji (e.g. `"👍"`).
+    ///
+    /// discord.js counterpart: the `name` of `DefaultReactionEmoji`.
     #[must_use]
     pub fn unicode(emoji: impl Into<CompactString>) -> Self {
         Self {

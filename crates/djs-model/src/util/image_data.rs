@@ -45,6 +45,8 @@ impl ImageData {
     /// `data` can be anything that converts into [`Bytes`] without copying: a `Vec<u8>`, a
     /// `&'static [u8]`, …
     ///
+    /// discord.js counterpart: `BufferResolvable` and `Base64Resolvable`, as image options take them.
+    ///
     /// # Errors
     ///
     /// [`ImageDataError`] when `data` does not start with one of those signatures; use
@@ -59,6 +61,8 @@ impl ImageData {
     }
 
     /// An image of the given media type (e.g. `image/png`), which is not checked.
+    ///
+    /// discord.js counterpart: `BufferResolvable` and `Base64Resolvable`, as image options take them.
     #[must_use]
     pub fn with_content_type(
         data: impl Into<Bytes>,
@@ -71,12 +75,16 @@ impl ImageData {
     }
 
     /// The image file's contents.
+    ///
+    /// discord.js counterpart: none (discord.js turns images into data URIs internally).
     #[must_use]
     pub const fn data(&self) -> &Bytes {
         &self.data
     }
 
     /// The image's media type (e.g. `image/png`).
+    ///
+    /// discord.js counterpart: none (discord.js detects the type internally).
     #[must_use]
     pub fn content_type(&self) -> &str {
         &self.content_type
@@ -110,6 +118,8 @@ impl Serialize for ImageData {
 }
 
 /// The error of [`ImageData::new`]: the data is not a PNG, JPEG, GIF, WebP or AVIF image.
+///
+/// discord.js counterpart: none (discord.js accepts any buffer and lets Discord refuse it).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub struct ImageDataError;

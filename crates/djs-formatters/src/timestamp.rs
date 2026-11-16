@@ -39,6 +39,8 @@ pub enum TimestampStyle {
 
 impl TimestampStyle {
     /// The style's letter, such as `R`.
+    ///
+    /// discord.js counterpart: the values of `TimestampStyles` (`@discordjs/formatters`).
     #[must_use]
     pub const fn as_char(self) -> char {
         match self {
@@ -59,6 +61,8 @@ impl TimestampStyle {
 ///
 /// Implemented for `i64` (seconds), [`Timestamp`] and [`SystemTime`]; implement it for a
 /// time type of another crate to pass it directly.
+///
+/// discord.js counterpart: none (`time` takes a `Date` or seconds).
 pub trait UnixSeconds {
     /// Whole seconds since 1970-01-01 00:00:00 UTC, rounded down (negative before it).
     fn unix_seconds(&self) -> i64;
@@ -98,6 +102,8 @@ impl<T: UnixSeconds + ?Sized> UnixSeconds for &T {
 }
 
 /// A timestamp: `<t:SECONDS>` or `<t:SECONDS:STYLE>`. Returned by [`time`].
+///
+/// discord.js counterpart: the string `time` returns, with `TimestampStyles` (`@discordjs/formatters`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[must_use = "a formatter does nothing until it is written"]
 pub struct Time {
@@ -138,12 +144,16 @@ pub fn time(at: impl UnixSeconds) -> Time {
 
 impl Time {
     /// Sets how the time is shown.
+    ///
+    /// discord.js counterpart: the `style` argument of `time` (`@discordjs/formatters`).
     pub const fn style(mut self, style: TimestampStyle) -> Self {
         self.style = Some(style);
         self
     }
 
     /// The seconds since the Unix epoch this timestamp shows.
+    ///
+    /// discord.js counterpart: the `seconds` argument of `time` (`@discordjs/formatters`).
     #[must_use]
     pub const fn seconds(self) -> i64 {
         self.seconds

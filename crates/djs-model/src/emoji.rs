@@ -108,6 +108,8 @@ pub enum PartialEmoji {
 
 impl PartialEmoji {
     /// Returns the custom emoji's ID, or `None` for a Unicode emoji.
+    ///
+    /// discord.js counterpart: `Emoji#id`.
     #[must_use]
     pub const fn id(&self) -> Option<EmojiId> {
         match *self {
@@ -117,6 +119,8 @@ impl PartialEmoji {
     }
 
     /// Returns the emoji's name (the emoji itself for Unicode emojis), if known.
+    ///
+    /// discord.js counterpart: `Emoji#name`.
     #[must_use]
     pub fn name(&self) -> Option<&str> {
         match self {

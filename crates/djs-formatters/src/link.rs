@@ -22,6 +22,8 @@ impl fmt::Display for Server {
 
 /// A link to a channel: `https://discord.com/channels/GUILD_ID/CHANNEL_ID`, or `@me` in place
 /// of the server for a DM. Returned by [`channel_link`].
+///
+/// discord.js counterpart: the string `channelLink` returns (`@discordjs/formatters`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[must_use = "a formatter does nothing until it is written"]
 pub struct ChannelLink {
@@ -58,6 +60,8 @@ pub const fn channel_link(channel: ChannelId) -> ChannelLink {
 
 impl ChannelLink {
     /// Sets the server the channel is in.
+    ///
+    /// discord.js counterpart: the `guildId` argument of `channelLink` (`@discordjs/formatters`).
     pub const fn guild(mut self, guild: GuildId) -> Self {
         self.guild = Server(Some(guild));
         self
@@ -72,6 +76,8 @@ impl fmt::Display for ChannelLink {
 
 /// A link to a message: `https://discord.com/channels/GUILD_ID/CHANNEL_ID/MESSAGE_ID`.
 /// Returned by [`message_link`].
+///
+/// discord.js counterpart: the string `messageLink` returns (`@discordjs/formatters`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[must_use = "a formatter does nothing until it is written"]
 pub struct MessageLink {
@@ -102,6 +108,8 @@ pub const fn message_link(channel: ChannelId, message: MessageId) -> MessageLink
 
 impl MessageLink {
     /// Sets the server the message's channel is in.
+    ///
+    /// discord.js counterpart: the `guildId` argument of `messageLink` (`@discordjs/formatters`).
     pub const fn guild(mut self, guild: GuildId) -> Self {
         self.channel = self.channel.guild(guild);
         self
@@ -116,6 +124,8 @@ impl fmt::Display for MessageLink {
 
 /// A link to an app's store page in the App Directory, or to one of its SKUs. Returned by
 /// [`application_directory`].
+///
+/// discord.js counterpart: the string `applicationDirectory` returns (`@discordjs/formatters`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[must_use = "a formatter does nothing until it is written"]
 pub struct ApplicationDirectory {
@@ -151,6 +161,8 @@ pub const fn application_directory(application: ApplicationId) -> ApplicationDir
 
 impl ApplicationDirectory {
     /// Links to the SKU `sku` of the app's store.
+    ///
+    /// discord.js counterpart: the `skuId` argument of `applicationDirectory` (`@discordjs/formatters`).
     pub const fn sku(mut self, sku: SkuId) -> Self {
         self.sku = Some(sku);
         self
@@ -193,6 +205,8 @@ fn write_form_encoded(f: &mut fmt::Formatter<'_>, text: &str, lower_case: bool) 
 }
 
 /// An e-mail link: `<address>` or `<address?header=value&…>`. Returned by [`email`].
+///
+/// discord.js counterpart: the string `email` returns (`@discordjs/formatters`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[must_use = "a formatter does nothing until it is written"]
 pub struct Email<'a> {
@@ -227,6 +241,8 @@ impl<'a> Email<'a> {
     /// Sets headers of the new e-mail as `(name, value)` pairs, such as `("subject", "Hi")`
     /// or `("body", "…")`. Names are lower-cased, and names and values are encoded as in a
     /// URL query.
+    ///
+    /// discord.js counterpart: the `headers` argument of `email` (`@discordjs/formatters`).
     pub const fn headers(mut self, headers: &'a [(&'a str, &'a str)]) -> Self {
         self.headers = headers;
         self
@@ -248,6 +264,8 @@ impl fmt::Display for Email<'_> {
 }
 
 /// A phone link: `<+number>`. Returned by [`phone_number`].
+///
+/// discord.js counterpart: the string `phoneNumber` returns (`@discordjs/formatters`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[must_use = "a formatter does nothing until it is written"]
 pub struct PhoneNumber<'a>(&'a str);

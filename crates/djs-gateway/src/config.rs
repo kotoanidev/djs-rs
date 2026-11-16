@@ -23,6 +23,8 @@ pub const DEFAULT_GATEWAY_URL: &str = "wss://gateway.discord.gg";
 /// take turns identifying. Build one with [`Config::builder`].
 ///
 /// The [`Debug`] implementation redacts the token.
+///
+/// discord.js counterpart: `WebSocketManagerOptions` (`@discordjs/ws`).
 #[derive(Clone)]
 pub struct Config {
     pub(crate) token: Box<str>,
@@ -42,12 +44,16 @@ impl Config {
     /// Creates a configuration with default settings.
     ///
     /// Pass the raw token, without the `Bot ` prefix.
+    ///
+    /// discord.js counterpart: `new WebSocketManager(options)` (`@discordjs/ws`).
     #[must_use]
     pub fn new(token: impl Into<String>, intents: Intents) -> Self {
         Self::builder(token, intents).build()
     }
 
     /// Returns a builder to customise the configuration.
+    ///
+    /// discord.js counterpart: `WebSocketManagerOptions` (`@discordjs/ws`).
     ///
     /// # Examples
     ///
@@ -81,30 +87,40 @@ impl Config {
     }
 
     /// Returns the gateway intents.
+    ///
+    /// discord.js counterpart: the `intents` option of `WebSocketManagerOptions` (`@discordjs/ws`).
     #[must_use]
     pub const fn intents(&self) -> Intents {
         self.intents
     }
 
     /// Returns the gateway URL used for new sessions.
+    ///
+    /// discord.js counterpart: none (`@discordjs/ws` uses the URL of Get Gateway Bot).
     #[must_use]
     pub fn gateway_url(&self) -> &str {
         &self.gateway_url
     }
 
     /// Returns the transport compression.
+    ///
+    /// discord.js counterpart: the `compression` option of `WebSocketManagerOptions` (`@discordjs/ws`).
     #[must_use]
     pub const fn compression(&self) -> Compression {
         self.compression
     }
 
     /// Returns the presence shards using this configuration start with.
+    ///
+    /// discord.js counterpart: the `initialPresence` option of `WebSocketManagerOptions` (`@discordjs/ws`).
     #[must_use]
     pub const fn presence(&self) -> Option<&UpdatePresence> {
         self.presence.as_ref()
     }
 
     /// Returns the queue shards using this configuration wait in before identifying.
+    ///
+    /// discord.js counterpart: the `buildIdentifyThrottler` option of `WebSocketManagerOptions` (`@discordjs/ws`).
     #[must_use]
     pub fn identify_queue(&self) -> &Arc<dyn IdentifyQueue> {
         &self.identify_queue
@@ -129,6 +145,8 @@ impl fmt::Debug for Config {
 }
 
 /// Builds a [`Config`]. Created by [`Config::builder`].
+///
+/// discord.js counterpart: `WebSocketManagerOptions` (`@discordjs/ws`).
 #[derive(Debug)]
 #[must_use = "a builder does nothing until `build` is called"]
 pub struct ConfigBuilder {
@@ -140,6 +158,8 @@ impl ConfigBuilder {
     ///
     /// Use the URL returned by Get Gateway Bot. Resumes always use the `resume_gateway_url`
     /// from the `READY` event instead. `ws://` URLs are accepted (useful for tests and proxies).
+    ///
+    /// discord.js counterpart: none (`@discordjs/ws` uses the URL of Get Gateway Bot).
     pub fn gateway_url(mut self, url: impl Into<String>) -> Self {
         self.config.gateway_url = url.into().into_boxed_str();
         self
@@ -147,12 +167,16 @@ impl ConfigBuilder {
 
     /// Sets the transport compression (default [`Compression::ZstdStream`] when the
     /// `zstd-stream` feature is enabled).
+    ///
+    /// discord.js counterpart: the `compression` option of `WebSocketManagerOptions` (`@discordjs/ws`).
     pub const fn compression(mut self, compression: Compression) -> Self {
         self.config.compression = compression;
         self
     }
 
     /// Sets the connection properties sent when identifying (default: library `djs-rs`).
+    ///
+    /// discord.js counterpart: the `identifyProperties` option of `WebSocketManagerOptions` (`@discordjs/ws`).
     pub fn identify_properties(mut self, properties: IdentifyProperties) -> Self {
         self.config.properties = properties;
         self
@@ -160,6 +184,8 @@ impl ConfigBuilder {
 
     /// Sets the member count (50–250) above which Discord stops sending offline members of a
     /// guild (Discord's default is 50).
+    ///
+    /// discord.js counterpart: the `largeThreshold` option of `WebSocketManagerOptions` (`@discordjs/ws`).
     pub const fn large_threshold(mut self, threshold: u8) -> Self {
         self.config.large_threshold = Some(threshold);
         self
@@ -167,6 +193,8 @@ impl ConfigBuilder {
 
     /// Sets how long establishing the WebSocket connection (TCP, TLS and upgrade) may take
     /// (default 30 s).
+    ///
+    /// discord.js counterpart: the `handshakeTimeout` option of `WebSocketManagerOptions` (`@discordjs/ws`).
     pub const fn connect_timeout(mut self, timeout: Duration) -> Self {
         self.config.connect_timeout = timeout;
         self
@@ -174,6 +202,8 @@ impl ConfigBuilder {
 
     /// Sets how long to wait for the Hello payload after connecting before reconnecting
     /// (default 60 s).
+    ///
+    /// discord.js counterpart: the `helloTimeout` option of `WebSocketManagerOptions` (`@discordjs/ws`).
     pub const fn hello_timeout(mut self, timeout: Duration) -> Self {
         self.config.hello_timeout = timeout;
         self
@@ -209,6 +239,8 @@ impl ConfigBuilder {
     /// Pass a [`LocalIdentifyQueue`] created with the bot's `max_concurrency` to start several
     /// shards at once, or an own [`IdentifyQueue`] to coordinate several processes.
     ///
+    /// discord.js counterpart: the `buildIdentifyThrottler` option of `WebSocketManagerOptions` (`@discordjs/ws`).
+    ///
     /// # Examples
     ///
     /// ```
@@ -228,6 +260,8 @@ impl ConfigBuilder {
     }
 
     /// Builds the configuration.
+    ///
+    /// discord.js counterpart: `new WebSocketManager(options)` (`@discordjs/ws`).
     #[must_use]
     pub fn build(self) -> Config {
         self.config

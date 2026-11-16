@@ -473,6 +473,8 @@ pub struct AuditLogChange {
 impl AuditLogChange {
     /// Converts the [`old_value`](Self::old_value) to the field's type (`Ok(None)` if absent).
     ///
+    /// discord.js counterpart: the `old` of `AuditLogChange`.
+    ///
     /// # Errors
     ///
     /// Returns an error if the value does not have the shape of `T`.
@@ -481,6 +483,8 @@ impl AuditLogChange {
     }
 
     /// Converts the [`new_value`](Self::new_value) to the field's type (`Ok(None)` if absent).
+    ///
+    /// discord.js counterpart: the `new` of `AuditLogChange`.
     ///
     /// # Errors
     ///

@@ -79,6 +79,8 @@ pub struct CreateApplicationCommand {
 
 impl CreateApplicationCommand {
     /// A command of type `kind` with only a name.
+    ///
+    /// discord.js counterpart: `ApplicationCommandData`.
     #[must_use]
     pub fn new(name: impl Into<CompactString>, kind: CommandType) -> Self {
         Self {
@@ -97,6 +99,8 @@ impl CreateApplicationCommand {
     }
 
     /// A slash command.
+    ///
+    /// discord.js counterpart: `ChatInputApplicationCommandData`.
     #[must_use]
     pub fn chat_input(
         name: impl Into<CompactString>,
@@ -109,12 +113,16 @@ impl CreateApplicationCommand {
     }
 
     /// A user command (shown in the context menu of users).
+    ///
+    /// discord.js counterpart: `UserApplicationCommandData`.
     #[must_use]
     pub fn user(name: impl Into<CompactString>) -> Self {
         Self::new(name, CommandType::User)
     }
 
     /// A message command (shown in the context menu of messages).
+    ///
+    /// discord.js counterpart: `MessageApplicationCommandData`.
     #[must_use]
     pub fn message(name: impl Into<CompactString>) -> Self {
         Self::new(name, CommandType::Message)
@@ -165,6 +173,8 @@ pub struct EditApplicationCommand {
 
 /// The query of [Get Global Application Commands](https://docs.discord.com/developers/interactions/application-commands#get-global-application-commands)
 /// and [Get Guild Application Commands](https://docs.discord.com/developers/interactions/application-commands#get-guild-application-commands).
+///
+/// discord.js counterpart: `RESTGetAPIApplicationCommandsQuery` (discord-api-types).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub struct GetApplicationCommands {
@@ -174,6 +184,8 @@ pub struct GetApplicationCommands {
 }
 
 /// The body of [Edit Application Command Permissions](https://docs.discord.com/developers/interactions/application-commands#edit-application-command-permissions).
+///
+/// discord.js counterpart: `RESTPutAPIApplicationCommandPermissionsJSONBody` (discord-api-types).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize)]
 #[non_exhaustive]
 pub struct EditApplicationCommandPermissions {
@@ -184,6 +196,8 @@ pub struct EditApplicationCommandPermissions {
 
 impl EditApplicationCommandPermissions {
     /// Sets the permission overwrites to `permissions`.
+    ///
+    /// discord.js counterpart: the `permissions` of `ApplicationCommandPermissionsManager#set`.
     #[must_use]
     pub const fn new(permissions: Vec<CommandPermission>) -> Self {
         Self { permissions }

@@ -43,6 +43,8 @@ pub enum Mentionable<'a> {
 
 impl Mentionable<'_> {
     /// Returns the ID of the user or role.
+    ///
+    /// discord.js counterpart: the ID `CommandInteractionOptionResolver#getMentionable` returns.
     #[must_use]
     pub const fn id(&self) -> GenericId {
         match self {

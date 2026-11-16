@@ -147,6 +147,8 @@ impl SlashCommandBuilder {
     }
 
     /// Returns the command without any check (D-180).
+    ///
+    /// discord.js counterpart: `SlashCommandBuilder#toJSON` with validation off (`disableValidators`).
     #[must_use]
     pub fn build_unchecked(self) -> CreateApplicationCommand {
         self.command
@@ -186,6 +188,8 @@ pub struct SlashCommandSubcommandBuilder {
 impl SlashCommandSubcommandBuilder {
     /// Creates a subcommand named `name` (1-32 lower-case letters, numbers, `-`, `_` or `ʼ`)
     /// and described by `description` (1-100 characters).
+    ///
+    /// discord.js counterpart: `new SlashCommandSubcommandBuilder().setName(name)`.
     pub fn new(name: impl Into<CompactString>, description: impl Into<CompactString>) -> Self {
         Self {
             option: SubCommandOption::new(name, description),
@@ -205,6 +209,8 @@ impl SlashCommandSubcommandBuilder {
 
     /// Checks the subcommand on its own and returns it as a [`CommandOption`].
     ///
+    /// discord.js counterpart: `SlashCommandSubcommandBuilder#toJSON`.
+    ///
     /// # Errors
     ///
     /// The first [`ValidationError`] found, as in [`SlashCommandBuilder::build`] (without the
@@ -216,6 +222,8 @@ impl SlashCommandSubcommandBuilder {
     }
 
     /// Returns the subcommand without any check (D-180).
+    ///
+    /// discord.js counterpart: `SlashCommandSubcommandBuilder#toJSON` with validation off (`disableValidators`).
     #[must_use]
     pub fn build_unchecked(self) -> CommandOption {
         self.into()
@@ -263,6 +271,8 @@ pub struct SlashCommandSubcommandGroupBuilder {
 impl SlashCommandSubcommandGroupBuilder {
     /// Creates a group named `name` (1-32 lower-case letters, numbers, `-`, `_` or `ʼ`) and
     /// described by `description` (1-100 characters).
+    ///
+    /// discord.js counterpart: `new SlashCommandSubcommandGroupBuilder().setName(name)`.
     pub fn new(name: impl Into<CompactString>, description: impl Into<CompactString>) -> Self {
         Self {
             option: SubCommandOption::new(name, description),
@@ -282,6 +292,8 @@ impl SlashCommandSubcommandGroupBuilder {
 
     /// Checks the group on its own and returns it as a [`CommandOption`].
     ///
+    /// discord.js counterpart: `SlashCommandSubcommandGroupBuilder#toJSON`.
+    ///
     /// # Errors
     ///
     /// The first [`ValidationError`] found, as in [`SlashCommandBuilder::build`] (without the
@@ -293,6 +305,8 @@ impl SlashCommandSubcommandGroupBuilder {
     }
 
     /// Returns the group without any check (D-180).
+    ///
+    /// discord.js counterpart: `SlashCommandSubcommandGroupBuilder#toJSON` with validation off (`disableValidators`).
     #[must_use]
     pub fn build_unchecked(self) -> CommandOption {
         self.into()

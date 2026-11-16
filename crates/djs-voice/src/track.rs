@@ -430,6 +430,8 @@ impl TrackHandle {
 /// Whether a track plays again at its end (D-358), for [`TrackHandle::set_loop`].
 ///
 /// songbird counterpart: `LoopState`.
+///
+/// discord.js counterpart: none (`@discordjs/voice` has no looping).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum Loop {
@@ -461,6 +463,8 @@ pub enum PlayState {
 /// A track's state, from [`TrackHandle::info`] (D-356).
 ///
 /// songbird counterpart: `TrackState`.
+///
+/// discord.js counterpart: `AudioPlayer#state` (`@discordjs/voice`).
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct TrackInfo {
@@ -495,6 +499,8 @@ pub enum TrackEvent {
 /// Why a track ended (D-355), in [`TrackEvent::Ended`].
 ///
 /// songbird counterpart: `PlayMode::End`, `Stop` and `Errored`.
+///
+/// discord.js counterpart: none (`@discordjs/voice` reports only the player's state changes).
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub enum TrackEnd {
@@ -529,6 +535,8 @@ impl fmt::Display for TrackEnd {
 /// The stream of a track's events. Created by [`TrackHandle::events`].
 ///
 /// Implements [`Stream`]; [`next`](Self::next) is provided so no extension trait is needed.
+///
+/// discord.js counterpart: `AudioPlayer#on` (`@discordjs/voice`).
 #[derive(Debug)]
 pub struct TrackEvents {
     rx: mpsc::UnboundedReceiver<TrackEvent>,
@@ -537,6 +545,8 @@ pub struct TrackEvents {
 impl TrackEvents {
     /// Waits for the next event. Returns `None` once the track has ended (after
     /// [`TrackEvent::Ended`]).
+    ///
+    /// discord.js counterpart: `AudioPlayer#on` (`@discordjs/voice`).
     pub async fn next(&mut self) -> Option<TrackEvent> {
         self.rx.recv().await
     }

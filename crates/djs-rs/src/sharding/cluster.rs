@@ -73,18 +73,24 @@ impl ClusterAssignment {
     }
 
     /// This process's cluster ID (from 0).
+    ///
+    /// discord.js counterpart: `ShardClientUtil#ids` (one shard per process in discord.js).
     #[must_use]
     pub const fn cluster_id(&self) -> u32 {
         self.cluster
     }
 
     /// The shards this process runs.
+    ///
+    /// discord.js counterpart: `ShardClientUtil#ids`.
     #[must_use]
     pub fn shards(&self) -> Range<u32> {
         self.shards.clone()
     }
 
     /// The bot's shard count, over every process.
+    ///
+    /// discord.js counterpart: `ShardClientUtil#count`.
     #[must_use]
     pub const fn total_shards(&self) -> u32 {
         self.total

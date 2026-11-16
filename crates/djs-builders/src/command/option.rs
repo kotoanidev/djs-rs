@@ -30,6 +30,8 @@ macro_rules! option_type {
         impl $name {
             /// Creates an optional option named `name` (1-32 lower-case letters, numbers, `-`,
             /// `_` or `ʼ`) and described by `description` (1-100 characters).
+            ///
+            /// discord.js counterpart: the constructor of the option builders (`SlashCommandStringOption`, …), with `setName`.
             pub fn new(
                 name: impl Into<CompactString>,
                 description: impl Into<CompactString>,
@@ -56,6 +58,8 @@ macro_rules! option_type {
             ///
             /// Adding the builder to a command checks it as part of the command instead.
             ///
+            /// discord.js counterpart: `toJSON` of the option builders (`SlashCommandStringOption`, …).
+            ///
             /// # Errors
             ///
             /// The first [`ValidationError`] found, as in
@@ -67,6 +71,8 @@ macro_rules! option_type {
             }
 
             /// Returns the option without any check (D-180).
+            ///
+            /// discord.js counterpart: `toJSON` of the option builders with validation off (`disableValidators`).
             #[must_use]
             pub fn build_unchecked(self) -> CommandOption {
                 self.into()
@@ -353,6 +359,8 @@ impl SlashCommandAttachmentOption {
     /// Sets the [file types](https://docs.discord.com/developers/reference#file-type-filtering)
     /// users may pick, as extensions such as `png` (all when not set), replacing those set
     /// before.
+    ///
+    /// discord.js counterpart: none (`@discordjs/builders` has no file types).
     pub fn file_types<T: Into<CompactString>>(
         mut self,
         file_types: impl IntoIterator<Item = T>,

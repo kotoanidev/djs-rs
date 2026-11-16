@@ -187,6 +187,8 @@ impl Rest {
 
     /// Returns a builder to configure a client.
     ///
+    /// discord.js counterpart: `new REST(options)` (`@discordjs/rest`).
+    ///
     /// # Examples
     ///
     /// ```
@@ -486,6 +488,8 @@ async fn send(
 
 /// A request to send with [`Rest::request`].
 ///
+/// discord.js counterpart: `RequestData` (`@discordjs/rest`).
+///
 /// # Examples
 ///
 /// ```
@@ -514,6 +518,8 @@ pub struct Request<'a> {
 
 impl<'a> Request<'a> {
     /// Creates a request without a body.
+    ///
+    /// discord.js counterpart: `RequestData` (`@discordjs/rest`).
     #[must_use]
     pub const fn new(route: Route<'a>) -> Self {
         Self {
@@ -588,6 +594,8 @@ impl<'a> Request<'a> {
     }
 
     /// Returns the files set with [`files`](Self::files).
+    ///
+    /// discord.js counterpart: the `files` of `RequestData` (`@discordjs/rest`).
     #[must_use]
     pub const fn uploads(&self) -> &'a [FileUpload] {
         self.files
@@ -634,12 +642,16 @@ impl<'a> Request<'a> {
     }
 
     /// Returns the audit log reason set with [`reason`](Self::reason).
+    ///
+    /// discord.js counterpart: the `reason` of `RequestData` (`@discordjs/rest`).
     #[must_use]
     pub const fn audit_log_reason(&self) -> Option<&'a str> {
         self.reason
     }
 
     /// Sets a JSON body. With [files](Self::files), it is sent as the `payload_json` part.
+    ///
+    /// discord.js counterpart: the `body` of `RequestData` (`@discordjs/rest`).
     ///
     /// # Errors
     ///
@@ -652,6 +664,8 @@ impl<'a> Request<'a> {
     }
 
     /// Returns the route of the request.
+    ///
+    /// discord.js counterpart: the route `REST#request` is given (`@discordjs/rest`).
     #[must_use]
     pub const fn route(&self) -> Route<'a> {
         self.route
@@ -772,6 +786,8 @@ impl RestBuilder {
     ///
     /// Without a token, only unauthenticated endpoints (webhooks with tokens, interaction
     /// callbacks) can be used. Replaces a [`bearer_token`](Self::bearer_token).
+    ///
+    /// discord.js counterpart: `REST#setToken` (`@discordjs/rest`).
     pub fn token(mut self, token: impl Into<String>) -> Self {
         self.token = Some((AuthScheme::Bot, token.into()));
         self
@@ -801,12 +817,16 @@ impl RestBuilder {
     }
 
     /// Sets the CDN base URL of [`Rest::cdn`] (default `https://cdn.discordapp.com`, D-137).
+    ///
+    /// discord.js counterpart: the `cdn` option of `RESTOptions` (`@discordjs/rest`).
     pub fn cdn(mut self, cdn: impl Into<String>) -> Self {
         self.cdn = cdn.into();
         self
     }
 
     /// Sets the media proxy base URL of [`Rest::cdn`] (default `https://media.discordapp.net`).
+    ///
+    /// discord.js counterpart: the `mediaProxy` option of `RESTOptions` (`@discordjs/rest`).
     pub fn media_proxy(mut self, media_proxy: impl Into<String>) -> Self {
         self.media_proxy = media_proxy.into();
         self
@@ -816,18 +836,24 @@ impl RestBuilder {
     ///
     /// Useful to route requests through a proxy. Plain `http://` URLs are allowed for that
     /// purpose.
+    ///
+    /// discord.js counterpart: the `api` option of `RESTOptions` (`@discordjs/rest`).
     pub fn api(mut self, api: impl Into<String>) -> Self {
         self.api = api.into();
         self
     }
 
     /// Sets the API version (default 10).
+    ///
+    /// discord.js counterpart: the `version` option of `RESTOptions` (`@discordjs/rest`).
     pub const fn version(mut self, version: u8) -> Self {
         self.version = version;
         self
     }
 
     /// Sets how long to wait for a complete response before giving up (default 15 s).
+    ///
+    /// discord.js counterpart: the `timeout` option of `RESTOptions` (`@discordjs/rest`).
     pub const fn timeout(mut self, timeout: Duration) -> Self {
         self.timeout = timeout;
         self
@@ -835,6 +861,8 @@ impl RestBuilder {
 
     /// Sets how many times a request is retried after a server error, transport error or timeout
     /// (default 3). Rate-limited requests are always retried and do not count.
+    ///
+    /// discord.js counterpart: the `retries` option of `RESTOptions` (`@discordjs/rest`).
     pub const fn retries(mut self, retries: u8) -> Self {
         self.retries = retries;
         self
@@ -856,6 +884,8 @@ impl RestBuilder {
 
     /// Sets the extra delay added to every rate-limit wait to absorb clock skew and latency
     /// (default 50 ms).
+    ///
+    /// discord.js counterpart: the `offset` option of `RESTOptions` (`@discordjs/rest`).
     pub const fn offset(mut self, offset: Duration) -> Self {
         self.offset = offset;
         self
@@ -867,18 +897,24 @@ impl RestBuilder {
     /// 9 000) stops a misbehaving bot before it is locked out (D-085).
     ///
     /// The count is shared by every clone of the client; see [`Rest::invalid_requests`].
+    ///
+    /// discord.js counterpart: none (`@discordjs/rest` only warns, with `invalidRequestWarningInterval`).
     pub const fn invalid_request_limit(mut self, limit: u32) -> Self {
         self.invalid_request_limit = limit;
         self
     }
 
     /// Appends text to the `User-Agent` header, e.g. your bot's name.
+    ///
+    /// discord.js counterpart: the `userAgentAppendix` option of `RESTOptions` (`@discordjs/rest`).
     pub fn user_agent_appendix(mut self, appendix: impl Into<String>) -> Self {
         self.user_agent_appendix = Some(appendix.into());
         self
     }
 
     /// Builds the client.
+    ///
+    /// discord.js counterpart: `new REST(options)` (`@discordjs/rest`).
     ///
     /// # Panics
     ///

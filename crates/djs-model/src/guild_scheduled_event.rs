@@ -116,6 +116,8 @@ int_enum! {
 
 /// [Extra data](https://docs.discord.com/developers/resources/guild-scheduled-event#guild-scheduled-event-object-guild-scheduled-event-entity-metadata)
 /// of an external scheduled event.
+///
+/// discord.js counterpart: `APIGuildScheduledEventEntityMetadata` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct EntityMetadata {
@@ -126,6 +128,8 @@ pub struct EntityMetadata {
 
 impl EntityMetadata {
     /// The metadata of an external event taking place at `location` (1-100 characters).
+    ///
+    /// discord.js counterpart: the `entityMetadata` of `GuildScheduledEventCreateOptions`.
     #[must_use]
     pub fn new(location: impl Into<CompactString>) -> Self {
         Self {
@@ -135,6 +139,8 @@ impl EntityMetadata {
 }
 
 /// A [user interested in a scheduled event](https://docs.discord.com/developers/resources/guild-scheduled-event#guild-scheduled-event-user-object).
+///
+/// discord.js counterpart: `GuildScheduledEventUser`.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct GuildScheduledEventUser {
@@ -224,6 +230,8 @@ int_enum! {
 
 /// The [n-th weekday of a month](https://docs.discord.com/developers/resources/guild-scheduled-event#guild-scheduled-event-recurrence-rule-object-guild-scheduled-event-recurrence-rule-nweekday-structure),
 /// e.g. the second Tuesday.
+///
+/// discord.js counterpart: `APIGuildScheduledEventRecurrenceRuleNWeekday` (discord-api-types).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct RecurrenceNWeekday {
@@ -236,6 +244,8 @@ pub struct RecurrenceNWeekday {
 impl RecurrenceNWeekday {
     /// The `n`-th (1-5) `day` of a month, e.g. `new(2, RecurrenceWeekday::Tuesday)` for the
     /// second Tuesday.
+    ///
+    /// discord.js counterpart: `GuildScheduledEventRecurrenceRuleNWeekday`.
     #[must_use]
     pub const fn new(n: u8, day: RecurrenceWeekday) -> Self {
         Self { n, day }

@@ -61,6 +61,8 @@ use crate::{
 /// of a webhook event request.
 ///
 /// Answer a [`PayloadType::Ping`] with `204 No Content` (and an empty body) to validate the URL.
+///
+/// discord.js counterpart: `APIWebhookEvent` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct WebhookEventPayload {
@@ -78,6 +80,8 @@ pub struct WebhookEventPayload {
 
 int_enum! {
     /// The [type of a webhook event payload](https://docs.discord.com/developers/events/webhook-events#webhook-types).
+    ///
+    /// discord.js counterpart: `ApplicationWebhookType` (discord-api-types).
     pub enum PayloadType: u8 {
         /// Sent to check that the URL is active; answer with `204 No Content`.
         Ping = 0,
@@ -121,6 +125,8 @@ str_enum! {
 
 /// The [event body](https://docs.discord.com/developers/events/webhook-events#event-body-object)
 /// of a webhook event: when it happened and its data.
+///
+/// discord.js counterpart: `APIWebhookEvent` (discord-api-types).
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct WebhookEvent {
@@ -132,6 +138,8 @@ pub struct WebhookEvent {
 
 impl WebhookEvent {
     /// Returns the event's type.
+    ///
+    /// discord.js counterpart: `ApplicationWebhookEventType` (discord-api-types).
     #[must_use]
     pub fn kind(&self) -> WebhookEventType {
         self.data.kind()
@@ -139,6 +147,8 @@ impl WebhookEvent {
 }
 
 /// The data of a [`WebhookEvent`], by [event type](https://docs.discord.com/developers/events/webhook-events#event-types).
+///
+/// discord.js counterpart: `APIWebhookEventBody` (discord-api-types).
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub enum WebhookEventData {
@@ -178,6 +188,8 @@ pub enum WebhookEventData {
 
 impl WebhookEventData {
     /// Returns the event's type.
+    ///
+    /// discord.js counterpart: `ApplicationWebhookEventType` (discord-api-types).
     #[must_use]
     pub fn kind(&self) -> WebhookEventType {
         match self {
@@ -200,6 +212,8 @@ impl WebhookEventData {
 
 /// The data of an [Application Authorized](https://docs.discord.com/developers/events/webhook-events#application-authorized)
 /// webhook event.
+///
+/// discord.js counterpart: `APIWebhookEventApplicationAuthorizedData` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct ApplicationAuthorized {
@@ -219,6 +233,8 @@ pub struct ApplicationAuthorized {
 
 /// The data of an [Application Deauthorized](https://docs.discord.com/developers/events/webhook-events#application-deauthorized)
 /// webhook event.
+///
+/// discord.js counterpart: `APIWebhookEventApplicationDeauthorizedData` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct ApplicationDeauthorized {
@@ -228,6 +244,8 @@ pub struct ApplicationDeauthorized {
 
 /// The data of a [Lobby Message Delete](https://docs.discord.com/developers/events/webhook-events#lobby-message-delete)
 /// webhook event.
+///
+/// discord.js counterpart: none (lobbies are not in discord.js v14 or discord-api-types).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct LobbyMessageDelete {
@@ -247,6 +265,8 @@ pub struct LobbyMessageDelete {
 /// `author` are required; message fields not listed here are ignored.
 ///
 /// Contains floats (attachment durations), so it is `PartialEq` but not `Eq` (D-064).
+///
+/// discord.js counterpart: none (not in discord.js v14 or discord-api-types).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct GameDirectMessage {

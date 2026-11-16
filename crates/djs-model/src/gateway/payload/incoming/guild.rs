@@ -46,6 +46,8 @@ pub enum GuildCreate {
 
 impl GuildCreate {
     /// Returns the guild's ID.
+    ///
+    /// discord.js counterpart: `Guild#id`.
     #[must_use]
     pub const fn id(&self) -> GuildId {
         match self {
@@ -62,6 +64,8 @@ impl GuildCreate {
 /// `presences` only hold the bot and users in voice channels.
 ///
 /// Dereferences to the contained [`Guild`].
+///
+/// discord.js counterpart: `GatewayGuildCreateDispatchData` (discord-api-types).
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct AvailableGuild {
@@ -585,6 +589,8 @@ guild_id_event! {
 
 /// The data of the [Integration Delete](https://docs.discord.com/developers/events/gateway-events#integration-delete)
 /// dispatch event.
+///
+/// discord.js counterpart: `GatewayIntegrationDeleteDispatchData` (discord-api-types).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct IntegrationDelete {

@@ -78,6 +78,8 @@ impl<'a, B: Backend> ThreadManager<'a, B> {
     }
 
     /// The parent channel.
+    ///
+    /// discord.js counterpart: `ThreadManager#channel`.
     #[must_use]
     pub const fn channel_id(self) -> ChannelId {
         self.channel_id
@@ -225,6 +227,8 @@ impl<'a, B: Backend> ThreadMemberManager<'a, B> {
     }
 
     /// The thread.
+    ///
+    /// discord.js counterpart: `ThreadMemberManager#thread`.
     #[must_use]
     pub const fn thread_id(self) -> ChannelId {
         self.thread_id

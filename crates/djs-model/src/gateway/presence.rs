@@ -184,6 +184,8 @@ pub struct Activity {
 impl Activity {
     /// Creates an activity with the fields bots can set: a name and kind (set
     /// [`state`](Self::state) for a custom status text, [`url`](Self::url) for a stream).
+    ///
+    /// discord.js counterpart: `ActivitiesOptions`.
     #[must_use]
     pub fn new(kind: ActivityType, name: impl Into<CompactString>) -> Self {
         Self {
@@ -210,6 +212,8 @@ impl Activity {
 
     /// "Playing {name}".
     ///
+    /// discord.js counterpart: `ActivitiesOptions` with `type: ActivityType.Playing`.
+    ///
     /// # Examples
     ///
     /// ```
@@ -225,6 +229,8 @@ impl Activity {
 
     /// "Streaming {name}", linking to `url`. Discord only accepts `https://twitch.tv/` and
     /// `https://youtube.com/` URLs.
+    ///
+    /// discord.js counterpart: `ActivitiesOptions` with `type: ActivityType.Streaming`.
     ///
     /// # Examples
     ///
@@ -246,18 +252,24 @@ impl Activity {
     }
 
     /// "Listening to {name}".
+    ///
+    /// discord.js counterpart: `ActivitiesOptions` with `type: ActivityType.Listening`.
     #[must_use]
     pub fn listening(name: impl Into<CompactString>) -> Self {
         Self::new(ActivityType::Listening, name)
     }
 
     /// "Watching {name}".
+    ///
+    /// discord.js counterpart: `ActivitiesOptions` with `type: ActivityType.Watching`.
     #[must_use]
     pub fn watching(name: impl Into<CompactString>) -> Self {
         Self::new(ActivityType::Watching, name)
     }
 
     /// "Competing in {name}".
+    ///
+    /// discord.js counterpart: `ActivitiesOptions` with `type: ActivityType.Competing`.
     #[must_use]
     pub fn competing(name: impl Into<CompactString>) -> Self {
         Self::new(ActivityType::Competing, name)
@@ -265,6 +277,8 @@ impl Activity {
 
     /// A custom status showing `text` (stored in [`state`](Self::state); the name is
     /// `"Custom Status"`, as Discord's clients send).
+    ///
+    /// discord.js counterpart: `ActivitiesOptions` with `type: ActivityType.Custom`.
     ///
     /// # Examples
     ///
@@ -320,6 +334,8 @@ int_enum! {
 
 /// When an [`Activity`] [started and ends](https://docs.discord.com/developers/events/gateway-events#activity-object-activity-timestamps)
 /// (both: a time bar for listening and watching).
+///
+/// discord.js counterpart: `GatewayActivityTimestamps` (discord-api-types).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct ActivityTimestamps {
@@ -340,6 +356,8 @@ pub struct ActivityTimestamps {
 }
 
 /// The [emoji of a custom status](https://docs.discord.com/developers/events/gateway-events#activity-object-activity-emoji).
+///
+/// discord.js counterpart: `GatewayActivityEmoji` (discord-api-types).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct ActivityEmoji {
@@ -354,6 +372,8 @@ pub struct ActivityEmoji {
 }
 
 /// The player's [party](https://docs.discord.com/developers/events/gateway-events#activity-object-activity-party).
+///
+/// discord.js counterpart: `GatewayActivityParty` (discord-api-types).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct ActivityParty {
@@ -370,6 +390,8 @@ pub struct ActivityParty {
 ///
 /// Images are an application asset ID or `mp:{image_id}` for an image of the media proxy
 /// (`https://media.discordapp.net/{image_id}`); they are user-provided and not sanitized.
+///
+/// discord.js counterpart: `GatewayActivityAssets` (discord-api-types).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct ActivityAssets {
@@ -398,6 +420,8 @@ pub struct ActivityAssets {
 
 /// The [Rich Presence secrets](https://docs.discord.com/developers/events/gateway-events#activity-object-activity-secrets)
 /// of an activity.
+///
+/// discord.js counterpart: `GatewayActivitySecrets` (discord-api-types).
 #[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct ActivitySecrets {

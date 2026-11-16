@@ -41,6 +41,8 @@ impl<'a, B: Backend> MessageManager<'a, B> {
     }
 
     /// The channel these messages belong to.
+    ///
+    /// discord.js counterpart: `MessageManager#channel`.
     #[must_use]
     pub const fn channel_id(self) -> ChannelId {
         self.channel_id

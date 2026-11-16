@@ -139,6 +139,8 @@ pub struct AccessTokenResponse {
 
 impl AccessTokenResponse {
     /// The authorized scopes, parsed from [`scope`](Self::scope).
+    ///
+    /// discord.js counterpart: the `scope` of `RESTPostOAuth2AccessTokenResult` (discord-api-types).
     pub fn scopes(&self) -> impl Iterator<Item = Scope> + '_ {
         self.scope.split_ascii_whitespace().map(Scope::from)
     }
