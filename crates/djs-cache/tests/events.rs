@@ -461,3 +461,48 @@ fn cached_types_cover_every_model_field() {
         );
     }
 }
+
+#[test]
+fn views_answer_for_what_they_hold() {
+    use djs_model::gateway::payload::MessageCreate;
+
+    let cache = everything();
+    cache.update(&guild_create());
+    // A view of a global resource.
+    let channels = cache.channels();
+    assert!(channels.is_enabled() && !channels.is_empty());
+    assert_eq!(channels.keys().len(), channels.len());
+    assert_eq!(channels.values().len(), channels.len());
+    assert_ne!(format!("{channels:?}"), "");
+    // A view of one guild's resource, and of a guild the cache does not know.
+    let roles = cache.roles(GUILD);
+    let id = roles.keys()[0];
+    assert!(roles.is_enabled() && !roles.is_empty());
+    assert!(roles.contains(id) && roles.get(id).is_some());
+    assert_eq!(roles.values().len(), roles.len());
+    assert_ne!(format!("{roles:?}"), "");
+    let elsewhere = cache.roles(GuildId::new(1));
+    assert!(elsewhere.is_empty() && elsewhere.keys().is_empty());
+    assert!(elsewhere.values().is_empty() && !elsewhere.contains(id));
+    assert!(elsewhere.get(id).is_none());
+    // A view of one channel's messages.
+    let message: MessageCreate = data(payloads::MESSAGE_CREATE);
+    cache.update(&message);
+    let messages = cache.messages(message.channel_id);
+    assert!(messages.is_enabled());
+    assert_eq!(messages.len(), 1);
+    assert!(!messages.is_empty() && messages.contains(message.id));
+    assert_eq!(messages.get(message.id).unwrap().content, message.content);
+    assert_eq!(messages.keys(), [message.id]);
+    assert_eq!(messages.values().len(), 1);
+    assert_ne!(format!("{messages:?}"), "");
+    // Views of resources the cache does not keep answer nothing.
+    let default = Cache::new();
+    default.update(&guild_create());
+    default.update(&message);
+    let members = default.members(GUILD);
+    assert!(!members.is_enabled() && members.is_empty() && members.keys().is_empty());
+    let messages = default.messages(message.channel_id);
+    assert!(!messages.is_enabled() && messages.is_empty());
+    assert!(messages.get(message.id).is_none() && messages.values().is_empty());
+}

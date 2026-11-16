@@ -348,6 +348,81 @@ mod tests {
     }
 
     #[test]
+    fn every_kind_round_trips_through_json() {
+        let json =
+            r#"{"a":null,"b":true,"c":7,"d":-7,"e":1.5,"f":"text","g":[1,"x",[]],"h":{"z":{}}}"#;
+        let value: JsonValue = serde_json::from_str(json).unwrap();
+        let JsonValue::Object(fields) = &value else {
+            panic!("{value:?}");
+        };
+        assert_eq!(fields["a"], JsonValue::Null);
+        assert_eq!(fields["b"], JsonValue::Bool(true));
+        assert_eq!(fields["c"], JsonValue::Unsigned(7));
+        assert_eq!(fields["d"], JsonValue::Signed(-7));
+        assert_eq!(fields["e"], JsonValue::Float(1.5));
+        assert_eq!(fields["f"].as_str(), Some("text"));
+        assert_eq!(fields["c"].as_str(), None);
+        // Keys are sorted, so the JSON comes back as it was written here.
+        assert_eq!(serde_json::to_string(&value).unwrap(), json);
+    }
+
+    #[test]
+    fn values_convert_to_types() {
+        #[derive(Debug, PartialEq, Deserialize)]
+        struct Settings {
+            name: String,
+            limit: Option<u32>,
+            tags: Vec<String>,
+            ratio: f64,
+            unit: (),
+        }
+
+        let value: JsonValue = serde_json::from_str(
+            r#"{"name":"bot","limit":null,"tags":["a","b"],"ratio":-2,"unit":null}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            value.to_type::<Settings>(),
+            Ok(Settings {
+                name: "bot".into(),
+                limit: None,
+                tags: vec!["a".into(), "b".into()],
+                ratio: -2.0,
+                unit: (),
+            })
+        );
+        let some: JsonValue = serde_json::from_str("5").unwrap();
+        assert_eq!(some.to_type::<Option<u32>>(), Ok(Some(5)));
+        let map: JsonValue = serde_json::from_str(r#"{"x":1}"#).unwrap();
+        assert_eq!(map.to_type::<BTreeMap<String, u8>>().unwrap()["x"], 1);
+    }
+
+    #[test]
+    fn mismatches_are_errors_that_say_what_was_found() {
+        #[derive(Debug, Deserialize)]
+        #[expect(dead_code, reason = "only the error matters")]
+        enum Shape {
+            Unit,
+            Newtype(u8),
+            Tuple(u8, u8),
+            Struct { side: u8 },
+        }
+
+        let error = JsonValue::Bool(true).to_type::<String>().unwrap_err();
+        assert!(error.to_string().contains("boolean"), "{error}");
+        let error = JsonValue::Array(Vec::new()).to_type::<Shape>().unwrap_err();
+        assert!(error.to_string().contains("string enum"), "{error}");
+        for variant in ["Newtype", "Tuple", "Struct"] {
+            let error = JsonValue::String(variant.into())
+                .to_type::<Shape>()
+                .unwrap_err();
+            assert!(error.to_string().contains("variant"), "{variant}: {error}");
+        }
+        let error: JsonValueError = de::Error::custom("custom");
+        assert_eq!(error.to_string(), "custom");
+    }
+
+    #[test]
     fn size() {
         assert_eq!(size_of::<JsonValue>(), 32);
     }

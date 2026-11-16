@@ -1943,6 +1943,8 @@ async fn stage_instances_by_their_channel() {
     let guild = ctx.guilds().fetch(GUILD).await.unwrap();
     session.take();
     let stages = guild.stage_instances(ctx);
+    assert_eq!(stages.guild_id(), GUILD);
+    assert!(stages.cache().unwrap().is_empty());
     let stage_channel = ChannelId::new(52);
     let opened = stages
         .create(
@@ -1961,7 +1963,11 @@ async fn stage_instances_by_their_channel() {
         stages.edit(stage_channel, &edit, None).await.unwrap().topic,
         "AMA"
     );
+    // The cache forgets a stage with its `STAGE_INSTANCE_DELETE` event, not here (D-236).
     stages.delete(stage_channel, None).await.unwrap();
+    let elsewhere = stages.fetch(ChannelId::new(53));
+    assert!(!elsewhere.is_cached(), "another channel's stage");
+    assert_eq!(elsewhere.await.unwrap().topic, "live");
     let seen: Vec<String> = session
         .take()
         .into_iter()
@@ -1973,6 +1979,7 @@ async fn stage_instances_by_their_channel() {
             "POST /stage-instances",
             "PATCH /stage-instances/52",
             "DELETE /stage-instances/52",
+            "GET /stage-instances/53",
         ]
     );
 
@@ -1983,7 +1990,7 @@ async fn stage_instances_by_their_channel() {
 async fn soundboard_sounds() {
     use djs_rs::model::{
         id::SoundboardSoundId,
-        rest::{CreateGuildSoundboardSound, SendSoundboardSound},
+        rest::{CreateGuildSoundboardSound, ModifyGuildSoundboardSound, SendSoundboardSound},
         util::SoundData,
     };
 
@@ -1999,8 +2006,19 @@ async fn soundboard_sounds() {
     let defaults = ctx.default_soundboard_sounds().await.unwrap();
     assert_eq!(defaults.len(), 2);
     let sounds = guild.soundboard_sounds(ctx);
+    assert_eq!(sounds.guild_id(), GUILD);
     assert_eq!(sounds.list().await.unwrap().len(), 1);
+    assert_eq!(sounds.cache().unwrap().len(), 1, "a list is cached");
     assert!(sounds.fetch(SoundboardSoundId::new(53)).is_cached());
+    let fetch = sounds.fetch(SoundboardSoundId::new(54));
+    assert!(!fetch.is_cached());
+    assert_eq!(fetch.await.unwrap().sound_id, SoundboardSoundId::new(54));
+    let mut rename = ModifyGuildSoundboardSound::default();
+    rename.name = Some("honk".into());
+    sounds
+        .edit(SoundboardSoundId::new(53), &rename, Some("louder"))
+        .await
+        .unwrap();
     let quack = SoundData::with_content_type(&b"ID3"[..], "audio/mpeg");
     let created = sounds
         .create(&CreateGuildSoundboardSound::new("quack", quack), None)
@@ -2023,6 +2041,8 @@ async fn soundboard_sounds() {
         [
             "GET /soundboard-default-sounds".to_owned(),
             format!("GET {base}/soundboard-sounds"),
+            format!("GET {base}/soundboard-sounds/54"),
+            format!("PATCH {base}/soundboard-sounds/53"),
             format!("POST {base}/soundboard-sounds"),
             format!("DELETE {base}/soundboard-sounds/55"),
             "GET /channels/52".to_owned(),
@@ -2046,6 +2066,7 @@ async fn the_application_id_comes_from_ready() {
 }
 
 #[tokio::test]
+#[expect(clippy::too_many_lines, reason = "every route of both scopes")]
 async fn global_and_guild_commands() {
     use djs_rs::{
         builders::SlashCommandBuilder,
@@ -2103,6 +2124,25 @@ async fn global_and_guild_commands() {
     let guild = ctx.guilds().fetch(GUILD).await.unwrap();
     session.take();
     let guild_commands = guild.commands(ctx);
+    assert_eq!(guild_commands.guild_id(), GUILD);
+    let listed = guild_commands
+        .list(&GetApplicationCommands::default())
+        .await
+        .unwrap();
+    assert_eq!(listed.len(), 2);
+    assert_eq!(
+        guild_commands.fetch(CommandId::new(80)).await.unwrap().name,
+        "ping"
+    );
+    assert_eq!(guild_commands.create(&ping).await.unwrap().name, "ping");
+    assert_eq!(
+        guild_commands
+            .edit(CommandId::new(82), &edit)
+            .await
+            .unwrap()
+            .name,
+        "pong"
+    );
     guild_commands.set(&[ping]).await.unwrap();
     guild_commands.delete(CommandId::new(90)).await.unwrap();
     let permissions = guild_commands.permissions().await.unwrap();
@@ -2124,6 +2164,10 @@ async fn global_and_guild_commands() {
     assert_eq!(
         seen,
         [
+            format!("GET {base}"),
+            format!("GET {base}/80"),
+            format!("POST {base}"),
+            format!("PATCH {base}/82"),
             format!("PUT {base}"),
             format!("DELETE {base}/90"),
             format!("GET {base}/permissions"),
@@ -2136,8 +2180,9 @@ async fn global_and_guild_commands() {
 #[tokio::test]
 async fn auto_moderation_audit_log_and_integrations() {
     use djs_rs::model::{
+        auto_moderation::Action,
         id::{AutoModerationRuleId, IntegrationId},
-        rest::{GetGuildAuditLog, ModifyAutoModerationRule},
+        rest::{CreateAutoModerationRule, GetGuildAuditLog, ModifyAutoModerationRule},
     };
 
     let session = Session::start(None).await;
@@ -2147,6 +2192,12 @@ async fn auto_moderation_audit_log_and_integrations() {
     let base = format!("/guilds/{GUILD}");
 
     let rules = guild.auto_moderation_rules(ctx);
+    assert_eq!(rules.guild_id(), GUILD);
+    let new = CreateAutoModerationRule::keyword("no spam", ["spam"], [Action::block_message()]);
+    assert_eq!(
+        rules.create(&new, Some("spam")).await.unwrap().name,
+        "no spam"
+    );
     let listed = rules.list().await.unwrap();
     assert!(listed.get(&AutoModerationRuleId::new(60)).is_some());
     assert_eq!(
@@ -2177,6 +2228,7 @@ async fn auto_moderation_audit_log_and_integrations() {
     assert_eq!(
         seen,
         [
+            format!("POST {rule_path}"),
             format!("GET {rule_path}"),
             format!("GET {rule_path}/60"),
             format!("PATCH {rule_path}/60"),

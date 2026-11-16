@@ -5652,6 +5652,11 @@ garbage (±1.0 for a frame). Measured with the listeners' side decoded by libopu
   discord.js event names, the filter of wanted events, guild availability and the
   per-emoji events. `serde` is a dev-dependency of djs-rs for it (already a workspace
   dependency).
+- **After the new tests (2026-11-16):** 92.1 % of lines, 90.3 % of regions, 91.3 % of
+  functions; dispatch 95 %, the cache's update 100 %, the CDN 100 %, the gateway's
+  configuration 97 %, the cache's views 95 %, the guild command and soundboard managers
+  97 %. A test found that a manager's `delete` leaves the cache to the gateway's delete event
+  (D-236, as designed), so the stage test fetches another channel's stage instead.
 
 ---
 
