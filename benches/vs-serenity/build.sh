@@ -19,7 +19,7 @@ RESULTS=$OUT/build.jsonl
 
 if [ "${1:-}" != "--offline" ]; then
   mkdir -p "$OUT"
-  exec unshare -rn "$0" --offline
+  exec unshare -rn "$PWD/$(basename "$0")" --offline
 fi
 ip link set lo up
 if timeout 3 bash -c '</dev/tcp/1.1.1.1/443' 2> /dev/null; then

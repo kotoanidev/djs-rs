@@ -53,7 +53,7 @@ print(json.dumps({
 }, indent=2))
 EOF
   echo "== entering a network namespace without a route out"
-  exec unshare -rn "$0" --offline
+  exec unshare -rn "$PWD/$(basename "$0")" --offline
 fi
 
 ip link set lo up
