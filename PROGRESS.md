@@ -86,7 +86,7 @@ REST, sharding, voice (D-380), each with its example in `book/code/examples/`, b
    REST, sharding, voice and the migration chapter (examples rustfmt'ed, pass CI's tests;
    clippy fixed blind from CI's log, to run locally after bench-all); ARCHITECTURE and
    CONTRIBUTING rewritten. **Rustdoc audit prepared, not applied** (applying it rebuilds
-   every crate, so after bench-all): scripts and curated maps in the session scratchpad
+   every crate, so after bench-all): scripts and curated maps in `.reference/tools/rustdoc-audit/` (git-ignored)
    (`audit.py`, `counterparts.py`, `model-map.txt`, `other-map.txt`, `rs-fn-map.txt`,
    `apply.py`); if lost, redo them: a `discord.js counterpart: …` line (C-134) for the 213
    model types, 75 other types and 61 djs-rs functions without one, then the remaining
