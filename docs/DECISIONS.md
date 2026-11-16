@@ -2979,6 +2979,7 @@ and why.
 
 ### D-322 — `join` returns once the call can send audio
 - **Date:** 2026-11-14 · **Decided by:** Owner
+- **Amended by D-349:** `join` no longer waits for DAVE.
 - **Decision:** `VoiceManager::join(guild, channel).await` returns the `Call` once the voice
   gateway, UDP and the DAVE session are ready to send, or an error (a timeout of 10 s,
   missing permissions, …), as songbird's `join`; connections lost later are repaired in the
@@ -3208,6 +3209,19 @@ and why.
   `ClusterManager::clusters()`), which bots can use too.
 - **Alternatives:** leaving the calls until Discord closes them; `leave_all()` instead of
   (or as well as) `calls()`.
+
+### D-349 — `join` does not wait for DAVE; audio only with E2EE
+- **Date:** 2026-11-16 · **Decided by:** Owner
+- **Context:** the first live test (step 1g) timed out: a bot alone in a voice channel never
+  gets an MLS group (it is created by a commit adding another pending member), so DAVE
+  never has a key. `@discordjs/voice` does not wait for DAVE either.
+- **Decision (amends D-322):** `join` returns once the voice gateway, UDP and Session
+  Description are done. Audio is only ever sent end-to-end encrypted: while the bot is not
+  in the call's MLS group its frames are dropped (alone, nobody hears them; when someone
+  joins, the group forms in about a second). Nothing goes out with transport encryption
+  only.
+- **Alternatives:** as discord.js, sending transport-only frames until DAVE is ready; keeping
+  D-322 (no joining an empty channel).
 
 ---
 
