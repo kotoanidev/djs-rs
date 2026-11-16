@@ -3,13 +3,14 @@
 //! The bot is a djs-rs [`Client`] with the cache discord.js keeps by default
 //! ([`CacheConfig::discord_js`]: guilds, members, users, channels, roles, emojis, …; D-174),
 //! so both sides keep the same data; `--cache serenity` keeps what serenity caches by default
-//! instead ([`serenity_cache`](crate::serenity_cache), D-280).
+//! instead ([`serenity_cache`](crate::serenity_cache), D-280), `--cache twilight` what twilight
+//! does ([`twilight_cache`](crate::twilight_cache), D-385).
 
 use djs_model::gateway::Intents;
 use djs_rs::{Client, Shards, cache::CacheConfig, gateway::Compression};
 use serde_json::json;
 
-use crate::{Options, TOKEN, metrics::status_kib, serenity_cache};
+use crate::{Options, TOKEN, metrics::status_kib, serenity_cache, twilight_cache};
 
 /// Connects to the mock gateway, caches the `--guilds` guilds it sends and prints the
 /// resident memory before and after.
@@ -21,7 +22,8 @@ pub(crate) async fn run(options: &Options, allocator: &str) {
             "Client + CacheConfig::discord_js()",
         ),
         "serenity" => (serenity_cache(), "Client + serenity's default cache"),
-        other => panic!("unknown --cache {other} (discord-js, serenity)"),
+        "twilight" => (twilight_cache(), "Client + twilight's default cache"),
+        other => panic!("unknown --cache {other} (discord-js, serenity, twilight)"),
     };
     let client = Client::builder(TOKEN)
         .intents(Intents::GUILDS | Intents::GUILD_MEMBERS)

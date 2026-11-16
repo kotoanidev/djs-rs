@@ -63,7 +63,23 @@ REST, sharding, voice (D-380), each with its example in `book/code/examples/`, b
    disposal, every channel kind's accessors, the model's custom deserializers, recurrence
    rules and builders. What stays low is ignored measurement code (codec, input, DAVE),
    macro output, and functions only doctests check (not counted on stable).
-3. [ ] Every benchmark again under the balanced profile: Phases 1–10 (`docs/PERFORMANCE.md`),
+3. [ ] **In progress (2026-11-16).** Resume point:
+   - `.reference/tools/bench-all.sh` (git-ignored) was started through the guard
+     (`safe.sh -n bench-all -T 14400`); every Phase 1–10 bench and stress test, one log each
+     in `.reference/bench/2026-11-16/` with `progress.txt`. If it did not finish, re-run the
+     missing ones with `ONLY='<name glob>'`. Then write the results into `docs/PERFORMANCE.md`
+     (a new "Measured again for 0.1.0-alpha.1, balanced profile" section, old vs new).
+   - **WIP, not compiled yet:** `benches/vs-twilight/` (twilight 0.18.0, own workspace:
+     `src/main.rs` decode/flood/memory/rest, `run.sh`) and `--cache twilight` /
+     `twilight_cache()` in `benches/vs-node`. Next: `cargo build --release` it (after
+     bench-all), fix errors, clippy; add `bots/twilight` (the `!ping` bot as twilight's README
+     writes it: shard + InMemoryCache + twilight-http) and a `build.sh` reusing
+     `../vs-serenity/bots/djs-rs`; a `report.mjs` for `docs/VS_TWILIGHT.md`; log C-134
+     (twilight without its `zstd` feature: it always asks for zstd-stream, the mock sends
+     plain JSON; proxy setup keeps its rate limiter).
+   - Then re-run `benches/vs-node/run.sh`, `benches/vs-serenity/run.sh` + `build.sh` +
+     `reliability.sh`, and the new twilight one.
+   Every benchmark again under the balanced profile: Phases 1–10 (`docs/PERFORMANCE.md`),
    `docs/VS_NODE.md`, `docs/VS_SERENITY.md` (D-384); then a new `docs/VS_TWILIGHT.md`
    (D-385).
 4. [ ] Documentation (D-386): the guide's chapters components and embeds, the cache, REST,

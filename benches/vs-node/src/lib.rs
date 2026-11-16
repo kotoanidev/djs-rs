@@ -9,9 +9,9 @@
 //! | `decode`       | Times decoding of the fixtures into djs-model types. |
 //! | `mock-gateway` | Serves `GET /gateway/bot` and a gateway that sends `READY`, guilds and a message flood. |
 //! | `mock-rest`    | Serves a fake Create Message endpoint with rate-limit headers. |
-//! | `flood`        | A djs-rs `Client` counting `MESSAGE_CREATE` handler calls (`--cache none\|discord-js\|serenity`). |
+//! | `flood`        | A djs-rs `Client` counting `MESSAGE_CREATE` handler calls (`--cache none\|discord-js\|serenity\|twilight`). |
 //! | `shard-flood`  | A bare djs-gateway `Shard` counting decoded `MESSAGE_CREATE` events. |
-//! | `memory`       | A djs-rs `Client` caching the guilds it receives (`--cache discord-js\|serenity`), then reporting RSS. |
+//! | `memory`       | A djs-rs `Client` caching the guilds it receives (`--cache discord-js\|serenity\|twilight`), then reporting RSS. |
 //! | `rest`         | Concurrent Create Message calls through djs-rest. |
 //!
 //! Every client subcommand prints one JSON line with its results.
@@ -49,6 +49,32 @@ pub fn serenity_cache() -> djs_rs::cache::CacheConfig {
         .scheduled_events(Limit::Unlimited)
         .stage_instances(Limit::Unlimited)
         .messages(Limit::Disabled)
+        .soundboard_sounds(Limit::Disabled)
+        .build()
+}
+
+/// The cache twilight keeps by default, as a djs-rs [`CacheConfig`](djs_rs::cache::CacheConfig)
+/// (D-385): twilight-cache-inmemory 0.18's default `Config` caches every resource type
+/// (`ResourceType::all()`: guilds, channels and threads, roles, emojis, stickers, members,
+/// users, presences, voice states, stage instances, scheduled events, reactions,
+/// integrations) and the last 100 messages of each channel; it has no soundboard cache.
+#[must_use]
+pub fn twilight_cache() -> djs_rs::cache::CacheConfig {
+    use djs_rs::cache::{CacheConfig, Limit};
+    CacheConfig::builder()
+        .guilds(Limit::Unlimited)
+        .channels(Limit::Unlimited)
+        .threads(Limit::Unlimited)
+        .roles(Limit::Unlimited)
+        .emojis(Limit::Unlimited)
+        .stickers(Limit::Unlimited)
+        .members(Limit::Unlimited)
+        .users(Limit::Unlimited)
+        .presences(Limit::Unlimited)
+        .voice_states(Limit::Unlimited)
+        .scheduled_events(Limit::Unlimited)
+        .stage_instances(Limit::Unlimited)
+        .messages(Limit::Max(100))
         .soundboard_sounds(Limit::Disabled)
         .build()
 }

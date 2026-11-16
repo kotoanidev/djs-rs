@@ -5,7 +5,7 @@
 
 use std::{hint::black_box, sync::Arc};
 
-use crate::{Options, TOKEN, metrics::Window, serenity_cache};
+use crate::{Options, TOKEN, metrics::Window, serenity_cache, twilight_cache};
 use djs_gateway::{Compression, Config, Shard};
 use djs_model::gateway::{DispatchEvent, GatewayEvent, Intents, ShardId};
 use djs_rs::{Client, Events, HandlerMode, Shards, cache::CacheConfig};
@@ -22,10 +22,10 @@ pub(crate) async fn client(options: &Options, allocator: &str) {
     let current_thread = options.get("runtime", String::from("multi")) == "current";
     let cached = match options.get("cache", String::from("none")).as_str() {
         "none" => false,
-        "discord-js" | "serenity" => true,
-        other => panic!("unknown --cache {other} (none, discord-js, serenity)"),
+        "discord-js" | "serenity" | "twilight" => true,
+        other => panic!("unknown --cache {other} (none, discord-js, serenity, twilight)"),
     };
-    let serenity = options.get("cache", String::new()) == "serenity";
+    let preset = options.get("cache", String::new());
     // One fixed shard with a gateway URL: the client never calls Get Gateway Bot (which would
     // go to the real Discord API, D-146).
     let mut builder = Client::builder(TOKEN)
@@ -39,10 +39,10 @@ pub(crate) async fn client(options: &Options, allocator: &str) {
             HandlerMode::Concurrent
         });
     if cached {
-        builder = builder.cache(if serenity {
-            serenity_cache()
-        } else {
-            CacheConfig::discord_js()
+        builder = builder.cache(match preset.as_str() {
+            "serenity" => serenity_cache(),
+            "twilight" => twilight_cache(),
+            _ => CacheConfig::discord_js(),
         });
     }
     let client = builder.build();
@@ -64,10 +64,11 @@ pub(crate) async fn client(options: &Options, allocator: &str) {
         (true, true) => "Client + messageCreate handler, Sequential, current-thread runtime",
     }
     .to_owned();
-    if serenity {
-        variant.push_str(", serenity's default cache");
-    } else if cached {
-        variant.push_str(", CacheConfig::discord_js()");
+    match preset.as_str() {
+        "serenity" => variant.push_str(", serenity's default cache"),
+        "twilight" => variant.push_str(", twilight's default cache"),
+        _ if cached => variant.push_str(", CacheConfig::discord_js()"),
+        _ => {}
     }
     println!("{}", window.result("djs-rs", &variant, allocator));
     // Exit without the clean disconnect; the mock server does not care.

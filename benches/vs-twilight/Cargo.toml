@@ -1,0 +1,43 @@
+[package]
+name = "djs-vs-twilight"
+description = "The djs-rs vs twilight comparison harness (docs/VS_TWILIGHT.md, D-385)."
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.89"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/kotoanidev/djs-rs"
+# A benchmark harness, never published.
+publish = false
+
+# Its own workspace, kept out of the main one so the quality gate never builds twilight
+# (D-385, as D-278 for serenity); it has its own Cargo.lock.
+[workspace]
+
+[dependencies]
+# The mock Discord servers, payloads and metrics shared with the other comparisons.
+djs-vs-node = { path = "../vs-node" }
+# twilight 0.18.0: the gateway without transport compression (the mock gateway sends plain
+# JSON, as it does to djs-rs and serenity), the HTTP client, the models and the cache.
+twilight-cache-inmemory = "=0.18.0"
+twilight-gateway = { version = "=0.18.0", default-features = false, features = ["rustls-platform-verifier", "twilight-http"] }
+twilight-http = "=0.18.0"
+twilight-model = "=0.18.0"
+serde = "1"
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "sync", "time"] }
+
+# The main workspace's lints (this crate cannot inherit them).
+[lints.rust]
+unsafe_code = "deny"
+missing_docs = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+
+# The main workspace's release profile, so the twilight runners are optimized exactly like
+# the djs-rs runners of benches/vs-node (C-109).
+[profile.release]
+lto = "fat"
+codegen-units = 1
