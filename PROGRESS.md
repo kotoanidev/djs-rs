@@ -74,7 +74,7 @@ REST, sharding, voice (D-380), each with its example in `book/code/examples/`, b
      `twilight_cache()` in `benches/vs-node`. Next: `cargo build --release` it (after
      bench-all), fix errors, clippy; add `bots/twilight` (the `!ping` bot as twilight's README
      writes it: shard + InMemoryCache + twilight-http) and a `build.sh` reusing
-     `../vs-serenity/bots/djs-rs`; a `report.mjs` for `docs/VS_TWILIGHT.md`; log C-134
+     `../vs-serenity/bots/djs-rs`; a `report.mjs` for `docs/VS_TWILIGHT.md`; log C-135
      (twilight without its `zstd` feature: it always asks for zstd-stream, the mock sends
      plain JSON; proxy setup keeps its rate limiter).
    - Then re-run `benches/vs-node/run.sh`, `benches/vs-serenity/run.sh` + `build.sh` +
@@ -82,15 +82,27 @@ REST, sharding, voice (D-380), each with its example in `book/code/examples/`, b
    Every benchmark again under the balanced profile: Phases 1–10 (`docs/PERFORMANCE.md`),
    `docs/VS_NODE.md`, `docs/VS_SERENITY.md` (D-384); then a new `docs/VS_TWILIGHT.md`
    (D-385).
-4. [ ] Documentation (D-386): the guide's chapters components and embeds, the cache, REST,
-   sharding, voice; a migration chapter from discord.js; the rustdoc audit; ARCHITECTURE and
-   CONTRIBUTING.
+4. [ ] Documentation (D-386). Done: the guide's chapters components and embeds, the cache,
+   REST, sharding, voice and the migration chapter (examples rustfmt'ed, pass CI's tests;
+   clippy fixed blind from CI's log, to run locally after bench-all); ARCHITECTURE and
+   CONTRIBUTING rewritten. **Rustdoc audit prepared, not applied** (applying it rebuilds
+   every crate, so after bench-all): scripts and curated maps in the session scratchpad
+   (`audit.py`, `counterparts.py`, `model-map.txt`, `other-map.txt`, `rs-fn-map.txt`,
+   `apply.py`); if lost, redo them: a `discord.js counterpart: …` line (C-134) for the 213
+   model types, 75 other types and 61 djs-rs functions without one, then the remaining
+   functions of model/cache/gateway/voice/formatters/collection/builders. Also left: the
+   crate READMEs' stale "Status" lines (djs-rest "Phase 1", djs-cache "Phase 5 step 5", …),
+   the workspace `homepage` → the guide (fixes CI 1.100's `redundant_homepage` warnings) and
+   dropping the unused `djs-util` workspace dependency (both rebuild everything: after
+   bench-all), and updating the local toolchain to 1.100 after every measurement.
 5. [ ] The README (an index of everything, the comparisons' numbers) with the logo (D-390).
 6. [ ] The release `0.1.0-alpha.1` on crates.io and GitHub (D-387, D-388): versions,
    `publish`, metadata, CHANGELOG section, dry runs, the owner's `cargo login`, the
    publication in dependency order, the tag and the GitHub Release.
-7. [ ] GitHub (D-389): issue forms, PR template, CODE_OF_CONDUCT, SECURITY (private
-   reporting on), description, homepage, topics, labels, Discussions, Dependabot.
+7. [ ] GitHub (D-389). Done (C-134): issue forms, PR template, Dependabot, SECURITY.md.
+   Left: CODE_OF_CONDUCT (Contributor Covenant 2.1; **blocked on the owner**: a contact
+   address for reports, an open question), private vulnerability reporting on, description,
+   homepage, topics, labels, Discussions.
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-075 in `docs/DECISIONS.md`; Claude defaults C-001 …
