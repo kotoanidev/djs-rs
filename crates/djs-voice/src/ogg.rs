@@ -602,7 +602,7 @@ impl OggOpus {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::{
         CONTINUED, CRC_TABLES, FIRST, LAST, MAX_LEADING_GARBAGE, OggError, OggOpus, OpusHead, crc,
     };
@@ -634,7 +634,12 @@ mod tests {
     /// Writes `packets` as the pages of one logical stream, with at most `per_page` lacing
     /// values on a page (so packets cross pages when it is small), numbering the pages from
     /// `sequence`.
-    fn stream(serial: u32, sequence: u32, packets: &[Vec<u8>], per_page: usize) -> Vec<u8> {
+    pub(crate) fn stream(
+        serial: u32,
+        sequence: u32,
+        packets: &[Vec<u8>],
+        per_page: usize,
+    ) -> Vec<u8> {
         // Every lacing value with the bytes of its segment.
         let mut segments: Vec<(u8, &[u8])> = Vec::new();
         for packet in packets {
@@ -700,14 +705,14 @@ mod tests {
     }
 
     /// An audio packet of `len` bytes whose bytes say which packet it is.
-    fn audio(number: u8, len: usize) -> Vec<u8> {
+    pub(crate) fn audio(number: u8, len: usize) -> Vec<u8> {
         (0..len)
             .map(|at| number.wrapping_add(u8::try_from(at % 251).unwrap()))
             .collect()
     }
 
     /// The headers and then `audio`.
-    fn opus(audio: &[Vec<u8>]) -> Vec<Vec<u8>> {
+    pub(crate) fn opus(audio: &[Vec<u8>]) -> Vec<Vec<u8>> {
         let mut packets = vec![head(2), tags()];
         packets.extend_from_slice(audio);
         packets

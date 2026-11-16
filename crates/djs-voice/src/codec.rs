@@ -325,4 +325,131 @@ mod tests {
         // A code-3 packet that claims more frames than it has.
         assert_eq!(decoder.decode(&[0xFB, 0x3F], &mut output), None);
     }
+
+    /// Step 4's measurement of the codec (C-129): `cargo test --release -p djs-voice --lib
+    /// codec::tests::throughput -- --ignored --nocapture`.
+    #[test]
+    #[ignore = "a measurement; run it in release"]
+    #[expect(clippy::too_many_lines, reason = "one measurement after another")]
+    fn throughput() {
+        use std::time::Instant;
+
+        // 10 s of music-like audio: two tones and some noise, at half the full scale.
+        let frames: u32 = 500;
+        let mut rng = fastrand::Rng::with_seed(7);
+        let audio: Vec<Vec<f32>> = (0..frames)
+            .map(|frame| {
+                (0..FRAME_VALUES)
+                    .map(|value| {
+                        #[expect(clippy::cast_precision_loss, reason = "small sample indices")]
+                        let t = (frame as usize * FRAME_VALUES / 2 + value / 2) as f32 / 48_000.0;
+                        let tones = (t * 220.0 * core::f32::consts::TAU).sin() * 0.3
+                            + (t * 1_320.0 * core::f32::consts::TAU).sin() * 0.1;
+                        tones + (rng.f32() - 0.5) * 0.1
+                    })
+                    .collect()
+            })
+            .collect();
+        let best = |run: &mut dyn FnMut()| {
+            let mut best = f64::MAX;
+            for _ in 0..3 {
+                let started = Instant::now();
+                run();
+                best = best.min(started.elapsed().as_secs_f64());
+            }
+            best / f64::from(frames)
+        };
+        let report = |name: &str, per_frame: f64| {
+            println!(
+                "{name}: {:.1} us per 20 ms frame, {:.0}x real time on one core",
+                per_frame * 1e6,
+                0.02 / per_frame
+            );
+        };
+        let mut packet = [0; MAX_PACKET];
+        let mut pcm = vec![0.0; MAX_PACKET_VALUES];
+        for bitrate in [128_000, 64_000] {
+            let mut encoder = Encoder::new(bitrate).unwrap();
+            let per = best(&mut || {
+                for frame in &audio {
+                    pcm[..FRAME_VALUES].copy_from_slice(frame);
+                    std::hint::black_box(encoder.encode(
+                        &mut pcm[..FRAME_VALUES],
+                        1.0,
+                        1.0,
+                        &mut packet,
+                    ));
+                }
+            });
+            report(&format!("encode at {} kb/s", bitrate / 1000), per);
+        }
+        // Packets to decode: the same audio at 128 kb/s.
+        let mut encoder = Encoder::new(128_000).unwrap();
+        let packets: Vec<Vec<u8>> = audio
+            .iter()
+            .map(|frame| {
+                pcm[..FRAME_VALUES].copy_from_slice(frame);
+                let len = encoder
+                    .encode(&mut pcm[..FRAME_VALUES], 1.0, 1.0, &mut packet)
+                    .unwrap();
+                packet[..len].to_vec()
+            })
+            .collect();
+        let average = packets.iter().map(Vec::len).sum::<usize>() / packets.len();
+        println!("({average} bytes per packet at 128 kb/s)");
+        let mut decoder = Decoder::new().unwrap();
+        let per = best(&mut || {
+            for packet in &packets {
+                std::hint::black_box(decoder.decode(packet, &mut pcm));
+            }
+        });
+        report("decode to f32", per);
+        let mut samples = vec![0_i16; MAX_PACKET_VALUES];
+        let per = best(&mut || {
+            for packet in &packets {
+                std::hint::black_box(decoder.decode_i16(packet, false, &mut samples));
+            }
+        });
+        report("decode to i16", per);
+        let per = best(&mut || {
+            for _ in &packets {
+                std::hint::black_box(decoder.decode_i16(&[], false, &mut samples[..FRAME_VALUES]));
+            }
+        });
+        report("conceal a lost packet", per);
+        // A volume other than 1.0: each packet decoded, scaled, encoded again.
+        let mut out = [0; MAX_PACKET];
+        let per = best(&mut || {
+            for packet in &packets {
+                let samples = decoder.decode(packet, &mut pcm).unwrap();
+                let len = encoder.encode(&mut pcm[..samples * 2], 0.5, 0.5, &mut out);
+                assert!(std::hint::black_box(len).is_some());
+            }
+        });
+        report("decode + re-encode at 0.5", per);
+        // The start of re-encoding (C-127): 400 ms of packets decoded, one frame encoded.
+        let starts: u32 = 200;
+        let mut best_start = f64::MAX;
+        for _ in 0..3 {
+            let started = Instant::now();
+            for start in 0..starts {
+                let mut fresh = Decoder::new().unwrap();
+                let from = usize::try_from(start).unwrap() % (packets.len() - 20);
+                for packet in &packets[from..from + 20] {
+                    fresh.decode(packet, &mut pcm).unwrap();
+                }
+                std::hint::black_box(encoder.encode(
+                    &mut pcm[..FRAME_VALUES],
+                    1.0,
+                    1.0,
+                    &mut packet,
+                ));
+            }
+            best_start = best_start.min(started.elapsed().as_secs_f64());
+        }
+        println!(
+            "start of re-encoding (400 ms decoded, one frame encoded): {:.0} us",
+            best_start / f64::from(starts) * 1e6
+        );
+    }
 }

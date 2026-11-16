@@ -1507,3 +1507,118 @@ A million packets sealed, then opened, in place; best of 3:
   users; AES-GCM is preferred and offered by most voice servers, so the slow path is the
   fallback. Candidates: report it upstream (RustCrypto `universal-hashes`); document the
   `cfg` for bots that run on XChaCha20.
+
+### Step 4: the codec, DAVE, readers, receiving, many calls and many speakers (2026-11-16, C-129)
+
+From this step on, the laptop runs the **balanced** power profile (the owner's choice for
+safe temperatures): single-core speed is about 20 % lower than under the performance profile
+the earlier Phase 10 numbers were taken with (the codec's encode took 117 µs per frame there,
+146 µs here), so the numbers below are on the cautious side. All 12 CPUs, through the guard
+(peaks 53–65 °C). The measurements are ignored unit tests (they need the crate's private
+parts); the commands are in each test's doc comment.
+
+#### The codec (`codec::tests::throughput`)
+
+Ten seconds of 48 kHz stereo (two tones and some noise), 20 ms frames, best of 3:
+
+| Operation (one 20 ms frame) | Time | Real time on one core |
+|---|---|---|
+| Encode at 128 kbit/s (321-byte packets) | 146 µs | 137× |
+| Encode at 64 kbit/s | 105 µs | 190× |
+| Decode to `f32` (the player) | 36 µs | 555× |
+| Decode to `i16` (receiving, D-370) | 40 µs | 497× |
+| Conceal a lost packet (PLC) | 13 µs | 1 495× |
+| Decode + encode again at volume 0.5 | 185 µs | 108× |
+| The start of re-encoding (C-127: 400 ms decoded, one frame encoded) | 877 µs, once | — |
+
+- Encoding is the cost of playing anything but Ogg/Opus at volume 1.0: about 7–9 ms of a
+  core per second of audio. The start of re-encoding (after a volume change or a seek)
+  holds the call's task for under a millisecond, well inside a frame's 20 ms.
+
+#### DAVE (`dave::tests::throughput`)
+
+An MLS group of the bot and another member (openmls, as in the unit tests); 100 000 frames:
+
+| Opus frame | Encrypt (the bot's) | Decrypt (another member's) |
+|---|---|---|
+| 160 bytes (64 kbit/s) | 211 ns | 266 ns |
+| 320 bytes (128 kbit/s) | 314 ns | 370 ns |
+
+- 13–19 µs per second of a stream each way. With transport encryption (AES-256-GCM, 142–150
+  ns for 160 bytes, same as under the performance profile), a packet's encryption costs
+  well under a microsecond.
+
+#### The readers through `Input` (`input::tests::throughput`)
+
+As a track reads them (its 50-chunk channel, a 2-thread runtime):
+
+| Input | Time | Rate | Real time |
+|---|---|---|---|
+| An hour of Ogg/Opus from a file (180 000 packets, 27.7 MiB) | 110 ms | 1.64 M packets/s | 32 759× |
+| Ten minutes of PCM from memory (30 000 frames) | 64 ms | 0.47 M frames/s | 9 331× |
+
+- The raw Ogg reader reads the same hour in 19 ms (1 465 MiB/s, unchanged under the
+  balanced profile); the rest is the file's reads and a channel message per packet. Either
+  way, a reader is never what limits a call.
+
+#### Receiving (`receive::tests::throughput`)
+
+One user's packets, without sockets (200 000 packets, best of 3):
+
+| Path | Per packet |
+|---|---|
+| The reorder buffer, in order / 2 % swapped | 20 ns / 13 ns |
+| To one Opus stream (the packet copied, sent on its channel) | 138 ns |
+| To ten Opus streams | 1 094 ns (≈ 110 ns per stream) |
+| To a PCM stream (decoded) | 23.8 µs |
+
+#### Many calls at once (`manager::stress_tests::many_calls_play_at_once`)
+
+End to end: each call joins its own mock voice server on `127.0.0.1` (WebSocket + UDP),
+all in one process on a **4-thread** runtime, and plays for 5 s; each mock counts its
+call's packets. The CPU time is the process's (`/proc/self/stat`), so it includes the
+mocks' receiving; the memory is the resident set's growth.
+
+| | 200 calls | 1 000 calls |
+|---|---|---|
+| Joining (one after another) | 9.45 s | 45.7 s |
+| Memory, joined and idle | 68 KiB per call | 59 KiB per call |
+| **Ogg/Opus as it is** | 100 % of packets, 0.42 cores, 2.1 ms CPU per call-second; longest gap 23.7 ms, none over 30 ms; 150 KiB per call | 100 %, 1.42 cores, 1.4 ms per call-second (≈ 700 calls per core); longest gap 41.2 ms, 290 of 250 000 over 30 ms; 123 KiB per call |
+| **Ogg/Opus at volume 0.5** (decoded, encoded again) | 100 %, 2.64 cores, 13.2 ms per call-second (≈ 76 calls per core); longest gap 51.4 ms, 33 of 50 000 over 30 ms; 289 KiB per call | overloaded: 39.6 % of packets with all 4 threads busy; longest gap 320 ms; 276 KiB per call |
+| **PCM** (encoded) | 100 %, 2.19 cores, 10.9 ms per call-second (≈ 91 calls per core); longest gap 30.1 ms, 2 over 30 ms; 370 KiB per call | overloaded: 49.5 %, all 4 threads busy; longest gap 279 ms; 368 KiB per call |
+
+- Passing Ogg/Opus through is cheap: ≈ 700 calls per core with the mocks' share included.
+  Encoding sets the limit: ≈ 75–100 calls per core.
+- **Overload degrades evenly.** At 1 000 encoding calls the 4 threads can do about 40–50 %
+  of the work: every call slows down alike (its packets late, none starved), memory stays
+  flat, and nothing fails. A bot that encodes for that many calls needs that many cores (or
+  more runtime threads: tokio's default is one per CPU).
+- **PCM's read-ahead is half its memory:** a track reads 50 chunks ahead (1 s), and a raw
+  PCM frame is 3 840 bytes, so about 190 KiB per PCM track (an Ogg packet is 100–300 bytes).
+  Candidate: a shorter read-ahead for PCM and FFmpeg inputs.
+
+#### A call receiving many speakers (`manager::stress_tests::a_call_receives_many_speakers`)
+
+One call; the mock sends every speaker's packet every 20 ms (all at once, a burst per
+frame); every speaker is subscribed twice (Opus and PCM); meanwhile the bot plays Ogg/Opus
+at volume 0.5. "Dropped by the kernel" is `/proc/net/snmp`'s `RcvbufErrors` (the socket's
+receive buffer full; the default `net.core.rmem_default` is 212 992 bytes).
+
+| Speakers | Streams | Lost packets | Dropped by the kernel | Cores busy (with the mock) | The bot's packets | Its longest gap | Gaps over 30 ms |
+|---|---|---|---|---|---|---|---|
+| 0 | 0 | — | 0 | 0.04 | 100 % | 21.4 ms | 0 |
+| 50 | 100 | 0 | 0 | 0.35 | 100 % | 21.7 ms | 0 |
+| 100 | 200 | 0 | 0 | 0.56 | 99.9 % | 21.5 ms | 0 |
+| 200 | 400 | 3 077 of 50 000 (6 %; other runs 42 and 5 648) | 3 077 | 0.77 | 99.9 % | 45.8 ms | 14 |
+
+- Up to 100 speakers (more than the 99 a voice channel can be limited to), nothing is lost
+  and the bot's own audio stays on time.
+- **Finding: at 200 speakers the socket overflows.** The call's task does everything for
+  a call: it reads the socket, opens each packet, and decodes every PCM subscription's
+  packets (24–40 µs each, so 5–8 ms per 20 ms burst at 200 speakers). While it decodes, the
+  burst fills the socket's buffer and the kernel drops datagrams (exactly the lost
+  packets), and the bot's own packets go out late. A voice channel without a limit can hold
+  that many members, so this is rare but possible. Candidates (the owner's decision):
+  decoding on the reader's side (in `VoiceStream`, so the call's task only routes Opus and
+  decoding spreads over the subscribers' tasks), a larger receive buffer for the socket, or
+  documenting the limit.

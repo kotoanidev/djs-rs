@@ -37,7 +37,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   to 48 kHz stereo `i16` (lost packets rebuilt by forward error correction or concealed)
   and ends a stream with `EndBehavior::{Manual, AfterSilence, AfterInactivity}`; packets
   come in order through a 60 ms buffer; `CallEvent::SpeakingStarted` and `SpeakingStopped`
-  come from the packets.
+  come from the packets. Members' plain frames while a call upgrades to DAVE are taken as
+  they are, without an error logged for each.
   The player of step 2 (D-350–D-362, C-126): Opus through `opus2` with a bundled libopus 1.5
   (replacing `audiopus`, which does not build with CMake 4); `Input::pcm` (s16le, 48 kHz,
   stereo) and `Input::ffmpeg` (any file or URL, `ffmpeg` run when the track starts;

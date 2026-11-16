@@ -834,4 +834,73 @@ mod tests {
         }
         std::fs::remove_dir_all(&dir).unwrap();
     }
+
+    /// Step 4's measurement of the readers through `Input` (C-129, C-118): `cargo test
+    /// --release -p djs-voice --lib input::tests::throughput -- --ignored --nocapture`.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[ignore = "a measurement; run it in release"]
+    async fn throughput() {
+        use std::time::Instant;
+
+        use crate::ogg::tests::{audio, opus, stream};
+
+        // An hour of 64 kbit/s Ogg/Opus in a file: 20 ms CELT packets of 160 bytes.
+        let packets: u32 = 3600 * 50;
+        let audio: Vec<Vec<u8>> = (0..packets)
+            .map(|number| {
+                let mut packet = vec![0xFC];
+                packet.extend(audio(u8::try_from(number % 256).unwrap(), 159));
+                packet
+            })
+            .collect();
+        let file = stream(1, 0, &opus(&audio), 50);
+        let dir = std::env::temp_dir().join(format!("djs-voice-read-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("hour.opus");
+        std::fs::write(&path, &file).unwrap();
+        let drain = |input: Input| async move {
+            let (source, _) = input.into_parts();
+            // As a track's reader: 50 chunks ahead.
+            let (tx, mut rx) = mpsc::channel(50);
+            tokio::spawn(read(source, 0, tx));
+            let mut frames = 0_u32;
+            while let Some(chunk) = rx.recv().await {
+                if let Ok(Chunk::Frame(_)) = chunk {
+                    frames += 1;
+                }
+            }
+            frames
+        };
+        let mut best = f64::MAX;
+        for _ in 0..3 {
+            let started = Instant::now();
+            let frames = drain(Input::ogg_file(&path).await.unwrap()).await;
+            best = best.min(started.elapsed().as_secs_f64());
+            assert_eq!(frames, packets);
+        }
+        println!(
+            "an hour of Ogg/Opus from a file: {:.0} ms, {:.2} M packets/s, {:.0}x real time",
+            best * 1e3,
+            f64::from(packets) / best / 1e6,
+            3600.0 / best
+        );
+        std::fs::remove_dir_all(&dir).unwrap();
+        // Ten minutes of PCM from memory, in 20 ms frames.
+        let minutes = 10;
+        let pcm = vec![0_u8; minutes * 60 * 48_000 * 4];
+        let frames = u32::try_from(minutes * 60 * 50).unwrap();
+        let mut best = f64::MAX;
+        for _ in 0..3 {
+            let started = Instant::now();
+            let read = drain(Input::pcm(std::io::Cursor::new(pcm.clone()))).await;
+            best = best.min(started.elapsed().as_secs_f64());
+            assert_eq!(read, frames);
+        }
+        println!(
+            "ten minutes of PCM from memory: {:.0} ms, {:.2} M frames/s, {:.0}x real time",
+            best * 1e3,
+            f64::from(frames) / best / 1e6,
+            600.0 / best
+        );
+    }
 }

@@ -347,3 +347,90 @@ fn options_default_to_opus_and_manual() {
     assert!(options.decode);
     assert_eq!(options.end, EndBehavior::AfterInactivity(Duration::ZERO));
 }
+
+/// Step 4's measurement of receiving (C-129): `cargo test --release -p djs-voice --lib
+/// receive::tests::throughput -- --ignored --nocapture`.
+#[test]
+#[ignore = "a measurement; run it in release"]
+fn throughput() {
+    use std::time::Instant as Clock;
+
+    let packets = sine();
+    let now = Instant::now();
+    let count: u32 = 200_000;
+    let best = |run: &mut dyn FnMut(u32)| {
+        let mut best = f64::MAX;
+        for _ in 0..3 {
+            let started = Clock::now();
+            run(count);
+            best = best.min(started.elapsed().as_secs_f64());
+        }
+        best / f64::from(count) * 1e9
+    };
+    // The reorder buffer alone: in order, then every 50th pair swapped.
+    let mut out = Vec::new();
+    for swapped in [false, true] {
+        let per = best(&mut |count| {
+            let mut reorder = Reorder::default();
+            for n in 0..count {
+                let sequence = u16::try_from(n % 65_536).unwrap();
+                let sequence = match (swapped, n % 50) {
+                    (true, 10) => sequence.wrapping_add(1),
+                    (true, 11) => sequence.wrapping_sub(1),
+                    _ => sequence,
+                };
+                let opus = &packets[usize::try_from(n).unwrap() % packets.len()];
+                reorder.push(sequence, u32::from(sequence) * 960, opus, now, &mut out);
+                out.clear();
+            }
+        });
+        println!(
+            "reorder, {}: {per:.0} ns per packet",
+            if swapped { "2 % swapped" } else { "in order" }
+        );
+    }
+    // Through `Receiving`, to Opus streams (each packet copied to each), drained as a reader
+    // would.
+    for subscriptions in [1, 10] {
+        let per = best(&mut |count| {
+            let mut receiving = Receiving::default();
+            receiving.map(user(), SSRC, now);
+            let mut streams: Vec<VoiceStream> = (0..subscriptions)
+                .map(|_| stream(&mut receiving, ReceiveOptions::new()))
+                .collect();
+            for n in 0..count {
+                let sequence = u16::try_from(n % 65_536).unwrap();
+                let opus = &packets[usize::try_from(n).unwrap() % packets.len()];
+                arrive(&mut receiving, sequence, opus, now);
+                if n % 128 == 0 {
+                    for stream in &mut streams {
+                        while stream.rx.try_recv().is_ok() {}
+                    }
+                }
+            }
+        });
+        println!("receiving to {subscriptions} Opus stream(s): {per:.0} ns per packet");
+    }
+    // Decoded: one PCM stream.
+    let decoded: u32 = 20_000;
+    let mut best_pcm = f64::MAX;
+    for _ in 0..3 {
+        let mut receiving = Receiving::default();
+        receiving.map(user(), SSRC, now);
+        let mut pcm = stream(&mut receiving, ReceiveOptions::new().decode(true));
+        let started = Clock::now();
+        for n in 0..decoded {
+            let sequence = u16::try_from(n % 65_536).unwrap();
+            let opus = &packets[usize::try_from(n).unwrap() % packets.len()];
+            arrive(&mut receiving, sequence, opus, now);
+            if n % 128 == 0 {
+                while pcm.rx.try_recv().is_ok() {}
+            }
+        }
+        best_pcm = best_pcm.min(started.elapsed().as_secs_f64());
+    }
+    println!(
+        "receiving to a PCM stream: {:.1} us per packet",
+        best_pcm / f64::from(decoded) * 1e6
+    );
+}

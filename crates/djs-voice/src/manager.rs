@@ -351,4 +351,6 @@ mod player_tests;
 #[cfg(test)]
 mod receive_tests;
 #[cfg(test)]
+mod stress_tests;
+#[cfg(test)]
 mod tests;

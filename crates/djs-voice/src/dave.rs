@@ -695,4 +695,46 @@ mod tests {
         dave.handle(Event::ClientDisconnect(UserId::new(BOT)));
         assert!(dave.recognized.contains(&BOT));
     }
+
+    /// Step 4's measurement of DAVE (C-129): `cargo test --release -p djs-voice --lib
+    /// dave::tests::throughput -- --ignored --nocapture`.
+    #[test]
+    #[ignore = "a measurement; run it in release"]
+    fn throughput() {
+        use std::time::Instant;
+
+        let (mut dave, mut other) = in_a_group();
+        let frames: u32 = 100_000;
+        for size in [160_usize, 320] {
+            let opus = vec![0x7C_u8; size];
+            let mut encrypt = f64::MAX;
+            let mut decrypt = f64::MAX;
+            let mut out = Vec::with_capacity(1500);
+            for _ in 0..3 {
+                let started = Instant::now();
+                for _ in 0..frames {
+                    std::hint::black_box(dave.encrypt(&opus));
+                }
+                encrypt = encrypt.min(started.elapsed().as_secs_f64());
+                // Another member's frames, each decrypted once (as received).
+                let sent: Vec<Vec<u8>> = (0..frames)
+                    .map(|_| other.encrypt_opus(&opus).unwrap().to_vec())
+                    .collect();
+                let started = Instant::now();
+                for frame in &sent {
+                    std::hint::black_box(dave.decrypt(OTHER, frame, &mut out));
+                }
+                decrypt = decrypt.min(started.elapsed().as_secs_f64());
+                assert_eq!(out, opus, "decrypted");
+            }
+            let per = |seconds: f64| seconds / f64::from(frames) * 1e9;
+            println!(
+                "{size}-byte Opus frame: encrypt {:.0} ns, decrypt {:.0} ns ({:.1} us per second \
+                 of audio each way)",
+                per(encrypt),
+                per(decrypt),
+                per(encrypt.max(decrypt)) * 50.0 / 1e3,
+            );
+        }
+    }
 }

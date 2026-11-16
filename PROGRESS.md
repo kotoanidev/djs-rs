@@ -37,9 +37,10 @@ IDENTIFY queue, restarts, named commands and stats; benchmarks + extreme-load te
 `docs/PERFORMANCE.md` "Phase 9"). **Phase 10 — `djs-voice` (D-017): in progress**, step 1
 (connection, DAVE, Ogg/Opus, djs-rs's `voice` feature) done and live-tested 2026-11-16;
 step 2 (the player) done and live-tested, its clicks fixed (C-127; a second listening test
-later, the owner's choice); step 3 (receiving audio) implemented and partly live-tested (D-363–D-373, C-128; the
-playback and tones rerun later, the owner's choice); **next: step 4, voice benchmarks and
-extreme-load tests** (see item 10 below).
+later, the owner's choice); step 3 (receiving audio) done and live-tested (D-363–D-373, C-128; the playback and
+tones rerun later, the owner's choice); step 4 (benchmarks and extreme-load tests) measured
+2026-11-16 (`docs/PERFORMANCE.md`, "Step 4", C-129); **next: the owner's answer on the
+finding at 200 speakers** (see "Blocked on the owner"), then Phase 10 is done.
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-075 in `docs/DECISIONS.md`; Claude defaults C-001 …
@@ -804,12 +805,19 @@ fields with `Deref` to `new`). Steps:
    output was cut short by davey's "no magic marker" errors for the owner's plain frames
    during the DAVE upgrade: `Dave::decrypt` now checks the marker itself, so davey logs
    nothing). A rerun (playback + step 2's tones): later, the owner's choice; ask with
-   D-275. **Next:** step 4.
-   **For step 4:** benchmark Opus encoding per frame, decode + re-encode at a volume, the
-   start of re-encoding (decoding the 400 ms kept, C-127), the PCM/Ogg readers through
-   `Input`, and many calls encoding at once; receiving: opening a packet (transport +
-   DAVE), the reorder buffer, decoding per subscription, many speakers and subscriptions
-   per call.
+   D-275.
+   **Step 4, benchmarks and extreme-load tests — measured 2026-11-16 (C-129,
+   `docs/PERFORMANCE.md` "Step 4", the balanced power profile):** ignored unit tests
+   `codec::tests::throughput` (encode 146 µs per frame at 128 kbit/s, decode 36–40 µs,
+   re-encode 185 µs, the re-encoding start 877 µs), `dave::tests::throughput` (211/266 ns
+   per 160-byte frame), `input::tests::throughput` (an hour of Ogg from a file in 110 ms),
+   `receive::tests::throughput` (reorder 13–20 ns, 138 ns per Opus stream, 23.8 µs
+   decoded); the stress tests in `manager/stress_tests.rs`: 200 and 1 000 calls (≈ 700
+   passthrough or 75–100 encoding calls per core; overload degrades evenly; PCM's 1 s
+   read-ahead is 190 KiB per track, a candidate) and up to 200 speakers with a playing bot
+   (nothing lost up to 100; at 200 the call's task, decoding every PCM subscription, lets
+   the socket's buffer overflow: the kernel drops 0.1–11 % and the bot's packets go late).
+   **Next:** the owner's choice for that finding (asked 2026-11-16), then Phase 10 is done.
 
 > **Heavy runs (D-257, D-259–D-262):** the owner's laptop hard-froze on 2026-11-13 under
 > assistant load. Every cargo build/test/bench/stress test goes through
@@ -828,6 +836,9 @@ fields with `Deref` to `new`). Steps:
   body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").
 
 ## Blocked on the owner
+- The finding of step 4 at 200 speakers (`docs/PERFORMANCE.md`, "A call receiving many
+  speakers"): decode in `VoiceStream`, a larger socket buffer, or document the limit —
+  asked 2026-11-16.
 - Live voice tests with the owner (D-275) are on hold: since 2026-11-16 they cannot join
   the voice channel (background noise). Waiting: the playback of a recording (step 3) and
   step 2's tones after the click fixes (C-127). Do not ask until they say they can.

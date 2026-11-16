@@ -5477,6 +5477,19 @@ garbage (±1.0 for a frame). Measured with the listeners' side decoded by libopu
 - **Speaking (D-369):** from every packet of a known SSRC, silence frames included;
   stopped 100 ms after the last one.
 
+### C-129 — Voice measurements, step 4 (D-041)
+- **Where:** djs-voice's measurements are `#[ignore]`d unit tests in the modules they
+  measure (`codec`, `dave`, `input`, `receive`, as C-118 and C-119 did for `ogg` and
+  `crypto`), and the end-to-end extreme-load tests are in `manager/stress_tests.rs`: they
+  need the crate's private parts and its mock voice server, which a `benches/` target
+  cannot reach. No new dependency (no divan for this crate).
+- **How:** best of 3 (or 5) runs in release; the stress tests use mock voice servers on
+  `127.0.0.1` in the same process, a 4-thread tokio runtime (a modest bot server), CPU time
+  from `/proc/self/stat` and memory from `/proc/self/status` (so they are Linux only, and the
+  mocks' share is included), the kernel's UDP drops from `/proc/net/snmp`. Sizes through
+  `DJS_VOICE_CALLS` (200) and `DJS_VOICE_SPEAKERS` (50).
+- `ogg::tests`' stream writer is `pub(crate)`, for the readers' measurement.
+
 ---
 
 ## Open questions (to ask the owner when relevant)
