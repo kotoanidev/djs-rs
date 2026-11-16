@@ -3471,6 +3471,57 @@ and why.
   https://kotoanidev.github.io/djs-rs/api/; the chapters link items to it (until docs.rs).
 - Rejected: only the guide, without links to the API.
 
+### D-383 — Finishing the tests: live voice and coverage (2026-11-16)
+- **Request (owner):** "finish the tests, then redo every outdated benchmark and comparison,
+  complete the documentation, write a README like top repositories', release the first
+  alpha, and set up GitHub (issues, contributing, …)."
+- **Answer (owner):** both: first the live voice test (the owner on the channel: the bot
+  records them, plays the recording back, then step 2's tones; this lifts the hold of
+  2026-11-16), then a coverage audit with `cargo-llvm-cov` (a tool installed through cargo,
+  not a dependency) and tests for its gaps.
+
+### D-384 — Every benchmark and comparison measured again (2026-11-16)
+- **Answer (owner):** all of them: Phases 1–10 in `docs/PERFORMANCE.md` and the discord.js
+  and serenity comparisons, on the same machine under the same (balanced) power profile, so
+  the README's numbers are consistent; one heavy run at a time through the guard.
+- Rejected: only the ones whose code changed since.
+
+### D-385 — A twilight comparison before the README (2026-11-16)
+- **Answer (owner):** yes: `docs/VS_TWILIGHT.md`, the same set as serenity's (decoding, an
+  event flood, memory, REST, building), twilight a dependency of that benchmark only (its
+  own directory, as serenity's).
+
+### D-386 — What "complete documentation" covers (2026-11-16)
+- **Answer (owner):** the rest of the guide (components and embeds, the cache, REST,
+  sharding, voice, each with a compiled example), a discord.js → djs-rs migration chapter,
+  a rustdoc audit (examples where they make sense, Discord docs links, discord.js
+  counterparts on every public item), and `docs/ARCHITECTURE.md` and `CONTRIBUTING.md`
+  brought up to date.
+
+### D-387 — The first release is 0.1.0-alpha.1 (2026-11-16)
+- **Answer (owner):** all ten library crates at `0.1.0-alpha.1`: a pre-release cargo does not
+  pick without asking, later alphas may change the API.
+- Rejected: `0.1.0`, `0.0.1`.
+
+### D-388 — Released on crates.io and GitHub (2026-11-16)
+- **Answer (owner):** the tag `v0.1.0-alpha.1`, a GitHub Release with the CHANGELOG's notes,
+  and the ten crates published on crates.io in dependency order. The owner logs in to
+  crates.io themselves (`cargo login`, the token never reaches Claude or the repository)
+  and confirms the publication. Publishing cannot be undone (only yanked).
+- Rejected: a GitHub Release only.
+
+### D-389 — GitHub set up for contributors (2026-11-16)
+- **Answer (owner):** all four: issue forms (bug, feature, question) and a pull request
+  template; CODE_OF_CONDUCT (Contributor Covenant 2.1), SECURITY.md with GitHub's private
+  vulnerability reporting enabled, CONTRIBUTING refreshed; the repository's description,
+  homepage (the guide), topics and labels; Discussions and Dependabot (GitHub Actions and
+  cargo, weekly).
+
+### D-390 — A simple logo (2026-11-16)
+- **Answer (owner):** an original, simple SVG logo in `assets/` (no Discord, discord.js or
+  Rust marks), also the guide's favicon.
+- Rejected: no logo.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)

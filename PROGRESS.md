@@ -50,6 +50,23 @@ and embeds" chapter** (embeds, buttons, select menus, modals, collectors), then 
 REST, sharding, voice (D-380), each with its example in `book/code/examples/`, built with `mdbook build book`
 (mdBook 0.5.4) and its links checked against `target/doc`.
 
+## Current plan (the owner's request of 2026-11-16, D-383–D-390), in this order
+1. [ ] Live voice test: the playback of a recording and step 2's tones (D-383; the probe
+   `examples/zz_voice.rs` is kept in the session scratchpad, never committed).
+2. [ ] Coverage audit with `cargo-llvm-cov`, tests for the gaps (D-383).
+3. [ ] Every benchmark again under the balanced profile: Phases 1–10 (`docs/PERFORMANCE.md`),
+   `docs/VS_NODE.md`, `docs/VS_SERENITY.md` (D-384); then a new `docs/VS_TWILIGHT.md`
+   (D-385).
+4. [ ] Documentation (D-386): the guide's chapters components and embeds, the cache, REST,
+   sharding, voice; a migration chapter from discord.js; the rustdoc audit; ARCHITECTURE and
+   CONTRIBUTING.
+5. [ ] The README (an index of everything, the comparisons' numbers) with the logo (D-390).
+6. [ ] The release `0.1.0-alpha.1` on crates.io and GitHub (D-387, D-388): versions,
+   `publish`, metadata, CHANGELOG section, dry runs, the owner's `cargo login`, the
+   publication in dependency order, the tag and the GitHub Release.
+7. [ ] GitHub (D-389): issue forms, PR template, CODE_OF_CONDUCT, SECURITY (private
+   reporting on), description, homepage, topics, labels, Discussions, Dependabot.
+
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-075 in `docs/DECISIONS.md`; Claude defaults C-001 …
   C-036 (reviewable) in the same file.
@@ -847,6 +864,4 @@ fields with `Deref` to `new`). Steps:
   body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").
 
 ## Blocked on the owner
-- Live voice tests with the owner (D-275) are on hold: since 2026-11-16 they cannot join
-  the voice channel (background noise). Waiting: the playback of a recording (step 3) and
-  step 2's tones after the click fixes (C-127). Do not ask until they say they can.
+- The live voice test (plan item 1) needs the owner on the test guild's voice channel.
