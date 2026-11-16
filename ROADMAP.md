@@ -130,8 +130,11 @@ just with narrow scope.
 - [x] Benchmarks + extreme-load tests (D-041; `docs/PERFORMANCE.md`, "Phase 9")
 
 ## Phase 10 — `djs-voice` (≈ @discordjs/voice, D-017)
-- [ ] Voice gateway, UDP/RTP, encryption modes, DAVE E2EE
-- [ ] Opus encode/decode, audio players & resources, receiving audio
+- [x] Voice gateway, UDP/RTP, encryption modes, DAVE E2EE; joining, playing Ogg/Opus,
+      djs-rs's `voice` feature (step 1, live-tested 2026-11-16)
+- [ ] The player: track queue, PCM, Opus encoding, FFmpeg, volume (step 2)
+- [ ] Receiving audio (step 3)
+- [ ] Voice benchmarks and extreme-load tests (step 4, D-041)
 
 ## Cross-cutting (continuous)
 - [ ] Guide / book (format TBD with owner)

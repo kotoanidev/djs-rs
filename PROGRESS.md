@@ -745,8 +745,12 @@ fields with `Deref` to `new`). Steps:
    through the shard, both voice events, handshake with a real voice server (wss, v8, IP
    discovery, AES-GCM, DAVE v1) in 873 ms, a 10 s Ogg/Opus track to its end (frames dropped:
    no group), `leave` → `Disconnected(Left)` and a `VOICE_STATE_UPDATE` without channel,
-   clean shutdown. **Not yet verified live:** an MLS group with a real Discord client and
-   heard audio (needs the owner in the channel);
+   clean shutdown. Third run, the owner in the channel: the bot committed the proposals
+   and joined through the owner's client's welcome (transition 0, `can_encrypt`),
+   `UserJoined`/`Speaking` events arrived, and the owner **heard a clean 440 Hz tone**
+   (DAVE-encrypted, decrypted by the Discord client). **Step 1 is done.**
+   **Next: step 2, the player** (D-318: track queue, PCM, Opus encoding with `audiopus`
+   (D-313), FFmpeg (D-317), volume): ask its public API first (D-316, D-319);
    (e) done (D-334–D-344, C-124): `VoiceManager` (`new`, `process`, `join`,
    `join_with` + `JoinOptions`, `get`), `VoiceGateway`, `Call` (`play`, `events` →
    `CallEvents`, `leave`, `guild_id`, `channel_id`), `CallEvent`, `DisconnectReason`,
