@@ -36,8 +36,9 @@ C-109). The fixes found by the comparison (D-283) ✅: the rebuild time after an
 IDENTIFY queue, restarts, named commands and stats; benchmarks + extreme-load tests in
 `docs/PERFORMANCE.md` "Phase 9"). **Phase 10 — `djs-voice` (D-017): in progress**, step 1
 (connection, DAVE, Ogg/Opus, djs-rs's `voice` feature) done and live-tested 2026-11-16;
-step 2 (the player) implemented and live-tested, its clicks fixed (C-127); **next: a second
-listening test, then step 3** (see item 10 below).
+step 2 (the player) done and live-tested, its clicks fixed (C-127; a second listening test
+later, the owner's choice); **next: step 3, receiving audio — its API asked first** (see
+item 10 below).
 
 ## Done
 - 2026-11-10: Owner decisions D-001 … D-075 in `docs/DECISIONS.md`; Claude defaults C-001 …
@@ -782,8 +783,9 @@ fields with `Deref` to `new`). Steps:
    decoders (400 ms of packets kept), an independent first packet after foreign ones, and
    back to passthrough only between CELT-only packets; the new test
    `volume_changes_pauses_and_seeks_make_no_click` checks roughness, levels and gaps (20
-   repeated runs of the player tests without a failure). **Next:** a second listening test
-   with the owner's go-ahead (D-275), then step 3 (receiving audio) — ask its API first.
+   repeated runs of the player tests without a failure). A second listening test: later
+   (the owner, 2026-11-16; ask again with D-275 when step 3 is tested live). **Next:**
+   step 3 (receiving audio) — ask its API first.
    **For step 4:** benchmark Opus encoding per frame, decode + re-encode at a volume, the
    start of re-encoding (decoding the 400 ms kept, C-127), the PCM/Ogg readers through
    `Input`, and many calls encoding at once.

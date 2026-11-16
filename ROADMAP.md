@@ -132,7 +132,8 @@ just with narrow scope.
 ## Phase 10 — `djs-voice` (≈ @discordjs/voice, D-017)
 - [x] Voice gateway, UDP/RTP, encryption modes, DAVE E2EE; joining, playing Ogg/Opus,
       djs-rs's `voice` feature (step 1, live-tested 2026-11-16)
-- [ ] The player: track queue, PCM, Opus encoding, FFmpeg, volume (step 2)
+- [x] The player: track queue, PCM, Opus encoding, FFmpeg, volume (step 2, live-tested
+      2026-11-16; its clicks fixed, C-127)
 - [ ] Receiving audio (step 3)
 - [ ] Voice benchmarks and extreme-load tests (step 4, D-041)
 
