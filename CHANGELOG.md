@@ -31,6 +31,15 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   handshake without waiting for DAVE (D-349: a bot alone in a channel never gets a group),
   and sends audio only end-to-end encrypted, dropping frames until the bot is in the group;
   live-tested with a Discord client.
+  The player of step 2 (D-350–D-362, C-126): Opus through `opus2` with a bundled libopus 1.5
+  (replacing `audiopus`, which does not build with CMake 4); `Input::pcm` (s16le, 48 kHz,
+  stereo) and `Input::ffmpeg` (any file or URL, `ffmpeg` run when the track starts;
+  `InputError::FfmpegMissing` and `InputError::Ffmpeg`); `call.enqueue` and `call.queue()`
+  (`TrackQueue`: `skip`, `clear`, `len`, `current`); `TrackHandle::set_volume` (Ogg/Opus
+  sent as it is at 1.0, re-encoded otherwise), `set_loop` (`Loop`), `seek` (async, the
+  actual position), `info` (`TrackInfo`, `PlayState`) and `events` (`TrackEvents`:
+  `TrackEvent::{Playing, Paused, Looped, Ended(TrackEnd)}`); `TrackError::Unsupported` for
+  readers; `JoinOptions::bitrate` (128 kb/s by default).
   The public voice API of step 1 (D-334–D-344, C-124): `VoiceManager` (join, move, `get`,
   `process` for the main gateway's events) over a `VoiceGateway` adapter, `Call` (play,
   events, leave), `CallEvent`, `DisconnectReason`, `Input::ogg`/`ogg_file`, `TrackHandle`

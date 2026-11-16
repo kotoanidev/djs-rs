@@ -15,12 +15,14 @@ use tokio::sync::oneshot;
 use crate::{
     Call, JoinError, VoiceGateway,
     call::{CallCommand, Calls, Spawn, lock},
+    codec::DEFAULT_BITRATE,
     connection::Config,
 };
 
 /// How a [`VoiceManager`] joins a channel: the bot's own mute and deafen flags (D-341,
-/// D-343). The default is deafened and not muted, as discord.js's `joinVoiceChannel` does:
-/// a bot that only plays gets nobody's audio.
+/// D-343), and the bitrate of the audio it encodes (D-357). The default is deafened and not
+/// muted, as discord.js's `joinVoiceChannel` does (a bot that only plays gets nobody's
+/// audio), at 128 kb/s.
 ///
 /// discord.js counterpart: the `selfDeaf` and `selfMute` options of `joinVoiceChannel`.
 ///
@@ -32,12 +34,15 @@ use crate::{
 /// // Hear the channel (to receive audio, later), and start muted.
 /// let options = JoinOptions::new().self_deaf(false).self_mute(true);
 /// assert_ne!(options, JoinOptions::default());
+/// // Encode at 96 kb/s, a common voice-channel bitrate.
+/// let options = JoinOptions::new().bitrate(96_000);
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub struct JoinOptions {
     self_mute: bool,
     self_deaf: bool,
+    bitrate: u32,
 }
 
 impl Default for JoinOptions {
@@ -47,12 +52,13 @@ impl Default for JoinOptions {
 }
 
 impl JoinOptions {
-    /// The default options: deafened, not muted.
+    /// The default options: deafened, not muted, 128 kb/s.
     #[must_use]
     pub const fn new() -> Self {
         Self {
             self_mute: false,
             self_deaf: true,
+            bitrate: DEFAULT_BITRATE,
         }
     }
 
@@ -68,6 +74,21 @@ impl JoinOptions {
     #[must_use]
     pub const fn self_deaf(mut self, self_deaf: bool) -> Self {
         self.self_deaf = self_deaf;
+        self
+    }
+
+    /// The bitrate, in bits per second, of the audio the call encodes (D-357): PCM, FFmpeg,
+    /// and Ogg/Opus at a volume other than 1.0 (Ogg/Opus at 1.0 is sent as it is). 128 kb/s
+    /// by default, as songbird; clamped to what libopus accepts, 500 b/s to 512 kb/s. A
+    /// channel's own bitrate (8 to 96 kb/s, more with boosts) does not limit what the bot
+    /// sends.
+    ///
+    /// Joining again with other options changes the bitrate of the call's next frames.
+    ///
+    /// songbird counterpart: `Call::set_bitrate`.
+    #[must_use]
+    pub const fn bitrate(mut self, bits_per_second: u32) -> Self {
+        self.bitrate = bits_per_second;
         self
     }
 }
@@ -233,7 +254,12 @@ impl VoiceManager {
             attempts += 1;
             let call = self.call(guild_id);
             let (done, result) = oneshot::channel();
-            if !call.command(CallCommand::Join { channel_id, done }) {
+            let bitrate = options.bitrate;
+            if !call.command(CallCommand::Join {
+                channel_id,
+                bitrate,
+                done,
+            }) {
                 self.forget(&call);
                 continue;
             }
@@ -320,5 +346,7 @@ impl VoiceManager {
     }
 }
 
+#[cfg(test)]
+mod player_tests;
 #[cfg(test)]
 mod tests;

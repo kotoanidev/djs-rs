@@ -59,6 +59,9 @@ mimalloc = { version = "0.1.52", default-features = false }
 openmls = "0.8.3"
 openmls_basic_credential = "0.5.0"
 openmls_rust_crypto = "0.5.1"
+# Opus encoding and decoding for voice (D-350): libopus 1.5 built from the crate's sources
+# (CMake and a C compiler at build time) and linked statically.
+opus2 = { version = "0.4.0", default-features = false, features = ["backend-libopus", "bundled", "static"] }
 rustls = { version = "0.23.46", default-features = false }
 # Optional: the `native-roots` feature of djs-rest and djs-gateway (D-088, D-100).
 rustls-native-certs = "0.8.5"

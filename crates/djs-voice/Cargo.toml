@@ -25,11 +25,12 @@ davey.workspace = true
 djs-model.workspace = true
 fastrand.workspace = true
 futures-util = { workspace = true, features = ["sink", "std"] }
+opus2.workspace = true
 rustls = { workspace = true, features = ["ring", "std", "tls12"] }
 rustls-native-certs = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive", "std"] }
 serde_json.workspace = true
-tokio = { workspace = true, features = ["fs", "io-util", "macros", "net", "rt", "sync", "time"] }
+tokio = { workspace = true, features = ["fs", "io-util", "macros", "net", "process", "rt", "sync", "time"] }
 tokio-rustls = { workspace = true, features = ["ring", "tls12"] }
 tokio-websockets = { workspace = true, features = ["client", "fastrand", "ring", "rustls-bring-your-own-connector"] }
 tracing = { workspace = true, features = ["std"] }

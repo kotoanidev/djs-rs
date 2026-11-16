@@ -27,16 +27,16 @@ use crate::{
 };
 
 /// The first shard's guild ID shifted: shard 1 of 2.
-const GUILD: u64 = 1 << 22;
-const SHARD: u32 = 1;
-const BOT: u64 = voice::BOT;
-const CHANNEL: u64 = voice::CHANNEL;
-const OTHER_CHANNEL: u64 = 4;
-const SINE: &[u8] = include_bytes!("../../tests/data/sine.opus");
+pub(super) const GUILD: u64 = 1 << 22;
+pub(super) const SHARD: u32 = 1;
+pub(super) const BOT: u64 = voice::BOT;
+pub(super) const CHANNEL: u64 = voice::CHANNEL;
+pub(super) const OTHER_CHANNEL: u64 = 4;
+pub(super) const SINE: &[u8] = include_bytes!("../../tests/data/sine.opus");
 /// The Opus packet of a frame of silence.
-const SILENCE: [u8; 3] = [0xF8, 0xFF, 0xFE];
+pub(super) const SILENCE: [u8; 3] = [0xF8, 0xFF, 0xFE];
 
-type Commands = mpsc::UnboundedReceiver<(u32, UpdateVoiceState)>;
+pub(super) type Commands = mpsc::UnboundedReceiver<(u32, UpdateVoiceState)>;
 
 /// Hands Opcode 4 to the test, or fails.
 struct Gateway {
@@ -58,7 +58,7 @@ impl VoiceGateway for Gateway {
     }
 }
 
-fn manager_with(timeout: Duration, fail: bool) -> (VoiceManager, Commands) {
+pub(super) fn manager_with(timeout: Duration, fail: bool) -> (VoiceManager, Commands) {
     let (commands, rx) = mpsc::unbounded_channel();
     let config = Config {
         timeout,
@@ -71,16 +71,16 @@ fn manager_with(timeout: Duration, fail: bool) -> (VoiceManager, Commands) {
     )
 }
 
-fn manager() -> (VoiceManager, Commands) {
+pub(super) fn manager() -> (VoiceManager, Commands) {
     manager_with(STEP, false)
 }
 
-const fn guild() -> GuildId {
+pub(super) const fn guild() -> GuildId {
     GuildId::new(GUILD)
 }
 
 /// The bot's `VOICE_STATE_UPDATE` in the guild.
-fn state(channel: Option<u64>) -> DispatchEvent {
+pub(super) fn state(channel: Option<u64>) -> DispatchEvent {
     let state: VoiceStateUpdate = serde_json::from_value(json!({
         "guild_id": GUILD.to_string(),
         "channel_id": channel.map(|channel| channel.to_string()),
@@ -93,7 +93,7 @@ fn state(channel: Option<u64>) -> DispatchEvent {
     DispatchEvent::VoiceStateUpdate(Box::new(state))
 }
 
-fn server(mock: &Mock) -> DispatchEvent {
+pub(super) fn server(mock: &Mock) -> DispatchEvent {
     let server: VoiceServerUpdate = serde_json::from_value(json!({
         "token": "voice-token", "guild_id": GUILD.to_string(), "endpoint": mock.endpoint
     }))
@@ -101,7 +101,7 @@ fn server(mock: &Mock) -> DispatchEvent {
     DispatchEvent::VoiceServerUpdate(Box::new(server))
 }
 
-async fn command(commands: &mut Commands) -> (u32, UpdateVoiceState) {
+pub(super) async fn command(commands: &mut Commands) -> (u32, UpdateVoiceState) {
     timeout(STEP, commands.recv())
         .await
         .expect("no Opcode 4")
@@ -110,7 +110,7 @@ async fn command(commands: &mut Commands) -> (u32, UpdateVoiceState) {
 
 /// Discord's side of a join to `channel` on `mock`: the two updates, then the voice
 /// server's handshake (SSRC `ssrc`, `key`). Returns the voice server's connection.
-async fn answer(
+pub(super) async fn answer(
     manager: &VoiceManager,
     mock: &Mock,
     channel: u64,
@@ -132,7 +132,7 @@ async fn answer(
 }
 
 /// A call in `CHANNEL` (SSRC 7, `KEY`), with its events and the voice server's side.
-async fn joined(
+pub(super) async fn joined(
     manager: &VoiceManager,
     commands: &mut Commands,
     mock: &Mock,
@@ -155,14 +155,14 @@ async fn joined(
     (call, events, server)
 }
 
-async fn event(events: &mut CallEvents) -> CallEvent {
+pub(super) async fn event(events: &mut CallEvents) -> CallEvent {
     timeout(STEP, events.next())
         .await
         .expect("no event")
         .expect("the call ended")
 }
 
-fn sine_packets() -> Vec<Vec<u8>> {
+pub(super) fn sine_packets() -> Vec<Vec<u8>> {
     let mut ogg = OggOpus::new();
     ogg.push(SINE);
     ogg.finish();
@@ -174,7 +174,7 @@ fn sine_packets() -> Vec<Vec<u8>> {
 }
 
 /// The next audio payload the voice server gets, with its RTP sequence and timestamp.
-async fn audio(mock: &Mock, key: [u8; 32]) -> (Vec<u8>, u16, u32) {
+pub(super) async fn audio(mock: &Mock, key: [u8; 32]) -> (Vec<u8>, u16, u32) {
     let (header, payload) = mock.audio(key).await;
     let sequence = u16::from_be_bytes([header[2], header[3]]);
     let timestamp = u32::from_be_bytes([header[4], header[5], header[6], header[7]]);
@@ -182,7 +182,7 @@ async fn audio(mock: &Mock, key: [u8; 32]) -> (Vec<u8>, u16, u32) {
 }
 
 /// Reads audio until silence, then checks the five frames of silence and Speaking 0.
-async fn silence_follows(mock: &Mock, server: &mut Server) {
+pub(super) async fn silence_follows(mock: &Mock, server: &mut Server) {
     loop {
         if audio(mock, KEY).await.0 == SILENCE {
             break;
@@ -195,7 +195,7 @@ async fn silence_follows(mock: &Mock, server: &mut Server) {
 }
 
 /// Waits until the manager no longer has the guild's call.
-async fn forgotten(manager: &VoiceManager) {
+pub(super) async fn forgotten(manager: &VoiceManager) {
     timeout(STEP, async {
         while manager.get(guild()).is_some() {
             tokio::time::sleep(Duration::from_millis(5)).await;
@@ -206,7 +206,7 @@ async fn forgotten(manager: &VoiceManager) {
 }
 
 /// Waits until the voice server's connection is closed by the client.
-async fn closed(server: &mut Server) {
+pub(super) async fn closed(server: &mut Server) {
     loop {
         match timeout(STEP, server.next()).await.expect("not closed") {
             Some(Ok(message)) if message.is_close() => return,

@@ -2,6 +2,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 mod call;
+mod codec;
 mod connection;
 mod crypto;
 mod dave;
@@ -12,6 +13,7 @@ mod manager;
 mod ogg;
 mod opus;
 mod payload;
+mod queue;
 mod tls;
 mod track;
 mod udp;
@@ -22,5 +24,6 @@ pub use crate::{
     gateway::VoiceGateway,
     input::Input,
     manager::{JoinOptions, VoiceManager},
-    track::TrackHandle,
+    queue::TrackQueue,
+    track::{Loop, PlayState, TrackEnd, TrackEvent, TrackEvents, TrackHandle, TrackInfo},
 };

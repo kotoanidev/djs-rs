@@ -1,12 +1,13 @@
 //! A call: the bot's voice connection in one guild, and what it plays (D-316, D-319–D-323,
-//! D-335, D-337, D-340, D-344).
+//! D-335, D-337, D-340, D-344, D-351–D-361).
 //!
 //! A [`Call`] is a handle on a task that owns everything: the voice state the main gateway
 //! reported, the voice connection (or the one being made), and the player. The handle's
 //! methods send it commands (D-320). The task joins when both halves of the voice state
 //! arrived (`VOICE_STATE_UPDATE` with the channel, then a `VOICE_SERVER_UPDATE`), connects
 //! again to a new voice server when the bot is moved, and ends the call when the connection
-//! ends for good.
+//! ends for good. Its player plays the current track of the call's [queue](crate::queue)
+//! (C-126).
 
 use core::{
     fmt,
@@ -33,11 +34,13 @@ use tokio::{
 };
 
 use crate::{
-    Input, JoinError, TrackHandle, VoiceGateway,
+    Input, InputError, JoinError, TrackError, TrackHandle, TrackQueue, VoiceGateway,
+    codec::{self, Decoder, Encoder, MAX_PACKET, MAX_PACKET_VALUES},
     connection::{self, Command, Config, ConnectError, ConnectionEvent, End, Handle, Info, Sender},
-    input::Packet,
+    input::{self as reading, Again, Chunk, Frame, Source},
     payload::{Event, MICROPHONE},
-    track::{Control, TrackState},
+    queue::{Queue, Shared, Slot},
+    track::{Track, TrackEnd, TrackEvent, duration},
 };
 
 /// The close code of a bot disconnected from its channel (kicked, the channel deleted) or
@@ -112,12 +115,11 @@ pub(crate) struct Inner {
     guild_id: GuildId,
     shard_id: u32,
     gateway: Arc<dyn VoiceGateway>,
-    commands: mpsc::UnboundedSender<CallCommand>,
+    /// The commands to the task, and the queue.
+    shared: Arc<Shared>,
     subscribers: Arc<Mutex<Subscribers>>,
     channel: watch::Receiver<Option<ChannelId>>,
     tracks: AtomicU64,
-    /// The track `play` started last: the next `play` ends it at once.
-    current: Mutex<Option<Arc<TrackState>>>,
 }
 
 #[derive(Default)]
@@ -141,6 +143,8 @@ pub(crate) enum CallCommand {
     /// Join or move to a channel: the manager sends Opcode 4 right after.
     Join {
         channel_id: ChannelId,
+        /// The bitrate of encoded audio (D-357).
+        bitrate: u32,
         done: oneshot::Sender<Result<(), JoinError>>,
     },
     /// A join gave up (Opcode 4 could not be sent): forget its closed waiter.
@@ -155,14 +159,13 @@ pub(crate) enum CallCommand {
         token: String,
         endpoint: Option<String>,
     },
-    Play {
+    /// The queue or a track changed: play the current track as it is now.
+    Wake,
+    /// Play the track `id` from `samples` (D-359).
+    Seek {
         id: u64,
-        input: Input,
-        state: Arc<TrackState>,
-    },
-    Track {
-        id: u64,
-        control: Control,
+        samples: u64,
+        done: oneshot::Sender<Result<Duration, TrackError>>,
     },
     Leave {
         done: oneshot::Sender<()>,
@@ -186,6 +189,10 @@ impl Call {
         let (commands, commands_rx) = mpsc::unbounded_channel();
         let (channel, channel_rx) = watch::channel(None);
         let subscribers = Arc::new(Mutex::new(Subscribers::default()));
+        let shared = Arc::new(Shared {
+            commands,
+            queue: Mutex::new(Queue::default()),
+        });
         let task = Task {
             call_id: spawn.id,
             guild_id: spawn.guild_id,
@@ -204,7 +211,7 @@ impl Call {
             removed: false,
             connected_once: false,
             leave: None,
-            player: Player::default(),
+            player: Player::new(Arc::clone(&shared)),
         };
         tokio::spawn(task.run());
         Self {
@@ -213,18 +220,17 @@ impl Call {
                 guild_id: spawn.guild_id,
                 shard_id: spawn.shard_id,
                 gateway: spawn.gateway,
-                commands,
+                shared,
                 subscribers,
                 channel: channel_rx,
                 tracks: AtomicU64::new(0),
-                current: Mutex::new(None),
             }),
         }
     }
 
     /// Sends the task a command; `false` once it has ended.
     pub(crate) fn command(&self, command: CallCommand) -> bool {
-        self.inner.commands.send(command).is_ok()
+        self.inner.shared.commands.send(command).is_ok()
     }
 
     /// The guild of the call.
@@ -244,13 +250,14 @@ impl Call {
         *self.inner.channel.borrow()
     }
 
-    /// Plays `input`, replacing the track that is playing (D-335): it ends, and its
-    /// handles see [`TrackError::Ended`](crate::TrackError::Ended). Returns at once; the
-    /// input is read and sent in the background, paced in real time.
+    /// Plays `input` now, replacing the current track (D-335, D-352): it ends
+    /// ([`TrackEnd::Replaced`]), and the tracks waiting in the [queue](Self::queue) play
+    /// after this one. Returns at once; the input is read and sent in the background, paced
+    /// in real time.
     ///
     /// While the call is connecting again (after a move or a lost connection) the track
-    /// keeps its pace and its audio is not sent; with end-to-end encryption (DAVE) on, audio
-    /// is sent once the bot has the call's key.
+    /// keeps its pace and its audio is not sent; with end-to-end encryption (DAVE), audio is
+    /// sent once the bot is in the call's group (D-349).
     ///
     /// discord.js counterpart: `AudioPlayer#play` of a player subscribed to the connection;
     /// songbird: `Call::play_only_input`.
@@ -267,24 +274,72 @@ impl Call {
         reason = "playing without keeping the handle is fine"
     )]
     pub fn play(&self, input: Input) -> TrackHandle {
+        self.add(input, true)
+    }
+
+    /// Adds `input` to the end of the call's [queue](Self::queue) (D-352): it plays when the
+    /// tracks before it have ended, at once when nothing plays. Returns its handle at once;
+    /// until its turn it is [`PlayState::Queued`](crate::PlayState::Queued), and FFmpeg is
+    /// not run for it yet.
+    ///
+    /// discord.js counterpart: none (a bot keeps its own queue); songbird:
+    /// `Call::enqueue_input`.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # fn run(call: djs_voice::Call) {
+    /// use djs_voice::Input;
+    ///
+    /// for song in ["one.mp3", "two.mp3", "three.mp3"] {
+    ///     call.enqueue(Input::ffmpeg(song));
+    /// }
+    /// # }
+    /// ```
+    #[allow(
+        clippy::must_use_candidate,
+        reason = "queueing without keeping the handle is fine"
+    )]
+    pub fn enqueue(&self, input: Input) -> TrackHandle {
+        self.add(input, false)
+    }
+
+    fn add(&self, input: Input, now: bool) -> TrackHandle {
         let id = self.inner.tracks.fetch_add(1, Ordering::Relaxed);
-        let state = Arc::new(TrackState::default());
-        let handle = TrackHandle::new(id, Arc::clone(&state), self.inner.commands.clone());
-        let command = CallCommand::Play {
-            id,
-            input,
-            state: Arc::clone(&state),
+        let track = Track::new(id, input.seekable(), Arc::downgrade(&self.inner.shared));
+        let handle = TrackHandle::new(Arc::clone(&track));
+        let slot = Slot {
+            track,
+            input: Some(input),
         };
-        // Under the lock, so that the call plays the tracks in the order they were ended.
-        let mut current = lock(&self.inner.current);
-        if let Some(previous) = current.replace(Arc::clone(&state)) {
-            previous.end();
+        let mut queue = lock(&self.inner.shared.queue);
+        if queue.closed {
+            slot.track.end(TrackEnd::CallEnded);
+            return handle;
         }
-        if !self.command(command) {
-            state.end();
+        if now {
+            if let Some(old) = queue.current.replace(slot) {
+                old.track.end(TrackEnd::Replaced);
+            }
+        } else if queue.current.is_none() {
+            queue.current = Some(slot);
+        } else {
+            queue.waiting.push_back(slot);
         }
-        drop(current);
+        drop(queue);
+        self.inner.shared.wake();
         handle
+    }
+
+    /// The call's queue of tracks (D-352): skip the current one, clear the waiting ones,
+    /// see what plays.
+    ///
+    /// songbird counterpart: `Call::queue`.
+    #[must_use]
+    pub fn queue(&self) -> TrackQueue {
+        TrackQueue {
+            shared: Arc::clone(&self.inner.shared),
+        }
     }
 
     /// Returns a stream of the call's events: connections resumed and made again, users
@@ -462,7 +517,7 @@ enum Step {
     Connected(ChannelId, Result<Connected, ConnectError>),
     JoinTimeout,
     GraceOver,
-    Packet(Option<Packet>),
+    Chunk(Option<Result<Chunk, InputError>>),
     Frame,
 }
 
@@ -516,7 +571,7 @@ impl Task {
             // A connection being made has its own timeout.
             let grace = self.grace.filter(|_| self.connecting.is_none());
             let due = self.player.due();
-            let wants_packet = self.player.wants_packet();
+            let wants_chunk = self.player.wants_chunk();
             let step = tokio::select! {
                 command = self.commands.recv() => Step::Command(command),
                 event = live_event(&mut self.live) => Step::Connection(event),
@@ -525,7 +580,7 @@ impl Task {
                 }
                 () = wait(join_deadline) => Step::JoinTimeout,
                 () = wait(grace) => Step::GraceOver,
-                packet = self.player.recv(), if wants_packet => Step::Packet(packet),
+                chunk = self.player.recv(), if wants_chunk => Step::Chunk(chunk),
                 () = wait(due) => Step::Frame,
             };
             if let Err(ending) = self.step(step).await {
@@ -560,8 +615,8 @@ impl Task {
                 Some(DisconnectReason::Closed { code: DISCONNECTED }),
                 JoinError::Cancelled,
             )),
-            Step::Packet(packet) => {
-                self.player.received(packet);
+            Step::Chunk(chunk) => {
+                self.player.received(chunk);
                 Ok(())
             }
             Step::Frame => {
@@ -573,7 +628,14 @@ impl Task {
 
     fn command(&mut self, command: CallCommand) -> Result<(), Ending> {
         match command {
-            CallCommand::Join { channel_id, done } => self.start_join(channel_id, done),
+            CallCommand::Join {
+                channel_id,
+                bitrate,
+                done,
+            } => {
+                self.player.set_bitrate(bitrate);
+                self.start_join(channel_id, done);
+            }
             CallCommand::Abandoned => {
                 if let Some(join) = &mut self.join {
                     join.waiters.retain(|waiter| !waiter.is_closed());
@@ -621,8 +683,8 @@ impl Task {
                     self.connect();
                 }
             },
-            CallCommand::Play { id, input, state } => self.player.play(id, input, state),
-            CallCommand::Track { id, control } => self.player.control(id, control),
+            CallCommand::Wake => self.player.reconcile(),
+            CallCommand::Seek { id, samples, done } => self.player.seek(id, samples, done),
             CallCommand::Leave { done } => {
                 self.leave = Some(done);
                 return Err(Ending::new(
@@ -858,6 +920,7 @@ impl Task {
         if let Some(live) = self.live.take() {
             live.handle.send(Command::Close);
         }
+        lock(&self.player.shared.queue).close();
         self.player.end();
         self.channel.send_replace(None);
         {
@@ -919,66 +982,174 @@ async fn wait(deadline: Option<Instant>) {
     }
 }
 
-/// The track playing, and its input read ahead.
-struct Playing {
-    id: u64,
-    state: Arc<TrackState>,
-    packets: mpsc::Receiver<Packet>,
-    reader: JoinHandle<()>,
-    paused: bool,
+/// Reads `source` from `start` in a task of its own, about a second ahead.
+fn spawn_reader(
+    source: Source,
+    start: u64,
+) -> (mpsc::Receiver<Result<Chunk, InputError>>, JoinHandle<()>) {
+    let (tx, chunks) = mpsc::channel(AHEAD);
+    (chunks, tokio::spawn(reading::read(source, start, tx)))
 }
 
-/// The player of a call (D-335: one track at a time in step 1). It sends each packet at its
-/// time, `at`, paced by the packets' durations, and frames of silence when audio stops.
-#[derive(Default)]
+/// The track the player plays: its input read ahead, and what the player knows of it.
+struct Playing {
+    track: Arc<Track>,
+    /// How to open its input again, for loops and seeking; `None` for a reader.
+    again: Option<Again>,
+    chunks: mpsc::Receiver<Result<Chunk, InputError>>,
+    reader: JoinHandle<()>,
+    /// Made when one of its Opus packets is first re-encoded (a volume other than 1.0).
+    decoder: Option<Decoder>,
+    /// Paused, as the player last saw it.
+    paused: bool,
+    /// [`TrackEvent::Playing`] was sent since its audio last stopped.
+    announced: bool,
+    /// Seeks waiting for the first frame from the new place.
+    seeks: Vec<oneshot::Sender<Result<Duration, TrackError>>>,
+}
+
+impl Playing {
+    fn new(track: Arc<Track>, source: Source, again: Option<Again>) -> Self {
+        let (chunks, reader) = spawn_reader(source, track.position());
+        Self {
+            paused: track.paused(),
+            track,
+            again,
+            chunks,
+            reader,
+            decoder: None,
+            announced: false,
+            seeks: Vec::new(),
+        }
+    }
+
+    /// Reads the input again from `start`, opened anew.
+    fn restart(&mut self, start: u64) {
+        let Some(again) = &self.again else {
+            return;
+        };
+        self.reader.abort();
+        (self.chunks, self.reader) = spawn_reader(again.source(), start);
+        self.decoder = None;
+        self.track.set_position(start);
+    }
+
+    fn answer(&mut self, result: &Result<Duration, TrackError>) {
+        for seek in self.seeks.drain(..) {
+            let _ = seek.send(*result);
+        }
+    }
+}
+
+impl Drop for Playing {
+    fn drop(&mut self) {
+        // Its seeks, dropped, see the track ended.
+        self.reader.abort();
+    }
+}
+
+/// The player of a call (D-351: one track at a time). It plays the current track of the
+/// queue, sends each frame at its time, `at`, paced by the frames' durations, and frames of
+/// silence when audio stops. Opus packets at volume 1.0 go out as they are; the others are
+/// encoded when due (C-126).
 struct Player {
+    shared: Arc<Shared>,
     track: Option<Playing>,
-    /// The next packet, waiting for its time.
-    next: Option<Packet>,
-    /// When the next frame (packet or silence) is due.
+    /// The next frame, waiting for its time.
+    next: Option<Frame>,
+    /// When the next frame (audio or silence) is due.
     at: Option<Instant>,
     /// Frames of silence still to send.
     silence: u8,
     /// Opcode 5 Speaking says the bot speaks on the current connection.
     speaking: bool,
+    bitrate: u32,
+    /// Made when the first frame is encoded.
+    encoder: Option<Encoder>,
+    /// Room for the PCM of the longest packet.
+    pcm: Vec<f32>,
+    /// Room for an encoded packet.
+    packet: Vec<u8>,
 }
 
 impl Player {
-    fn play(&mut self, id: u64, input: Input, state: Arc<TrackState>) {
-        self.stop_track();
-        self.next = None;
-        self.silence = 0;
-        let (tx, packets) = mpsc::channel(AHEAD);
-        let reader = tokio::spawn(async move {
-            if let Err(error) = input.read(tx).await {
-                tracing::warn!(%error, "a track's input failed");
-            }
-        });
-        self.track = Some(Playing {
-            id,
-            state,
-            packets,
-            reader,
-            paused: false,
-        });
+    fn new(shared: Arc<Shared>) -> Self {
+        Self {
+            shared,
+            track: None,
+            next: None,
+            at: None,
+            silence: 0,
+            speaking: false,
+            bitrate: codec::DEFAULT_BITRATE,
+            encoder: None,
+            pcm: vec![0.0; MAX_PACKET_VALUES],
+            packet: vec![0; MAX_PACKET],
+        }
     }
 
-    fn control(&mut self, id: u64, control: Control) {
-        let Some(track) = self.track.as_mut().filter(|track| track.id == id) else {
+    fn set_bitrate(&mut self, bitrate: u32) {
+        self.bitrate = bitrate;
+        if let Some(encoder) = &mut self.encoder {
+            encoder.set_bitrate(bitrate);
+        }
+    }
+
+    /// Plays the queue's current track: starts it if it is new (the one playing ended
+    /// already: replaced, skipped or stopped), and follows its pause.
+    fn reconcile(&mut self) {
+        let mut queue = lock(&self.shared.queue);
+        let current = queue.current.as_ref().map(|slot| slot.track.id);
+        if current.is_some() && current == self.track.as_ref().map(|playing| playing.track.id) {
+            drop(queue);
+            self.refresh();
+            return;
+        }
+        let started = queue.current.as_mut().and_then(|slot| {
+            let input = slot.input.take()?;
+            slot.track.start();
+            Some((Arc::clone(&slot.track), input))
+        });
+        drop(queue);
+        let had = self.track.take().is_some();
+        self.next = None;
+        if let Some((track, input)) = started {
+            let (source, again) = input.into_parts();
+            self.track = Some(Playing::new(track, source, again));
+        } else if had {
+            self.quiet();
+        }
+    }
+
+    /// Follows the current track's pause.
+    fn refresh(&mut self) {
+        let Some(playing) = &mut self.track else {
             return;
         };
-        match control {
-            Control::Play => track.paused = false,
-            Control::Pause => {
-                if !track.paused {
-                    track.paused = true;
-                    self.quiet();
-                }
+        let paused = playing.track.paused();
+        if paused == playing.paused {
+            return;
+        }
+        playing.paused = paused;
+        if paused {
+            if core::mem::take(&mut playing.announced) {
+                playing.track.emit(&TrackEvent::Paused);
             }
-            Control::Stop => {
-                self.stop_track();
+            self.quiet();
+        }
+    }
+
+    fn seek(&mut self, id: u64, samples: u64, done: oneshot::Sender<Result<Duration, TrackError>>) {
+        match &mut self.track {
+            Some(playing)
+                if playing.track.id == id && !playing.track.ended() && playing.again.is_some() =>
+            {
+                playing.restart(samples);
+                playing.seeks.push(done);
                 self.next = None;
-                self.quiet();
+            }
+            _ => {
+                let _ = done.send(Err(TrackError::Ended));
             }
         }
     }
@@ -990,41 +1161,86 @@ impl Player {
         }
     }
 
-    fn stop_track(&mut self) {
-        if let Some(track) = self.track.take() {
-            track.state.end();
-            track.reader.abort();
-        }
-    }
-
-    /// The call ends: so does the track.
+    /// The call ends: so does the track (its call already ended it).
     fn end(&mut self) {
-        self.stop_track();
+        self.track = None;
+        self.next = None;
     }
 
     fn playing(&self) -> bool {
-        self.track.as_ref().is_some_and(|track| !track.paused)
+        self.track.as_ref().is_some_and(|playing| !playing.paused)
     }
 
-    fn wants_packet(&self) -> bool {
-        self.next.is_none() && self.silence == 0 && self.playing()
+    fn wants_chunk(&self) -> bool {
+        // A seek is answered by the first frame from the new place, even paused.
+        let seeking = self
+            .track
+            .as_ref()
+            .is_some_and(|playing| !playing.seeks.is_empty());
+        self.next.is_none() && self.silence == 0 && (self.playing() || seeking)
     }
 
-    async fn recv(&mut self) -> Option<Packet> {
+    async fn recv(&mut self) -> Option<Result<Chunk, InputError>> {
         match &mut self.track {
-            Some(track) => track.packets.recv().await,
+            Some(playing) => playing.chunks.recv().await,
             None => core::future::pending().await,
         }
     }
 
-    fn received(&mut self, packet: Option<Packet>) {
-        if let Some(packet) = packet {
-            self.next = Some(packet);
-        } else {
-            // Played to its end (or its input failed).
-            self.stop_track();
-            self.quiet();
+    fn received(&mut self, chunk: Option<Result<Chunk, InputError>>) {
+        let Some(playing) = &mut self.track else {
+            return;
+        };
+        match chunk {
+            Some(Ok(Chunk::Start(at))) => {
+                playing.track.set_position(at);
+                playing.answer(&Ok(duration(at)));
+            }
+            Some(Ok(Chunk::Frame(frame))) => {
+                if !playing.seeks.is_empty() {
+                    playing.answer(&Ok(duration(playing.track.position())));
+                }
+                self.next = Some(frame);
+            }
+            Some(Err(error)) => self.finished(Some(error)),
+            None => self.finished(None),
         }
+    }
+
+    /// The track's input ended: it plays again if it loops, or ends, and the next one plays.
+    fn finished(&mut self, error: Option<InputError>) {
+        let Some(playing) = &mut self.track else {
+            return;
+        };
+        if error.is_none()
+            && playing.again.is_some()
+            && !playing.track.ended()
+            && playing.track.repeat()
+        {
+            playing.restart(0);
+            playing.track.emit(&TrackEvent::Looped);
+            return;
+        }
+        let reason = match error {
+            None => TrackEnd::Finished,
+            Some(error) => {
+                tracing::warn!(%error, "a track's input failed");
+                TrackEnd::Failed(Arc::new(error))
+            }
+        };
+        {
+            let mut queue = lock(&self.shared.queue);
+            playing.track.end(reason);
+            if queue
+                .current
+                .as_ref()
+                .is_some_and(|slot| slot.track.id == playing.track.id)
+            {
+                queue.advance();
+            }
+        }
+        // The next track, or silence.
+        self.reconcile();
     }
 
     /// When the next frame is due: now for the first after a pause.
@@ -1041,40 +1257,86 @@ impl Player {
             // A first frame, or one far too late: the pace starts over.
             _ => now,
         };
-        let (data, samples) = if self.silence > 0 {
+        let frame = if self.silence > 0 {
             self.silence -= 1;
-            (None, 960)
-        } else if let Some(packet) = self.next.take() {
-            let samples = packet.samples;
-            (Some(packet), samples)
+            None
+        } else if let Some(frame) = self.next.take() {
+            Some(frame)
         } else {
             return;
         };
-        // Samples at 48 kHz: 62 500 / 3 ns each, exact for Opus's frame sizes.
-        let next = at + Duration::from_nanos(u64::from(samples) * 62_500 / 3);
-        self.at = (data.is_some() || self.silence > 0).then_some(next);
+        let samples = frame.as_ref().map_or(960, Frame::samples);
+        self.at = (frame.is_some() || self.silence > 0).then(|| at + duration(u64::from(samples)));
+        if frame.is_some() {
+            let Some(playing) = &mut self.track else {
+                return;
+            };
+            if playing.track.ended() {
+                // Read before the track was stopped or replaced.
+                return;
+            }
+            playing.track.advance(samples);
+            if !core::mem::replace(&mut playing.announced, true) {
+                playing.track.emit(&TrackEvent::Playing);
+            }
+        }
         let Some(live) = live else {
-            if self.silence == 0 && data.is_none() {
+            if self.silence == 0 && frame.is_none() {
                 self.speaking = false;
             }
             return;
         };
-        let payload = match &data {
-            Some(packet) => {
+        let payload = match &frame {
+            Some(frame) => {
                 if !self.speaking {
                     live.handle.send(Command::Speaking(MICROPHONE));
                     self.speaking = true;
                 }
-                &packet.data[..]
+                match (self.encode(frame), frame) {
+                    (Some(len), _) => &self.packet[..len],
+                    (None, Frame::Opus { data, .. }) => &data[..],
+                    // PCM that could not be encoded: nothing to send.
+                    (None, Frame::Pcm(_)) => return,
+                }
             }
             None => &SILENCE[..],
         };
         if let Err(error) = live.sender.send(payload, samples).await {
             tracing::debug!(%error, "a voice packet could not be sent");
         }
-        if data.is_none() && self.silence == 0 {
+        if frame.is_none() && self.silence == 0 {
             live.handle.send(Command::Speaking(0));
             self.speaking = false;
         }
+    }
+
+    /// Encodes `frame` at its track's volume into `packet`; its length, or `None` for an
+    /// Opus packet sent as it is (at volume 1.0, or one libopus cannot re-encode).
+    fn encode(&mut self, frame: &Frame) -> Option<usize> {
+        let playing = self.track.as_mut()?;
+        let volume = playing.track.volume();
+        let values = match frame {
+            Frame::Opus { data, .. } => {
+                if (volume - 1.0).abs() <= f32::EPSILON {
+                    // Its decoder would miss these packets: a new one next time.
+                    playing.decoder = None;
+                    return None;
+                }
+                let decoder = match &mut playing.decoder {
+                    Some(decoder) => decoder,
+                    None => playing.decoder.insert(Decoder::new()?),
+                };
+                decoder.decode(data, &mut self.pcm)? * 2
+            }
+            Frame::Pcm(bytes) => {
+                codec::from_s16le(bytes, &mut self.pcm[..codec::FRAME_VALUES]);
+                codec::FRAME_VALUES
+            }
+        };
+        let encoder = match &mut self.encoder {
+            Some(encoder) => encoder,
+            None => self.encoder.insert(Encoder::new(self.bitrate)?),
+        };
+        encoder.encode(&mut self.pcm[..values], volume, &mut self.packet)
     }
 }

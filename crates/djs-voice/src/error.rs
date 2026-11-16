@@ -58,6 +58,18 @@ pub enum InputError {
     /// The Ogg stream does not hold Opus audio from its start, or its Opus headers are
     /// malformed.
     NotOpus,
+    /// [`Input::ffmpeg`](crate::Input::ffmpeg) found no `ffmpeg` program on `PATH`: FFmpeg
+    /// must be installed (<https://ffmpeg.org/download.html>) for it (D-362).
+    FfmpegMissing,
+    /// FFmpeg exited with an error: it could not read or decode the source (D-362).
+    #[non_exhaustive]
+    Ffmpeg {
+        /// Its exit code; `None` when it was ended by a signal.
+        code: Option<i32>,
+        /// The last lines of its standard error: why, as FFmpeg says it ("No such file or
+        /// directory", "Server returned 403 Forbidden", …).
+        message: String,
+    },
 }
 
 impl fmt::Display for InputError {
@@ -66,6 +78,17 @@ impl fmt::Display for InputError {
             Self::Io(error) => write!(f, "reading the input failed: {error}"),
             Self::NotOgg => f.write_str("the input is not an Ogg stream"),
             Self::NotOpus => f.write_str("the Ogg stream holds no well-formed Opus audio"),
+            Self::FfmpegMissing => f.write_str("ffmpeg is not installed (not found on PATH)"),
+            Self::Ffmpeg { code, message } => {
+                f.write_str("ffmpeg failed")?;
+                if let Some(code) = code {
+                    write!(f, " with exit code {code}")?;
+                }
+                if !message.is_empty() {
+                    write!(f, ": {message}")?;
+                }
+                Ok(())
+            }
         }
     }
 }
@@ -74,7 +97,7 @@ impl Error for InputError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             Self::Io(error) => Some(error),
-            Self::NotOgg | Self::NotOpus => None,
+            Self::NotOgg | Self::NotOpus | Self::FfmpegMissing | Self::Ffmpeg { .. } => None,
         }
     }
 }
@@ -94,22 +117,27 @@ impl From<OggError> for InputError {
     }
 }
 
-/// Why a [`TrackHandle`](crate::TrackHandle) control did nothing (D-339).
+/// Why a [`TrackHandle`](crate::TrackHandle) control did nothing (D-339, D-360).
 ///
 /// discord.js counterpart: none (`AudioPlayer#pause` returns `false`); songbird:
 /// `ControlError`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum TrackError {
-    /// The track already ended: it played to its end, was stopped or replaced, its input
-    /// failed, or its call ended.
+    /// The track already ended: it played to its end, was stopped, replaced or skipped,
+    /// its input failed, or its call ended.
     Ended,
+    /// The track cannot loop or seek: its input is a reader
+    /// ([`Input::ogg`](crate::Input::ogg), [`Input::pcm`](crate::Input::pcm)), which cannot
+    /// be opened again (D-360).
+    Unsupported,
 }
 
 impl fmt::Display for TrackError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
             Self::Ended => "the track has ended",
+            Self::Unsupported => "the track's input cannot be opened again to loop or seek",
         })
     }
 }
@@ -137,6 +165,22 @@ mod tests {
         assert_eq!(io.to_string(), "reading the input failed: disk");
         assert!(io.source().is_some());
         assert_eq!(TrackError::Ended.to_string(), "the track has ended");
+        assert_eq!(
+            InputError::Ffmpeg {
+                code: Some(1),
+                message: "a.mp3: No such file or directory".into()
+            }
+            .to_string(),
+            "ffmpeg failed with exit code 1: a.mp3: No such file or directory"
+        );
+        assert_eq!(
+            InputError::Ffmpeg {
+                code: None,
+                message: String::new()
+            }
+            .to_string(),
+            "ffmpeg failed"
+        );
     }
 
     #[test]

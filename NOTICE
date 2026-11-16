@@ -14,3 +14,11 @@ hpke-rs, hpke-rs-crypto and hpke-rs-rust-crypto (used, unmodified, by the
 openmls stack under the davey crate for Discord's DAVE end-to-end encryption) are licensed
 under the Mozilla Public License 2.0 (https://mozilla.org/MPL/2.0/). Their source code is
 available from crates.io and https://github.com/cryspen/hpke-rs.
+
+The djs-voice crate also builds libopus (https://opus-codec.org/), through the opus2 and
+libopus_sys crates, and links it into the programs that use it. libopus is licensed under
+the BSD 3-Clause License: Copyright 2001-2023 Xiph.Org, Skype Limited, Octasic, Jean-Marc
+Valin, Timothy B. Terriberry, CSIRO, Gregory Maxwell, Mark Borgerding, Erik de Castro Lopo,
+Mozilla, Amazon. A program distributed in binary form with djs-voice must reproduce that
+copyright notice, the license's conditions and its disclaimer (the COPYING file of libopus,
+included in the libopus_sys crate) in its documentation or other materials.

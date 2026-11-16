@@ -764,10 +764,20 @@ fields with `Deref` to `new`). Steps:
    (D-355); `track.info()` → `TrackInfo` (D-356); `JoinOptions::bitrate` (D-357);
    `track.set_loop(Loop)` (D-358); `track.seek(..).await` (D-359);
    `TrackError::Unsupported` for readers (D-360); `PlayState::Queued` (D-361);
-   `InputError::{FfmpegMissing, Ffmpeg}` (D-362). Commits: (a) the dependency, NOTICE,
-   deny; (b) the shared track state, events, info, volume, the queue; (c) PCM + encoding;
-   (d) FFmpeg; (e) loops and seeking; (f) README/CHANGELOG, live test with the owner's
-   go-ahead (D-275).
+   `InputError::{FfmpegMissing, Ffmpeg}` (D-362). **Implemented 2026-11-16** (one commit:
+   the parts depend on each other): `codec` (private `opus2` wrapper: encoder per call,
+   decoder per track, soft clip, s16le), `input` (`Source`/`Again`, raw `Frame`s read
+   ahead, Ogg skip-to-position, PCM in 20 ms frames, FFmpeg process with its stderr tail),
+   `track` (shared `Track` state, `TrackHandle`, `TrackInfo`, `PlayState`, `Loop`,
+   `TrackEvent`, `TrackEnd`, `TrackEvents`), `queue` (`Shared` queue under one lock,
+   `TrackQueue`), the new `Player` in `call.rs` (reconciles with the queue; passthrough or
+   decode/scale/encode at frame time), `JoinOptions::bitrate`; NOTICE (libopus BSD-3);
+   `clippy.toml` knows "FFmpeg". 101 unit tests (8 new player E2E tests in
+   `manager/player_tests.rs`, FFmpeg tests skip without `ffmpeg`), 20 repeated runs
+   without a failure. **Next:** a live test of step 2 with the owner's go-ahead (D-275:
+   queue, FFmpeg, volume, seek), then step 3 (receiving audio) — ask its API first.
+   **For step 4:** benchmark Opus encoding per frame, decode + re-encode at a volume, the
+   PCM/Ogg readers through `Input`, and many calls encoding at once.
 
 > **Heavy runs (D-257, D-259–D-262):** the owner's laptop hard-froze on 2026-11-13 under
 > assistant load. Every cargo build/test/bench/stress test goes through
