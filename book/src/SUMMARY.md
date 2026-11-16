@@ -11,11 +11,11 @@
 
 - [Events and intents](basics/events-and-intents.md)
 - [Slash commands](basics/slash-commands.md)
-- [Components and embeds]()
-- [The cache]()
+- [Components and embeds](basics/components-and-embeds.md)
+- [The cache](basics/the-cache.md)
 
 # Going further
 
-- [The REST API]()
+- [The REST API](going-further/rest.md)
 - [Sharding]()
 - [Voice]()
