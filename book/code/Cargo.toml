@@ -9,7 +9,8 @@ repository.workspace = true
 # The guide's listings, never published (C-131).
 publish = false
 
-[dependencies]
+# Only the examples (the listings) use these, so they are dev-dependencies.
+[dev-dependencies]
 # `sharding` for the "Sharding" chapter, `voice` for "Voice".
 djs-rs = { path = "../../crates/djs-rs", features = ["sharding", "voice"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "signal"] }
