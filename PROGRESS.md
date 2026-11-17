@@ -57,9 +57,13 @@ Before plan item 5 (the README), in stages (D-393):
    not panic. A lint expectation that does not hold on 32-bit pointers became an `allow`
    (`serde_util::placeholder_id`). Not run in a JS host yet: that comes with stage 2's
    Workers test.
-2. [ ] HTTP interactions in djs-rs (D-394 `ed25519-dalek`, D-395: a feature, the gateway
-   optional, handler = headers + body → status + body, the shared router and `reply`).
-   Ask the feature/item names when drafting the API.
+2. [ ] HTTP interactions in djs-rs (D-394 `ed25519-dalek`, D-395, D-398–D-401): features
+   `http-interactions` and `gateway` (default); routes on the same `Client`;
+   `client.interactions_endpoint(public_key)` → `InteractionsEndpoint::handle(signature,
+   timestamp, body)` → `(HttpResponse, background future)`; the first response inline in
+   the HTTP body (the funnel is `ext::callback`), the rest in the background; timestamps
+   older than 5 min → 401. Design notes: `Routes::call` already returns the handler's
+   future; `Context`'s `Core` holds the gateway's `MessageSender` and `ShardId` (to gate).
 3. [ ] REST on wasm32 through a transport trait (D-396), hyper + rustls a default feature;
    a Workers `fetch` example in the guide.
 4. [ ] Benchmarks + extreme-load tests (D-041); answer and close issue #3.

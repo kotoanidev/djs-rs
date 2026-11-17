@@ -3582,6 +3582,35 @@ and why.
 - Rejected: `js-sys` directly (the same clock, our own glue); no dependency (no `now` on
   wasm32, the API would differ between targets).
 
+### D-398 — HTTP bots register routes on the same `Client` (2026-11-17)
+- **Answer (owner):** routes stay on `Client` (`client.command(…)` etc.), and the endpoint
+  is made from the client, so one `fn routes(client: &Client)` serves both modes. Without
+  the `gateway` feature, `Client` has no `login()`: REST and routes only.
+- Rejected: a separate endpoint type with its own copies of the route methods.
+
+### D-399 — The initial response goes in the HTTP body; the rest runs in the background (2026-11-17)
+- **Answer (owner):** the handler's first response (`reply`, `defer_reply`, `update`,
+  `show_modal`, …) becomes the HTTP response's body, without a REST request; `handle`
+  returns it as soon as it is known, with a future of the handler's remaining work
+  (follow-ups after a deferral) that the integration drives (`ctx.wait_until` on Workers,
+  `tokio::spawn` natively).
+- Rejected: waiting for the handler to finish (a follow-up after a deferral would delay the
+  response past Discord's 3 s); responding through the REST callback (one more request per
+  interaction, Workers' subrequest limits).
+
+### D-400 — Phase 11 names: `http-interactions`, `gateway`, `InteractionsEndpoint` (2026-11-17)
+- **Answer (owner):** the cargo features `http-interactions` and `gateway` (on by default);
+  `Client::interactions_endpoint(public_key)` returns an `InteractionsEndpoint`, whose
+  `handle(signature, timestamp, body)` returns an `HttpResponse` and the background future.
+- Rejected: `http` / `HttpEndpoint`; `interactions-endpoint` / `Endpoint`.
+
+### D-401 — Requests signed more than 5 minutes ago are rejected (2026-11-17)
+- **Answer (owner):** besides the signature, `X-Signature-Timestamp` older than 5 minutes
+  (or as far in the future) answers `401`, against a replayed signed request. A fixed
+  limit, not configurable; the clock is `web-time` on wasm32 (D-397).
+- Rejected: the signature only (as discord-interactions; a replay would run the handler
+  again, although Discord refuses a second acknowledgement).
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
