@@ -140,12 +140,14 @@ just with narrow scope.
       speakers fixed: decoding in `VoiceStream`, D-374, C-130)
 
 ## Cross-cutting (continuous)
-- [ ] Guide / book (in progress: an mdBook on GitHub Pages with the API reference,
-      D-376–D-382, C-131; written: introduction, installation, the first bot, events and
-      intents, slash commands)
-- [ ] discord.js → djs-rs migration guide (API mapping table)
-- [ ] Benchmarks vs discord.js / serenity / twilight (discord.js: `docs/VS_NODE.md`; serenity:
-      `docs/VS_SERENITY.md`; twilight not yet)
-- [ ] First crates.io release (D-022)
+- [x] Guide / book: an mdBook on GitHub Pages with the API reference (D-376–D-382, C-131),
+      from the first bot to sharding and voice
+- [x] discord.js → djs-rs migration guide (the guide's "Coming from discord.js" chapter, and
+      the discord.js counterpart in the docs of every public item, D-386)
+- [x] Benchmarks vs discord.js / serenity / twilight (`docs/VS_NODE.md`,
+      `docs/VS_SERENITY.md`, `docs/VS_TWILIGHT.md`), all measured again for the first
+      release (D-384, D-385)
+- [~] First crates.io release, `0.1.0-alpha.1` (D-022, D-387, D-388): prepared and checked
+      (C-137), waiting for the owner's go-ahead
 
 > Phase 7 crates are independent and may be pulled earlier if the owner wants.
