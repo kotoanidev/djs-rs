@@ -21,17 +21,17 @@ mock Discord servers for both libraries. Ease of use and API coverage are not co
 
 | Scenario | djs-rs | serenity | Result |
 | --- | ---: | ---: | ---: |
-| Decode `MESSAGE_CREATE` | 1.52 µs | 7.98 µs | **5.2× faster** |
-| Decode `GUILD_CREATE` (1000 members) | 751.29 µs | 4.78 ms | **6.4× faster** |
-| Event flood, equal caches (events/s) | 239,027 | 57,387 | **4.2× more** |
-| CPU per event during the flood | 7.76 µs | 23.8 µs | **3.1× less** |
-| Memory, idle bot (RSS, connected, no guilds) | 6.7 MiB | 9.7 MiB | **1.4× less** |
-| Memory, 500,000 members (RSS) | 203.3 MiB | 997.8 MiB | **4.9× less** |
-| REST throughput (requests/s) | 229,242 | 110,078 | **2.1× more** |
-| REST p99 latency | 0.81 ms | 0.87 ms | **1.1× lower** |
+| Decode `MESSAGE_CREATE` | 1.50 µs | 7.95 µs | **5.3× faster** |
+| Decode `GUILD_CREATE` (1000 members) | 741.83 µs | 4.49 ms | **6.1× faster** |
+| Event flood, equal caches (events/s) | 236,732 | 58,311 | **4.1× more** |
+| CPU per event during the flood | 7.89 µs | 23.7 µs | **3.0× less** |
+| Memory, idle bot (RSS, connected, no guilds) | 6.3 MiB | 9.8 MiB | **1.6× less** |
+| Memory, 500,000 members (RSS) | 203.3 MiB | 988.2 MiB | **4.9× less** |
+| REST throughput (requests/s) | 250,119 | 112,722 | **2.2× more** |
+| REST p99 latency | 0.58 ms | 0.67 ms | **1.1× lower** |
 | Dependencies of a `!ping` bot | 85 | 152 | **1.8× fewer** |
-| Clean release build | 51.2 s | 76.4 s | **1.5× faster** |
-| Release rebuild after editing `main.rs` | 0.73 s | 5.32 s | **7.3× faster** |
+| Clean release build | 51.9 s | 74.2 s | **1.4× faster** |
+| Release rebuild after editing `main.rs` | 0.75 s | 5.09 s | **6.8× faster** |
 | Release binary (stripped) | 8.8 MiB | 10.8 MiB | **1.2× smaller** |
 <!-- vs-serenity:summary:end -->
 
@@ -43,25 +43,25 @@ sections [6](#6-reliability-gateway-faults) and [7](#7-reliability-api-faults).
 <!-- vs-serenity:reliability-summary:start -->
 | Fault | djs-rs | serenity |
 | --- | ---: | ---: |
-| Connection dropped (no close frame) | resumed after 3.0 ms, nothing lost | resumed after 2.9 ms, nothing lost |
-| Opcode 7 `RECONNECT` | resumed after 2.2 ms, nothing lost | resumed after 3.8 ms, nothing lost |
-| Opcode 9 `INVALID_SESSION`, not resumable | new session after 3.10 s, 3,101 events lost | new session after 5.00 s, 5,003 events lost |
-| Zombie connection (no heartbeat ACK) | resumed after 1.77 s, nothing lost | new session after 6.02 s, 6,016 events lost |
-| Close code 4000 (resumable) | resumed after 2.7 ms, nothing lost | resumed after 3.0 ms, nothing lost |
+| Connection dropped (no close frame) | resumed after 2.4 ms, nothing lost | resumed after 3.9 ms, nothing lost |
+| Opcode 7 `RECONNECT` | resumed after 2.8 ms, nothing lost | resumed after 2.7 ms, nothing lost |
+| Opcode 9 `INVALID_SESSION`, not resumable | new session after 3.88 s, 3,884 events lost | new session after 5.00 s, 5,004 events lost |
+| Zombie connection (no heartbeat ACK) | resumed after 1.63 s, nothing lost | new session after 6.51 s, 6,506 events lost |
+| Close code 4000 (resumable) | resumed after 2.8 ms, nothing lost | resumed after 2.5 ms, nothing lost |
 | Close code 4004 (authentication failed) | stopped with an error, did not reconnect | stopped with an error, did not reconnect |
 | Route 429, `retry_after` 0.5 s | 40/40 sent, waited 552 ms, none early | 40/40 sent, waited 1.00 s, none early |
 | Global 429, `retry_after` 0.5 s | 40/40 sent, waited 552 ms, none early | 40/40 sent, waited 1.00 s, none early |
 | 502 on the first attempt at every 4th message | 40/40 sent, 8 retried | 32/40 sent, 8 failed (no retry) |
 <!-- vs-serenity:reliability-summary:end -->
 
-In short: with the same data cached, a djs-rs bot decodes Discord's events **5.2–6.4×
-faster** than a serenity bot. It handles **4.2× the events at about a third of the CPU**. It
-starts in **1.4× less memory** and needs **4.9× less** for half a million cached members. Its
-REST client sends **2.1× more requests**, and still 1.5× more when serenity's TLS and rate
+In short: with the same data cached, a djs-rs bot decodes Discord's events **5.3–6.1×
+faster** than a serenity bot. It handles **4.1× the events at about a third of the CPU**. It
+starts in **1.6× less memory** and needs **4.9× less** for half a million cached members. Its
+REST client sends **2.2× more requests**, and still 1.6× more when serenity's TLS and rate
 limiter are taken out. A djs-rs bot pulls in 85 crates instead of 152, builds from scratch
-1.5× faster, **rebuilds after an edit 7.3× faster** in release (about as fast in debug), and
-its binary is 1.2× smaller. The rebuild was the one place where serenity was ahead in the
-first measurement (9.91 against 4.95 s); D-287–D-289 moved the library's code out of the
+1.3–1.4× faster, **rebuilds after an edit 6.8× faster** in release (about as fast in debug),
+and its binary is 1.2× smaller. The rebuild was the one place where serenity was ahead in
+the first measurement (9.91 against 4.95 s); D-287–D-289 moved the library's code out of the
 bot's crate (see [Building a bot](#5-building-a-bot)). serenity's unstripped debug binary
 is smaller.
 
@@ -122,14 +122,14 @@ carries a whole guild at startup, here with 1000 members.
 
 | Payload | Implementation | Time per payload | Payloads/s | vs serenity |
 | --- | ---: | ---: | ---: | ---: |
-| `MESSAGE_CREATE` | djs-rs (djs-model) | 1.52 µs | 656,815 | **5.2× faster** |
-| `MESSAGE_CREATE` | serenity (GatewayEvent) | 7.98 µs | 125,367 | baseline |
-| `GUILD_CREATE` | djs-rs (djs-model) | 751.29 µs | 1,331 | **6.4× faster** |
-| `GUILD_CREATE` | serenity (GatewayEvent) | 4.78 ms | 209 | baseline |
+| `MESSAGE_CREATE` | djs-rs (djs-model) | 1.50 µs | 666,332 | **5.3× faster** |
+| `MESSAGE_CREATE` | serenity (GatewayEvent) | 7.95 µs | 125,803 | baseline |
+| `GUILD_CREATE` | djs-rs (djs-model) | 741.83 µs | 1,348 | **6.1× faster** |
+| `GUILD_CREATE` | serenity (GatewayEvent) | 4.49 ms | 223 | baseline |
 <!-- vs-serenity:decode:end -->
 
-- One core decodes 657,000 `MESSAGE_CREATE`s per second with djs-rs and 125,000 with
-  serenity. A 1000-member `GUILD_CREATE` takes 0.75 ms against 4.78 ms.
+- One core decodes 666,000 `MESSAGE_CREATE`s per second with djs-rs and 126,000 with
+  serenity. A 1000-member `GUILD_CREATE` takes 0.74 ms against 4.49 ms.
 - serenity's optional `simd_json` decoder is not used: both libraries run with their default
   features (D-280).
 
@@ -152,15 +152,15 @@ reaches a handler of the bot (`client.on(Events::MessageCreate, …)` in djs-rs,
 
 | Implementation | Events/s (range) | vs serenity | CPU per event | vs serenity | Peak RSS |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| djs-rs Client (default: no cache) | 242,243 (240,364–244,635) | **4.2× more** | 7.79 µs | **3.1× less** | 8.5 MiB |
-| djs-rs Client + serenity's cache | 239,027 (235,376–239,113) | **4.2× more** | 7.76 µs | **3.1× less** | 9.1 MiB |
-| serenity Client (default cache) | 57,387 (56,873–61,313) | baseline | 23.8 µs | baseline | 21.0 MiB |
+| djs-rs Client (default: no cache) | 243,953 (243,163–248,327) | **4.2× more** | 7.74 µs | **3.1× less** | 8.9 MiB |
+| djs-rs Client + serenity's cache | 236,732 (236,707–238,021) | **4.1× more** | 7.89 µs | **3.0× less** | 9.5 MiB |
+| serenity Client (default cache) | 58,311 (57,764–58,998) | baseline | 23.7 µs | baseline | 18.9 MiB |
 <!-- vs-serenity:flood:end -->
 
-- djs-rs delivers **4.2× the events per second** with serenity's cache and spends **3.1×
-  less CPU per event** (7.8 µs against 23.8 µs). Its memory peaks at less than half of
-  serenity's (9.1 against 21.0 MiB).
-- Keeping serenity's cache costs djs-rs 1.3 % of its throughput (239,027 against 242,243
+- djs-rs delivers **4.1× the events per second** with serenity's cache and spends **3.0×
+  less CPU per event** (7.9 µs against 23.7 µs). Its memory peaks at half of serenity's
+  (9.5 against 18.9 MiB).
+- Keeping serenity's cache costs djs-rs 3 % of its throughput (236,732 against 243,953
   events/s without a cache).
 - The mock gateway used about one CPU-second per run for either library, so it was never
   the limit.
@@ -178,17 +178,17 @@ presences) and caches them. Resident memory is measured once every guild is cach
 
 | Guilds | Implementation | RSS | vs serenity | RSS added per member |
 | --- | ---: | ---: | ---: | ---: |
-| connected, no guilds | djs-rs Client + serenity's cache | 6.7 MiB | **1.4× less** | — |
-| connected, no guilds | serenity Client (default cache) | 9.7 MiB | baseline | — |
-| 100 guilds · 100,000 members | djs-rs Client + serenity's cache | 43.9 MiB | **4.2× less** | 394 B |
-| 100 guilds · 100,000 members | serenity Client (default cache) | 186.1 MiB | baseline | 1,849 B |
+| connected, no guilds | djs-rs Client + serenity's cache | 6.3 MiB | **1.6× less** | — |
+| connected, no guilds | serenity Client (default cache) | 9.8 MiB | baseline | — |
+| 100 guilds · 100,000 members | djs-rs Client + serenity's cache | 43.9 MiB | **4.6× less** | 390 B |
+| 100 guilds · 100,000 members | serenity Client (default cache) | 200.6 MiB | baseline | 1,996 B |
 | 500 guilds · 500,000 members | djs-rs Client + serenity's cache | 203.3 MiB | **4.9× less** | 413 B |
-| 500 guilds · 500,000 members | serenity Client (default cache) | 997.8 MiB | baseline | 2,072 B |
+| 500 guilds · 500,000 members | serenity Client (default cache) | 988.2 MiB | baseline | 2,051 B |
 <!-- vs-serenity:memory:end -->
 
-- Connected with no guilds, a djs-rs bot uses 6.7 MiB and a serenity bot 9.7 MiB.
+- Connected with no guilds, a djs-rs bot uses 6.3 MiB and a serenity bot 9.8 MiB.
 - Each cached member adds about 0.4 KB with djs-rs and about 2 KB with serenity, including
-  the guild's share of roles, channels and presences. So the gap grows with the bot: 4.2× at
+  the guild's share of roles, channels and presences. So the gap grows with the bot: 4.6× at
   100,000 members and 4.9× at 500,000, where serenity needs nearly 1 GiB.
 
 ## 4. REST throughput
@@ -213,18 +213,18 @@ limiter, HTTP and decoding the response into a typed `Message`.
 
 | Implementation | Requests/s | vs serenity default | p50 | p99 | CPU per request | Peak RSS |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| djs-rest (default) | 229,242 | **2.1× more** | 0.26 ms | 0.81 ms | 14.1 µs | 12.3 MiB |
-| serenity Http (default, HTTPS) | 110,078 | baseline | 0.57 ms | 0.87 ms | 27.4 µs | 17.0 MiB |
-| serenity Http, limiter off, plain HTTP (bound) | 154,494 | 1.4× the default | 0.40 ms | 0.87 ms | 23.3 µs | 14.5 MiB |
+| djs-rest (default) | 250,119 | **2.2× more** | 0.25 ms | 0.58 ms | 14.0 µs | 12.2 MiB |
+| serenity Http (default, HTTPS) | 112,722 | baseline | 0.56 ms | 0.67 ms | 27.3 µs | 17.5 MiB |
+| serenity Http, limiter off, plain HTTP (bound) | 158,116 | 1.4× the default | 0.40 ms | 0.82 ms | 23.3 µs | 14.6 MiB |
 <!-- vs-serenity:rest:end -->
 
-- djs-rs sends **2.1× the requests per second** of serenity's default configuration, at
-  half the CPU per request (14.1 against 27.4 µs) and with a lower p99 (0.81 against
-  0.87 ms).
+- djs-rs sends **2.2× the requests per second** of serenity's default configuration, at
+  half the CPU per request (14.0 against 27.3 µs) and with a lower p99 (0.58 against
+  0.67 ms).
 - Part of that gap is TLS, which only serenity pays here (D-282). Without TLS and without
-  its rate limiter, serenity reaches 154,494 requests/s. djs-rs, with its rate limiter
-  working, still sends 1.5× more at 1.7× less CPU per request; serenity's p99 stays at
-  0.87 ms in that bound.
+  its rate limiter, serenity reaches 158,116 requests/s. djs-rs, with its rate limiter
+  working, still sends 1.6× more at 1.7× less CPU per request; serenity's p99 is 0.82 ms in
+  that bound.
 - Against the real Discord both libraries use TLS, and the global rate limit caps a bot long
   before either library is busy. What carries over is the CPU and memory each request
   costs.
@@ -250,10 +250,10 @@ for on every change.
 
 | Profile | Bot | Clean build (range) | Rebuild (range) | Binary | Stripped |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| release | djs-rs | 51.2 s (51.2 s–53.0 s) | 0.73 s (0.73 s–0.80 s) | 12.3 MiB | 8.8 MiB |
-| release | serenity | 76.4 s (76.4 s–77.9 s) | 5.32 s (5.32 s–5.33 s) | 14.7 MiB | 10.8 MiB |
-| debug | djs-rs | 28.4 s (28.4 s–29.1 s) | 0.64 s (0.64 s–0.82 s) | 159.0 MiB | 18.2 MiB |
-| debug | serenity | 37.4 s (37.4 s–37.5 s) | 0.68 s (0.68 s–0.70 s) | 131.9 MiB | 22.3 MiB |
+| release | djs-rs | 51.9 s (51.9 s–52.2 s) | 0.75 s (0.75 s–0.76 s) | 12.4 MiB | 8.8 MiB |
+| release | serenity | 74.2 s (74.2 s–74.5 s) | 5.09 s (5.09 s–5.18 s) | 14.7 MiB | 10.8 MiB |
+| debug | djs-rs | 26.1 s (26.1 s–26.3 s) | 0.62 s (0.62 s–0.65 s) | 159.1 MiB | 18.2 MiB |
+| debug | serenity | 34.6 s (34.6 s–36.1 s) | 0.59 s (0.59 s–0.61 s) | 131.9 MiB | 22.3 MiB |
 
 | Bot | Dependencies (normal, this platform) |
 | --- | ---: |
@@ -262,11 +262,11 @@ for on every change.
 <!-- vs-serenity:build:end -->
 
 - A djs-rs bot depends on 85 crates and a serenity bot on 152. From an empty target
-  directory, djs-rs builds in 51.2 s (release) and 28.4 s (debug), serenity in 76.4 s and
-  37.4 s. The djs-rs release binary is smaller: 8.8 against 10.8 MiB stripped. Its
-  unstripped debug binary is larger (159.0 against 131.9 MiB).
-- **djs-rs rebuilds faster after an edit:** 0.73 s against 5.32 s in release; in debug the
-  two are about the same (0.64–0.82 s against 0.68–0.70 s). A rebuild recompiles the bot's
+  directory, djs-rs builds in 51.9 s (release) and 26.1 s (debug), serenity in 74.2 s and
+  34.6 s. The djs-rs release binary is smaller: 8.8 against 10.8 MiB stripped. Its
+  unstripped debug binary is larger (159.1 against 131.9 MiB).
+- **djs-rs rebuilds faster after an edit:** 0.75 s against 5.09 s in release; in debug the
+  two are about the same (0.62–0.65 s against 0.59–0.61 s). A rebuild recompiles the bot's
   own crate. The first measurement had djs-rs at 9.91 s: the bodies of `async fn`s and
   everything generic over the cache backend were compiled in the bot's crate. Since
   D-287–D-289 the library builds the futures of its public methods (the REST calls,
@@ -303,16 +303,16 @@ libraries.
 
 | Fault | Library | Recovery | Without events (range) | Lost | Duplicated | Replayed by RESUME |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Connection dropped (no close frame) | djs-rs | resumed | 3.0 ms (2.6 ms–4.1 ms) | 0 | 0 | 2 |
-| Connection dropped (no close frame) | serenity | resumed | 2.9 ms (2.6 ms–4.3 ms) | 0 | 0 | 2 |
-| Opcode 7 `RECONNECT` | djs-rs | resumed | 2.2 ms (1.7 ms–2.5 ms) | 0 | 0 | 1 |
-| Opcode 7 `RECONNECT` | serenity | resumed | 3.8 ms (3.4 ms–4.0 ms) | 0 | 0 | 1 |
-| Opcode 9 `INVALID_SESSION`, not resumable | djs-rs | identified | 3.10 s (3.10 s–3.10 s) | 3,101 | 0 | 0 |
-| Opcode 9 `INVALID_SESSION`, not resumable | serenity | identified | 5.00 s (5.00 s–5.01 s) | 5,003 | 0 | 0 |
-| Zombie connection (no heartbeat ACK) | djs-rs | resumed | 1.77 s (1.70 s–1.86 s) | 0 | 0 | 1,761 |
-| Zombie connection (no heartbeat ACK) | serenity | identified | 6.02 s (6.02 s–6.02 s) | 6,016 | 0 | 0 |
-| Close code 4000 (resumable) | djs-rs | resumed | 2.7 ms (2.7 ms–3.0 ms) | 0 | 0 | 2 |
-| Close code 4000 (resumable) | serenity | resumed | 3.0 ms (2.8 ms–3.0 ms) | 0 | 0 | 2 |
+| Connection dropped (no close frame) | djs-rs | resumed | 2.4 ms (2.4 ms–2.4 ms) | 0 | 0 | 2 |
+| Connection dropped (no close frame) | serenity | resumed | 3.9 ms (2.9 ms–3.9 ms) | 0 | 0 | 1 |
+| Opcode 7 `RECONNECT` | djs-rs | resumed | 2.8 ms (2.4 ms–3.3 ms) | 0 | 0 | 1 |
+| Opcode 7 `RECONNECT` | serenity | resumed | 2.7 ms (1.6 ms–3.9 ms) | 0 | 0 | 1 |
+| Opcode 9 `INVALID_SESSION`, not resumable | djs-rs | identified | 3.88 s (3.10 s–4.67 s) | 3,884 | 0 | 0 |
+| Opcode 9 `INVALID_SESSION`, not resumable | serenity | identified | 5.00 s (5.00 s–5.01 s) | 5,004 | 0 | 0 |
+| Zombie connection (no heartbeat ACK) | djs-rs | resumed | 1.63 s (1.62 s–1.80 s) | 0 | 0 | 1,626 |
+| Zombie connection (no heartbeat ACK) | serenity | identified | 6.51 s (6.02 s–6.51 s) | 6,506 | 0 | 0 |
+| Close code 4000 (resumable) | djs-rs | resumed | 2.8 ms (2.7 ms–3.7 ms) | 0 | 0 | 2 |
+| Close code 4000 (resumable) | serenity | resumed | 2.5 ms (1.9 ms–2.7 ms) | 0 | 0 | 2 |
 | Close code 4004 (authentication failed) | djs-rs | stopped | — | 7,999 | 0 | 0 |
 | Close code 4004 (authentication failed) | serenity | stopped | — | 8,000 | 0 | 0 |
 <!-- vs-serenity:gateway:end -->
@@ -324,21 +324,21 @@ libraries.
 - **Zombie connection:** the mock keeps the connection open but stops acknowledging
   heartbeats and sending events.
   - djs-rs notices the missing ACK at its next heartbeat, reconnects and resumes. The mock
-    replays the events it missed (1,761, median), and nothing is lost.
+    replays the events it missed (1,626, median), and nothing is lost.
   - serenity 0.12.5 treats a missing ACK as a reason to restart the shard
     (`ShardRunner::run` → `request_restart`). A restart starts a **new session**, so the
-    events of the old one are gone: 6,016 here.
+    events of the old one are gone: 6,506 here (median).
   - The restart also waits up to 5 s for the shard to confirm its shutdown
     (`ShardManager::shutdown`). Since the shard itself asked for the restart, that wait ran
-    its full 5 s in every run. serenity was back after 6.0 s, djs-rs after 1.8 s.
+    its full 5 s in every run. serenity was back after 6.0–6.5 s, djs-rs after 1.6–1.8 s.
 - **`INVALID_SESSION`, not resumable:** a new session is the only way back, and the events
   produced meanwhile are lost for any client, by the protocol.
   - Discord asks for a random 1–5 s wait and allows one `IDENTIFY` per 5 s. djs-rs honours
-    both. Its first `IDENTIFY` was about 2 s before the fault, so it identified again
-    3.1 s after the fault in all three runs. A longer random wait would have set the time
-    instead.
+    both. Its first `IDENTIFY` was about 2 s before the fault, so it could identify again
+    3.1 s after it at the earliest: it did in one run, and in the other two its random wait
+    was longer (3.9 and 4.7 s).
   - serenity goes through the same shard restart and its 5 s wait.
-  - The shorter the outage, the fewer events lost: 3,101 against 5,003.
+  - The shorter the outage, the fewer events lost: 3,884 against 5,004 (medians).
 - With Discord's real heartbeat interval (about 41 s), either library notices a zombie
   connection one to two intervals late. djs-rs then still loses nothing; serenity loses
   everything sent in that time.
@@ -433,7 +433,7 @@ from [`results.json`](../benches/vs-serenity/results.json) alone.
 <!-- vs-serenity:environment:start -->
 |  |  |
 | --- | ---: |
-| Date | 2026-11-13 |
+| Date | 2026-11-17 |
 | CPU | 13th Gen Intel(R) Core(TM) i7-1355U (12 threads), 15 GiB RAM |
 | OS | Linux 7.3.3-200.fc44.x86_64 |
 | Rust | `rustc 1.99.1 (58cf8f9c3 2026-10-13)`, release profile (`lto = "fat"`, `codegen-units = 1`) for the harness; the bots' own defaults for the builds |

@@ -18,15 +18,15 @@
 <text x="586" y="308" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">30 MiB</text>
 <text x="24" y="119" font-size="12.5" font-weight="600" fill="#c3c2b7">release</text>
 <text x="312" y="150.5" font-size="13" text-anchor="end" fill="#f0efec">djs-rs</text>
-<path d="M324,136H396.7530151367188A4,4 0 0 1 400.7530151367188,140V152A4,4 0 0 1 396.7530151367188,156H324Z" fill="#3987e5"><title>djs-rs: 8.8 MiB</title></path>
-<text x="408.7530151367188" y="150.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">8.8 MiB</text>
+<path d="M324,136H396.9827555338542A4,4 0 0 1 400.9827555338542,140V152A4,4 0 0 1 396.9827555338542,156H324Z" fill="#3987e5"><title>djs-rs: 8.8 MiB</title></path>
+<text x="408.9827555338542" y="150.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">8.8 MiB</text>
 <text x="312" y="182.5" font-size="13" text-anchor="end" fill="#f0efec">serenity</text>
 <path d="M324,168H414.49679616292315A4,4 0 0 1 418.49679616292315,172V184A4,4 0 0 1 414.49679616292315,188H324Z" fill="#d95926"><title>serenity: 10.8 MiB</title></path>
 <text x="426.49679616292315" y="182.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">10.8 MiB</text>
 <text x="24" y="213" font-size="12.5" font-weight="600" fill="#c3c2b7">debug</text>
 <text x="312" y="244.5" font-size="13" text-anchor="end" fill="#f0efec">djs-rs</text>
-<path d="M324,230H478.9624979654948A4,4 0 0 1 482.9624979654948,234V246A4,4 0 0 1 478.9624979654948,250H324Z" fill="#3987e5"><title>djs-rs: 18.2 MiB</title></path>
-<text x="490.9624979654948" y="244.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">18.2 MiB</text>
+<path d="M324,230H479.1051528930664A4,4 0 0 1 483.1051528930664,234V246A4,4 0 0 1 479.1051528930664,250H324Z" fill="#3987e5"><title>djs-rs: 18.2 MiB</title></path>
+<text x="491.1051528930664" y="244.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">18.2 MiB</text>
 <text x="312" y="276.5" font-size="13" text-anchor="end" fill="#f0efec">serenity</text>
 <path d="M324,262H514.456856282552A4,4 0 0 1 518.456856282552,266V278A4,4 0 0 1 514.456856282552,282H324Z" fill="#d95926"><title>serenity: 22.3 MiB</title></path>
 <text x="526.456856282552" y="276.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">22.3 MiB</text>
