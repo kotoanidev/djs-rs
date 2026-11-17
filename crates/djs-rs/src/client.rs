@@ -1188,6 +1188,17 @@ impl<B: Backend> Client<B> {
 
     /// Delivers one event to the event streams and to its handlers (D-028).
     async fn emit(&self, ctx: &Context<B>, registry: &Registry<B>, dispatch: Dispatch) {
+        self.emit_as(ctx, registry, dispatch, self.inner.mode).await;
+    }
+
+    /// [`emit`](Self::emit), with the handlers run as `mode` says.
+    async fn emit_as(
+        &self,
+        ctx: &Context<B>,
+        registry: &Registry<B>,
+        dispatch: Dispatch,
+        mode: HandlerMode,
+    ) {
         let inner = &*self.inner;
         if !matches!(dispatch, Dispatch::Raw(_)) && inner.has_subscribers.load(Ordering::Acquire) {
             let mut subscribers = lock(&inner.subscribers);
@@ -1216,7 +1227,7 @@ impl<B: Backend> Client<B> {
             Dispatch::InteractionCreate(event) if !registry.routes.is_empty() => Some(event),
             _ => None,
         };
-        match inner.mode {
+        match mode {
             HandlerMode::Concurrent => {
                 for handler in handlers {
                     handler.spawn(ctx, &dispatch);
@@ -1236,6 +1247,93 @@ impl<B: Backend> Client<B> {
                 }
             }
         }
+    }
+}
+
+#[cfg(feature = "http-interactions")]
+impl<B: Backend> Client<B> {
+    /// Returns an endpoint answering the interactions Discord posts to the app's
+    /// Interactions Endpoint URL with this client's routes and handlers (D-398): see
+    /// [`http_interactions`](crate::http_interactions). `public_key` is the app's public key
+    /// from the Developer Portal (General Information), in hexadecimal.
+    ///
+    /// The client needs no [`login`](Self::login) for it; a client that is also logged in
+    /// (a hybrid bot) gives HTTP interactions the context of their guild's shard (D-403).
+    ///
+    /// discord.js counterpart: none (discord.js only receives interactions over the gateway).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InvalidPublicKey`](crate::http_interactions::InvalidPublicKey) if
+    /// `public_key` is not 64 hexadecimal digits of a valid Ed25519 key.
+    pub fn interactions_endpoint(
+        &self,
+        public_key: &str,
+    ) -> Result<
+        crate::http_interactions::InteractionsEndpoint<B>,
+        crate::http_interactions::InvalidPublicKey,
+    > {
+        crate::http_interactions::InteractionsEndpoint::new(self.clone(), public_key)
+    }
+
+    /// Dispatches an HTTP interaction like a gateway one (D-398): the cache, the event
+    /// streams and collectors, then the `InteractionCreate` handlers and the routes, one
+    /// after another in the returned future (each request has its own). The receiver gets
+    /// the initial response (D-399).
+    pub(crate) fn dispatch_http(
+        &self,
+        event: djs_model::gateway::payload::InteractionCreate,
+    ) -> (
+        crate::http_interactions::InitialReceiver,
+        BoxFuture<'static, ()>,
+    ) {
+        let inner = &*self.inner;
+        let state = &inner.shared;
+        // The application ID is known from the first interaction too (D-245).
+        let _ = state.application_id.set(event.application_id);
+        // The guild's shard, if this client also runs it (D-403); DMs go to shard 0.
+        let total = state.total_shards.load(Ordering::Acquire);
+        let (shard, sender) = if total == 0 {
+            (
+                djs_model::gateway::ShardId::ONE,
+                djs_gateway::MessageSender::detached(),
+            )
+        } else {
+            let number = event.guild_id.map_or(0, |guild| {
+                djs_model::gateway::ShardId::for_guild(guild, total).number()
+            });
+            let sender = state
+                .shard(number)
+                .unwrap_or_else(djs_gateway::MessageSender::detached);
+            (djs_model::gateway::ShardId::new(number, total), sender)
+        };
+        let (inline, initial) = crate::http_interactions::Inline::new(event.id);
+        let ctx = Context::http(
+            inner.rest.clone(),
+            shard,
+            sender,
+            inner.cache.clone(),
+            Arc::clone(state),
+            inline,
+        );
+        let mut out = Vec::with_capacity(1);
+        convert(
+            DispatchEvent::InteractionCreate(Box::new(event)),
+            inner.cache.as_deref(),
+            &mut ShardTracker::default(),
+            |kind| kind == EventKind::InteractionCreate,
+            &mut out,
+        );
+        let client = self.clone();
+        let registry = self.registry();
+        let work = async move {
+            for dispatch in out {
+                client
+                    .emit_as(&ctx, &registry, dispatch, HandlerMode::Sequential)
+                    .await;
+            }
+        };
+        (initial, Box::pin(work))
     }
 }
 

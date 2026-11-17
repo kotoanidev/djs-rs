@@ -96,6 +96,9 @@ pub(crate) struct Core {
     shared: Arc<Shared>,
     /// The cache's operations, or the converter's without a cache (D-289).
     ops: Arc<dyn CacheOps>,
+    /// Where an HTTP interaction's initial response goes (D-399); `None` for gateway events.
+    #[cfg(feature = "http-interactions")]
+    inline: Option<crate::http_interactions::Inline>,
 }
 
 impl fmt::Debug for Core {
@@ -123,6 +126,16 @@ impl Core {
     /// The cache operations (D-289): the cache's, or a converter's that keeps nothing.
     pub(crate) fn ops(&self) -> &dyn CacheOps {
         &*self.ops
+    }
+
+    /// Takes the slot of `interaction`'s initial response, if the context is that HTTP
+    /// interaction's and nothing has responded yet (D-399).
+    #[cfg(feature = "http-interactions")]
+    pub(crate) fn take_inline(
+        &self,
+        interaction: djs_model::id::InteractionId,
+    ) -> Option<crate::http_interactions::InitialSender> {
+        self.inline.as_ref()?.take(interaction)
     }
 
     /// The sender of the shard that receives `guild`'s events, if it runs in this client.
@@ -167,10 +180,29 @@ impl<B: Backend> Context<B> {
                     sender,
                     shared: state,
                     ops,
+                    #[cfg(feature = "http-interactions")]
+                    inline: None,
                 },
                 cache,
             }),
         }
+    }
+
+    /// A context for one HTTP interaction, whose initial response goes to `inline` (D-399).
+    #[cfg(feature = "http-interactions")]
+    pub(crate) fn http(
+        rest: Rest,
+        shard: ShardId,
+        sender: MessageSender,
+        cache: Option<Arc<Cache<B>>>,
+        state: Arc<Shared>,
+        inline: crate::http_interactions::Inline,
+    ) -> Self {
+        let mut ctx = Self::new(rest, shard, sender, cache, state);
+        if let Some(inner) = Arc::get_mut(&mut ctx.inner) {
+            inner.core.inline = Some(inline);
+        }
+        ctx
     }
 
     /// The part of the context that does not depend on the cache backend (D-289).

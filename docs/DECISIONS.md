@@ -3611,6 +3611,26 @@ and why.
 - Rejected: the signature only (as discord-interactions; a replay would run the handler
   again, although Discord refuses a second acknowledgement).
 
+### D-402 — The HTTP interactions API in `djs_rs::http_interactions` (2026-11-17)
+- **Answer (owner):** the module `djs_rs::http_interactions` (behind `http-interactions`,
+  as `sharding`/`voice`) with `InteractionsEndpoint<B>` (cheap `Clone`),
+  `HttpResponse { status: u16, body: Vec<u8> }` (`#[non_exhaustive]`; the body is JSON or
+  empty) and its own error `InvalidPublicKey` (not a variant of `djs_rs::Error`, which is
+  about logging in). `Client::interactions_endpoint(&self, public_key: &str) ->
+  Result<InteractionsEndpoint<B>, InvalidPublicKey>`; `InteractionsEndpoint::handle(&self,
+  signature: &str, timestamp: &str, body: &[u8]) -> (HttpResponse, impl Future<Output = ()>
+  + Send + 'static)`.
+- Rejected: re-exporting the types at the crate root.
+
+### D-403 — An HTTP interaction's `ctx.shard()` (2026-11-17)
+- **Answer (owner):** with the `gateway` feature, an HTTP interaction's context gives the
+  shard of the interaction's guild when the client is also logged in (a hybrid bot);
+  otherwise a new public `MessageSender::detached()` of djs-gateway, whose commands fail
+  with `SendError::Closed`, and `shard_id()` is shard 0 of 1. No breaking change; without
+  the `gateway` feature neither method exists.
+- Rejected: `Option<&MessageSender>` / `Option<ShardId>` (breaks every gateway bot using
+  them).
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
@@ -5854,6 +5874,29 @@ garbage (±1.0 for a frame). Measured with the listeners' side decoded by libopu
   the assertion prints both gaps.
 - **No reliability section:** the fault-injection comparison stays with serenity
   (`VS_SERENITY.md`); D-385 asks for the performance set.
+
+### C-139 — HTTP interactions, stage 2a (D-394–D-403)
+- **`ed25519-dalek` 2.2** (not 3.0): the version voice's stack already locks, so a bot
+  with both features builds one copy; `default-features = false` plus `fast` (precomputed
+  tables, faster verification). `verify_strict` (rejects weak keys and malleable
+  signatures). The signed message (timestamp + body) is copied into one `Vec`: one
+  allocation next to a ~tens of µs verification.
+- **An initial response with files goes through REST** (the proven multipart path), then
+  the HTTP answer is `202` with no body; whether Discord also takes multipart in the HTTP
+  body is unverified. If that REST call fails the answer is `500`. To verify live.
+- **Status codes:** `400` for a signed body that is not an interaction (logged at
+  `warn`), `500` when the handlers finish without an initial response (also an unrouted
+  interaction with no `InteractionCreate` handler answering), `401` for any verification
+  failure; the timestamp is checked first (cheaper).
+- **Dispatch:** the same `convert` as the gateway (so the cache sees the interaction) with
+  only `InteractionCreate` wanted (no `Raw`: it is gateway payloads), then `emit` with
+  `HandlerMode::Sequential` in the request's own future, whatever the client's mode
+  (`emit` became a wrapper of `emit_as(…, mode)`). The application ID is set from the
+  first interaction (D-245's `OnceLock`).
+- **The inline slot** is a `oneshot` in the HTTP context's `Core` (set through
+  `Arc::get_mut` on the fresh context); `ext::callback`, the funnel of every initial
+  response, takes it if the interaction ID matches. Later responses go through REST as
+  on the gateway (Discord refuses a second acknowledgement either way).
 
 ---
 

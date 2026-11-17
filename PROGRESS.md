@@ -57,13 +57,21 @@ Before plan item 5 (the README), in stages (D-393):
    not panic. A lint expectation that does not hold on 32-bit pointers became an `allow`
    (`serde_util::placeholder_id`). Not run in a JS host yet: that comes with stage 2's
    Workers test.
-2. [ ] HTTP interactions in djs-rs (D-394 `ed25519-dalek`, D-395, D-398–D-401): features
-   `http-interactions` and `gateway` (default); routes on the same `Client`;
-   `client.interactions_endpoint(public_key)` → `InteractionsEndpoint::handle(signature,
-   timestamp, body)` → `(HttpResponse, background future)`; the first response inline in
-   the HTTP body (the funnel is `ext::callback`), the rest in the background; timestamps
-   older than 5 min → 401. Design notes: `Routes::call` already returns the handler's
-   future; `Context`'s `Core` holds the gateway's `MessageSender` and `ShardId` (to gate).
+2. [ ] HTTP interactions in djs-rs (D-394, D-395, D-398–D-403, C-139).
+   **2a done 2026-11-17 (native, gateway still required):** the `http-interactions`
+   feature, `djs_rs::http_interactions::{InteractionsEndpoint, HttpResponse,
+   InvalidPublicKey}`, `client.interactions_endpoint(public_key)`; `handle` verifies
+   (`ed25519-dalek` 2.2 `verify_strict`, timestamps within 5 min), answers PING, dispatches
+   like the gateway (`Client::dispatch_http`: `convert` then `emit_as(…, Sequential)`),
+   returns the first response inline (the slot in `Core`, taken by `ext::callback`),
+   files through REST → 202, no response → 500. `MessageSender::detached()` in
+   djs-gateway (D-403). Tests: 4 unit (hex, signature, timestamps, key) and
+   `tests/http_interactions.rs` (PING/401/400, inline reply + `InteractionCreate`
+   handler, a deferral returning before its follow-up, files → REST, 500).
+   **2b left (after stage 3, it needs djs-rest on wasm32):** the `gateway` feature
+   (default) so djs-rs builds without djs-gateway, then djs-rs for wasm32. Not verified
+   live yet: needs a public URL as the test app's Interactions Endpoint URL (an owner step;
+   it moves the test bot's interactions off the gateway while set).
 3. [ ] REST on wasm32 through a transport trait (D-396), hyper + rustls a default feature;
    a Workers `fetch` example in the guide.
 4. [ ] Benchmarks + extreme-load tests (D-041); answer and close issue #3.

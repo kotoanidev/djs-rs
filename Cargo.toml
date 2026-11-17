@@ -39,6 +39,8 @@ compact_str = { version = "0.10", default-features = false }
 dashmap = { version = "6.2.1", default-features = false }
 # Voice end-to-end encryption (D-312), pinned while it is 0.x.
 davey = "=0.2.0"
+# Verifying the signatures of HTTP interactions (D-394); 2.2 is the version voice already pulls in.
+ed25519-dalek = { version = "2.2.0", default-features = false }
 divan = "0.1.21"
 fastrand = "2.5"
 flate2 = { version = "1.1.11", default-features = false }

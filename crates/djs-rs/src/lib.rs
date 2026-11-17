@@ -10,6 +10,9 @@ mod error;
 pub mod event;
 pub mod ext;
 mod handler;
+#[cfg(feature = "http-interactions")]
+#[cfg_attr(docsrs, doc(cfg(feature = "http-interactions")))]
+pub mod http_interactions;
 pub mod manager;
 pub mod router;
 #[cfg(feature = "sharding")]

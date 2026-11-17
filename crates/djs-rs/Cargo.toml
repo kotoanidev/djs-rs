@@ -26,6 +26,10 @@ sharding = ["dep:serde", "dep:serde_json", "tokio/io-util", "tokio/net", "tokio/
 ## Voice, `djs_rs::voice` (D-315, D-345): joining voice channels and playing audio, with
 ## DAVE end-to-end encryption, through `client.voice()`.
 voice = ["dep:djs-voice"]
+## HTTP interactions, `djs_rs::http_interactions` (D-395, D-398–D-402): answering the
+## interactions Discord posts to the app's Interactions Endpoint URL with the same routes and
+## handlers as a gateway bot, in any HTTP server (or a Cloudflare Workers `fetch` handler).
+http-interactions = ["dep:ed25519-dalek", "dep:serde_json"]
 
 [dependencies]
 djs-builders.workspace = true
@@ -36,6 +40,7 @@ djs-gateway.workspace = true
 djs-model.workspace = true
 djs-rest.workspace = true
 djs-voice = { workspace = true, optional = true }
+ed25519-dalek = { workspace = true, optional = true, features = ["fast"] }
 futures-core.workspace = true
 serde = { workspace = true, features = ["derive", "std"], optional = true }
 serde_json = { workspace = true, optional = true }
@@ -46,6 +51,7 @@ tracing = { workspace = true, features = ["std"] }
 [dev-dependencies]
 bytes.workspace = true
 divan.workspace = true
+ed25519-dalek.workspace = true
 futures-util = { workspace = true, features = ["sink", "std"] }
 http-body-util.workspace = true
 hyper = { workspace = true, features = ["server", "http1"] }
@@ -56,6 +62,10 @@ serde_json.workspace = true
 tokio = { workspace = true, features = ["macros", "net", "rt-multi-thread", "signal", "time"] }
 tokio-websockets = { workspace = true, features = ["server", "ring"] }
 tracing-subscriber = { workspace = true, features = ["ansi", "env-filter", "fmt", "std"] }
+
+[[test]]
+name = "http_interactions"
+required-features = ["http-interactions"]
 
 [[bench]]
 name = "managers"

@@ -784,6 +784,32 @@ pub struct MessageSender {
 }
 
 impl MessageSender {
+    /// Returns a sender connected to no shard: every command fails with
+    /// [`SendError::Closed`].
+    ///
+    /// For code that needs a sender where no shard runs, such as the context of an HTTP
+    /// interaction in djs-rs (D-403).
+    ///
+    /// discord.js counterpart: none.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use djs_gateway::{MessageSender, SendError};
+    /// use djs_model::gateway::{Activity, Status, payload::UpdatePresence};
+    ///
+    /// let presence = UpdatePresence::new(Status::Idle, [Activity::custom("Resting")]);
+    /// let result = MessageSender::detached().update_presence(&presence);
+    /// assert!(matches!(result, Err(SendError::Closed)));
+    /// ```
+    #[must_use]
+    pub fn detached() -> Self {
+        Self {
+            tx: mpsc::unbounded_channel().0,
+            presence: SharedPresence::default(),
+        }
+    }
+
     /// Queues a command.
     ///
     /// discord.js counterpart: `WebSocketShard#send` (`@discordjs/ws`).

@@ -686,6 +686,7 @@ dependencies = [
  "djs-model",
  "djs-rest",
  "djs-voice",
+ "ed25519-dalek",
  "futures-core",
  "futures-util",
  "http-body-util",

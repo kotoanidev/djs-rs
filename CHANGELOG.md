@@ -11,6 +11,13 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `wasm32-unknown-unknown` (checked in CI), for bots on Cloudflare Workers (#3, D-393).
   There `Timestamp::now()` (and so `EmbedBuilder::timestamp_now()`) reads the JS host's
   clock through `web-time` instead of panicking (D-397).
+- `djs-rs`: HTTP interactions behind the `http-interactions` feature (#3, D-395,
+  D-398–D-403). `client.interactions_endpoint(public_key)` returns an
+  `InteractionsEndpoint` whose `handle(signature, timestamp, body)` verifies the request
+  (Ed25519 with `ed25519-dalek`, timestamps within 5 minutes), answers `PING`, and runs the
+  client's `InteractionCreate` handlers and routes; their initial response is the HTTP
+  body, the rest of their work a returned future. No HTTP server is included.
+- `djs-gateway`: `MessageSender::detached()`, a sender connected to no shard (D-403).
 
 ## [0.1.0-alpha.1] - 2026-11-17
 

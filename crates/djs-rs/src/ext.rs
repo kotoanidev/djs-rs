@@ -1703,6 +1703,18 @@ async fn callback<B: Backend>(
     (interaction_id, _, token): (InteractionId, ApplicationId, &str),
     response: InteractionResponse,
 ) -> Result<(), Error> {
+    // An HTTP interaction's first response goes in the HTTP body (D-399).
+    #[cfg(feature = "http-interactions")]
+    if let Some(initial) = ctx.core().take_inline(interaction_id) {
+        return crate::http_interactions::respond(
+            ctx.rest(),
+            initial,
+            interaction_id,
+            token,
+            &response,
+        )
+        .await;
+    }
     ctx.rest()
         .create_interaction_response(interaction_id, token, &response)
         .await

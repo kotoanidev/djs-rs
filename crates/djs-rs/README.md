@@ -356,6 +356,7 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 | `native-roots` | | Also trust the operating system's root certificates (e.g. a corporate proxy's CA), in addition to the bundled Mozilla roots, for REST, gateway and voice connections |
 | `sharding` | | Multi-process sharding: `djs_rs::sharding` and its `ClusterManager` |
 | `voice` | | Voice: `client.voice()` joins voice channels and plays audio, with DAVE end-to-end encryption (`djs_rs::voice`, the djs-voice crate) |
+| `http-interactions` | | HTTP interactions: `client.interactions_endpoint(public_key)` answers the requests Discord posts to the app's Interactions Endpoint URL with the same routes and handlers, in any HTTP server (`djs_rs::http_interactions`) |
 
 ## License
 
