@@ -41,14 +41,12 @@ later, the owner's choice); step 3 (receiving audio) done and live-tested (D-363
 tones rerun later, the owner's choice); step 4 (benchmarks and extreme-load tests) measured
 2026-11-16 (`docs/PERFORMANCE.md`, "Step 4", C-129), its finding fixed (D-374, C-130).
 **Phase 10 is done** (and live-tested end to end, 2026-11-16).
-**The guide: in progress** (D-376–D-382, C-131): an mdBook in `book/` with its listings
+**The guide: ✅ done** (D-376–D-382, D-386, C-131): an mdBook in `book/` with its listings
 compiled as examples of `book/code`, published with the API reference on GitHub Pages
-(https://kotoanidev.github.io/djs-rs/, enabled 2026-11-16) by `.github/workflows/book.yml`.
-The site went live 2026-11-16 (the Book workflow's first run). Written: introduction,
-installation, the first bot, events and intents, slash commands. **Next: the "Components
-and embeds" chapter** (embeds, buttons, select menus, modals, collectors), then the cache,
-REST, sharding, voice (D-380), each with its example in `book/code/examples/`, built with `mdbook build book`
-(mdBook 0.5.4) and its links checked against `target/doc`.
+(https://kotoanidev.github.io/djs-rs/) by `.github/workflows/book.yml`; every chapter from
+the first bot to voice, and the migration chapter from discord.js.
+**Released: `0.1.0-alpha.1`, 2026-11-17** (D-387, D-388, C-137): ten crates on crates.io and
+docs.rs, tag `v0.1.0-alpha.1`, GitHub Release.
 
 ## Current plan (the owner's request of 2026-11-16, D-383–D-390), in this order
 1. [x] Live voice test, 2026-11-16 (D-383): the bot recorded the owner (4.5 s of PCM, 272
@@ -87,16 +85,11 @@ REST, sharding, voice (D-380), each with its example in `book/code/examples/`, b
    dropping the unused `djs-util` workspace dependency (both rebuild everything: after
    bench-all), and updating the local toolchain to 1.100 after every measurement.
 5. [ ] The README (an index of everything, the comparisons' numbers) with the logo (D-390).
-6. [ ] The release `0.1.0-alpha.1` (D-387, D-388, C-137). **Prepared and pushed:** versions,
-   `publish` allowed for the ten crates, license files linked into each, the CHANGELOG
-   section (dated 2026-11-17: re-date it if published later), README badge, the guide's
-   installation from crates.io; names free on crates.io; `cargo package --workspace
-   --exclude djs-vs-node --exclude djs-rs-guide` packs and builds all ten (largest
-   djs-model, 315 KB); gate OK on Rust 1.100. **Waiting for the owner:** `cargo login`
-   (the token never reaches Claude), the go-ahead, then `cargo publish --workspace
-   --exclude djs-vs-node --exclude djs-rs-guide` (dependency order), the tag
-   `v0.1.0-alpha.1` and the GitHub Release (the changelog's summary + a link to the full
-   list).
+6. [x] The release `0.1.0-alpha.1` (D-387, D-388, C-137), **published 2026-11-17**: all ten
+   crates on crates.io (from `3fce66a`), docs built on docs.rs for every one, the annotated
+   tag `v0.1.0-alpha.1`, the GitHub Release (pre-release):
+   https://github.com/kotoanidev/djs-rs/releases/tag/v0.1.0-alpha.1. The owner verified the
+   crates.io e-mail and ran `cargo login` themselves.
 7. [x] GitHub (D-389, C-134, D-391, D-392): issue forms, PR template, Dependabot, SECURITY.md;
    description, homepage (the guide), 12 topics, Discussions, private vulnerability
    reporting, labels; `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1, reports to the owner's
@@ -899,8 +892,6 @@ fields with `Deref` to `new`). Steps:
   body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").
 
 ## Blocked on the owner
-- **Publishing 0.1.0-alpha.1** (plan item 6): the owner said "not yet" on 2026-11-17 (D-392);
-  everything is prepared (C-137). When they say go: they run `cargo login` themselves, then
-  `cargo publish --workspace --exclude djs-vs-node --exclude djs-rs-guide`, re-date the
-  CHANGELOG section if the day changed, tag `v0.1.0-alpha.1`, push the tag, and create the
-  GitHub Release (summary + link to the full changelog).
+- Nothing. Dependabot's PR #2 (`webpki-roots` 1.0.12, `zstd` patch, `Cargo.lock` only; CI
+  green) is the owner's to merge. The owner's request of 2026-11-16 is complete; the next
+  work is theirs to choose (ROADMAP's open items, the open questions in DECISIONS.md).

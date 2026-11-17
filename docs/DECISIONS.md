@@ -5766,6 +5766,12 @@ garbage (±1.0 for a frame). Measured with the listeners' side decoded by libopu
   `cargo package --workspace` packs and builds every crate from its archive in dependency
   order. Publishing (`cargo publish --workspace`, the same order), the tag `v0.1.0-alpha.1`
   and the GitHub Release wait for the owner's `cargo login` and go-ahead.
+- **Published 2026-11-17** from `3fce66a` (recorded in every archive's
+  `.cargo_vcs_info.json`), one crate at a time by `.reference/tools/publish.sh`: crates.io
+  takes five new crates at once and then one every 10 minutes (its 429 names the time), so
+  the script waited between the last five. Every crate's docs built on docs.rs, `djs-voice`
+  (CMake for libopus) included. The tag is annotated; the GitHub Release is marked as a
+  pre-release and carries the changelog's summary with a link to the full list.
 - **No reliability section:** the fault-injection comparison stays with serenity
   (`VS_SERENITY.md`); D-385 asks for the performance set.
 

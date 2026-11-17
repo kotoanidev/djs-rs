@@ -9,7 +9,7 @@
 [![crates.io](https://img.shields.io/crates/v/djs-rs?include_prereleases)](https://crates.io/crates/djs-rs)
 [![CI](https://github.com/kotoanidev/djs-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/kotoanidev/djs-rs/actions/workflows/ci.yml)
 [![Guide](https://img.shields.io/badge/guide-read-5865f2)](https://kotoanidev.github.io/djs-rs/)
-[![API reference](https://img.shields.io/badge/docs-API%20reference-6f42c1)](https://kotoanidev.github.io/djs-rs/api/djs_rs/)
+[![docs.rs](https://img.shields.io/docsrs/djs-rs)](https://docs.rs/djs-rs)
 [![MSRV](https://img.shields.io/badge/MSRV-1.89-orange)](#status)
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)](#license)
 
@@ -158,7 +158,7 @@ builders, collectors, sharding, voice) are in [`docs/PERFORMANCE.md`](docs/PERFO
 | What | Where |
 |---|---|
 | The guide (mdBook) | [kotoanidev.github.io/djs-rs](https://kotoanidev.github.io/djs-rs/), sources in [`book/`](book), its compiled examples in [`book/code`](book/code) |
-| The API reference | [kotoanidev.github.io/djs-rs/api](https://kotoanidev.github.io/djs-rs/api/djs_rs/) (and docs.rs once published) |
+| The API reference | [docs.rs/djs-rs](https://docs.rs/djs-rs) for the release, [kotoanidev.github.io/djs-rs/api](https://kotoanidev.github.io/djs-rs/api/djs_rs/) for `main` |
 | Example bots | [`crates/djs-rs/examples`](crates/djs-rs/examples) |
 | How the crates fit together | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
 | Every design decision, with its reasons | [`docs/DECISIONS.md`](docs/DECISIONS.md) |

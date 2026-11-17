@@ -147,7 +147,7 @@ just with narrow scope.
 - [x] Benchmarks vs discord.js / serenity / twilight (`docs/VS_NODE.md`,
       `docs/VS_SERENITY.md`, `docs/VS_TWILIGHT.md`), all measured again for the first
       release (D-384, D-385)
-- [~] First crates.io release, `0.1.0-alpha.1` (D-022, D-387, D-388): prepared and checked
-      (C-137), waiting for the owner's go-ahead
+- [x] First crates.io release, `0.1.0-alpha.1` (D-022, D-387, D-388, C-137), 2026-11-17:
+      ten crates on crates.io and docs.rs, the tag and a GitHub Release
 
 > Phase 7 crates are independent and may be pulled earlier if the owner wants.
