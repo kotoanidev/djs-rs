@@ -3631,6 +3631,25 @@ and why.
 - Rejected: `Option<&MessageSender>` / `Option<ShardId>` (breaks every gateway bot using
   them).
 
+### D-404 — The REST transport API (2026-11-17)
+- **Answer (owner):** one trait, `djs_rest::Transport: Send + Sync + 'static`, with
+  `send(&self, http::Request<Body>) -> BoxFuture<'_, Result<http::Response<Bytes>, Box<dyn
+  Error + Send + Sync>>>` and `sleep(&self, Duration) -> BoxFuture<'static, ()>` (rate
+  limits, retries and the timeout wait with it); `pub type BoxFuture<'a, T>`; a public
+  request body `Body` of `Bytes` chunks (multipart without copying the files natively) with
+  `chunks()`, `len()` and `into_bytes()`; `RestBuilder::transport(impl Transport)`. The
+  hyper + rustls transport stays private. On Workers the futures are made `Send` with
+  `worker::send::SendFuture` (the guide's example).
+- Rejected: `http::Request<Bytes>` (always copies a multipart body); two traits
+  (`Transport` + `Timer`).
+
+### D-405 — The `hyper` feature; `build()` without a transport panics (2026-11-17)
+- **Answer (owner):** the hyper + rustls transport is djs-rest's default feature `hyper`,
+  forwarded by djs-rs (on by default; the gateway turns it on). Without it `Rest::new` does
+  not exist and `RestBuilder::build()` without `.transport(…)` panics with a clear message
+  (documented under `# Panics`). No breaking change.
+- Rejected: the name `native`; `build()` returning a `Result` (breaking).
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
@@ -5897,6 +5916,25 @@ garbage (±1.0 for a frame). Measured with the listeners' side decoded by libopu
   `Arc::get_mut` on the fresh context); `ext::callback`, the funnel of every initial
   response, takes it if the interaction ID matches. Later responses go through REST as
   on the gateway (Discord refuses a second acknowledgement either way).
+
+### C-140 — The REST transport, stage 3 (D-404, D-405)
+- **`Body::is_empty`** besides the approved `chunks`/`len`/`into_bytes` (clippy's
+  `len_without_is_empty`; true when every chunk is empty). `Debug` shows the chunk count
+  and length, not the bytes.
+- **The timeout** races `send` against the transport's `sleep(timeout)` with a small
+  `poll_fn` (no tokio `macros` feature in djs-rest); the hyper transport's `sleep` is
+  `tokio::time::sleep`, so the rate limiter's paused-time tests still hold. Rate-limit waits
+  became `sleep(deadline - now)` through the transport. Costs per request: the boxed `send`
+  and timeout futures (two allocations), measured in stage 4.
+- **`Instant`** is tokio's natively (pausable in tests) and `web-time`'s on wasm32 (D-397),
+  so djs-rest gains the same wasm32-only `web-time` dependency as djs-model.
+- **The hyper body** (`HyperBody`, the old `RequestBody`) stays private, built from a
+  `Body` without copying; `tls.rs` and the hyper/rustls/webpki crates are compiled only
+  with `hyper`, and `native-roots` turns `hyper` on.
+- **The workspace dependency on djs-rest is `default-features = false`** (like
+  djs-gateway's): djs-rs forwards `hyper` (default), `benches/vs-node` enables it. Library
+  code builds `Rest::builder().token(…).build()` instead of `Rest::new`, so it compiles
+  without `hyper` (and panics there without a transport, D-405).
 
 ---
 

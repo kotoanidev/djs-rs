@@ -1020,7 +1020,9 @@ impl ClusterManagerBuilder {
     pub fn build(self) -> ClusterManager {
         ClusterManager {
             inner: Arc::new(Inner {
-                rest: self.rest.unwrap_or_else(|| Rest::new(self.token)),
+                rest: self
+                    .rest
+                    .unwrap_or_else(|| Rest::builder().token(self.token).build()),
                 shards: self.shards,
                 shards_per_process: self.shards_per_process,
                 executable: self.executable,

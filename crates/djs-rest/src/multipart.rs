@@ -4,18 +4,14 @@
 //! is — so file data is never copied, not even for retries (cloning a chunk only bumps a
 //! reference count).
 
-use core::{
-    convert::Infallible,
-    fmt::Write as _,
-    pin::Pin,
-    task::{Context, Poll},
-};
+use core::fmt::Write as _;
 use std::hash::{BuildHasher, RandomState};
 
 use bytes::Bytes;
 use djs_model::rest::FileUpload;
 use http::HeaderValue;
-use hyper::body::{Body, Frame, SizeHint};
+
+use crate::transport::Body;
 
 /// The content type of files whose type is neither given nor known.
 const OCTET_STREAM: &str = "application/octet-stream";
@@ -77,44 +73,8 @@ impl PreparedBody {
     }
 
     /// A fresh body to send.
-    pub(crate) fn body(&self) -> RequestBody {
-        RequestBody {
-            remaining: self.chunks.iter().map(|chunk| chunk.len() as u64).sum(),
-            chunks: self.chunks.clone().into_iter(),
-        }
-    }
-}
-
-/// The body of an HTTP request: a sequence of chunks of known total length (so the
-/// `Content-Length` header is set).
-#[derive(Debug)]
-pub(crate) struct RequestBody {
-    chunks: std::vec::IntoIter<Bytes>,
-    remaining: u64,
-}
-
-impl Body for RequestBody {
-    type Data = Bytes;
-    type Error = Infallible;
-
-    fn poll_frame(
-        self: Pin<&mut Self>,
-        _cx: &mut Context<'_>,
-    ) -> Poll<Option<Result<Frame<Bytes>, Infallible>>> {
-        let this = self.get_mut();
-        let next = this.chunks.by_ref().find(|chunk| !chunk.is_empty());
-        if let Some(chunk) = &next {
-            this.remaining -= chunk.len() as u64;
-        }
-        Poll::Ready(next.map(|chunk| Ok(Frame::data(chunk))))
-    }
-
-    fn is_end_stream(&self) -> bool {
-        self.remaining == 0
-    }
-
-    fn size_hint(&self) -> SizeHint {
-        SizeHint::with_exact(self.remaining)
+    pub(crate) fn body(&self) -> Body {
+        Body::new(self.chunks.clone())
     }
 }
 
@@ -294,33 +254,31 @@ fn guess_content_type(name: &str) -> &'static str {
 
 #[cfg(test)]
 mod tests {
-    use http_body_util::BodyExt;
-
     use super::*;
 
-    async fn collect(body: &PreparedBody) -> (Vec<Bytes>, Vec<u8>) {
-        let mut frames = Vec::new();
-        let mut all = Vec::new();
-        let mut body = body.body();
-        while let Some(frame) = body.frame().await {
-            let data = frame.unwrap().into_data().unwrap();
-            all.extend_from_slice(&data);
-            frames.push(data);
-        }
-        (frames, all)
+    /// The non-empty chunks of the body to send, and all its bytes.
+    fn collect(body: &PreparedBody) -> (Vec<Bytes>, Vec<u8>) {
+        let body = body.body();
+        let frames: Vec<Bytes> = body
+            .chunks()
+            .iter()
+            .filter(|chunk| !chunk.is_empty())
+            .cloned()
+            .collect();
+        (frames, body.into_bytes().to_vec())
     }
 
     #[tokio::test]
     async fn json_only() {
         let body = PreparedBody::new(Some(Bytes::from_static(b"{}")), &Form::default());
         assert_eq!(body.content_type().unwrap(), "application/json");
-        assert_eq!(body.body().size_hint().exact(), Some(2));
-        assert_eq!(collect(&body).await.1, b"{}");
+        assert_eq!(body.body().len(), 2);
+        assert_eq!(collect(&body).1, b"{}");
 
         let empty = PreparedBody::new(None, &Form::default());
         assert!(empty.content_type().is_none());
-        assert!(empty.body().is_end_stream());
-        assert_eq!(collect(&empty).await.0.len(), 0);
+        assert!(empty.body().is_empty());
+        assert_eq!(collect(&empty).0.len(), 0);
     }
 
     #[tokio::test]
@@ -341,7 +299,7 @@ mod tests {
             body.content_type().unwrap(),
             "multipart/form-data; boundary=XYZ"
         );
-        let (frames, all) = collect(&body).await;
+        let (frames, all) = collect(&body);
         assert_eq!(
             String::from_utf8(all).unwrap(),
             "--XYZ\r\n\
@@ -362,9 +320,9 @@ mod tests {
         assert_eq!(frames[1].as_ptr(), files[0].data.as_ptr());
         assert_eq!(frames[3].as_ptr(), files[1].data.as_ptr());
         // Every attempt gets the whole body again.
-        assert_eq!(collect(&body).await.0.len(), frames.len());
+        assert_eq!(collect(&body).0.len(), frames.len());
         let length: usize = frames.iter().map(Bytes::len).sum();
-        assert_eq!(body.body().size_hint().exact(), Some(length as u64));
+        assert_eq!(body.body().len(), length);
     }
 
     #[tokio::test]
@@ -379,7 +337,7 @@ mod tests {
             "B",
         );
         assert_eq!(
-            String::from_utf8(collect(&body).await.1).unwrap(),
+            String::from_utf8(collect(&body).1).unwrap(),
             "--B\r\nContent-Disposition: form-data; name=\"files[0]\"; filename=\"empty.bin\"\r\n\
              Content-Type: application/octet-stream\r\n\r\n\r\n--B--\r\n"
         );
@@ -400,7 +358,7 @@ mod tests {
             .strip_prefix("multipart/form-data; boundary=")
             .unwrap();
         assert_eq!(
-            String::from_utf8(collect(&body).await.1).unwrap(),
+            String::from_utf8(collect(&body).1).unwrap(),
             format!(
                 "--{boundary}\r\n\
                  Content-Disposition: form-data; name=\"target_users_file\"; filename=\"users.csv\"\r\n\

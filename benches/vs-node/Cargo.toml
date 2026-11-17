@@ -22,7 +22,7 @@ path = "src/bin/vs-node-mimalloc.rs"
 bytes.workspace = true
 djs-gateway.workspace = true
 djs-model.workspace = true
-djs-rest.workspace = true
+djs-rest = { workspace = true, features = ["hyper"] }
 djs-rs = { path = "../../crates/djs-rs", default-features = false }
 futures-util = { workspace = true, features = ["sink", "std"] }
 http-body-util.workspace = true

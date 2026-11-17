@@ -218,7 +218,7 @@ async fn invalid_token_fails_without_sending() {
 
 #[tokio::test]
 async fn debug_redacts_token() {
-    let rest = Rest::new("super-secret");
+    let rest = Rest::builder().token("super-secret").build();
     let debug = format!("{rest:?}");
     assert!(!debug.contains("super-secret"), "{debug}");
     assert!(debug.contains("<redacted>"));

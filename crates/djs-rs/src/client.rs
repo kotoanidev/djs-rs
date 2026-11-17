@@ -1600,7 +1600,10 @@ impl<B: Backend> ClientBuilder<B> {
     /// [`build`](Self::build)'s body, reached through [`Compiled`].
     fn build_inner(self) -> Client<B> {
         let compiled = self.compiled;
-        let rest = self.rest.unwrap_or_else(|| Rest::new(self.token.clone()));
+        // Without the `hyper` feature this panics unless a `Rest` with a transport was given (D-405).
+        let rest = self
+            .rest
+            .unwrap_or_else(|| Rest::builder().token(self.token.clone()).build());
         let backend = self.backend;
         let cache = self
             .cache

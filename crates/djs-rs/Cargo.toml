@@ -12,7 +12,10 @@ categories.workspace = true
 readme = "README.md"
 
 [features]
-default = ["zstd-stream"]
+default = ["hyper", "zstd-stream"]
+## The REST client's default transport, hyper with rustls (D-405). Without it, give
+## `ClientBuilder::rest` a `Rest` built with a `Transport` (for example on Cloudflare Workers).
+hyper = ["djs-rest/hyper"]
 ## `zstd-stream` gateway transport compression (D-015).
 zstd-stream = ["djs-gateway/zstd-stream"]
 ## `zlib-stream` gateway transport compression (D-015, D-140; pure Rust).

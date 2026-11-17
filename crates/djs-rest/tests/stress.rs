@@ -453,7 +453,7 @@ async fn multipart_small_files_throughput() {
 #[test]
 #[ignore = "stress test; run with --release --ignored"]
 fn future_sizes() {
-    let rest = Rest::new("token");
+    let rest = Rest::builder().token("token").build();
     let body = CreateMessage::from("x");
     let create = rest.create_message(ChannelId::new(1), &body);
     let gateway = rest.get_gateway_bot();

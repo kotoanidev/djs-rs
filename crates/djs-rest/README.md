@@ -44,6 +44,7 @@ println!("sent message {}", message.id);
 
 | Feature | Default | Description |
 |---|---|---|
+| `hyper` | ✓ | The default transport: hyper with rustls. Without it, set a `Transport` with `RestBuilder::transport` (for example `fetch` on Cloudflare Workers, `wasm32-unknown-unknown`) |
 | `native-roots` | | Also trust the operating system's root certificates (e.g. a corporate proxy's CA), in addition to the bundled Mozilla roots |
 
 ## Part of djs-rs

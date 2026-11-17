@@ -6,25 +6,19 @@ use std::sync::Arc;
 use bytes::Bytes;
 use djs_model::{guild::WidgetStyle, id::GuildId, rest::FileUpload};
 use http::{
-    HeaderMap, HeaderName, HeaderValue, StatusCode, Uri,
+    HeaderName, HeaderValue, StatusCode, Uri,
     header::{AUTHORIZATION, CONTENT_TYPE, USER_AGENT},
 };
-use http_body_util::BodyExt;
-use hyper_rustls::HttpsConnector;
-use hyper_util::{
-    client::legacy::{Client as HyperClient, connect::HttpConnector},
-    rt::{TokioExecutor, TokioTimer},
-};
 use serde::{Serialize, de::DeserializeOwned};
-use tokio::time::Instant;
 
 use crate::{
     cdn::{self, Cdn},
     error::{ApiError, BoxError, Error, ErrorKind, RateLimitedBody},
-    multipart::{Form, PreparedBody, RequestBody},
+    multipart::{Form, PreparedBody},
     query::{Query, QueryWriter},
     ratelimit::{InvalidRequests, RateLimitHeaders, RateLimiter},
     route::{self, Route},
+    transport::{Body, Instant, Transport},
 };
 
 /// The header that carries the [audit log reason](Request::reason).
@@ -32,8 +26,6 @@ const AUDIT_LOG_REASON: HeaderName = HeaderName::from_static("x-audit-log-reason
 
 /// The default API base URL.
 pub const DEFAULT_API: &str = "https://discord.com/api";
-
-type Connector = HttpsConnector<HttpConnector>;
 
 /// Boxes a future built in this crate, so that its body is compiled here once instead of in
 /// every crate that awaits it (D-287): the public async methods return what this returns.
@@ -84,7 +76,7 @@ pub struct Rest {
 }
 
 struct Inner {
-    http: HyperClient<Connector, RequestBody>,
+    transport: Arc<dyn Transport>,
     token: Token,
     /// `{api}/v{version}`, without a trailing slash.
     base: String,
@@ -131,6 +123,8 @@ impl Rest {
     /// [`ErrorKind::BuildRequest`].
     ///
     /// discord.js counterpart: `new REST().setToken(token)`.
+    #[cfg(feature = "hyper")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "hyper")))]
     #[must_use]
     pub fn new(token: impl Into<String>) -> Self {
         Self::builder().token(token).build()
@@ -278,21 +272,18 @@ impl Rest {
                 None
             } else {
                 let mut state = bucket.state.lock().await;
-                state.wait(inner.ratelimiter.offset()).await;
+                state
+                    .wait(inner.ratelimiter.offset(), &*inner.transport)
+                    .await;
                 Some(state)
             };
             if limits.global {
-                inner.ratelimiter.acquire_global().await;
+                inner.ratelimiter.acquire_global(&*inner.transport).await;
             }
 
             let http_request = inner.build_request(route, &uri, reason.as_ref(), &body)?;
             let started = Instant::now();
-            let response = match tokio::time::timeout(
-                inner.timeout,
-                send(&inner.http, http_request),
-            )
-            .await
-            {
+            let response = match timeout(&*inner.transport, inner.timeout, http_request).await {
                 Ok(Ok(response)) => response,
                 failed => {
                     drop(state);
@@ -310,28 +301,29 @@ impl Rest {
             };
 
             let now = Instant::now();
-            let headers = RateLimitHeaders::parse(&response.headers);
+            let (parts, body) = response.into_parts();
+            let headers = RateLimitHeaders::parse(&parts.headers);
             if let Some(hash) = headers.bucket {
                 inner.ratelimiter.learn_hash(bucket_route.template, hash);
             }
             if let Some(state) = &mut state {
                 state.update(&headers, now);
             }
-            if is_invalid(response.status, &headers) {
+            if is_invalid(parts.status, &headers) {
                 inner.invalid.record(now);
             }
             tracing::debug!(
                 route = template,
-                status = response.status.as_u16(),
+                status = parts.status.as_u16(),
                 elapsed_ms = millis(started.elapsed()),
                 remaining = headers.remaining,
                 "REST request completed"
             );
 
-            match response.status {
-                status if status.is_success() => return Ok((status, response.body)),
+            match parts.status {
+                status if status.is_success() => return Ok((status, body)),
                 StatusCode::TOO_MANY_REQUESTS => {
-                    let (retry_after, global) = rate_limited(&response.body, &headers);
+                    let (retry_after, global) = rate_limited(&body, &headers);
                     tracing::warn!(
                         route = template,
                         global,
@@ -343,7 +335,12 @@ impl Rest {
                         _ if global && limits.global => inner.ratelimiter.pause_global(retry_after),
                         Some(state) => state.exhaust_for(retry_after, now),
                         // A burst route only delays the request that was limited.
-                        None => tokio::time::sleep(retry_after + inner.ratelimiter.offset()).await,
+                        None => {
+                            inner
+                                .transport
+                                .sleep(retry_after + inner.ratelimiter.offset())
+                                .await;
+                        }
                     }
                 }
                 status if status.is_server_error() && attempt < inner.retries => {
@@ -356,9 +353,7 @@ impl Rest {
                     );
                 }
                 status => {
-                    let error = serde_json::from_slice::<ApiError>(&response.body)
-                        .ok()
-                        .map(Box::new);
+                    let error = serde_json::from_slice::<ApiError>(&body).ok().map(Box::new);
                     return Err(Error::new(ErrorKind::Response { status, error }));
                 }
             }
@@ -401,7 +396,7 @@ impl Inner {
         uri: &Uri,
         reason: Option<&HeaderValue>,
         body: &PreparedBody,
-    ) -> Result<http::Request<RequestBody>, Error> {
+    ) -> Result<http::Request<Body>, Error> {
         let mut builder = http::Request::builder()
             .method(route.method())
             .uri(uri.clone())
@@ -466,24 +461,22 @@ fn millis(duration: Duration) -> u64 {
     u64::try_from(duration.as_millis()).unwrap_or(u64::MAX)
 }
 
-struct RawResponse {
-    status: StatusCode,
-    headers: HeaderMap,
-    body: Bytes,
-}
-
-async fn send(
-    http: &HyperClient<Connector, RequestBody>,
-    request: http::Request<RequestBody>,
-) -> Result<RawResponse, BoxError> {
-    let response = http.request(request).await?;
-    let (parts, body) = response.into_parts();
-    let body = body.collect().await?.to_bytes();
-    Ok(RawResponse {
-        status: parts.status,
-        headers: parts.headers,
-        body,
+/// Sends `request` with `transport`, giving up after `limit` (measured with the transport's
+/// own sleep, so that it works where tokio's timers do not, D-404); `Err(())` on timeout.
+async fn timeout(
+    transport: &dyn Transport,
+    limit: Duration,
+    request: http::Request<Body>,
+) -> Result<Result<http::Response<Bytes>, BoxError>, ()> {
+    let mut send = transport.send(request);
+    let mut expired = transport.sleep(limit);
+    core::future::poll_fn(|cx| {
+        if let core::task::Poll::Ready(response) = send.as_mut().poll(cx) {
+            return core::task::Poll::Ready(Ok(response));
+        }
+        expired.as_mut().poll(cx).map(|()| Err(()))
     })
+    .await
 }
 
 /// A request to send with [`Rest::request`].
@@ -716,6 +709,7 @@ pub struct RestBuilder {
     invalid_request_limit: u32,
     cdn: String,
     media_proxy: String,
+    transport: Option<Arc<dyn Transport>>,
 }
 
 /// How the token authenticates: a bot token or an `OAuth2` access token (D-108).
@@ -759,6 +753,7 @@ impl fmt::Debug for RestBuilder {
             .field("invalid_request_limit", &self.invalid_request_limit)
             .field("cdn", &self.cdn)
             .field("media_proxy", &self.media_proxy)
+            .field("transport", &self.transport.as_ref().map(|_| "<custom>"))
             .finish()
     }
 }
@@ -777,6 +772,7 @@ impl Default for RestBuilder {
             invalid_request_limit: 0,
             cdn: cdn::DEFAULT_CDN.to_owned(),
             media_proxy: cdn::DEFAULT_MEDIA_PROXY.to_owned(),
+            transport: None,
         }
     }
 }
@@ -912,6 +908,18 @@ impl RestBuilder {
         self
     }
 
+    /// Sets what sends the requests (D-404): needed where the default hyper transport is
+    /// not available (without the `hyper` feature, for example on Cloudflare Workers).
+    /// With a custom transport, the TLS options of this crate (`native-roots`) do not apply.
+    ///
+    /// See [`Transport`] for an example.
+    ///
+    /// discord.js counterpart: the `makeRequest` option of `RESTOptions` (`@discordjs/rest`).
+    pub fn transport(mut self, transport: impl Transport) -> Self {
+        self.transport = Some(Arc::new(transport));
+        self
+    }
+
     /// Builds the client.
     ///
     /// discord.js counterpart: `new REST(options)` (`@discordjs/rest`).
@@ -919,18 +927,19 @@ impl RestBuilder {
     /// # Panics
     ///
     /// Panics if `user_agent_appendix` contains characters that are not allowed in an HTTP
-    /// header.
+    /// header, or, without the `hyper` feature, if no [`transport`](Self::transport) was
+    /// set (D-405).
     #[must_use]
     pub fn build(self) -> Rest {
-        let connector = hyper_rustls::HttpsConnectorBuilder::new()
-            .with_tls_config(crate::tls::client_config())
-            .https_or_http()
-            .enable_all_versions()
-            .build();
-        let http = HyperClient::builder(TokioExecutor::new())
-            .timer(TokioTimer::new())
-            .pool_timer(TokioTimer::new())
-            .build(connector);
+        #[cfg(feature = "hyper")]
+        let transport = self
+            .transport
+            .unwrap_or_else(|| Arc::new(crate::transport::hyper::HyperTransport::new()));
+        #[cfg(not(feature = "hyper"))]
+        let transport = self.transport.expect(
+            "djs-rest is built without the `hyper` feature: set a transport with \
+             `RestBuilder::transport`",
+        );
 
         let token = match self.token {
             None => Token::None,
@@ -956,7 +965,7 @@ impl RestBuilder {
 
         Rest {
             inner: Arc::new(Inner {
-                http,
+                transport,
                 token,
                 base: format!("{}/v{}", self.api.trim_end_matches('/'), self.version),
                 user_agent: HeaderValue::try_from(user_agent)

@@ -72,8 +72,15 @@ Before plan item 5 (the README), in stages (D-393):
    (default) so djs-rs builds without djs-gateway, then djs-rs for wasm32. Not verified
    live yet: needs a public URL as the test app's Interactions Endpoint URL (an owner step;
    it moves the test bot's interactions off the gateway while set).
-3. [ ] REST on wasm32 through a transport trait (D-396), hyper + rustls a default feature;
-   a Workers `fetch` example in the guide.
+3. [x] REST on wasm32 through a transport trait (D-396, D-404, D-405, C-140), 2026-11-17:
+   `djs_rest::{Transport, Body, BoxFuture}`, `RestBuilder::transport`; hyper + rustls is
+   the default `hyper` feature (djs-rs forwards it; the workspace dependency on djs-rest
+   is `default-features = false` now). Every wait (rate limits, retries, the timeout) goes
+   through `Transport::sleep`; `Instant` is tokio's natively, `web-time`'s on wasm32.
+   djs-rest builds for wasm32 without `hyper` (CI job `wasm`). Tests: `tests/transport.rs`
+   (a scripted transport: 429 wait, headers, body; the timeout), `Body` and `HyperBody`
+   unit tests. **Left with the guide:** a Workers `fetch` transport example
+   (`worker::send::SendFuture`), written after 2b.
 4. [ ] Benchmarks + extreme-load tests (D-041); answer and close issue #3.
 
 ## Current plan (the owner's request of 2026-11-16, D-383–D-390), in this order

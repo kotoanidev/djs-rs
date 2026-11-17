@@ -353,6 +353,7 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 |---|---|---|
 | `zstd-stream` | ✅ | `zstd-stream` gateway compression (needs a C compiler) |
 | `zlib-stream` | | `zlib-stream` gateway compression in pure Rust (no C compiler) |
+| `hyper` | ✓ | The REST client's default transport, hyper with rustls (djs-rest's `hyper`); without it, give `ClientBuilder::rest` a `Rest` with a `Transport` |
 | `native-roots` | | Also trust the operating system's root certificates (e.g. a corporate proxy's CA), in addition to the bundled Mozilla roots, for REST, gateway and voice connections |
 | `sharding` | | Multi-process sharding: `djs_rs::sharding` and its `ClusterManager` |
 | `voice` | | Voice: `client.voice()` joins voice channels and plays audio, with DAVE end-to-end encryption (`djs_rs::voice`, the djs-voice crate) |

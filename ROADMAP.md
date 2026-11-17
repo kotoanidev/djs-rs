@@ -144,7 +144,8 @@ just with narrow scope.
       `wasm32-unknown-unknown` (CI job) and do not panic there (`SystemTime::now()`)
 - [ ] HTTP interactions in djs-rs (D-394, D-395): Ed25519 verification, PING, the shared
       router and `reply`; the gateway an optional feature
-- [ ] REST on wasm32 through a transport trait (D-396), a Workers `fetch` example in the guide
+- [x] REST on wasm32 through a transport trait (D-396, D-404, D-405); a Workers `fetch`
+      example in the guide comes with the HTTP interactions chapter
 - [ ] Benchmarks + extreme-load tests (D-041)
 
 ## Cross-cutting (continuous)

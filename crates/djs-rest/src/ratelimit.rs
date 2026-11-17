@@ -26,10 +26,12 @@ use std::{
     time::Duration,
 };
 
+use crate::{
+    error::seconds,
+    route::BucketRoute,
+    transport::{Instant, Transport, sleep_until},
+};
 use http::HeaderMap;
-use tokio::time::Instant;
-
-use crate::{error::seconds, route::BucketRoute};
 
 /// Locks a std mutex, ignoring poisoning: the protected data is always left consistent.
 fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -152,8 +154,8 @@ impl RateLimiter {
     }
 
     /// Waits until the global limiter allows another request.
-    pub(crate) async fn acquire_global(&self) {
-        self.global.acquire(self.offset).await;
+    pub(crate) async fn acquire_global(&self, transport: &dyn Transport) {
+        self.global.acquire(self.offset, transport).await;
     }
 
     /// Pauses all requests for `duration` after a global 429.
@@ -182,7 +184,7 @@ pub(crate) struct BucketState {
 
 impl BucketState {
     /// Sleeps until a request may be sent in this bucket.
-    pub(crate) async fn wait(&mut self, offset: Duration) {
+    pub(crate) async fn wait(&mut self, offset: Duration, transport: &dyn Transport) {
         if self.remaining == Some(0)
             && let Some(reset_at) = self.reset_at
         {
@@ -192,7 +194,7 @@ impl BucketState {
                         u64::try_from((reset_at - Instant::now()).as_millis()).unwrap_or(u64::MAX),
                     "rate-limit bucket exhausted, waiting for reset"
                 );
-                tokio::time::sleep_until(reset_at + offset).await;
+                sleep_until(transport, reset_at + offset).await;
             }
             self.remaining = None;
             self.reset_at = None;
@@ -381,7 +383,7 @@ impl GlobalLimiter {
 
     /// Waits until a request may be sent and records it. The window is extended by `offset`,
     /// so that latency jitter cannot make Discord see more than the limit in one second.
-    async fn acquire(&self, offset: Duration) {
+    async fn acquire(&self, offset: Duration, transport: &dyn Transport) {
         let window = WINDOW + offset;
         loop {
             let wait_until = {
@@ -407,7 +409,7 @@ impl GlobalLimiter {
             };
             if let Some(until) = wait_until {
                 tracing::debug!("global rate limit reached, waiting");
-                tokio::time::sleep_until(until).await;
+                sleep_until(transport, until).await;
             }
         }
     }
@@ -424,6 +426,25 @@ impl GlobalLimiter {
 #[cfg(test)]
 mod tests {
     use http::HeaderValue;
+
+    /// Waits with tokio's (pausable) timers; sends nothing.
+    struct Tokio;
+
+    impl Transport for Tokio {
+        fn send(
+            &self,
+            _: http::Request<crate::Body>,
+        ) -> crate::BoxFuture<
+            '_,
+            Result<http::Response<bytes::Bytes>, Box<dyn std::error::Error + Send + Sync>>,
+        > {
+            unreachable!("the rate limiter sends nothing")
+        }
+
+        fn sleep(&self, duration: Duration) -> crate::BoxFuture<'static, ()> {
+            Box::pin(tokio::time::sleep(duration))
+        }
+    }
 
     use super::*;
     use crate::route::Limits;
@@ -485,7 +506,7 @@ mod tests {
         let start = Instant::now();
         let mut sent = Vec::new();
         for _ in 0..5 {
-            limiter.acquire(Duration::from_millis(50)).await;
+            limiter.acquire(Duration::from_millis(50), &Tokio).await;
             sent.push(start.elapsed());
         }
         // A burst of 2, then each request waits for the one sent two requests before it to
@@ -504,7 +525,7 @@ mod tests {
             if round % 7 == 0 {
                 tokio::time::sleep(Duration::from_millis(round % 230)).await;
             }
-            limiter.acquire(Duration::ZERO).await;
+            limiter.acquire(Duration::ZERO, &Tokio).await;
             sent.push(start.elapsed());
         }
         let mut first = 0;
@@ -527,7 +548,7 @@ mod tests {
         let limiter = GlobalLimiter::new(0);
         limiter.pause(Duration::from_millis(1500));
         let start = Instant::now();
-        limiter.acquire(Duration::from_millis(50)).await;
+        limiter.acquire(Duration::from_millis(50), &Tokio).await;
         assert_eq!(start.elapsed(), Duration::from_millis(1550));
     }
 
@@ -536,11 +557,11 @@ mod tests {
         let mut state = BucketState::default();
         state.exhaust_for(Duration::from_millis(300), Instant::now());
         let start = Instant::now();
-        state.wait(Duration::from_millis(50)).await;
+        state.wait(Duration::from_millis(50), &Tokio).await;
         assert_eq!(start.elapsed(), Duration::from_millis(350));
         // After waiting, the bucket is usable again without further delay.
         let start = Instant::now();
-        state.wait(Duration::from_millis(50)).await;
+        state.wait(Duration::from_millis(50), &Tokio).await;
         assert_eq!(start.elapsed(), Duration::ZERO);
     }
 

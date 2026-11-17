@@ -18,6 +18,12 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   client's `InteractionCreate` handlers and routes; their initial response is the HTTP
   body, the rest of their work a returned future. No HTTP server is included.
 - `djs-gateway`: `MessageSender::detached()`, a sender connected to no shard (D-403).
+- `djs-rest`: a pluggable HTTP transport (D-396, D-404, D-405): the `Transport` trait
+  (`send` and `sleep`, which every rate-limit wait and the timeout use), its request
+  `Body` and `RestBuilder::transport`. hyper with rustls is the default `hyper` feature
+  (also a djs-rs feature); without it djs-rest builds for `wasm32-unknown-unknown`, and
+  `Rest::new` does not exist. The workspace now depends on djs-rest without default
+  features: a crate depending on it directly enables `hyper` (or brings a transport).
 
 ## [0.1.0-alpha.1] - 2026-11-17
 
