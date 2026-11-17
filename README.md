@@ -6,6 +6,7 @@
 
 **Discord bots in Rust, the way discord.js writes them, several times faster and leaner.**
 
+[![crates.io](https://img.shields.io/crates/v/djs-rs?include_prereleases)](https://crates.io/crates/djs-rs)
 [![CI](https://github.com/kotoanidev/djs-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/kotoanidev/djs-rs/actions/workflows/ci.yml)
 [![Guide](https://img.shields.io/badge/guide-read-5865f2)](https://kotoanidev.github.io/djs-rs/)
 [![API reference](https://img.shields.io/badge/docs-API%20reference-6f42c1)](https://kotoanidev.github.io/djs-rs/api/djs_rs/)

@@ -4,7 +4,7 @@ members = ["crates/*", "benches/vs-node", "book/code"]
 
 # Shared package metadata — every crate inherits these with `<field>.workspace = true`.
 [workspace.package]
-version = "0.0.0"
+version = "0.1.0-alpha.1"
 edition = "2024"
 rust-version = "1.89"
 license = "MIT OR Apache-2.0"
@@ -17,14 +17,14 @@ categories = ["api-bindings", "asynchronous", "network-programming"]
 # Shared dependency versions. Crates reference these with `dep.workspace = true`.
 # Adding a dependency here is a significant decision — see CLAUDE.md.
 [workspace.dependencies]
-djs-builders = { path = "crates/djs-builders", version = "0.0.0" }
-djs-cache = { path = "crates/djs-cache", version = "0.0.0" }
-djs-collection = { path = "crates/djs-collection", version = "0.0.0" }
-djs-formatters = { path = "crates/djs-formatters", version = "0.0.0" }
-djs-gateway = { path = "crates/djs-gateway", version = "0.0.0", default-features = false }
-djs-model = { path = "crates/djs-model", version = "0.0.0" }
-djs-rest = { path = "crates/djs-rest", version = "0.0.0" }
-djs-voice = { path = "crates/djs-voice", version = "0.0.0" }
+djs-builders = { path = "crates/djs-builders", version = "0.1.0-alpha.1" }
+djs-cache = { path = "crates/djs-cache", version = "0.1.0-alpha.1" }
+djs-collection = { path = "crates/djs-collection", version = "0.1.0-alpha.1" }
+djs-formatters = { path = "crates/djs-formatters", version = "0.1.0-alpha.1" }
+djs-gateway = { path = "crates/djs-gateway", version = "0.1.0-alpha.1", default-features = false }
+djs-model = { path = "crates/djs-model", version = "0.1.0-alpha.1" }
+djs-rest = { path = "crates/djs-rest", version = "0.1.0-alpha.1" }
+djs-voice = { path = "crates/djs-voice", version = "0.1.0-alpha.1" }
 
 # Approved third-party dependencies (D-033). Features are enabled per crate; defaults are off
 # wherever possible so every crate only pulls in what it uses.

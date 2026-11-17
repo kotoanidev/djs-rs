@@ -7,6 +7,28 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.0-alpha.1] - 2026-11-17
+
+The first release: ten crates, all at `0.1.0-alpha.1`, on crates.io (D-387, D-388). It
+covers Discord's API v10 and runs bots end to end; its API may still change between alpha
+releases.
+
+- `djs-rs`: the `Client` with every gateway event (with the cached state before an update),
+  managers and structures, slash commands, components and modals with routers, collectors,
+  automatic sharding in one process or across several (`sharding`), and voice with DAVE
+  (`voice`).
+- `djs-model` (every API v10 type and gateway event, fast decoding), `djs-rest` (232
+  routes, rate limits, the CDN, OAuth2), `djs-gateway` (shards, `zstd-stream` and
+  `zlib-stream`, the IDENTIFY queue), `djs-cache` (configurable and pluggable),
+  `djs-voice`, `djs-builders`, `djs-formatters`, `djs-collection`; `djs-util` is reserved.
+- A guide (https://kotoanidev.github.io/djs-rs/) from the first bot to voice, a migration
+  chapter from discord.js, and the discord.js counterpart in the docs of every public item.
+- Measured against discord.js, serenity and twilight: `docs/VS_NODE.md`,
+  `docs/VS_SERENITY.md`, `docs/VS_TWILIGHT.md`; every stage's benchmarks and extreme-load
+  tests in `docs/PERFORMANCE.md`.
+
+What follows is everything the release contains, as it was added.
+
 ### Added
 - The guide (D-376–D-382, D-386): an mdBook in `book/`, published with the API reference at
   https://kotoanidev.github.io/djs-rs/ by a new `Book` workflow; its listings are examples
@@ -770,3 +792,6 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   but no longer `Eq`, because messages contain floats (D-064).
 - `djs-model`: received model structs are `#[non_exhaustive]` (D-053).
 - MSRV raised from 1.85 to 1.89 (required by maintained `tokio-websockets` and `simd-json`).
+
+[Unreleased]: https://github.com/kotoanidev/djs-rs/compare/v0.1.0-alpha.1...HEAD
+[0.1.0-alpha.1]: https://github.com/kotoanidev/djs-rs/releases/tag/v0.1.0-alpha.1

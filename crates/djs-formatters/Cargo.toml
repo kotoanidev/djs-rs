@@ -10,8 +10,6 @@ homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
 readme = "README.md"
-# Not published until the owner decides on a release (see docs/DECISIONS.md, C-003).
-publish = false
 
 [dependencies]
 djs-model.workspace = true

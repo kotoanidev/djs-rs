@@ -87,9 +87,16 @@ REST, sharding, voice (D-380), each with its example in `book/code/examples/`, b
    dropping the unused `djs-util` workspace dependency (both rebuild everything: after
    bench-all), and updating the local toolchain to 1.100 after every measurement.
 5. [ ] The README (an index of everything, the comparisons' numbers) with the logo (D-390).
-6. [ ] The release `0.1.0-alpha.1` on crates.io and GitHub (D-387, D-388): versions,
-   `publish`, metadata, CHANGELOG section, dry runs, the owner's `cargo login`, the
-   publication in dependency order, the tag and the GitHub Release.
+6. [ ] The release `0.1.0-alpha.1` (D-387, D-388, C-137). **Prepared and pushed:** versions,
+   `publish` allowed for the ten crates, license files linked into each, the CHANGELOG
+   section (dated 2026-11-17: re-date it if published later), README badge, the guide's
+   installation from crates.io; names free on crates.io; `cargo package --workspace
+   --exclude djs-vs-node --exclude djs-rs-guide` packs and builds all ten (largest
+   djs-model, 315 KB); gate OK on Rust 1.100. **Waiting for the owner:** `cargo login`
+   (the token never reaches Claude), the go-ahead, then `cargo publish --workspace
+   --exclude djs-vs-node --exclude djs-rs-guide` (dependency order), the tag
+   `v0.1.0-alpha.1` and the GitHub Release (the changelog's summary + a link to the full
+   list).
 7. [ ] GitHub (D-389). Done (C-134): issue forms, PR template, Dependabot, SECURITY.md;
    description, homepage (the guide), 12 topics, Discussions on, private vulnerability
    reporting on, labels (triage, dependencies, performance, security, guide, one

@@ -5727,6 +5727,29 @@ garbage (±1.0 for a frame). Measured with the listeners' side decoded by libopu
   limiter (`ratelimiter(None)`) is shown as a bound. The harness depends on
   `twilight-http-ratelimiting` directly for that type (twilight-http does not re-export it;
   it is part of twilight, D-385).
+
+### C-137 — Preparing 0.1.0-alpha.1 (D-387, D-388)
+- **Versions:** the workspace's `version` and the eight internal entries of
+  `[workspace.dependencies]` are `0.1.0-alpha.1`; the comparison harnesses and bots keep
+  their own `0.0.0` (never published). `publish = false` (C-003) is gone from the ten
+  crates; `djs-vs-node` and `djs-rs-guide` keep it.
+- **License files in every package:** each crate links `LICENSE-APACHE`, `LICENSE-MIT` and
+  `NOTICE` from the repository root (symlinks, which `cargo package` turns into the files),
+  because both licenses ask that their text travel with every copy and the archives had
+  none. A Windows checkout without symlinks gets the link's path as text; nothing reads
+  them there.
+- **The changelog:** `[Unreleased]` became `[0.1.0-alpha.1] - <date>` with a short summary
+  of the release above the full list (about 780 lines, kept as it was written), plus an empty
+  `[Unreleased]` and the compare/tag links. The GitHub Release's notes are that summary and
+  a link to the full list, which is too long to read as release notes; the date is set to
+  the day of publication.
+- **Installing:** the README and the guide's installation chapter point at crates.io
+  (`djs-rs = "0.1.0-alpha.1"`); the guide says that `cargo update` may move to a newer
+  alpha and how to pin one with `=`. A crates.io badge leads the README's badges.
+- **Checks before publishing:** the names are free on crates.io (all ten, 2026-11-17);
+  `cargo package --workspace` packs and builds every crate from its archive in dependency
+  order. Publishing (`cargo publish --workspace`, the same order), the tag `v0.1.0-alpha.1`
+  and the GitHub Release wait for the owner's `cargo login` and go-ahead.
 - **No reliability section:** the fault-injection comparison stays with serenity
   (`VS_SERENITY.md`); D-385 asks for the performance set.
 
