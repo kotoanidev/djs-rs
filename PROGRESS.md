@@ -50,10 +50,13 @@ docs.rs, tag `v0.1.0-alpha.1`, GitHub Release.
 
 ## Current work — Phase 11 (issue #3: HTTP interactions and wasm32, D-393–D-396)
 Before plan item 5 (the README), in stages (D-393):
-1. [ ] wasm32 for `djs-model`, `djs-builders`, `djs-formatters`, `djs-collection`: they
-   already pass `cargo check --target wasm32-unknown-unknown --all-features` (2026-11-17);
-   left: a CI job, and no `SystemTime::now()` panic there (`Timestamp::now()`, the
-   onboarding prompts' generated IDs in `rest/guild.rs`).
+1. [x] wasm32 for `djs-model`, `djs-builders`, `djs-formatters`, `djs-collection`
+   (2026-11-17): the CI job `wasm` runs clippy for `wasm32-unknown-unknown`; the clock
+   there is `web-time` (D-397, a target-only dependency, absent from native trees), so
+   `Timestamp::now()`, `EmbedBuilder::timestamp_now()` and the onboarding prompts' IDs do
+   not panic. A lint expectation that does not hold on 32-bit pointers became an `allow`
+   (`serde_util::placeholder_id`). Not run in a JS host yet: that comes with stage 2's
+   Workers test.
 2. [ ] HTTP interactions in djs-rs (D-394 `ed25519-dalek`, D-395: a feature, the gateway
    optional, handler = headers + body → status + body, the shared router and `reply`).
    Ask the feature/item names when drafting the API.

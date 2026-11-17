@@ -3572,6 +3572,16 @@ and why.
   example in the guide); the library does not depend on Cloudflare's `worker` crate.
 - Rejected: a built-in Workers adapter (ties the library to one platform's crate); both.
 
+### D-397 — The clock on wasm32 comes from `web-time` (2026-11-17)
+- **Answer (owner):** `web-time` (a drop-in `std::time` reading the JS host's
+  `Date.now()`/`performance.now()` through wasm-bindgen), a dependency only for
+  `cfg(all(target_arch = "wasm32", target_os = "unknown"))`: native builds do not pull it, the
+  API is the same on both targets. Used by `Timestamp::now()` (so
+  `EmbedBuilder::timestamp_now()`), the onboarding prompts' generated IDs, and later the
+  REST rate limiter. Needs a JS host (Workers, browsers).
+- Rejected: `js-sys` directly (the same clock, our own glue); no dependency (no `now` on
+  wasm32, the API would differ between targets).
+
 ---
 
 ## Defaults chosen by Claude (reviewable)

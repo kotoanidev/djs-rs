@@ -9,7 +9,12 @@ use core::{
     fmt,
     sync::atomic::{AtomicU64, Ordering},
 };
+// `std::time` has no clock on `wasm32-unknown-unknown`; `web-time` reads the JS host's (D-397).
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use std::time::{SystemTime, UNIX_EPOCH};
+
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+use web_time::{SystemTime, UNIX_EPOCH};
 
 use compact_str::CompactString;
 use serde::{Deserialize, Serialize, Serializer};

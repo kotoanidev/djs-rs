@@ -91,7 +91,8 @@ impl<'de> serde::Deserialize<'de> for Placeholder {
 pub(crate) mod placeholder_id {
     use serde::{Deserialize, Deserializer, Serializer};
 
-    #[expect(
+    // `allow`, not `expect`: the lint does not fire on wasm32, where `&u64` is wider than a pointer.
+    #[allow(
         clippy::trivially_copy_pass_by_ref,
         reason = "signature required by serde(with)"
     )]

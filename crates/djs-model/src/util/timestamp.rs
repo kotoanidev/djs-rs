@@ -1,6 +1,12 @@
 //! ISO 8601 timestamps as used by the Discord API.
 
 use core::{fmt, str::FromStr};
+// `std::time` has no clock on `wasm32-unknown-unknown`; `web-time` reads the JS host's (D-397).
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+use std::time::{SystemTime, UNIX_EPOCH};
+
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+use web_time::{SystemTime, UNIX_EPOCH};
 
 use serde::{
     Deserialize, Deserializer, Serialize, Serializer,
@@ -83,8 +89,8 @@ impl Timestamp {
     /// Panics if the system clock is set before 1970 or after the year 294 247.
     #[must_use]
     pub fn now() -> Self {
-        let since_epoch = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
+        let since_epoch = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
             .expect("system clock is set before the Unix epoch");
         Self {
             unix_micros: i64::try_from(since_epoch.as_micros())

@@ -7,6 +7,11 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- `djs-model`, `djs-builders`, `djs-formatters` and `djs-collection` build for
+  `wasm32-unknown-unknown` (checked in CI), for bots on Cloudflare Workers (#3, D-393).
+  There `Timestamp::now()` (and so `EmbedBuilder::timestamp_now()`) reads the JS host's
+  clock through `web-time` instead of panicking (D-397).
+
 ## [0.1.0-alpha.1] - 2026-11-17
 
 The first release: ten crates, all at `0.1.0-alpha.1`, on crates.io (D-387, D-388). It

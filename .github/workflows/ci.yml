@@ -85,6 +85,21 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo +1.89 check --workspace --all-features
 
+  wasm:
+    name: wasm32
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      # Cloudflare Workers bots (D-393): these crates keep building for wasm32.
+      - run: >-
+          cargo clippy --target wasm32-unknown-unknown --all-features
+          -p djs-model -p djs-builders -p djs-formatters -p djs-collection -- -D warnings
+
   deny:
     name: cargo-deny
     runs-on: ubuntu-latest
