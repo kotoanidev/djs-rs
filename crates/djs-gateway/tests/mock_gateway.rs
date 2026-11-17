@@ -509,7 +509,14 @@ async fn shards_share_the_identify_queue() {
         assert_eq!(shard[1], 3);
     }
     let gap = |a: u64, b: u64| at[&b].saturating_duration_since(at[&a]);
-    assert!(gap(0, 1) < Duration::from_secs(1) && gap(1, 0) < Duration::from_secs(1));
+    // Different buckets identify in the same window: well under the 5 s a shared bucket waits
+    // (half of it, so a slow CI runner's connection setup does not fail the test, C-138).
+    assert!(
+        gap(0, 1) < Duration::from_millis(2_500) && gap(1, 0) < Duration::from_millis(2_500),
+        "shards 0 and 1 have their own buckets but identified {:?} / {:?} apart",
+        gap(0, 1),
+        gap(1, 0)
+    );
     assert!(
         gap(0, 2) >= Duration::from_secs(5),
         "shard 2 identified {:?} after shard 0, in the same bucket",

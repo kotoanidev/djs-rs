@@ -5772,6 +5772,13 @@ garbage (±1.0 for a frame). Measured with the listeners' side decoded by libopu
   the script waited between the last five. Every crate's docs built on docs.rs, `djs-voice`
   (CMake for libopus) included. The tag is annotated; the GitHub Release is marked as a
   pre-release and carries the changelog's summary with a link to the full list.
+
+### C-138 — The IDENTIFY-queue test on a slow CI runner
+- `shards_share_the_identify_queue` (djs-gateway) failed once on a shared macOS runner, on
+  Dependabot's PR #2 (a `Cargo.lock`-only change it cannot depend on): shards 0 and 1, in
+  different buckets, were more than 1 s apart. The bound is now half of the 5 s a shard in a
+  shared bucket waits (2.5 s), which still tells "the same window" from "the next one", and
+  the assertion prints both gaps.
 - **No reliability section:** the fault-injection comparison stays with serenity
   (`VS_SERENITY.md`); D-385 asks for the performance set.
 
