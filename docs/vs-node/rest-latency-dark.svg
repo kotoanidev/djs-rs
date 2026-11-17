@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="840" height="388" viewBox="0 0 840 388" role="img" aria-labelledby="title desc" font-family="system-ui, -apple-system, &quot;Segoe UI&quot;, Roboto, sans-serif">
 <title id="title">REST: latency of each call under that load</title>
-<desc id="desc">p50 (median), djs-rest: 0.26 ms; p50 (median), djs-rest + mimalloc: 0.30 ms; p50 (median), @discordjs/rest: 2.12 ms; p99, djs-rest: 0.71 ms; p99, djs-rest + mimalloc: 0.96 ms; p99, @discordjs/rest: 5.92 ms</desc>
+<desc id="desc">p50 (median), djs-rest: 0.27 ms; p50 (median), djs-rest + mimalloc: 0.27 ms; p50 (median), @discordjs/rest: 2.33 ms; p99, djs-rest: 0.74 ms; p99, djs-rest + mimalloc: 0.80 ms; p99, @discordjs/rest: 6.41 ms</desc>
 <rect x="0.5" y="0.5" width="839" height="387" rx="8" fill="#1a1a19" stroke="rgba(255,255,255,0.10)"/>
 <text x="24" y="34" font-size="16" font-weight="600" fill="#f0efec">REST: latency of each call under that load</text>
 <text x="24" y="55" font-size="12.5" fill="#c3c2b7">milliseconds from the call to the decoded response, lower is better</text>
@@ -10,30 +10,32 @@
 <text x="168" y="78.5" font-size="12.5" fill="#c3c2b7">Node.js (discord.js and its packages)</text>
 <line x1="324" y1="100" x2="324" y2="356" stroke="#383835" stroke-width="1"/>
 <text x="324" y="372" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">0 ms</text>
-<line x1="411.3333333333333" y1="100" x2="411.3333333333333" y2="356" stroke="#2c2c2a" stroke-width="1"/>
-<text x="411.3333333333333" y="372" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">2 ms</text>
-<line x1="498.66666666666663" y1="100" x2="498.66666666666663" y2="356" stroke="#2c2c2a" stroke-width="1"/>
-<text x="498.66666666666663" y="372" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">4 ms</text>
+<line x1="389.5" y1="100" x2="389.5" y2="356" stroke="#2c2c2a" stroke-width="1"/>
+<text x="389.5" y="372" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">2 ms</text>
+<line x1="455" y1="100" x2="455" y2="356" stroke="#2c2c2a" stroke-width="1"/>
+<text x="455" y="372" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">4 ms</text>
+<line x1="520.5" y1="100" x2="520.5" y2="356" stroke="#2c2c2a" stroke-width="1"/>
+<text x="520.5" y="372" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">6 ms</text>
 <line x1="586" y1="100" x2="586" y2="356" stroke="#2c2c2a" stroke-width="1"/>
-<text x="586" y="372" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">6 ms</text>
+<text x="586" y="372" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">8 ms</text>
 <text x="24" y="119" font-size="12.5" font-weight="600" fill="#c3c2b7">p50 (median)</text>
 <text x="312" y="150.5" font-size="13" text-anchor="end" fill="#f0efec">djs-rest</text>
-<path d="M324,136H331.528A4,4 0 0 1 335.528,140V152A4,4 0 0 1 331.528,156H324Z" fill="#3987e5"><title>djs-rest: 0.26 ms</title></path>
-<text x="343.528" y="150.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">0.26 ms</text>
+<path d="M324,136H328.80975A4,4 0 0 1 332.80975,140V152A4,4 0 0 1 328.80975,156H324Z" fill="#3987e5"><title>djs-rest: 0.27 ms</title></path>
+<text x="340.80975" y="150.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">0.27 ms</text>
 <text x="312" y="182.5" font-size="13" text-anchor="end" fill="#f0efec">djs-rest + mimalloc</text>
-<path d="M324,168H333.14366666666666A4,4 0 0 1 337.14366666666666,172V184A4,4 0 0 1 333.14366666666666,188H324Z" fill="#3987e5"><title>djs-rest + mimalloc: 0.30 ms</title></path>
-<text x="345.14366666666666" y="182.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">0.30 ms</text>
+<path d="M324,168H328.777A4,4 0 0 1 332.777,172V184A4,4 0 0 1 328.777,188H324Z" fill="#3987e5"><title>djs-rest + mimalloc: 0.27 ms</title></path>
+<text x="340.777" y="182.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">0.27 ms</text>
 <text x="312" y="214.5" font-size="13" text-anchor="end" fill="#f0efec">@discordjs/rest</text>
-<path d="M324,200H412.44233333333335A4,4 0 0 1 416.44233333333335,204V216A4,4 0 0 1 412.44233333333335,220H324Z" fill="#d95926"><title>@discordjs/rest: 2.12 ms</title></path>
-<text x="424.44233333333335" y="214.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">2.12 ms</text>
+<path d="M324,200H396.20925A4,4 0 0 1 400.20925,204V216A4,4 0 0 1 396.20925,220H324Z" fill="#d95926"><title>@discordjs/rest: 2.33 ms</title></path>
+<text x="408.20925" y="214.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">2.33 ms</text>
 <text x="24" y="245" font-size="12.5" font-weight="600" fill="#c3c2b7">p99</text>
 <text x="312" y="276.5" font-size="13" text-anchor="end" fill="#f0efec">djs-rest</text>
-<path d="M324,262H351.2216666666667A4,4 0 0 1 355.2216666666667,266V278A4,4 0 0 1 351.2216666666667,282H324Z" fill="#3987e5"><title>djs-rest: 0.71 ms</title></path>
-<text x="363.2216666666667" y="276.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">0.71 ms</text>
+<path d="M324,262H344.13675A4,4 0 0 1 348.13675,266V278A4,4 0 0 1 344.13675,282H324Z" fill="#3987e5"><title>djs-rest: 0.74 ms</title></path>
+<text x="356.13675" y="276.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">0.74 ms</text>
 <text x="312" y="308.5" font-size="13" text-anchor="end" fill="#f0efec">djs-rest + mimalloc</text>
-<path d="M324,294H362.1383333333333A4,4 0 0 1 366.1383333333333,298V310A4,4 0 0 1 362.1383333333333,314H324Z" fill="#3987e5"><title>djs-rest + mimalloc: 0.96 ms</title></path>
-<text x="374.1383333333333" y="308.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">0.96 ms</text>
+<path d="M324,294H346.2655A4,4 0 0 1 350.2655,298V310A4,4 0 0 1 346.2655,314H324Z" fill="#3987e5"><title>djs-rest + mimalloc: 0.80 ms</title></path>
+<text x="358.2655" y="308.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">0.80 ms</text>
 <text x="312" y="340.5" font-size="13" text-anchor="end" fill="#f0efec">@discordjs/rest</text>
-<path d="M324,326H578.6376666666666A4,4 0 0 1 582.6376666666666,330V342A4,4 0 0 1 578.6376666666666,346H324Z" fill="#d95926"><title>@discordjs/rest: 5.92 ms</title></path>
-<text x="590.6376666666666" y="340.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">5.92 ms</text>
+<path d="M324,326H529.9929999999999A4,4 0 0 1 533.9929999999999,330V342A4,4 0 0 1 529.9929999999999,346H324Z" fill="#d95926"><title>@discordjs/rest: 6.41 ms</title></path>
+<text x="541.9929999999999" y="340.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">6.41 ms</text>
 </svg>
