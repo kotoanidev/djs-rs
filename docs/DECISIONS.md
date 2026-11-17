@@ -3650,6 +3650,25 @@ and why.
   (documented under `# Panics`). No breaking change.
 - Rejected: the name `native`; `build()` returning a `Result` (breaking).
 
+### D-406 — The Cloudflare Workers example is its own project (2026-11-17)
+- **Answer (owner):** `examples/cloudflare-workers/` with its own Cargo workspace (as
+  `benches/vs-serenity`): Cloudflare's `worker` crate is a dependency there only, never of a
+  published crate. CI builds it for wasm32; the guide's listing comes from it (D-378); it
+  is also the live test's Workers bot.
+- Rejected: an uncompiled `rust,ignore` listing; no Workers example.
+
+### D-407 — The guide's native HTTP example uses axum (2026-11-17)
+- **Answer (owner):** axum, a new dev-dependency of the unpublished `book/code` only.
+- Rejected: plain hyper (already in the workspace, but a longer, lower-level listing).
+
+### D-408 — The live test sets the test app's endpoint through the API (2026-11-17)
+- **Answer (owner):** Claude runs the native example behind a `cloudflared` quick tunnel,
+  sets the test application's `interactions_endpoint_url` with `PATCH /applications/@me`,
+  the owner runs `/ping` in Discord, then Claude clears the URL (the test bot's
+  interactions return to the gateway). Then the same with the Workers example in the local
+  Workers runtime (`npx wrangler dev`, nothing deployed).
+- Rejected: the owner setting the URL by hand; no live test.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
@@ -5961,6 +5980,27 @@ garbage (±1.0 for a frame). Measured with the listeners' side decoded by libopu
   `#![cfg(feature = "gateway")]` (as voice/sharding do), examples and the managers bench
   `required-features = ["gateway"]`. `benches/vs-node` and `benches/vs-serenity` keep
   `default-features = false` (no zstd) and now name `gateway`.
+
+### C-142 — What the live tests found (D-408)
+- **Live:** `/ping` and `/slow` (a deferral and an edit 5 s later) answered both from the
+  guide's axum example and from `examples/cloudflare-workers` in the local Workers runtime
+  (`wrangler dev`, workerd), each behind a `cloudflared` quick tunnel set as the test app's
+  Interactions Endpoint URL (cleared afterwards). The quick tunnel runs with its own empty
+  config: the owner's `~/.cloudflared/config.yml` (a named tunnel's ingress, catch-all 404)
+  would otherwise apply to it.
+- **The relay waker** (`http_interactions::Relayed`): `worker::Delay` keeps the waker of its
+  first poll, and the handlers' future is first polled by `handle` (until the initial
+  response) and then by `ctx.wait_until`'s task, so the timer woke a finished task and
+  workerd cancelled the hung request. The background work now sees one stable waker that
+  wakes whichever task polled it last (an `Arc` and a mutex per request; std's `Wake`, no
+  `unsafe`). `background_work_resumes_in_the_task_it_moves_to` reproduces it without Workers
+  (it times out without the relay).
+- **`Route::bucket` read std's `SystemTime::now()`** (the age of a message to delete) on
+  every request, which panics on wasm32: it reads djs-model's `Timestamp::now()` now. Stage
+  3 missed it; the other crates' clocks were checked again (djs-rs's collectors and gateway
+  requests use tokio's timers, unavailable on wasm32 anyway, documented).
+- **The example** installs a panic hook that prints Rust panics to the Workers log (they
+  are only `unreachable` otherwise). Its Worker is 1.5 MB of wasm (opt-level `s`, LTO).
 
 ---
 

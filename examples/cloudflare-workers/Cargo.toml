@@ -1,0 +1,31 @@
+[package]
+name = "djs-rs-cloudflare-workers"
+description = "A djs-rs bot on Cloudflare Workers, answering HTTP interactions (D-406)."
+version = "0.0.0"
+edition = "2024"
+# Cloudflare's `worker` 0.9 needs 1.91 (the library's MSRV, 1.89, does not apply here).
+rust-version = "1.91"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/kotoanidev/djs-rs"
+# An example, never published.
+publish = false
+
+# Its own workspace, kept out of the main one so Cloudflare's crates are never a dependency
+# of it (D-406); it has its own Cargo.lock.
+[workspace]
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+bytes = "1.12"
+djs-rest = { path = "../../crates/djs-rest", default-features = false }
+djs-rs = { path = "../../crates/djs-rs", default-features = false, features = ["http-interactions"] }
+http = "1.5"
+worker = "0.9.0"
+
+[profile.release]
+# Workers limit the size of a Worker: small and fast to start.
+opt-level = "s"
+lto = true
+codegen-units = 1

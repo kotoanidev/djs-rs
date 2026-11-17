@@ -1,0 +1,2 @@
+# This example needs Rust 1.91 (Cloudflare's `worker` 0.9), not the library's MSRV.
+msrv = "1.91"

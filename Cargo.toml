@@ -30,6 +30,8 @@ djs-voice = { path = "crates/djs-voice", version = "0.1.0-alpha.1" }
 # wherever possible so every crate only pulls in what it uses.
 # Voice transport encryption (D-314): `aead_aes256_gcm_rtpsize`.
 aes-gcm = { version = "0.11", default-features = false }
+# Dev-dependency of book/code only: the HTTP interactions example (D-407).
+axum = { version = "0.8.9", default-features = false }
 bitflags = "2.13"
 bytes = "1.12"
 # Voice transport encryption (D-314): `aead_xchacha20_poly1305_rtpsize`.

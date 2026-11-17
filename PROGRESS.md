@@ -84,7 +84,21 @@ Before plan item 5 (the README), in stages (D-393):
    (a scripted transport: 429 wait, headers, body; the timeout), `Body` and `HyperBody`
    unit tests. **Left with the guide:** a Workers `fetch` transport example
    (`worker::send::SendFuture`), written after 2b.
-4. [ ] Benchmarks + extreme-load tests (D-041); answer and close issue #3.
+4. [x] **Live tests passed 2026-11-17 (D-408, C-142):** `/ping` and `/slow` answered from
+   `book/code/examples/http_interactions.rs` (axum, D-407) and from
+   `examples/cloudflare-workers` (D-406; its own workspace, `worker` 0.9, a `fetch`
+   `Transport`) in the local Workers runtime (`npx wrangler@4.164.0 dev`), both behind a
+   `cloudflared` quick tunnel (run with an empty `--config`: the owner's
+   `~/.cloudflared/config.yml` must not apply) set as the test app's Interactions Endpoint
+   URL through `PATCH /applications/@me`, cleared after each test. Found and fixed: the
+   relay waker (`worker::Delay` keeps its first waker) and `Route::bucket`'s std clock.
+   Tools installed on the way: the `wasm32-unknown-unknown` target, `worker-build` 0.9.0.
+5. [ ] Benchmarks + extreme-load tests (D-041): `handle` (verification, PING, an inline
+   reply, a deferral), the REST transport A/B (`ae20c9c^` vs now), an extreme load of signed
+   requests; results in `docs/PERFORMANCE.md`.
+6. [ ] The guide's "HTTP interactions" chapter (native axum listing, the Workers
+   transport and fetch handler from `examples/cloudflare-workers`); README, CHANGELOG;
+   answer and close issue #3.
 
 ## Current plan (the owner's request of 2026-11-16, D-383–D-390), in this order
 1. [x] Live voice test, 2026-11-16 (D-383): the bot recorded the owner (4.5 s of PCM, 272

@@ -1,7 +1,6 @@
 //! Typed REST API routes.
 
 use core::fmt;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use djs_model::{
     emoji::{Emoji, PartialEmoji},
@@ -11,6 +10,7 @@ use djs_model::{
         ScheduledEventId, SkuId, SoundboardSoundId, StickerId, StickerPackId, SubscriptionId,
         UserId, WebhookId,
     },
+    util::Timestamp,
 };
 use http::Method;
 
@@ -416,11 +416,8 @@ impl Route<'_> {
 
     /// Returns the rate-limit grouping of the route.
     pub(crate) fn bucket(self) -> BucketRoute {
-        let now_ms = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map_or(0, |since| {
-                u64::try_from(since.as_millis()).unwrap_or(u64::MAX)
-            });
+        // djs-model's clock, which also works on wasm32 (D-397).
+        let now_ms = u64::try_from(Timestamp::now().as_unix_millis()).unwrap_or(0);
         self.bucket_at(now_ms)
     }
 

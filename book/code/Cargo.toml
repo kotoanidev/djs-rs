@@ -11,9 +11,12 @@ publish = false
 
 # Only the examples (the listings) use these, so they are dev-dependencies.
 [dev-dependencies]
-# `sharding` for the "Sharding" chapter, `voice` for "Voice".
-djs-rs = { path = "../../crates/djs-rs", features = ["sharding", "voice"] }
-tokio = { workspace = true, features = ["macros", "rt-multi-thread", "signal"] }
+# axum serves the "HTTP interactions" chapter's endpoint (D-407).
+axum = { workspace = true, features = ["http1", "tokio"] }
+# `sharding` for the "Sharding" chapter, `voice` for "Voice", `http-interactions` for "HTTP
+# interactions".
+djs-rs = { path = "../../crates/djs-rs", features = ["http-interactions", "sharding", "voice"] }
+tokio = { workspace = true, features = ["macros", "net", "rt-multi-thread", "signal"] }
 tracing-subscriber = { workspace = true, features = ["ansi", "env-filter", "fmt", "std"] }
 
 [lints]

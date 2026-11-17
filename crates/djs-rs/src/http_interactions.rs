@@ -43,6 +43,15 @@
 //! the interactions this same client handles, so on a platform that spreads requests over
 //! many instances they may never see the next one.
 //!
+//! # On Cloudflare Workers (`wasm32-unknown-unknown`)
+//!
+//! Build djs-rs with `default-features = false, features = ["http-interactions"]` and give
+//! the client a [`Rest`] with a [`Transport`](djs_rest::Transport) over `fetch` (the
+//! repository's `examples/cloudflare-workers` is a complete bot). Handlers must be `Send`,
+//! so a JS future awaited in one (a `fetch`, `worker::Delay`) is wrapped in
+//! `worker::send::SendFuture`. tokio's timers do not run there: collectors and the gateway
+//! requests are not available, and a handler waits with the platform's timers instead.
+//!
 //! discord.js counterpart: none (discord.js only receives interactions over the gateway);
 //! the official `discord-interactions` package has the verification (`verifyKey`).
 //!
@@ -68,8 +77,16 @@
 //! # }
 //! ```
 
-use core::{fmt, future::Future, pin::Pin};
-use std::sync::{Mutex, PoisonError};
+use core::{
+    fmt,
+    future::Future,
+    pin::Pin,
+    task::{Context, Poll, Waker},
+};
+use std::{
+    sync::{Arc, Mutex, PoisonError},
+    task::Wake,
+};
 
 use djs_cache::{Backend, DashMapBackend};
 use djs_model::{
@@ -271,12 +288,71 @@ impl<B: Backend> InteractionsEndpoint<B> {
             };
             return (pong, idle());
         }
-        let (mut initial, mut work) = self.client.dispatch_http(event);
+        let (mut initial, work) = self.client.dispatch_http(event);
+        let mut work = Relayed::new(work);
         tokio::select! {
             biased;
-            result = &mut initial => (answer(result.ok()), work),
+            result = &mut initial => (answer(result.ok()), Box::pin(work)),
             () = &mut work => (answer(initial.try_recv().ok()), idle()),
         }
+    }
+}
+
+/// The handlers' future, polled first by [`InteractionsEndpoint::handle`] and then by the
+/// task the integration runs it in (`ctx.wait_until`, `tokio::spawn`): inside, it always
+/// sees the same waker, which wakes the task that polled last. A future that keeps the first
+/// waker it was given (Cloudflare's `worker::Delay` does) would otherwise wake `handle`'s
+/// finished task, and the background work would never resume (C-142).
+struct Relayed {
+    future: Background,
+    relay: Arc<Relay>,
+    waker: Waker,
+}
+
+/// The waker of the task that polled a [`Relayed`] last.
+struct Relay(Mutex<Option<Waker>>);
+
+impl Wake for Relay {
+    fn wake(self: Arc<Self>) {
+        self.wake_by_ref();
+    }
+
+    fn wake_by_ref(self: &Arc<Self>) {
+        if let Some(waker) = &*self.0.lock().unwrap_or_else(PoisonError::into_inner) {
+            waker.wake_by_ref();
+        }
+    }
+}
+
+impl Relayed {
+    fn new(future: Background) -> Self {
+        let relay = Arc::new(Relay(Mutex::new(None)));
+        let waker = Waker::from(Arc::clone(&relay));
+        Self {
+            future,
+            relay,
+            waker,
+        }
+    }
+}
+
+impl Future for Relayed {
+    type Output = ();
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
+        let this = self.get_mut();
+        {
+            let mut last = this.relay.0.lock().unwrap_or_else(PoisonError::into_inner);
+            if !last
+                .as_ref()
+                .is_some_and(|waker| waker.will_wake(cx.waker()))
+            {
+                *last = Some(cx.waker().clone());
+            }
+        }
+        this.future
+            .as_mut()
+            .poll(&mut Context::from_waker(&this.waker))
     }
 }
 
@@ -417,6 +493,55 @@ mod tests {
         }
         let signature = sign("soon", body);
         assert!(!verify(&public, &signature, "soon", body, NOW));
+    }
+
+    /// A future like `worker::Delay`: it keeps the first waker it is polled with.
+    #[derive(Clone, Default)]
+    struct FirstWaker(Arc<Mutex<(bool, Option<Waker>)>>);
+
+    impl FirstWaker {
+        fn complete(&self) {
+            let mut state = self.0.lock().unwrap();
+            state.0 = true;
+            if let Some(waker) = state.1.take() {
+                waker.wake();
+            }
+        }
+    }
+
+    impl Future for FirstWaker {
+        type Output = ();
+
+        fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
+            let mut state = self.0.lock().unwrap();
+            if state.0 {
+                return Poll::Ready(());
+            }
+            state.1.get_or_insert_with(|| cx.waker().clone());
+            Poll::Pending
+        }
+    }
+
+    #[tokio::test]
+    async fn background_work_resumes_in_the_task_it_moves_to() {
+        let leaf = FirstWaker::default();
+        let inner = leaf.clone();
+        let mut work = Relayed::new(Box::pin(inner));
+        // `handle` polls it first, with its own waker…
+        let first = Waker::noop();
+        assert!(
+            Pin::new(&mut work)
+                .poll(&mut Context::from_waker(first))
+                .is_pending()
+        );
+        // … then the integration runs it in another task.
+        let task = tokio::spawn(work);
+        tokio::task::yield_now().await;
+        leaf.complete();
+        tokio::time::timeout(core::time::Duration::from_secs(5), task)
+            .await
+            .expect("the moved task was woken")
+            .unwrap();
     }
 
     #[test]

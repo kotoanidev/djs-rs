@@ -1,0 +1,12 @@
+# The Worker of the djs-rs Cloudflare Workers example (D-406).
+name = "djs-rs-example"
+main = "build/index.js"
+compatibility_date = "2026-11-01"
+
+[build]
+# worker-build (`cargo install worker-build --version 0.9.0 --locked`) builds the wasm and
+# its JavaScript shim.
+command = "worker-build --release"
+
+# The secrets: `npx wrangler secret put DISCORD_TOKEN` and `DISCORD_PUBLIC_KEY` (or, for
+# `npx wrangler dev`, the git-ignored `.dev.vars`).
