@@ -142,8 +142,8 @@ just with narrow scope.
 ## Phase 11 — HTTP interactions and wasm32 (Cloudflare Workers, issue #3, D-393)
 - [x] `djs-model`, `djs-builders`, `djs-formatters`, `djs-collection` build for
       `wasm32-unknown-unknown` (CI job) and do not panic there (`SystemTime::now()`)
-- [ ] HTTP interactions in djs-rs (D-394, D-395): Ed25519 verification, PING, the shared
-      router and `reply`; the gateway an optional feature
+- [x] HTTP interactions in djs-rs (D-394, D-395, D-398–D-403): Ed25519 verification, PING,
+      the shared router and `reply`; the gateway an optional feature (djs-rs builds for wasm32)
 - [x] REST on wasm32 through a transport trait (D-396, D-404, D-405); a Workers `fetch`
       example in the guide comes with the HTTP interactions chapter
 - [ ] Benchmarks + extreme-load tests (D-041)

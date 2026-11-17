@@ -4,6 +4,7 @@ use core::fmt;
 use std::sync::{Arc, OnceLock, PoisonError, RwLock};
 
 use djs_cache::{Backend, Cache, DashMapBackend};
+#[cfg(feature = "gateway")]
 use djs_gateway::MessageSender;
 use djs_model::{
     gateway::{Intents, ShardId},
@@ -29,6 +30,7 @@ pub(crate) struct Shared {
     /// The client's intents (collectors warn about missing ones, D-271).
     pub(crate) intents: Intents,
     /// The senders of the running shards, by shard number (empty while not running).
+    #[cfg(feature = "gateway")]
     pub(crate) shards: RwLock<Vec<(u32, MessageSender)>>,
     /// The bot's total shard count, across processes, of the current `login` (0 before).
     pub(crate) total_shards: core::sync::atomic::AtomicU32,
@@ -48,6 +50,7 @@ impl Default for Shared {
             collectors: Arc::default(),
             sequential: false,
             intents: Intents::empty(),
+            #[cfg(feature = "gateway")]
             shards: RwLock::default(),
             total_shards: core::sync::atomic::AtomicU32::new(0),
             shutdown: watch::channel(false).0,
@@ -57,6 +60,7 @@ impl Default for Shared {
     }
 }
 
+#[cfg(feature = "gateway")]
 impl Shared {
     /// The sender of shard `number`, if it runs in this client.
     pub(crate) fn shard(&self, number: u32) -> Option<MessageSender> {
@@ -92,6 +96,7 @@ struct Inner<B: Backend> {
 pub(crate) struct Core {
     rest: Rest,
     shard: ShardId,
+    #[cfg(feature = "gateway")]
     sender: MessageSender,
     shared: Arc<Shared>,
     /// The cache's operations, or the converter's without a cache (D-289).
@@ -103,12 +108,11 @@ pub(crate) struct Core {
 
 impl fmt::Debug for Core {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Core")
-            .field("rest", &self.rest)
-            .field("shard", &self.shard)
-            .field("sender", &self.sender)
-            .field("shared", &self.shared)
-            .finish_non_exhaustive()
+        let mut debug = f.debug_struct("Core");
+        debug.field("rest", &self.rest).field("shard", &self.shard);
+        #[cfg(feature = "gateway")]
+        debug.field("sender", &self.sender);
+        debug.field("shared", &self.shared).finish_non_exhaustive()
     }
 }
 
@@ -139,6 +143,7 @@ impl Core {
     }
 
     /// The sender of the shard that receives `guild`'s events, if it runs in this client.
+    #[cfg(feature = "gateway")]
     pub(crate) fn guild_shard(&self, guild: GuildId) -> Option<MessageSender> {
         let own = self.shard;
         let number = ShardId::for_guild(guild, own.total()).number();
@@ -162,7 +167,7 @@ impl<B: Backend> Context<B> {
     pub(crate) fn new(
         rest: Rest,
         shard: ShardId,
-        sender: MessageSender,
+        #[cfg(feature = "gateway")] sender: MessageSender,
         cache: Option<Arc<Cache<B>>>,
         state: Arc<Shared>,
     ) -> Self {
@@ -177,6 +182,7 @@ impl<B: Backend> Context<B> {
                 core: Core {
                     rest,
                     shard,
+                    #[cfg(feature = "gateway")]
                     sender,
                     shared: state,
                     ops,
@@ -193,12 +199,15 @@ impl<B: Backend> Context<B> {
     pub(crate) fn http(
         rest: Rest,
         shard: ShardId,
-        sender: MessageSender,
+        #[cfg(feature = "gateway")] sender: MessageSender,
         cache: Option<Arc<Cache<B>>>,
         state: Arc<Shared>,
         inline: crate::http_interactions::Inline,
     ) -> Self {
+        #[cfg(feature = "gateway")]
         let mut ctx = Self::new(rest, shard, sender, cache, state);
+        #[cfg(not(feature = "gateway"))]
+        let mut ctx = Self::new(rest, shard, cache, state);
         if let Some(inner) = Arc::get_mut(&mut ctx.inner) {
             inner.core.inline = Some(inline);
         }
@@ -264,6 +273,8 @@ impl<B: Backend> Context<B> {
         self.inner.cache.as_deref()
     }
 
+    #[cfg(feature = "gateway")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "gateway")))]
     /// Returns the ID of the shard that received the event.
     ///
     /// discord.js counterpart: the `shardId` some discord.js events pass; `Guild#shardId`.
@@ -272,6 +283,8 @@ impl<B: Backend> Context<B> {
         self.inner.core.shard
     }
 
+    #[cfg(feature = "gateway")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "gateway")))]
     /// Returns a sender for gateway commands on the shard that received the event.
     ///
     /// discord.js counterpart: `Guild#shard`.
@@ -280,6 +293,8 @@ impl<B: Backend> Context<B> {
         &self.inner.core.sender
     }
 
+    #[cfg(feature = "gateway")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "gateway")))]
     /// Asks the client to disconnect, as [`Client::shutdown`](crate::Client::shutdown) does:
     /// every shard closes, the session is invalidated (the bot appears offline) and
     /// [`Client::login`](crate::Client::login) returns `Ok(())`. Has no effect once the client

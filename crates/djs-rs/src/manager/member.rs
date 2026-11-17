@@ -14,7 +14,9 @@ use djs_model::{
 };
 use djs_rest::Error;
 
-use super::{Fetch, FetchMembers};
+use super::Fetch;
+#[cfg(feature = "gateway")]
+use super::FetchMembers;
 use crate::Context;
 
 /// The members of one guild. Returned by [`Context::members`].
@@ -77,6 +79,8 @@ impl<'a, B: Backend> MemberManager<'a, B> {
         })
     }
 
+    #[cfg(feature = "gateway")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "gateway")))]
     /// Every member of the guild, through the gateway (D-270): sends [Request Guild
     /// Members](djs_model::gateway::payload::RequestGuildMembers) on the guild's shard and
     /// gathers every chunk of the answer. Needs the privileged `GUILD_MEMBERS` intent. The
@@ -103,6 +107,8 @@ impl<'a, B: Backend> MemberManager<'a, B> {
         FetchMembers::all(self.ctx, self.guild_id)
     }
 
+    #[cfg(feature = "gateway")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "gateway")))]
     /// The members whose username or nickname starts with `query`, through the gateway (at
     /// most [`limit`](FetchMembers::limit), 100 by default), like [`fetch_all`](Self::fetch_all).
     ///
@@ -111,6 +117,8 @@ impl<'a, B: Backend> MemberManager<'a, B> {
         FetchMembers::query(self.ctx, self.guild_id, query.into())
     }
 
+    #[cfg(feature = "gateway")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "gateway")))]
     /// The members with these user IDs, through the gateway, like
     /// [`fetch_all`](Self::fetch_all); IDs that are not members are left out. Discord takes
     /// 100 IDs per request, so more are asked in several requests, one after another.

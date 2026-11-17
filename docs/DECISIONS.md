@@ -5936,6 +5936,32 @@ garbage (±1.0 for a frame). Measured with the listeners' side decoded by libopu
   code builds `Rest::builder().token(…).build()` instead of `Rest::new`, so it compiles
   without `hyper` (and panics there without a transport, D-405).
 
+### C-141 — djs-rs without the gateway, stage 2b (D-395, D-403)
+- **What `gateway` gates** (public): `Client::{login, set_presence, shutdown}` (one gated
+  `impl` block holding the whole login machinery), `Shards`, `ClientBuilder::{compression,
+  gateway_url, shards, presence}`, `Context::{shard_id, shard, shutdown}`,
+  `MemberManager::{fetch_all, fetch_by_query, fetch_many}`,
+  `GuildManager::fetch_soundboard_sounds`, `manager::{FetchMembers, GatewayRequestError,
+  GuildSoundboardSounds}`, `Error::Gateway`, the `djs_rs::gateway` re-export. `intents`
+  stays (a model type; collectors read it).
+- **`Events::ShardError` stays without the gateway**, its payload then
+  `core::convert::Infallible` (a private alias): the events macro generates every event's
+  items from one list, and a `cfg` per expansion would complicate it; the event can never
+  fire there.
+- **Internal code only the gateway reads** (trackers, `emit`/`wants`, some fields and
+  imports) stays compiled without it under one crate-level
+  `#![cfg_attr(not(feature = "gateway"), allow(dead_code, unused_imports))]` instead of a
+  dozen `cfg`s; the default build is linted in full.
+- **`Core` keeps its `ShardId`** (event streams' `ShardEvent::shard` is shard 0 of 1 for
+  HTTP interactions); only the `MessageSender` is gated, through `#[cfg]` parameters of
+  `Context::new`/`Context::http`.
+- **Feature graph:** `default = ["gateway", "hyper", "zstd-stream"]`; `gateway` turns on
+  `hyper` (D-405); `zstd-stream`, `zlib-stream`, `sharding` and `voice` turn on `gateway`;
+  `native-roots` uses `djs-gateway?/native-roots`. Gateway tests carry
+  `#![cfg(feature = "gateway")]` (as voice/sharding do), examples and the managers bench
+  `required-features = ["gateway"]`. `benches/vs-node` and `benches/vs-serenity` keep
+  `default-features = false` (no zstd) and now name `gateway`.
+
 ---
 
 ## Open questions (to ask the owner when relevant)

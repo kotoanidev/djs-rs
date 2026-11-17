@@ -1,6 +1,7 @@
 //! The managers and the structure methods (D-229–D-233) against a mock REST API: the cache is
 //! read first and filled with what Discord returns, `force` skips it, lists keep Discord's
 //! order, and every action sends the request Discord documents.
+#![cfg(feature = "gateway")]
 
 #[expect(
     dead_code,

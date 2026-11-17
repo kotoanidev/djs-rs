@@ -13,6 +13,8 @@ pub enum Error {
     /// The gateway connection failed fatally (for example an invalid token or disallowed
     /// intents).
     #[error("the gateway connection failed")]
+    #[cfg(feature = "gateway")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "gateway")))]
     Gateway(#[from] djs_gateway::ReceiveError),
     /// Discord's daily [session start limit] does not allow starting every shard; nothing was
     /// connected. The limit (usually 1 000 per day) counts every identify, including those of

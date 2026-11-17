@@ -23,7 +23,8 @@ bytes.workspace = true
 djs-gateway.workspace = true
 djs-model.workspace = true
 djs-rest = { workspace = true, features = ["hyper"] }
-djs-rs = { path = "../../crates/djs-rs", default-features = false }
+# `gateway` without the default zstd-stream (the plain JSON gateway the comparisons use).
+djs-rs = { path = "../../crates/djs-rs", default-features = false, features = ["gateway"] }
 futures-util = { workspace = true, features = ["sink", "std"] }
 http-body-util.workspace = true
 hyper = { workspace = true, features = ["server", "http1"] }

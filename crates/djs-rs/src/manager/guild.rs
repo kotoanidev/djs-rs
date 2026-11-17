@@ -12,7 +12,9 @@ use djs_model::{
 };
 use djs_rest::Error;
 
-use super::{Fetch, GatewayRequestError, GuildSoundboardSounds};
+use super::Fetch;
+#[cfg(feature = "gateway")]
+use super::{GatewayRequestError, GuildSoundboardSounds};
 use crate::Context;
 
 /// The guilds of the bot. Returned by [`Context::guilds`].
@@ -44,6 +46,8 @@ impl<'a, B: Backend> GuildManager<'a, B> {
         self.ctx.cache().map(djs_cache::Cache::guilds)
     }
 
+    #[cfg(feature = "gateway")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "gateway")))]
     /// The soundboard sounds of `guild_ids`, through the gateway (D-265): sends [Request
     /// Soundboard Sounds](djs_model::gateway::payload::RequestSoundboardSounds) on the shards
     /// of the guilds and waits up to `time` for every guild's answer (discord.js waits 10

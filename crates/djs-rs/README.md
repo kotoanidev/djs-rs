@@ -353,6 +353,7 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 |---|---|---|
 | `zstd-stream` | ✅ | `zstd-stream` gateway compression (needs a C compiler) |
 | `zlib-stream` | | `zlib-stream` gateway compression in pure Rust (no C compiler) |
+| `gateway` | ✓ | The gateway: `Client::login`, shards, the gateway events, presence and the gateway requests (`fetch_all`, …). Without it (and without `hyper`, given a `Rest` with a `Transport`) djs-rs builds for `wasm32-unknown-unknown`, for HTTP interactions on Cloudflare Workers |
 | `hyper` | ✓ | The REST client's default transport, hyper with rustls (djs-rest's `hyper`); without it, give `ClientBuilder::rest` a `Rest` with a `Transport` |
 | `native-roots` | | Also trust the operating system's root certificates (e.g. a corporate proxy's CA), in addition to the bundled Mozilla roots, for REST, gateway and voice connections |
 | `sharding` | | Multi-process sharding: `djs_rs::sharding` and its `ClusterManager` |

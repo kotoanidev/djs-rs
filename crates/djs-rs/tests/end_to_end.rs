@@ -1,5 +1,6 @@
 //! End-to-end test of the vertical slice: `Client::login` fetches the gateway URL from a mock
 //! REST API, connects to a mock gateway, receives `!ping` and replies through REST.
+#![cfg(feature = "gateway")]
 
 #[expect(
     dead_code,

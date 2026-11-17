@@ -57,7 +57,7 @@ Before plan item 5 (the README), in stages (D-393):
    not panic. A lint expectation that does not hold on 32-bit pointers became an `allow`
    (`serde_util::placeholder_id`). Not run in a JS host yet: that comes with stage 2's
    Workers test.
-2. [ ] HTTP interactions in djs-rs (D-394, D-395, D-398–D-403, C-139).
+2. [x] HTTP interactions in djs-rs (D-394, D-395, D-398–D-403, C-139, C-141).
    **2a done 2026-11-17 (native, gateway still required):** the `http-interactions`
    feature, `djs_rs::http_interactions::{InteractionsEndpoint, HttpResponse,
    InvalidPublicKey}`, `client.interactions_endpoint(public_key)`; `handle` verifies
@@ -68,10 +68,13 @@ Before plan item 5 (the README), in stages (D-393):
    djs-gateway (D-403). Tests: 4 unit (hex, signature, timestamps, key) and
    `tests/http_interactions.rs` (PING/401/400, inline reply + `InteractionCreate`
    handler, a deferral returning before its follow-up, files → REST, 500).
-   **2b left (after stage 3, it needs djs-rest on wasm32):** the `gateway` feature
-   (default) so djs-rs builds without djs-gateway, then djs-rs for wasm32. Not verified
-   live yet: needs a public URL as the test app's Interactions Endpoint URL (an owner step;
-   it moves the test bot's interactions off the gateway while set).
+   **2b done 2026-11-17 (C-141):** the `gateway` feature (default; turns on `hyper`;
+   zstd/zlib/sharding/voice turn it on). Without it djs-rs has REST and routes only, and
+   `cargo clippy -p djs-rs --no-default-features --features http-interactions --target
+   wasm32-unknown-unknown` is clean (CI job `wasm`); `tests/http_interactions.rs` passes
+   without the gateway too. Not verified live yet: needs a public URL as the test app's
+   Interactions Endpoint URL (an owner step; it moves the test bot's interactions off the
+   gateway while set).
 3. [x] REST on wasm32 through a transport trait (D-396, D-404, D-405, C-140), 2026-11-17:
    `djs_rest::{Transport, Body, BoxFuture}`, `RestBuilder::transport`; hyper + rustls is
    the default `hyper` feature (djs-rs forwards it; the workspace dependency on djs-rest

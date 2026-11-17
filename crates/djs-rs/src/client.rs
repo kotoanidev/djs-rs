@@ -13,6 +13,7 @@ use std::{
 };
 
 use djs_cache::{Backend, Cache, CacheConfig, DashMapBackend};
+#[cfg(feature = "gateway")]
 use djs_gateway::{
     Compression, Config, IdentifyQueue, LocalIdentifyQueue, ReceiveErrorKind, SendError, Shard,
     ShardState, create_shards,
@@ -80,6 +81,8 @@ pub enum HandlerMode {
     Sequential,
 }
 
+#[cfg(feature = "gateway")]
+#[cfg_attr(docsrs, doc(cfg(feature = "gateway")))]
 /// Which shards a [`Client`] runs (D-146).
 ///
 /// A shard is one gateway connection; each carries the events of a part of the bot's guilds.
@@ -157,9 +160,13 @@ struct Inner<B: Backend> {
     token: Box<str>,
     intents: Intents,
     rest: Rest,
+    #[cfg(feature = "gateway")]
     compression: Compression,
+    #[cfg(feature = "gateway")]
     gateway_url: Option<Box<str>>,
+    #[cfg(feature = "gateway")]
     shards: Shards,
+    #[cfg(feature = "gateway")]
     presence: Option<UpdatePresence>,
     mode: HandlerMode,
     cache: Option<Arc<Cache<B>>>,
@@ -201,17 +208,20 @@ type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 /// crate again on every edit.
 struct Compiled<B: Backend> {
     build: fn(ClientBuilder<B>) -> Client<B>,
+    #[cfg(feature = "gateway")]
     login: for<'a> fn(&'a Client<B>) -> BoxFuture<'a, Result<(), Error>>,
 }
 
 impl<B: Backend> Compiled<B> {
     /// The entry points for `B`, compiled in the crate that names `B`.
     fn generic() -> Self {
+        #[cfg(feature = "gateway")]
         fn login<B: Backend>(client: &Client<B>) -> BoxFuture<'_, Result<(), Error>> {
             Box::pin(client.login_inner())
         }
         Self {
             build: ClientBuilder::build_inner,
+            #[cfg(feature = "gateway")]
             login: login::<B>,
         }
     }
@@ -267,9 +277,13 @@ impl Client {
             token,
             intents: Intents::empty(),
             rest: None,
+            #[cfg(feature = "gateway")]
             compression: Compression::default(),
+            #[cfg(feature = "gateway")]
             gateway_url: None,
+            #[cfg(feature = "gateway")]
             shards: Shards::default(),
+            #[cfg(feature = "gateway")]
             presence: None,
             mode: HandlerMode::default(),
             cache: None,
@@ -735,7 +749,12 @@ impl<B: Backend> Client<B> {
             .get(name)
             .cloned()
     }
+}
 
+/// Logging in and running the shards (the `gateway` feature, D-395).
+#[cfg(feature = "gateway")]
+#[cfg_attr(docsrs, doc(cfg(feature = "gateway")))]
+impl<B: Backend> Client<B> {
     /// Connects to Discord and processes events until [`shutdown`](Self::shutdown) is called or
     /// the connection fails fatally.
     ///
@@ -1165,7 +1184,9 @@ impl<B: Backend> Client<B> {
             max_concurrency: limit.max_concurrency,
         })
     }
+}
 
+impl<B: Backend> Client<B> {
     /// The current handlers (registration replaces the table, so this is a snapshot).
     fn registry(&self) -> Arc<Registry<B>> {
         Arc::clone(
@@ -1205,7 +1226,7 @@ impl<B: Backend> Client<B> {
             subscribers.retain(|subscriber| {
                 subscriber
                     .send(ShardEvent {
-                        shard: ctx.shard_id(),
+                        shard: ctx.core().shard_id(),
                         event: dispatch.clone(),
                     })
                     .is_ok()
@@ -1291,27 +1312,32 @@ impl<B: Backend> Client<B> {
         let state = &inner.shared;
         // The application ID is known from the first interaction too (D-245).
         let _ = state.application_id.set(event.application_id);
-        // The guild's shard, if this client also runs it (D-403); DMs go to shard 0.
-        let total = state.total_shards.load(Ordering::Acquire);
-        let (shard, sender) = if total == 0 {
-            (
-                djs_model::gateway::ShardId::ONE,
-                djs_gateway::MessageSender::detached(),
-            )
-        } else {
-            let number = event.guild_id.map_or(0, |guild| {
-                djs_model::gateway::ShardId::for_guild(guild, total).number()
-            });
-            let sender = state
-                .shard(number)
-                .unwrap_or_else(djs_gateway::MessageSender::detached);
-            (djs_model::gateway::ShardId::new(number, total), sender)
-        };
         let (inline, initial) = crate::http_interactions::Inline::new(event.id);
+        // The guild's shard, if this client also runs it (D-403); DMs go to shard 0.
+        #[cfg(feature = "gateway")]
+        let ctx = {
+            let total = state.total_shards.load(Ordering::Acquire);
+            let (shard, sender) = if total == 0 {
+                (
+                    djs_model::gateway::ShardId::ONE,
+                    djs_gateway::MessageSender::detached(),
+                )
+            } else {
+                let number = event.guild_id.map_or(0, |guild| {
+                    djs_model::gateway::ShardId::for_guild(guild, total).number()
+                });
+                let sender = state
+                    .shard(number)
+                    .unwrap_or_else(djs_gateway::MessageSender::detached);
+                (djs_model::gateway::ShardId::new(number, total), sender)
+            };
+            let (rest, cache) = (inner.rest.clone(), inner.cache.clone());
+            Context::http(rest, shard, sender, cache, Arc::clone(state), inline)
+        };
+        #[cfg(not(feature = "gateway"))]
         let ctx = Context::http(
             inner.rest.clone(),
-            shard,
-            sender,
+            djs_model::gateway::ShardId::ONE,
             inner.cache.clone(),
             Arc::clone(state),
             inline,
@@ -1337,6 +1363,7 @@ impl<B: Backend> Client<B> {
     }
 }
 
+#[cfg(feature = "gateway")]
 /// Runs `sweep` every `period`, first after one `period`, logging what it swept as `resource`.
 ///
 /// A zero period disables the sweep (it would run without pause); a period too long to
@@ -1358,6 +1385,7 @@ async fn every(period: Duration, resource: &'static str, sweep: impl Fn() -> usi
     }
 }
 
+#[cfg(feature = "gateway")]
 /// What [`Client::login`] starts: the gateway URL, the shards and the identify concurrency.
 struct Plan {
     url: String,
@@ -1377,9 +1405,13 @@ pub struct ClientBuilder<B: Backend = DashMapBackend> {
     token: String,
     intents: Intents,
     rest: Option<Rest>,
+    #[cfg(feature = "gateway")]
     compression: Compression,
+    #[cfg(feature = "gateway")]
     gateway_url: Option<Box<str>>,
+    #[cfg(feature = "gateway")]
     shards: Shards,
+    #[cfg(feature = "gateway")]
     presence: Option<UpdatePresence>,
     mode: HandlerMode,
     cache: Option<CacheConfig>,
@@ -1410,6 +1442,8 @@ impl<B: Backend> ClientBuilder<B> {
         self
     }
 
+    #[cfg(feature = "gateway")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "gateway")))]
     /// Sets the gateway transport compression (default: `zstd-stream` when the feature is
     /// enabled).
     ///
@@ -1419,6 +1453,8 @@ impl<B: Backend> ClientBuilder<B> {
         self
     }
 
+    #[cfg(feature = "gateway")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "gateway")))]
     /// Connects to this gateway URL instead of the one from Get Gateway Bot (useful for
     /// proxies and tests).
     ///
@@ -1431,6 +1467,8 @@ impl<B: Backend> ClientBuilder<B> {
         self
     }
 
+    #[cfg(feature = "gateway")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "gateway")))]
     /// Sets which shards to run (default [`Shards::Auto`]: as many as Discord recommends).
     ///
     /// discord.js counterpart: the `shards` and `shardCount` options of `ClientOptions`.
@@ -1486,6 +1524,8 @@ impl<B: Backend> ClientBuilder<B> {
         self
     }
 
+    #[cfg(feature = "gateway")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "gateway")))]
     /// Sets the presence (status and activities) every shard starts with (default: none, the
     /// bot appears online without an activity). Change it later with [`Client::set_presence`].
     ///
@@ -1576,9 +1616,13 @@ impl<B: Backend> ClientBuilder<B> {
             token: self.token,
             intents: self.intents,
             rest: self.rest,
+            #[cfg(feature = "gateway")]
             compression: self.compression,
+            #[cfg(feature = "gateway")]
             gateway_url: self.gateway_url,
+            #[cfg(feature = "gateway")]
             shards: self.shards,
+            #[cfg(feature = "gateway")]
             presence: self.presence,
             mode: self.mode,
             cache: Some(self.cache.unwrap_or_default()),
@@ -1627,9 +1671,13 @@ impl<B: Backend> ClientBuilder<B> {
                 token: self.token.into_boxed_str(),
                 intents: self.intents,
                 rest,
+                #[cfg(feature = "gateway")]
                 compression: self.compression,
+                #[cfg(feature = "gateway")]
                 gateway_url: self.gateway_url,
+                #[cfg(feature = "gateway")]
                 shards: self.shards,
+                #[cfg(feature = "gateway")]
                 presence: self.presence,
                 mode: self.mode,
                 cache,
@@ -1693,7 +1741,9 @@ mod tests {
 
     use djs_model::gateway::Intents;
 
-    use super::{every, warn_missing_intents};
+    #[cfg(feature = "gateway")]
+    use super::every;
+    use super::warn_missing_intents;
     use crate::event::EventKind;
 
     /// A log writer into a shared buffer.
@@ -1741,6 +1791,7 @@ mod tests {
         assert!(!logs.contains("messageCreate"), "{logs}");
     }
 
+    #[cfg(feature = "gateway")]
     #[tokio::test]
     async fn sweeps_that_cannot_be_scheduled_return_at_once() {
         for period in [Duration::ZERO, Duration::MAX] {

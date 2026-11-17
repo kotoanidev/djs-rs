@@ -1,6 +1,7 @@
 //! The client's events (D-221–D-228) against a scripted mock gateway: guild availability with
 //! and without a cache, previous states, emoji and sticker diffs, `Raw`, and the shard
 //! lifecycle (reconnect, resume, invalidated session, errors, fatal close).
+#![cfg(feature = "gateway")]
 
 #[expect(
     dead_code,

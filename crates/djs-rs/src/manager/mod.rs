@@ -40,6 +40,7 @@ mod ban;
 mod channel;
 mod command;
 mod emoji;
+#[cfg(feature = "gateway")]
 mod gateway;
 mod guild;
 mod guild_channel;
@@ -86,7 +87,6 @@ pub use self::{
     channel::{ChannelManager, OverwriteTarget},
     command::{CommandManager, GuildCommandManager},
     emoji::EmojiManager,
-    gateway::{FetchMembers, GatewayRequestError, GuildSoundboardSounds},
     guild::GuildManager,
     guild_channel::GuildChannelManager,
     invite::InviteManager,
@@ -101,6 +101,10 @@ pub use self::{
     user::UserManager,
     webhook::WebhookManager,
 };
+
+#[cfg(feature = "gateway")]
+#[cfg_attr(docsrs, doc(cfg(feature = "gateway")))]
+pub use self::gateway::{FetchMembers, GatewayRequestError, GuildSoundboardSounds};
 use crate::Context;
 
 /// A `fetch` that is not sent yet: await it to read the cache first and ask Discord when the

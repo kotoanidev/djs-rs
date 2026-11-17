@@ -5,6 +5,7 @@
 //! ```text
 //! cargo test -p djs-rs --release --test stress_interactions_mimalloc -- --ignored --nocapture --test-threads 1
 //! ```
+#![cfg(feature = "gateway")]
 
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;

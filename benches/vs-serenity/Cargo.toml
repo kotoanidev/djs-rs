@@ -16,7 +16,8 @@ publish = false
 [dependencies]
 # The mock Discord servers, payloads and metrics shared with the discord.js comparison.
 djs-vs-node = { path = "../vs-node" }
-djs-rs = { path = "../../crates/djs-rs", default-features = false }
+# `gateway` without the default zstd-stream (the plain JSON gateway the comparisons use).
+djs-rs = { path = "../../crates/djs-rs", default-features = false, features = ["gateway"] }
 # serenity with its default features, as most bots use it (D-280).
 serenity = "=0.12.5"
 serde_json = "1"

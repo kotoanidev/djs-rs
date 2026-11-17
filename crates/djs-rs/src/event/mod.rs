@@ -74,7 +74,11 @@
 
 use std::sync::Arc;
 
+#[cfg(feature = "gateway")]
 use djs_gateway::ReceiveError;
+/// Without the gateway no shard runs, so [`ShardError`] is never emitted (C-141).
+#[cfg(not(feature = "gateway"))]
+type ReceiveError = core::convert::Infallible;
 use djs_model::gateway::{CloseCode, DispatchEvent, Intents, ShardId, payload as gateway};
 
 pub mod payload;

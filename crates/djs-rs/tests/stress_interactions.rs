@@ -8,7 +8,7 @@
 //! ```text
 //! cargo test -p djs-rs --release --test stress_interactions -- --ignored --nocapture --test-threads 1
 //! ```
-
+#![cfg(feature = "gateway")]
 #![expect(
     clippy::cast_precision_loss,
     reason = "throughput numbers are only printed"

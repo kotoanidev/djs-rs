@@ -1,6 +1,7 @@
 //! Collectors (D-263–D-269) against a scripted mock gateway: each test registers a
 //! collector, then sends the events it should (and should not) collect, and checks what
 //! comes out and why the collector ended.
+#![cfg(feature = "gateway")]
 
 use std::time::Duration;
 

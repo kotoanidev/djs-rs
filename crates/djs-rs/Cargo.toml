@@ -12,23 +12,27 @@ categories.workspace = true
 readme = "README.md"
 
 [features]
-default = ["hyper", "zstd-stream"]
+default = ["gateway", "hyper", "zstd-stream"]
 ## The REST client's default transport, hyper with rustls (D-405). Without it, give
 ## `ClientBuilder::rest` a `Rest` built with a `Transport` (for example on Cloudflare Workers).
 hyper = ["djs-rest/hyper"]
+## The gateway (D-395): `Client::login`, shards, every gateway event, presence and the
+## gateway requests (`MemberManager::fetch_all`, …). Without it the client only has REST
+## and routes, for HTTP interactions (`http-interactions`), and builds for wasm32.
+gateway = ["dep:djs-gateway", "hyper"]
 ## `zstd-stream` gateway transport compression (D-015).
-zstd-stream = ["djs-gateway/zstd-stream"]
+zstd-stream = ["gateway", "djs-gateway/zstd-stream"]
 ## `zlib-stream` gateway transport compression (D-015, D-140; pure Rust).
-zlib-stream = ["djs-gateway/zlib-stream"]
+zlib-stream = ["gateway", "djs-gateway/zlib-stream"]
 ## Also trust the operating system's root certificates (e.g. a corporate proxy's CA), in
 ## addition to the bundled `webpki-roots`, for REST and gateway connections (D-088, D-100).
-native-roots = ["djs-gateway/native-roots", "djs-rest/native-roots", "djs-voice?/native-roots"]
+native-roots = ["djs-gateway?/native-roots", "djs-rest/native-roots", "djs-voice?/native-roots"]
 ## Multi-process sharding, `djs_rs::sharding` (D-284): a `ClusterManager` runs the bot's
 ## shards in several processes of the same executable (D-296–D-304).
-sharding = ["dep:serde", "dep:serde_json", "tokio/io-util", "tokio/net", "tokio/process"]
+sharding = ["gateway", "dep:serde", "dep:serde_json", "tokio/io-util", "tokio/net", "tokio/process"]
 ## Voice, `djs_rs::voice` (D-315, D-345): joining voice channels and playing audio, with
 ## DAVE end-to-end encryption, through `client.voice()`.
-voice = ["dep:djs-voice"]
+voice = ["gateway", "dep:djs-voice"]
 ## HTTP interactions, `djs_rs::http_interactions` (D-395, D-398–D-402): answering the
 ## interactions Discord posts to the app's Interactions Endpoint URL with the same routes and
 ## handlers as a gateway bot, in any HTTP server (or a Cloudflare Workers `fetch` handler).
@@ -39,7 +43,7 @@ djs-builders.workspace = true
 djs-cache.workspace = true
 djs-collection.workspace = true
 djs-formatters.workspace = true
-djs-gateway.workspace = true
+djs-gateway = { workspace = true, optional = true }
 djs-model.workspace = true
 djs-rest.workspace = true
 djs-voice = { workspace = true, optional = true }
@@ -66,6 +70,26 @@ tokio = { workspace = true, features = ["macros", "net", "rt-multi-thread", "sig
 tokio-websockets = { workspace = true, features = ["server", "ring"] }
 tracing-subscriber = { workspace = true, features = ["ansi", "env-filter", "fmt", "std"] }
 
+[[example]]
+name = "advanced"
+required-features = ["gateway"]
+
+[[example]]
+name = "components"
+required-features = ["gateway"]
+
+[[example]]
+name = "moderation"
+required-features = ["gateway"]
+
+[[example]]
+name = "ping"
+required-features = ["gateway"]
+
+[[example]]
+name = "slash_commands"
+required-features = ["gateway"]
+
 [[test]]
 name = "http_interactions"
 required-features = ["http-interactions"]
@@ -73,6 +97,7 @@ required-features = ["http-interactions"]
 [[bench]]
 name = "managers"
 harness = false
+required-features = ["gateway"]
 
 [[bench]]
 name = "sharding"

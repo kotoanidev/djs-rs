@@ -103,6 +103,10 @@ jobs:
       - run: >-
           cargo clippy --target wasm32-unknown-unknown --no-default-features
           -p djs-rest -- -D warnings
+      # The client without the gateway, for HTTP interactions (D-395).
+      - run: >-
+          cargo clippy --target wasm32-unknown-unknown --no-default-features
+          --features http-interactions -p djs-rs -- -D warnings
 
   deny:
     name: cargo-deny
