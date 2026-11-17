@@ -20,6 +20,14 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Dependabot (cargo and Actions, weekly), `SECURITY.md` with private vulnerability
   reporting, Discussions, labels; `CONTRIBUTING.md` and `docs/ARCHITECTURE.md` rewritten.
 - Tests for the gaps a coverage audit found (D-383, C-132): line coverage 90.4 % → 93.5 %.
+- `docs/VS_TWILIGHT.md` (D-385, C-136): djs-rs against twilight 0.18 on decoding, an event
+  flood with equal caches, memory per cached member, REST and building a bot, with its
+  harness in `benches/vs-twilight` (its own workspace, so the quality gate never builds
+  twilight).
+- Every benchmark, extreme-load test and comparison measured again for this release under
+  one power profile (D-384, C-135), with A/Bs against earlier commits (no regression);
+  `docs/PERFORMANCE.md` "Measured again for 0.1.0-alpha.1", the comparison pages and the
+  README's table.
 - The `djs-voice` crate, Phase 10 (D-311–D-328): its skeleton and dependencies (`davey` for
   DAVE, `chacha20poly1305` and `aes-gcm`; MSRV 1.89 kept), with MPL-2.0 allowed only for
   the three `hpke-rs` crates under `davey` (D-326, D-329, noted in `NOTICE`) and the seven
@@ -684,6 +692,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `login`/`shutdown`, prelude; `examples/ping.rs`; end-to-end tests with mock REST + gateway.
 
 ### Changed
+- The comparison scripts (`benches/vs-serenity/*.sh`, `benches/vs-twilight/*.sh`) also run
+  when started from the repository root, as their pages say; charts draw a tie in grey.
 - Every REST method of `djs-rest` (`Rest::create_message`, …, 245 of them) returns
   `impl Future<Output = …> + Send` built inside the crate (D-287), instead of being an
   `async fn`: their bodies — sending, rate limiting, retries, hyper, serde for the model types

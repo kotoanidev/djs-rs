@@ -63,29 +63,13 @@ REST, sharding, voice (D-380), each with its example in `book/code/examples/`, b
    disposal, every channel kind's accessors, the model's custom deserializers, recurrence
    rules and builders. What stays low is ignored measurement code (codec, input, DAVE),
    macro output, and functions only doctests check (not counted on stable).
-3. [ ] **In progress (2026-11-16).** Resume point:
-   - bench-all finished (53 steps, all exit 0, peak 85 °C, logs in
-     `.reference/bench/2026-11-16/`; divan medians parsed into
-     `.reference/tools/perf/divan-2026-11-16.tsv` by `.reference/tools/perf/divan.py`).
-     **Caveat found:** it ran unpinned on all 12 CPUs, so single-threaded numbers landed on
-     E-cores by chance (decode `MESSAGE_CREATE` 1.96 µs vs 1.26 µs pinned before; djs-rs
-     1-shard floods 15–45 % below earlier balanced/performance tables). C-072 allows
-     unpinned absolute numbers, so regressions were checked with A/Bs (C-135): **none**.
-     Gateway, client, interactions and REST against `4085a57`, voice against `0afab05`,
-     same instructions ±0.7 %; REST's peak memory with 200 000 queued requests halved
-     (D-287's 16-byte futures). **Done and written up:** `docs/PERFORMANCE.md` "Measured
-     again for 0.1.0-alpha.1" (method, A/Bs, old vs new); divan pinned to CPU 2 in
-     `.reference/tools/perf/divan-2026-11-16-pinned.tsv`; worktrees removed.
-   - **Done:** `docs/VS_TWILIGHT.md` measured and written (D-385, C-136): twilight's
-     proactive global REST limit lifted like djs-rs's (`RateLimiter::new(u16::MAX)`), its
-     limiter's single actor caps it at ~61 600 req/s; twilight builds from scratch faster,
-     djs-rs wins everything else. Every comparison script now re-runs itself in `unshare`
-     by absolute path (they failed when started from the repository root).
-   - **Next:** re-run `benches/vs-node/run.sh` (+ `node benches/vs-node/node/report.mjs`?
-     check the script's own last step), then `benches/vs-serenity/run.sh`, `build.sh`,
-     `reliability.sh` and its `report.mjs`; rewrite the bullets on `VS_NODE.md` and
-     `VS_SERENITY.md` from the new numbers; then the README's comparison table (twilight
-     column from `VS_TWILIGHT.md`'s summary).
+3. [x] Every benchmark and comparison measured again (D-384, D-385, 2026-11-16/17): bench-all
+   (53 steps), A/Bs against `4085a57` and `0afab05` (no regression, C-135), divan pinned,
+   `docs/PERFORMANCE.md` "Measured again for 0.1.0-alpha.1"; `VS_NODE.md`, `VS_SERENITY.md`
+   (performance, builds, reliability) and the new `VS_TWILIGHT.md` re-run and their prose
+   rewritten from the new numbers; the README's table covers all three. Logs in
+   `.reference/bench/2026-11-16*`, raw results in `benches/vs-*/out/` (git-ignored).
+   After the measurements the local toolchain went to stable 1.100 (CI's).
 4. [ ] Documentation (D-386). **Rustdoc audit applied** (3472d56: 850 counterpart lines,
    names validated by `.reference/tools/rustdoc-audit/validate.py`), crate READMEs' status
    lines and the guide as homepage (a63f9b0), gate OK. Left: CHANGELOG/ROADMAP at release.
