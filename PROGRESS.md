@@ -48,6 +48,19 @@ the first bot to voice, and the migration chapter from discord.js.
 **Released: `0.1.0-alpha.1`, 2026-11-17** (D-387, D-388, C-137): ten crates on crates.io and
 docs.rs, tag `v0.1.0-alpha.1`, GitHub Release.
 
+## Current work — Phase 11 (issue #3: HTTP interactions and wasm32, D-393–D-396)
+Before plan item 5 (the README), in stages (D-393):
+1. [ ] wasm32 for `djs-model`, `djs-builders`, `djs-formatters`, `djs-collection`: they
+   already pass `cargo check --target wasm32-unknown-unknown --all-features` (2026-11-17);
+   left: a CI job, and no `SystemTime::now()` panic there (`Timestamp::now()`, the
+   onboarding prompts' generated IDs in `rest/guild.rs`).
+2. [ ] HTTP interactions in djs-rs (D-394 `ed25519-dalek`, D-395: a feature, the gateway
+   optional, handler = headers + body → status + body, the shared router and `reply`).
+   Ask the feature/item names when drafting the API.
+3. [ ] REST on wasm32 through a transport trait (D-396), hyper + rustls a default feature;
+   a Workers `fetch` example in the guide.
+4. [ ] Benchmarks + extreme-load tests (D-041); answer and close issue #3.
+
 ## Current plan (the owner's request of 2026-11-16, D-383–D-390), in this order
 1. [x] Live voice test, 2026-11-16 (D-383): the bot recorded the owner (4.5 s of PCM, 272
    Opus packets, 3 lost), played it back, then step 2's tones (MP3 with a volume change,
@@ -892,6 +905,6 @@ fields with `Deref` to `new`). Steps:
   body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").
 
 ## Blocked on the owner
-- Nothing. Dependabot's PR #2 (`webpki-roots` 1.0.12, `zstd` patch, `Cargo.lock` only; CI
+- Nothing (Phase 11 decided, D-393–D-396). Dependabot's PR #2 (`webpki-roots` 1.0.12, `zstd` patch, `Cargo.lock` only; CI
   green) is the owner's to merge. The owner's request of 2026-11-16 is complete; the next
   work is theirs to choose (ROADMAP's open items, the open questions in DECISIONS.md).

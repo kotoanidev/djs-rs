@@ -139,6 +139,14 @@ just with narrow scope.
 - [x] Voice benchmarks and extreme-load tests (step 4, D-041, C-129; the finding at 200
       speakers fixed: decoding in `VoiceStream`, D-374, C-130)
 
+## Phase 11 — HTTP interactions and wasm32 (Cloudflare Workers, issue #3, D-393)
+- [ ] `djs-model`, `djs-builders`, `djs-formatters`, `djs-collection` build for
+      `wasm32-unknown-unknown` (CI job) and do not panic there (`SystemTime::now()`)
+- [ ] HTTP interactions in djs-rs (D-394, D-395): Ed25519 verification, PING, the shared
+      router and `reply`; the gateway an optional feature
+- [ ] REST on wasm32 through a transport trait (D-396), a Workers `fetch` example in the guide
+- [ ] Benchmarks + extreme-load tests (D-041)
+
 ## Cross-cutting (continuous)
 - [x] Guide / book: an mdBook on GitHub Pages with the API reference (D-376–D-382, C-131),
       from the first bot to sharding and voice

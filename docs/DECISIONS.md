@@ -3538,6 +3538,40 @@ and why.
   (the D-328 pattern), and a `davey` release with `hpke-rs` 0.8 is taken when it comes.
 - Publishing: the owner asked to wait ("not yet"); everything stays prepared (C-137).
 
+### D-393 — Issue #3 (Cloudflare Workers) is Phase 11, done now in stages (2026-11-17)
+- **Answer (owner):** all of it, in stages, before the README (plan item 5): (1)
+  `djs-model`, `djs-builders`, `djs-formatters` and `djs-collection` build for
+  `wasm32-unknown-unknown`, checked in CI, and their runtime panics there
+  (`SystemTime::now()`) are fixed; (2) an HTTP interactions endpoint sharing the router and
+  `reply`; (3) REST on wasm32. Every stage benchmarked and stress-tested (D-041).
+- Found before asking: those four crates already pass `cargo check --target
+  wasm32-unknown-unknown --all-features`; `Timestamp::now()` and the onboarding prompts'
+  generated IDs call `SystemTime::now()`, which panics on that target.
+- Rejected: only the wasm32 step now; only a plan and an answer on the issue.
+
+### D-394 — Ed25519 signatures are verified with `ed25519-dalek` (2026-11-17)
+- **Answer (owner):** `ed25519-dalek` (pure Rust, builds for wasm32 without a C compiler,
+  RustCrypto like voice's encryption, D-314). A new dependency.
+- Rejected: `ring` (already in the tree through rustls, but C/assembly: a wasm32 build needs
+  clang); a verifier trait the user implements (no dependency, but every bot wires it).
+
+### D-395 — HTTP interactions live in djs-rs, without an HTTP server (2026-11-17)
+- **Answer (owner):** a cargo feature of djs-rs; the gateway becomes an optional feature
+  (on by default) so djs-rs builds for wasm32 without it. The handler takes the request's
+  headers and body and returns a status and a body; the same `client.command(…)` routes and
+  `cmd.reply(&ctx, …)` work for gateway and HTTP bots. Natively it is mounted in any HTTP
+  server (axum, hyper); on Workers in the `fetch` handler.
+- Rejected: a new `djs-interactions` crate with its own router (bot code would differ
+  between gateway and HTTP); also shipping a built-in hyper server.
+- Feature and item names are asked when the API is drafted.
+
+### D-396 — REST on wasm32 through a transport trait (2026-11-17)
+- **Answer (owner):** a public transport trait in djs-rest (send a request, get a response;
+  and the sleep the rate limiter needs, since tokio's timers do not run on wasm32); hyper +
+  rustls behind a default feature. On Workers the user implements it with `fetch` (an
+  example in the guide); the library does not depend on Cloudflare's `worker` crate.
+- Rejected: a built-in Workers adapter (ties the library to one platform's crate); both.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
