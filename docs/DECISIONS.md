@@ -3522,6 +3522,22 @@ and why.
   Rust marks), also the guide's favicon.
 - Rejected: no logo.
 
+### D-391 — The code of conduct's contact (2026-11-17)
+- **Answer (owner):** reports of conduct go to `kontakt@kotoani.dev`, written into
+  `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1, otherwise unchanged).
+- Rejected: contact through GitHub only; releasing without a code of conduct.
+
+### D-392 — Dependabot's first alerts are dismissed with reasons (2026-11-17)
+- **Answer (owner):** dismiss all fifteen on GitHub, each with its reason: the
+  `libcrux-chacha20poly1305` one as *vulnerable code not used* (DAVE only uses
+  AES-128-GCM; the fix waits for `davey`), the fourteen `rustls`/`rustls-webpki` ones in the
+  serenity comparison's lockfiles as *tolerable risk* (benchmark only, never published or
+  run against Discord; serenity 0.12.5 has no fixed release).
+- Rejected: keeping the library's alert open as a reminder; keeping all open.
+- When RustSec lists the libcrux advisory, `deny.toml` ignores it with the same reason
+  (the D-328 pattern), and a `davey` release with `hpke-rs` 0.8 is taken when it comes.
+- Publishing: the owner asked to wait ("not yet"); everything stays prepared (C-137).
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
@@ -5756,27 +5772,6 @@ garbage (±1.0 for a frame). Measured with the listeners' side decoded by libopu
 ---
 
 ## Open questions (to ask the owner when relevant)
-
-- **Dependabot's alerts (found 2026-11-17, after D-389 turned Dependabot on):**
-  - *The library:* GHSA-hc3c-63hc-2r9f (high), a panic in `libcrux-chacha20poly1305` 0.0.7's
-    `encrypt` when the caller passes a ciphertext buffer longer than needed; fixed in 0.0.8.
-    It comes in under `davey` 0.2.0 (the newest) → `openmls` → `hpke-rs-libcrux` 0.6.1 →
-    `libcrux-aead` 0.0.7, which pins it exactly; the fix needs `hpke-rs-libcrux` 0.8, a
-    breaking update only `davey` can make. Not reachable: DAVE's only ciphersuite is
-    `MLS_128_DHKEMP256_AES128GCM_SHA256_P256` (AES-128-GCM), so HPKE never selects
-    ChaCha20-Poly1305 (read in `davey` 0.2.0 `session.rs` and `hpke-rs-libcrux` 0.6.1). Not in
-    RustSec yet, so `cargo deny` still passes; when it is, the D-328 pattern (an `ignore` with
-    the reason) applies. To decide: dismiss the GitHub alert as "vulnerable code not used",
-    or leave it open until `davey` updates.
-  - *The serenity comparison's lockfiles* (`benches/vs-serenity`, its `bots/serenity`): 14
-    alerts on `rustls` 0.22.4 and `rustls-webpki` 0.102.8, which serenity 0.12.5 itself pulls
-    in (`tokio-tungstenite` 0.21); those lines have no fixed release. Never published or run
-    against Discord (C-108), and 0.12.5 is serenity's newest release. To decide: dismiss
-    them as benchmark-only, or leave them open.
-
-- **A contact for code of conduct reports (D-389, C-134):** the Contributor Covenant needs
-  an address for reports; ask the owner which (an e-mail of their choice, or another
-  channel) before adding `CODE_OF_CONDUCT.md`.
 
 - **Drop the D-328 advisory ignores when `davey` updates (Phase 10):** once a `davey`
   release depends on openmls 0.9 (or later), update it (ask the owner: openmls 0.9 needs
