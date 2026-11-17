@@ -905,6 +905,4 @@ fields with `Deref` to `new`). Steps:
   body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").
 
 ## Blocked on the owner
-- Nothing (Phase 11 decided, D-393–D-396). Dependabot's PR #2 (`webpki-roots` 1.0.12, `zstd` patch, `Cargo.lock` only; CI
-  green) is the owner's to merge. The owner's request of 2026-11-16 is complete; the next
-  work is theirs to choose (ROADMAP's open items, the open questions in DECISIONS.md).
+- Nothing. Phase 11 is decided (D-393–D-396); Dependabot's PR #2 is merged (f80551c).
