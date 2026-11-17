@@ -62,8 +62,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   [migration chapter](https://kotoanidev.github.io/djs-rs/coming-from-discord-js.html).
 - **Fast, and measured.** Against discord.js, serenity and twilight on the same machine,
   with the same inputs and the same mock Discord servers ([below](#how-it-compares)): events
-  decoded several times faster, a fraction of the memory per cached member, many times the
-  REST throughput. Every claim links to a script anyone can re-run.
+  decoded 1.8–6× faster, 1.7–4× the events handled, 2.5–5× less memory for the same cached
+  members, 2–10× the REST throughput. Every claim links to a script anyone can re-run.
 - **Complete.** Every Discord API v10 type and gateway event, every endpoint a bot uses;
   slash commands,
   components (including Components V2) and modals with routers; collectors; an optional,
@@ -110,14 +110,22 @@ REST responses from the same mock Discord servers, both clients pinned to the sa
 cores, and no network. Each page has the method, every number, and the caveats, including
 where the other library does better.
 
-| | djs-rs | [discord.js](docs/VS_NODE.md) 14 (Node.js 22) | [serenity](docs/VS_SERENITY.md) 0.12 | [twilight](docs/VS_TWILIGHT.md) 0.18 |
-|---|---:|---:|---:|---:|
-| Decode `MESSAGE_CREATE` | **1.40 µs** | 4.75 µs | 7.98 µs | — |
-| Decode `GUILD_CREATE` (1000 members) | **0.67 ms** | 3.20 ms | 4.78 ms | — |
-| Event flood, equal caches (events/s) | **251,061** | 130,653 | 57,387 | — |
-| Memory, idle bot | **6.2 MiB** | 102.6 MiB | 9.7 MiB | — |
-| Memory, 500,000 cached members | **203 MiB** | 504 MiB | 998 MiB | — |
-| REST throughput (requests/s) | **231,392** | 25,621 | 110,078 | — |
+| djs-rs compared with | [discord.js 14](docs/VS_NODE.md) (Node.js 22) | [serenity 0.12](docs/VS_SERENITY.md) | [twilight 0.18](docs/VS_TWILIGHT.md) |
+|---|---:|---:|---:|
+| Decoding `MESSAGE_CREATE` | **3.8× faster** | **5.3× faster** | **2.0× faster** |
+| Decoding `GUILD_CREATE` (1000 members) | **4.7× faster** | **6.1× faster** | **1.8× faster** |
+| Events handled, the same data cached | **1.9× more** | **4.1× more** | **1.7× more** |
+| Memory, idle bot | **15× less** | **1.6× less** | about the same |
+| Memory, 500,000 cached members | **2.5× less** | **4.9× less** | **3.3× less** |
+| REST requests per second | **9.6× more** | **2.2× more** | **4.0× more** |
+| Rebuild after editing the bot (release) | — | **6.8× faster** | **4.4× faster** |
+| Build from scratch (release) | — | **1.4× faster** | twilight 1.1× faster |
+
+In absolute numbers, on a laptop CPU (i7-1355U) in its balanced power profile: djs-rs
+decodes a `MESSAGE_CREATE` in 1.5 µs and a 1000-member `GUILD_CREATE` in 0.74 ms; one
+gateway connection delivers 225,000–245,000 events per second to a bot's handlers; a
+connected bot idles at about 6.5 MiB and caches half a million members in 203 MiB; and
+djs-rest sends 227,000–250,000 requests per second on four cores.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/vs-serenity/summary-dark.svg">
