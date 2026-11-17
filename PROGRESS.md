@@ -76,15 +76,16 @@ REST, sharding, voice (D-380), each with its example in `book/code/examples/`, b
      (D-287's 16-byte futures). **Done and written up:** `docs/PERFORMANCE.md` "Measured
      again for 0.1.0-alpha.1" (method, A/Bs, old vs new); divan pinned to CPU 2 in
      `.reference/tools/perf/divan-2026-11-16-pinned.tsv`; worktrees removed.
-   - **WIP, not compiled yet:** `benches/vs-twilight/` (twilight 0.18.0, own workspace,
-     README, `report.mjs` and the `docs/VS_TWILIGHT.md` skeleton written) and `--cache twilight` / `twilight_cache()` in `benches/vs-node`.
-     Next: `cargo build --release` it, fix errors, clippy; a `report.mjs` for
-     `docs/VS_TWILIGHT.md`; log C-136 (twilight without its `zstd` feature: it always asks
-     for zstd-stream, the mock sends plain JSON; proxy setup keeps its rate limiter).
-   - Then re-run `benches/vs-node/run.sh`, `benches/vs-serenity/run.sh` + `build.sh` +
-     `reliability.sh`, and the twilight ones (`run.sh`, `build.sh`).
-   Every benchmark again under the balanced profile (D-384); then `docs/VS_TWILIGHT.md`
-   (D-385).
+   - **Done:** `docs/VS_TWILIGHT.md` measured and written (D-385, C-136): twilight's
+     proactive global REST limit lifted like djs-rs's (`RateLimiter::new(u16::MAX)`), its
+     limiter's single actor caps it at ~61 600 req/s; twilight builds from scratch faster,
+     djs-rs wins everything else. Every comparison script now re-runs itself in `unshare`
+     by absolute path (they failed when started from the repository root).
+   - **Next:** re-run `benches/vs-node/run.sh` (+ `node benches/vs-node/node/report.mjs`?
+     check the script's own last step), then `benches/vs-serenity/run.sh`, `build.sh`,
+     `reliability.sh` and its `report.mjs`; rewrite the bullets on `VS_NODE.md` and
+     `VS_SERENITY.md` from the new numbers; then the README's comparison table (twilight
+     column from `VS_TWILIGHT.md`'s summary).
 4. [ ] Documentation (D-386). **Rustdoc audit applied** (3472d56: 850 counterpart lines,
    names validated by `.reference/tools/rustdoc-audit/validate.py`), crate READMEs' status
    lines and the guide as homepage (a63f9b0), gate OK. Left: CHANGELOG/ROADMAP at release.
@@ -908,4 +909,8 @@ fields with `Deref` to `new`). Steps:
   body pre-sizing (`docs/PERFORMANCE.md`, "Findings … (Phase 3)").
 
 ## Blocked on the owner
-- Nothing now; the release (plan item 6) will need the owner's `cargo login` for crates.io.
+- Nothing blocks the measurements. To ask together at the release (plan item 6): the owner's
+  `cargo login` and go-ahead for crates.io, the code of conduct's contact address, and what
+  to do with Dependabot's alerts (DECISIONS.md, open questions: one in the voice chain, not
+  reachable and not fixable before `davey` updates; 14 in the serenity benchmark's
+  lockfiles).
