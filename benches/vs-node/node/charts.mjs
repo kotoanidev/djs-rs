@@ -48,8 +48,8 @@ function bar(x, y, width, height) {
 }
 
 /**
- * Renders a chart. `sections` is a list of `{ title?, rows: [{ label, value, rust, text }] }`;
- * `text` is printed at the bar end. `legend: false` hides the legend (single-series charts);
+ * Renders a chart. `sections` is a list of `{ title?, rows: [{ label, value, rust, even?, text }] }`;
+ * `text` is printed at the bar end; an `even` row (a tie) is drawn in a neutral grey. `legend: false` hides the legend (single-series charts);
  * `other` names the second series in the legend.
  */
 export function chart({ title, subtitle, sections, tick, legend = true, single = false }, themeName, other = 'Node.js (discord.js and its packages)') {
@@ -78,7 +78,7 @@ export function chart({ title, subtitle, sections, tick, legend = true, single =
     }
     for (const row of section.rows) {
       const barY = y + (rowHeight - barHeight) / 2;
-      const color = single ? t.rust : row.rust ? t.rust : t.node;
+      const color = single ? t.rust : row.even ? t.muted : row.rust ? t.rust : t.node;
       const end = plotX + scale(row.value);
       body.push(
         `<text x="${plotX - 12}" y="${y + rowHeight / 2 + 4.5}" font-size="13" text-anchor="end" fill="${t.primary}">${escape(row.label)}</text>`,

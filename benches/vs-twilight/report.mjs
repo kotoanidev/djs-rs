@@ -139,7 +139,7 @@ function summarySection(s) {
   const items = headlines(s);
   const picture = writeChart('summary', {
     title: 'djs-rs vs twilight, scenario by scenario',
-    subtitle: 'how many times better the winner is: djs-rs in blue, twilight in orange · default configurations, equal caches',
+    subtitle: 'how many times better the winner is: djs-rs in blue, twilight in orange · default configurations, equal caches, global rate limits lifted',
     tick: (v) => `${v}×`,
     legend: false,
     sections: [
@@ -148,7 +148,7 @@ function summarySection(s) {
           .map(([label, a, b, , ratio, word]) => {
             const r = ratio(a, b);
             const text = even(r) ? 'about the same' : r >= 1 ? `${times(r)} ${word}` : `twilight ${times(1 / r)} ${word}`;
-            return { label: label.replace(/`/g, ''), value: r >= 1 ? r : 1 / r, rust: r >= 1, text };
+            return { label: label.replace(/`/g, ''), value: r >= 1 ? r : 1 / r, rust: r >= 1, even: even(r), text };
           })
           .sort((x, y) => (y.rust - x.rust) || (y.value - x.value)),
       },
@@ -303,13 +303,13 @@ function restSection(all) {
   const rows = results.map((r) => [
     r.name,
     grouped(r.requests_per_sec),
-    r === base ? 'baseline' : isRust(r) ? verdict(r.requests_per_sec / base.requests_per_sec, 'more') : `${times(r.requests_per_sec / base.requests_per_sec)} the default`,
+    r === base ? 'baseline' : isRust(r) ? verdict(r.requests_per_sec / base.requests_per_sec, 'more') : `${times(r.requests_per_sec / base.requests_per_sec)} with its limiter`,
     millis(r.p50_us),
     millis(r.p99_us),
     micros(r.cpu_us_per_request),
     mib(r.peak_rss_kib),
   ]);
-  return `${throughput}\n\n${latency}\n\n${table(['Implementation', 'Requests/s', 'vs twilight default', 'p50', 'p99', 'CPU per request', 'Peak RSS'], rows)}`;
+  return `${throughput}\n\n${latency}\n\n${table(['Implementation', 'Requests/s', 'vs twilight with its limiter', 'p50', 'p99', 'CPU per request', 'Peak RSS'], rows)}`;
 }
 
 function buildSection(builds, dependencies) {

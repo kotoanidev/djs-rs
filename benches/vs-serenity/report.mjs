@@ -207,7 +207,7 @@ function summarySection(s) {
           .map(([label, a, b, , ratio, word]) => {
             const r = ratio(a, b);
             const text = even(r) ? 'about the same' : r >= 1 ? `${times(r)} ${word}` : `serenity ${times(1 / r)} ${word}`;
-            return { label: label.replace(/`/g, ''), value: r >= 1 ? r : 1 / r, rust: r >= 1, text };
+            return { label: label.replace(/`/g, ''), value: r >= 1 ? r : 1 / r, rust: r >= 1, even: even(r), text };
           })
           .sort((x, y) => (y.rust - x.rust) || (y.value - x.value)),
       },

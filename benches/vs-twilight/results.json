@@ -1,0 +1,423 @@
+{
+  "environment": {
+    "date": "2026-11-17",
+    "cpu": "13th Gen Intel(R) Core(TM) i7-1355U",
+    "threads": 12,
+    "memory_gib": 15,
+    "kernel": "Linux 7.3.3-200.fc44.x86_64",
+    "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+    "twilight": "0.18.0",
+    "platform_profile": "balanced",
+    "client_cpus": "0-3",
+    "server_cpus": "4-11",
+    "decode_cpu": "2",
+    "runs": 3
+  },
+  "scenarios": {
+    "decode": [
+      {
+        "allocator": "system",
+        "bytes": 1022,
+        "library": "djs-rs",
+        "median_ns": 1504.293681100388,
+        "min_ns": 1497.8016231186405,
+        "payload": "MESSAGE_CREATE",
+        "scenario": "decode",
+        "variant": "djs-model typed decode",
+        "runs": 1,
+        "range": [
+          1504.293681100388,
+          1504.293681100388
+        ]
+      },
+      {
+        "allocator": "system",
+        "bytes": 519762,
+        "library": "djs-rs",
+        "median_ns": 744335.0373134328,
+        "min_ns": 742623.5074626865,
+        "payload": "GUILD_CREATE",
+        "scenario": "decode",
+        "variant": "djs-model typed decode",
+        "runs": 1,
+        "range": [
+          744335.0373134328,
+          744335.0373134328
+        ]
+      },
+      {
+        "allocator": "system",
+        "bytes": 1022,
+        "library": "twilight",
+        "median_ns": 3080.7582142078545,
+        "min_ns": 3076.153368214519,
+        "payload": "MESSAGE_CREATE",
+        "scenario": "decode",
+        "variant": "twilight-model GatewayEvent",
+        "runs": 1,
+        "range": [
+          3080.7582142078545,
+          3080.7582142078545
+        ]
+      },
+      {
+        "allocator": "system",
+        "bytes": 519762,
+        "library": "twilight",
+        "median_ns": 1318819.1456953643,
+        "min_ns": 1315176.7483443709,
+        "payload": "GUILD_CREATE",
+        "scenario": "decode",
+        "variant": "twilight-model GatewayEvent",
+        "runs": 1,
+        "range": [
+          1318819.1456953643,
+          1318819.1456953643
+        ]
+      }
+    ],
+    "flood": [
+      {
+        "server_cpu_ms": 1030,
+        "allocator": "system",
+        "cpu_ms": 8060,
+        "cpu_us_per_event": 8.06000806000806,
+        "events": 1000000,
+        "events_per_sec": 227336.27485185352,
+        "library": "djs-rs",
+        "peak_rss_kib": 9124,
+        "scenario": "flood",
+        "seconds": 4.398765664,
+        "variant": "Client + messageCreate handler, twilight's default cache",
+        "runs": 3,
+        "range": [
+          223865.3406435296,
+          229237.09546006765
+        ]
+      },
+      {
+        "server_cpu_ms": 1060,
+        "allocator": "system",
+        "cpu_ms": 7830,
+        "cpu_us_per_event": 7.83000783000783,
+        "events": 1000000,
+        "events_per_sec": 242812.3593853251,
+        "library": "djs-rs",
+        "peak_rss_kib": 9176,
+        "scenario": "flood",
+        "seconds": 4.1184023849999996,
+        "variant": "Client + messageCreate handler",
+        "runs": 3,
+        "range": [
+          242583.14159785231,
+          250340.894167789
+        ]
+      },
+      {
+        "server_cpu_ms": 1060,
+        "allocator": "system",
+        "cpu_ms": 12830,
+        "cpu_us_per_event": 12.83001283001283,
+        "events": 1000000,
+        "events_per_sec": 131959.3401497026,
+        "library": "twilight",
+        "peak_rss_kib": 11796,
+        "scenario": "flood",
+        "seconds": 7.578084271,
+        "variant": "Shard + InMemoryCache + a task per event, default cache",
+        "runs": 3,
+        "range": [
+          130833.36762969954,
+          132191.86754204266
+        ]
+      },
+      {
+        "server_cpu_ms": 1070,
+        "allocator": "system",
+        "cpu_ms": 12330,
+        "cpu_us_per_event": 12.33001233001233,
+        "events": 1000000,
+        "events_per_sec": 138874.2761564652,
+        "library": "twilight",
+        "peak_rss_kib": 10884,
+        "scenario": "flood",
+        "seconds": 7.200750403,
+        "variant": "Shard + a task per event, no cache",
+        "runs": 3,
+        "range": [
+          137670.406426009,
+          139451.2071727492
+        ]
+      }
+    ],
+    "memory": [
+      {
+        "server_cpu_ms": 0,
+        "allocator": "system",
+        "connected_rss_kib": 6552,
+        "guilds": 0,
+        "library": "djs-rs",
+        "members": 0,
+        "peak_rss_kib": 6556,
+        "rss_kib": 6556,
+        "scenario": "memory",
+        "variant": "Client + twilight's default cache",
+        "runs": 3,
+        "range": [
+          6552,
+          6604
+        ]
+      },
+      {
+        "server_cpu_ms": 0,
+        "allocator": "system",
+        "connected_rss_kib": 6724,
+        "guilds": 0,
+        "library": "twilight",
+        "members": 0,
+        "peak_rss_kib": 6788,
+        "rss_kib": 6788,
+        "scenario": "memory",
+        "variant": "Shard + default InMemoryCache",
+        "runs": 3,
+        "range": [
+          6732,
+          6808
+        ]
+      },
+      {
+        "server_cpu_ms": 50,
+        "allocator": "system",
+        "connected_rss_kib": 6796,
+        "guilds": 100,
+        "library": "djs-rs",
+        "members": 100000,
+        "peak_rss_kib": 44972,
+        "rss_kib": 44972,
+        "scenario": "memory",
+        "variant": "Client + twilight's default cache",
+        "runs": 3,
+        "range": [
+          44800,
+          45020
+        ]
+      },
+      {
+        "server_cpu_ms": 50,
+        "allocator": "system",
+        "connected_rss_kib": 6744,
+        "guilds": 100,
+        "library": "twilight",
+        "members": 100000,
+        "peak_rss_kib": 105492,
+        "rss_kib": 105492,
+        "scenario": "memory",
+        "variant": "Shard + default InMemoryCache",
+        "runs": 3,
+        "range": [
+          103472,
+          105760
+        ]
+      },
+      {
+        "server_cpu_ms": 260,
+        "allocator": "system",
+        "connected_rss_kib": 6804,
+        "guilds": 500,
+        "library": "djs-rs",
+        "members": 500000,
+        "peak_rss_kib": 208180,
+        "rss_kib": 208180,
+        "scenario": "memory",
+        "variant": "Client + twilight's default cache",
+        "runs": 3,
+        "range": [
+          208036,
+          208276
+        ]
+      },
+      {
+        "server_cpu_ms": 300,
+        "allocator": "system",
+        "connected_rss_kib": 6828,
+        "guilds": 500,
+        "library": "twilight",
+        "members": 500000,
+        "peak_rss_kib": 701416,
+        "rss_kib": 695676,
+        "scenario": "memory",
+        "variant": "Shard + default InMemoryCache",
+        "runs": 3,
+        "range": [
+          695008,
+          697816
+        ]
+      }
+    ],
+    "rest": [
+      {
+        "server_cpu_ms": 4880,
+        "allocator": "system",
+        "concurrency": 64,
+        "cpu_ms": 4210,
+        "cpu_us_per_request": 14.033333333333333,
+        "library": "djs-rs",
+        "p50_us": 249,
+        "p99_us": 701,
+        "peak_rss_kib": 12740,
+        "requests": 300000,
+        "requests_per_sec": 245455.98683904271,
+        "scenario": "rest",
+        "seconds": 1.222215045,
+        "variant": "djs-rest create_message",
+        "runs": 3,
+        "range": [
+          205344.50836400694,
+          245517.75542914763
+        ]
+      },
+      {
+        "server_cpu_ms": 5140,
+        "allocator": "system",
+        "concurrency": 64,
+        "cpu_ms": 6050,
+        "cpu_us_per_request": 20.166666666666668,
+        "library": "twilight",
+        "p50_us": 328,
+        "p99_us": 1103,
+        "peak_rss_kib": 13344,
+        "requests": 300000,
+        "requests_per_sec": 61570.016746697715,
+        "scenario": "rest",
+        "seconds": 4.872501517,
+        "variant": "Client::create_message, rate limiter, global limit lifted",
+        "runs": 3,
+        "range": [
+          61376.75098510607,
+          61628.97964275058
+        ]
+      },
+      {
+        "server_cpu_ms": 5060,
+        "allocator": "system",
+        "concurrency": 64,
+        "cpu_ms": 4650,
+        "cpu_us_per_request": 15.5,
+        "library": "twilight",
+        "p50_us": 273,
+        "p99_us": 718,
+        "peak_rss_kib": 13212,
+        "requests": 300000,
+        "requests_per_sec": 224643.8028766864,
+        "scenario": "rest",
+        "seconds": 1.335447478,
+        "variant": "Client::create_message, rate limiter disabled",
+        "runs": 3,
+        "range": [
+          199822.25690355073,
+          228126.50280710042
+        ]
+      }
+    ],
+    "build": [
+      {
+        "scenario": "build",
+        "library": "djs-rs",
+        "profile": "release",
+        "clean_ms": 52021,
+        "rebuild_ms": 733,
+        "binary_bytes": 12962392,
+        "stripped_bytes": 9243008,
+        "jobs": 12,
+        "runs": 2,
+        "range": [
+          52021,
+          52236
+        ],
+        "rebuild_range": [
+          733,
+          787
+        ]
+      },
+      {
+        "scenario": "build",
+        "library": "twilight",
+        "profile": "release",
+        "clean_ms": 46234,
+        "rebuild_ms": 3221,
+        "binary_bytes": 12346096,
+        "stripped_bytes": 8515376,
+        "jobs": 12,
+        "runs": 2,
+        "range": [
+          46234,
+          48581
+        ],
+        "rebuild_range": [
+          3221,
+          3259
+        ]
+      },
+      {
+        "scenario": "build",
+        "library": "djs-rs",
+        "profile": "debug",
+        "clean_ms": 26725,
+        "rebuild_ms": 648,
+        "binary_bytes": 166813904,
+        "stripped_bytes": 19103112,
+        "jobs": 12,
+        "runs": 2,
+        "range": [
+          26725,
+          27863
+        ],
+        "rebuild_range": [
+          648,
+          929
+        ]
+      },
+      {
+        "scenario": "build",
+        "library": "twilight",
+        "profile": "debug",
+        "clean_ms": 20935,
+        "rebuild_ms": 646,
+        "binary_bytes": 141224632,
+        "stripped_bytes": 21556352,
+        "jobs": 12,
+        "runs": 2,
+        "range": [
+          20935,
+          21382
+        ],
+        "rebuild_range": [
+          646,
+          731
+        ]
+      }
+    ],
+    "dependencies": [
+      {
+        "scenario": "dependencies",
+        "library": "djs-rs",
+        "packages": 85,
+        "runs": 1,
+        "range": [
+          85,
+          85
+        ]
+      },
+      {
+        "scenario": "dependencies",
+        "library": "twilight",
+        "packages": 94,
+        "runs": 1,
+        "range": [
+          94,
+          94
+        ]
+      }
+    ]
+  }
+}

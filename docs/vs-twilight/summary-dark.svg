@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="528" viewBox="0 0 840 528" role="img" aria-labelledby="title desc" font-family="system-ui, -apple-system, &quot;Segoe UI&quot;, Roboto, sans-serif">
+<title id="title">djs-rs vs twilight, scenario by scenario</title>
+<desc id="desc">Release rebuild after editing main.rs: 4.4× faster; REST throughput (requests/s): 4.0× more; Memory, 500,000 members (RSS): 3.3× less; Decode MESSAGE_CREATE: 2.0× faster; Decode GUILD_CREATE (1000 members): 1.8× faster; Event flood, no cache (events/s): 1.7× more; Event flood, equal caches (events/s): 1.7× more; CPU per event, equal caches: 1.6× less; REST p99 latency: 1.6× lower; Dependencies of a !ping bot: 1.1× fewer; Memory, idle bot (RSS, connected, no guilds): about the same; Clean release build: twilight 1.1× faster; Release binary (stripped): twilight 1.1× smaller</desc>
+<rect x="0.5" y="0.5" width="839" height="527" rx="8" fill="#1a1a19" stroke="rgba(255,255,255,0.10)"/>
+<text x="24" y="34" font-size="16" font-weight="600" fill="#f0efec">djs-rs vs twilight, scenario by scenario</text>
+<text x="24" y="55" font-size="12.5" fill="#c3c2b7">how many times better the winner is: djs-rs in blue, twilight in orange · default configurations, equal caches, global rate limits lifted</text>
+
+<line x1="324" y1="76" x2="324" y2="496" stroke="#383835" stroke-width="1"/>
+<text x="324" y="512" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">0×</text>
+<line x1="411.3333333333333" y1="76" x2="411.3333333333333" y2="496" stroke="#2c2c2a" stroke-width="1"/>
+<text x="411.3333333333333" y="512" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">2×</text>
+<line x1="498.66666666666663" y1="76" x2="498.66666666666663" y2="496" stroke="#2c2c2a" stroke-width="1"/>
+<text x="498.66666666666663" y="512" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">4×</text>
+<line x1="586" y1="76" x2="586" y2="496" stroke="#2c2c2a" stroke-width="1"/>
+<text x="586" y="512" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">6×</text>
+<text x="312" y="96.5" font-size="13" text-anchor="end" fill="#f0efec">Release rebuild after editing main.rs</text>
+<path d="M324,82H511.8831286948613A4,4 0 0 1 515.8831286948613,86V98A4,4 0 0 1 511.8831286948613,102H324Z" fill="#3987e5"><title>Release rebuild after editing main.rs: 4.4× faster</title></path>
+<text x="523.8831286948613" y="96.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">4.4× faster</text>
+<text x="312" y="128.5" font-size="13" text-anchor="end" fill="#f0efec">REST throughput (requests/s)</text>
+<path d="M324,114H494.0822128201397A4,4 0 0 1 498.0822128201397,118V130A4,4 0 0 1 494.0822128201397,134H324Z" fill="#3987e5"><title>REST throughput (requests/s): 4.0× more</title></path>
+<text x="506.0822128201397" y="128.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">4.0× more</text>
+<text x="312" y="160.5" font-size="13" text-anchor="end" fill="#f0efec">Memory, 500,000 members (RSS)</text>
+<path d="M324,146H465.921087520415A4,4 0 0 1 469.921087520415,150V162A4,4 0 0 1 465.921087520415,166H324Z" fill="#3987e5"><title>Memory, 500,000 members (RSS): 3.3× less</title></path>
+<text x="477.921087520415" y="160.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">3.3× less</text>
+<text x="312" y="192.5" font-size="13" text-anchor="end" fill="#f0efec">Decode MESSAGE_CREATE</text>
+<path d="M324,178H409.4283102499A4,4 0 0 1 413.4283102499,182V194A4,4 0 0 1 409.4283102499,198H324Z" fill="#3987e5"><title>Decode MESSAGE_CREATE: 2.0× faster</title></path>
+<text x="421.4283102499" y="192.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">2.0× faster</text>
+<text x="312" y="224.5" font-size="13" text-anchor="end" fill="#f0efec">Decode GUILD_CREATE (1000 members)</text>
+<path d="M324,210H397.36897115115596A4,4 0 0 1 401.36897115115596,214V226A4,4 0 0 1 397.36897115115596,230H324Z" fill="#3987e5"><title>Decode GUILD_CREATE (1000 members): 1.8× faster</title></path>
+<text x="409.36897115115596" y="224.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">1.8× faster</text>
+<text x="312" y="256.5" font-size="13" text-anchor="end" fill="#f0efec">Event flood, no cache (events/s)</text>
+<path d="M324,242H396.34823851668557A4,4 0 0 1 400.34823851668557,246V258A4,4 0 0 1 396.34823851668557,262H324Z" fill="#3987e5"><title>Event flood, no cache (events/s): 1.7× more</title></path>
+<text x="408.34823851668557" y="256.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">1.7× more</text>
+<text x="312" y="288.5" font-size="13" text-anchor="end" fill="#f0efec">Event flood, equal caches (events/s)</text>
+<path d="M324,274H395.22784915365446A4,4 0 0 1 399.22784915365446,278V290A4,4 0 0 1 395.22784915365446,294H324Z" fill="#3987e5"><title>Event flood, equal caches (events/s): 1.7× more</title></path>
+<text x="407.22784915365446" y="288.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">1.7× more</text>
+<text x="312" y="320.5" font-size="13" text-anchor="end" fill="#f0efec">CPU per event, equal caches</text>
+<path d="M324,306H389.5090984284533A4,4 0 0 1 393.5090984284533,310V322A4,4 0 0 1 389.5090984284533,326H324Z" fill="#3987e5"><title>CPU per event, equal caches: 1.6× less</title></path>
+<text x="401.5090984284533" y="320.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">1.6× less</text>
+<text x="312" y="352.5" font-size="13" text-anchor="end" fill="#f0efec">REST p99 latency</text>
+<path d="M324,338H388.70803613884925A4,4 0 0 1 392.70803613884925,342V354A4,4 0 0 1 388.70803613884925,358H324Z" fill="#3987e5"><title>REST p99 latency: 1.6× lower</title></path>
+<text x="400.70803613884925" y="352.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">1.6× lower</text>
+<text x="312" y="384.5" font-size="13" text-anchor="end" fill="#f0efec">Dependencies of a !ping bot</text>
+<path d="M324,370H368.2901960784314A4,4 0 0 1 372.2901960784314,374V386A4,4 0 0 1 368.2901960784314,390H324Z" fill="#3987e5"><title>Dependencies of a !ping bot: 1.1× fewer</title></path>
+<text x="380.2901960784314" y="384.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">1.1× fewer</text>
+<text x="312" y="416.5" font-size="13" text-anchor="end" fill="#f0efec">Memory, idle bot (RSS, connected, no guilds)</text>
+<path d="M324,402H365.2119178360789A4,4 0 0 1 369.2119178360789,406V418A4,4 0 0 1 365.2119178360789,422H324Z" fill="#898781"><title>Memory, idle bot (RSS, connected, no guilds): about the same</title></path>
+<text x="377.2119178360789" y="416.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">about the same</text>
+<text x="312" y="448.5" font-size="13" text-anchor="end" fill="#f0efec">Clean release build</text>
+<path d="M324,434H369.13231964932015A4,4 0 0 1 373.13231964932015,438V450A4,4 0 0 1 369.13231964932015,454H324Z" fill="#d95926"><title>Clean release build: twilight 1.1× faster</title></path>
+<text x="381.13231964932015" y="448.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">twilight 1.1× faster</text>
+<text x="312" y="480.5" font-size="13" text-anchor="end" fill="#f0efec">Release binary (stripped)</text>
+<path d="M324,466H367.3979480569423A4,4 0 0 1 371.3979480569423,470V482A4,4 0 0 1 367.3979480569423,486H324Z" fill="#d95926"><title>Release binary (stripped): twilight 1.1× smaller</title></path>
+<text x="379.3979480569423" y="480.5" font-size="12.5" fill="#f0efec" style="font-variant-numeric: tabular-nums">twilight 1.1× smaller</text>
+</svg>

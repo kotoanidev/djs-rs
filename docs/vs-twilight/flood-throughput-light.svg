@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="324" viewBox="0 0 840 324" role="img" aria-labelledby="title desc" font-family="system-ui, -apple-system, &quot;Segoe UI&quot;, Roboto, sans-serif">
+<title id="title">MESSAGE_CREATE flood through a mock gateway</title>
+<desc id="desc">with twilight's default cache on both sides, djs-rs Client + twilight's cache: 227 k/s; with twilight's default cache on both sides, twilight Shard + default cache: 132 k/s; without a cache, djs-rs Client (default: no cache): 243 k/s; without a cache, twilight Shard, no cache: 139 k/s</desc>
+<rect x="0.5" y="0.5" width="839" height="323" rx="8" fill="#fcfcfb" stroke="rgba(11,11,11,0.10)"/>
+<text x="24" y="34" font-size="16" font-weight="600" fill="#0b0b0b">MESSAGE_CREATE flood through a mock gateway</text>
+<text x="24" y="55" font-size="12.5" fill="#52514e">events per second reaching a handler, higher is better · 1 connection, 4 client CPUs</text>
+<rect x="24" y="68" width="12" height="12" rx="3" fill="#2a78d6"/>
+<text x="42" y="78.5" font-size="12.5" fill="#52514e">djs-rs (Rust)</text>
+<rect x="150" y="68" width="12" height="12" rx="3" fill="#eb6834"/>
+<text x="168" y="78.5" font-size="12.5" fill="#52514e">twilight</text>
+<line x1="324" y1="100" x2="324" y2="292" stroke="#c3c2b7" stroke-width="1"/>
+<text x="324" y="308" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">0</text>
+<line x1="411.3333333333333" y1="100" x2="411.3333333333333" y2="292" stroke="#e1e0d9" stroke-width="1"/>
+<text x="411.3333333333333" y="308" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">100 k</text>
+<line x1="498.66666666666663" y1="100" x2="498.66666666666663" y2="292" stroke="#e1e0d9" stroke-width="1"/>
+<text x="498.66666666666663" y="308" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">200 k</text>
+<line x1="586" y1="100" x2="586" y2="292" stroke="#e1e0d9" stroke-width="1"/>
+<text x="586" y="308" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">300 k</text>
+<text x="24" y="119" font-size="12.5" font-weight="600" fill="#52514e">with twilight's default cache on both sides</text>
+<text x="312" y="150.5" font-size="13" text-anchor="end" fill="#0b0b0b">djs-rs Client + twilight's cache</text>
+<path d="M324,136H518.5403467039521A4,4 0 0 1 522.5403467039521,140V152A4,4 0 0 1 518.5403467039521,156H324Z" fill="#2a78d6"><title>djs-rs Client + twilight's cache: 227 k/s</title></path>
+<text x="530.5403467039521" y="150.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">227 k/s</text>
+<text x="312" y="182.5" font-size="13" text-anchor="end" fill="#0b0b0b">twilight Shard + default cache</text>
+<path d="M324,168H435.24449039740693A4,4 0 0 1 439.24449039740693,172V184A4,4 0 0 1 435.24449039740693,188H324Z" fill="#eb6834"><title>twilight Shard + default cache: 132 k/s</title></path>
+<text x="447.24449039740693" y="182.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">132 k/s</text>
+<text x="24" y="213" font-size="12.5" font-weight="600" fill="#52514e">without a cache</text>
+<text x="312" y="244.5" font-size="13" text-anchor="end" fill="#0b0b0b">djs-rs Client (default: no cache)</text>
+<path d="M324,230H532.0561271965173A4,4 0 0 1 536.0561271965173,234V246A4,4 0 0 1 532.0561271965173,250H324Z" fill="#2a78d6"><title>djs-rs Client (default: no cache): 243 k/s</title></path>
+<text x="544.0561271965173" y="244.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">243 k/s</text>
+<text x="312" y="276.5" font-size="13" text-anchor="end" fill="#0b0b0b">twilight Shard, no cache</text>
+<path d="M324,262H441.28353450997963A4,4 0 0 1 445.28353450997963,266V278A4,4 0 0 1 441.28353450997963,282H324Z" fill="#eb6834"><title>twilight Shard, no cache: 139 k/s</title></path>
+<text x="453.28353450997963" y="276.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">139 k/s</text>
+</svg>

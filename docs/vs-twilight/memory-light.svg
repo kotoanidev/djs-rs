@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="324" viewBox="0 0 840 324" role="img" aria-labelledby="title desc" font-family="system-ui, -apple-system, &quot;Segoe UI&quot;, Roboto, sans-serif">
+<title id="title">Memory after receiving the guilds at startup</title>
+<desc id="desc">100 guilds · 100,000 members, djs-rs Client + twilight's cache: 43.9 MiB · 2.3× less; 100 guilds · 100,000 members, twilight Shard + default cache: 103.0 MiB; 500 guilds · 500,000 members, djs-rs Client + twilight's cache: 203.3 MiB · 3.3× less; 500 guilds · 500,000 members, twilight Shard + default cache: 679.4 MiB</desc>
+<rect x="0.5" y="0.5" width="839" height="323" rx="8" fill="#fcfcfb" stroke="rgba(11,11,11,0.10)"/>
+<text x="24" y="34" font-size="16" font-weight="600" fill="#0b0b0b">Memory after receiving the guilds at startup</text>
+<text x="24" y="55" font-size="12.5" fill="#52514e">resident memory (RSS) of the whole process, lower is better · equal caches</text>
+<rect x="24" y="68" width="12" height="12" rx="3" fill="#2a78d6"/>
+<text x="42" y="78.5" font-size="12.5" fill="#52514e">djs-rs (Rust)</text>
+<rect x="150" y="68" width="12" height="12" rx="3" fill="#eb6834"/>
+<text x="168" y="78.5" font-size="12.5" fill="#52514e">twilight</text>
+<line x1="324" y1="100" x2="324" y2="292" stroke="#c3c2b7" stroke-width="1"/>
+<text x="324" y="308" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">0 MiB</text>
+<line x1="389.5" y1="100" x2="389.5" y2="292" stroke="#e1e0d9" stroke-width="1"/>
+<text x="389.5" y="308" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">200 MiB</text>
+<line x1="455" y1="100" x2="455" y2="292" stroke="#e1e0d9" stroke-width="1"/>
+<text x="455" y="308" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">400 MiB</text>
+<line x1="520.5" y1="100" x2="520.5" y2="292" stroke="#e1e0d9" stroke-width="1"/>
+<text x="520.5" y="308" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">600 MiB</text>
+<line x1="586" y1="100" x2="586" y2="292" stroke="#e1e0d9" stroke-width="1"/>
+<text x="586" y="308" font-size="11" text-anchor="middle" fill="#898781" style="font-variant-numeric: tabular-nums">800 MiB</text>
+<text x="24" y="119" font-size="12.5" font-weight="600" fill="#52514e">100 guilds · 100,000 members</text>
+<text x="312" y="150.5" font-size="13" text-anchor="end" fill="#0b0b0b">djs-rs Client + twilight's cache</text>
+<path d="M324,136H334.383134765625A4,4 0 0 1 338.383134765625,140V152A4,4 0 0 1 334.383134765625,156H324Z" fill="#2a78d6"><title>djs-rs Client + twilight's cache: 43.9 MiB · 2.3× less</title></path>
+<text x="346.383134765625" y="150.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">43.9 MiB · 2.3× less</text>
+<text x="312" y="182.5" font-size="13" text-anchor="end" fill="#0b0b0b">twilight Shard + default cache</text>
+<path d="M324,168H353.738896484375A4,4 0 0 1 357.738896484375,172V184A4,4 0 0 1 353.738896484375,188H324Z" fill="#eb6834"><title>twilight Shard + default cache: 103.0 MiB</title></path>
+<text x="365.738896484375" y="182.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">103.0 MiB</text>
+<text x="24" y="213" font-size="12.5" font-weight="600" fill="#52514e">500 guilds · 500,000 members</text>
+<text x="312" y="244.5" font-size="13" text-anchor="end" fill="#0b0b0b">djs-rs Client + twilight's cache</text>
+<path d="M324,230H386.581005859375A4,4 0 0 1 390.581005859375,234V246A4,4 0 0 1 386.581005859375,250H324Z" fill="#2a78d6"><title>djs-rs Client + twilight's cache: 203.3 MiB · 3.3× less</title></path>
+<text x="398.581005859375" y="244.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">203.3 MiB · 3.3× less</text>
+<text x="312" y="276.5" font-size="13" text-anchor="end" fill="#0b0b0b">twilight Shard + default cache</text>
+<path d="M324,262H542.494033203125A4,4 0 0 1 546.494033203125,266V278A4,4 0 0 1 542.494033203125,282H324Z" fill="#eb6834"><title>twilight Shard + default cache: 679.4 MiB</title></path>
+<text x="554.494033203125" y="276.5" font-size="12.5" fill="#0b0b0b" style="font-variant-numeric: tabular-nums">679.4 MiB</text>
+</svg>
