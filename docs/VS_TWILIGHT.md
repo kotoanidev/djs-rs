@@ -34,8 +34,10 @@ here. Every number comes from the scripts in
   [`lib.rs`](../benches/vs-node/src/lib.rs)). Both libraries are also measured without a
   cache, djs-rs's own default.
 - **How twilight reaches the mocks.** `twilight-http` takes the mock API's address with its
-  documented `proxy(host, true)` (plain HTTP), and its rate limiter stays on, its default;
-  the REST section also shows it with the rate limiter disabled, as a bound. The gateway
+  documented `proxy(host, true)` (plain HTTP). Its rate limiter stays on, with its proactive
+  global limit (50 requests per second by default) lifted the way twilight documents,
+  `RateLimiter::new(u16::MAX)`, as djs-rs's is lifted; the REST section also shows it with
+  the rate limiter disabled, as a bound. The gateway
   is built without twilight's `zstd` feature, which always asks Discord for `zstd-stream`
   compression while the mock sends plain JSON; djs-rs is set to no compression as well.
 - **The same CPUs and metrics.** Both clients run pinned to the same four CPU threads, and
@@ -81,7 +83,8 @@ presences) and caches them. Resident memory is measured once every guild is cach
 64 concurrent workers call Create Message (`POST /channels/{id}/messages`) against the mock
 HTTP API, each in its own channel so that every request has its own rate-limit bucket. The
 mock answers with a message and rate-limit headers that never run out. djs-rs's proactive
-global limit (50 requests per second by default, like Discord's) is lifted. So what is
+global limit (50 requests per second by default, like Discord's) is lifted, and so is
+twilight's. So what is
 measured is the client's own overhead: building the request, the rate limiter, HTTP and
 decoding the response into a typed message.
 

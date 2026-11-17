@@ -5720,8 +5720,13 @@ garbage (±1.0 for a frame). Measured with the listeners' side decoded by libopu
   `zstd-stream`, and the mock gateway sends plain JSON; djs-rs runs without compression
   too. The gateway keeps its other defaults (`rustls-platform-verifier`, `twilight-http`).
 - **REST:** `twilight-http` reaches the plain-HTTP mock through its documented
-  `proxy(host, true)`; its rate limiter on (the default) is the headline, off
-  (`ratelimiter(None)`) is shown as a bound.
+  `proxy(host, true)`. Its rate limiter is on with the proactive global limit lifted,
+  `RateLimiter::new(u16::MAX)` (the way its docs disable it), because djs-rs's is lifted
+  too (`global_requests_per_second(0)`) and the default 50 per second would measure the
+  limit, not the client (300 000 requests: 100 minutes). That is the headline; no rate
+  limiter (`ratelimiter(None)`) is shown as a bound. The harness depends on
+  `twilight-http-ratelimiting` directly for that type (twilight-http does not re-export it;
+  it is part of twilight, D-385).
 - **No reliability section:** the fault-injection comparison stays with serenity
   (`VS_SERENITY.md`); D-385 asks for the performance set.
 

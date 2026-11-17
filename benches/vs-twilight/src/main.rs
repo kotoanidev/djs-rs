@@ -16,7 +16,8 @@
 //!
 //! twilight is pointed at the mocks the way it documents for proxies: the gateway's
 //! `proxy_url` and the HTTP client's `proxy(host, use_http)`, so it speaks plain WebSocket and
-//! HTTP to `127.0.0.1` and keeps its rate limiter. Its gateway is built without transport
+//! HTTP to `127.0.0.1` and keeps its rate limiter (its proactive global limit lifted, as
+//! djs-rs's is). Its gateway is built without transport
 //! compression (no `zstd` feature), as the mock gateway sends plain JSON to every library.
 //! Every subcommand prints one JSON line with its results, in the format of the `vs-node`
 //! runners. Runs happen in a network namespace without a route out (C-108).
@@ -44,6 +45,7 @@ use twilight_gateway::{
     ConfigBuilder, Event, EventTypeFlags, Intents, Shard, ShardId, StreamExt as _,
 };
 use twilight_http::Client;
+use twilight_http_ratelimiting::RateLimiter;
 use twilight_model::{
     gateway::{
         event::{DispatchEvent, GatewayEvent, GatewayEventDeserializer},
@@ -234,8 +236,10 @@ async fn memory(options: &Options) {
     std::process::exit(0);
 }
 
-/// twilight-http on the mock API (`--api http://127.0.0.1:<port>/api`) as its proxy, with its
-/// default rate limiter or (`--limiter off`) without one.
+/// twilight-http on the mock API (`--api http://127.0.0.1:<port>/api`) as its proxy: its
+/// rate limiter with the proactive global limit lifted, as `vs-node rest` lifts djs-rs's
+/// (`RateLimiter::new(u16::MAX)`, the way twilight documents to disable it; the default is 50
+/// requests per second), or (`--limiter off`) no rate limiter at all.
 fn http(options: &Options) -> (Client, &'static str) {
     let api = options.required("api");
     let host = api
@@ -252,7 +256,12 @@ fn http(options: &Options) -> (Client, &'static str) {
     if options.get("limiter", String::from("on")) == "off" {
         (builder.ratelimiter(None).build(), "rate limiter disabled")
     } else {
-        (builder.build(), "default rate limiter")
+        (
+            builder
+                .ratelimiter(Some(RateLimiter::new(u16::MAX)))
+                .build(),
+            "rate limiter, global limit lifted",
+        )
     }
 }
 

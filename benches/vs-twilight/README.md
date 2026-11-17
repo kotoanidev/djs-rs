@@ -43,8 +43,9 @@ Both libraries run as their documentation shows a bot:
   `zstd-stream`, and the mock gateway sends plain JSON, so the gateway is built without
   default features (`rustls-platform-verifier`, `twilight-http` only).
 - **REST**: twilight's `Client` is pointed at the plain-HTTP mock with its documented
-  `proxy(host, true)`, rate limiter on (its default) and off (`ratelimiter(None)`), as a
-  bound.
+  `proxy(host, true)`; its rate limiter is on with the proactive global limit lifted
+  (`RateLimiter::new(u16::MAX)`, as djs-rs's limit is lifted; the default 50 requests per
+  second would make the run last two hours), and off (`ratelimiter(None)`), as a bound.
 
 ## Safety
 

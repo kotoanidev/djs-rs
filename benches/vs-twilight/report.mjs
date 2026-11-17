@@ -77,8 +77,8 @@ function name(r) {
     case 'memory':
       return twilight ? 'twilight Shard + default cache' : "djs-rs Client + twilight's cache";
     case 'rest':
-      if (!twilight) return 'djs-rest (default)';
-      return r.variant.includes('disabled') ? 'twilight-http, limiter off (bound)' : 'twilight-http (default)';
+      if (!twilight) return 'djs-rest, global limit lifted';
+      return r.variant.includes('disabled') ? 'twilight-http, limiter off (bound)' : 'twilight-http, global limit lifted';
     default:
       return twilight ? 'twilight' : 'djs-rs';
   }

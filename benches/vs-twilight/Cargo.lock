@@ -271,11 +271,13 @@ name = "djs-vs-twilight"
 version = "0.0.0"
 dependencies = [
  "djs-vs-node",
+ "serde",
  "serde_json",
  "tokio",
  "twilight-cache-inmemory",
  "twilight-gateway",
  "twilight-http",
+ "twilight-http-ratelimiting",
  "twilight-model",
 ]
 

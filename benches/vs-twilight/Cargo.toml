@@ -21,6 +21,8 @@ djs-vs-node = { path = "../vs-node" }
 twilight-cache-inmemory = "=0.18.0"
 twilight-gateway = { version = "=0.18.0", default-features = false, features = ["rustls-platform-verifier", "twilight-http"] }
 twilight-http = "=0.18.0"
+# For `RateLimiter::new`: twilight-http does not re-export its rate limiter.
+twilight-http-ratelimiting = "=0.18.0"
 twilight-model = "=0.18.0"
 serde = "1"
 serde_json = "1"
