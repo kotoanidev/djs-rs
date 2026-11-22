@@ -51,6 +51,8 @@ docs.rs, tag `v0.1.0-alpha.1`, GitHub Release.
 `djs_rs::http_interactions`, the optional `gateway` feature, djs-rest's `Transport`, wasm32
 in CI, the Cloudflare Workers example, both live-tested; measured in `docs/PERFORMANCE.md`
 "Phase 11"; the guide's chapter; issue #3 answered and closed.
+**Released: `0.1.0-alpha.2`, 2026-11-22** (D-410, C-143): the ten crates on crates.io (from
+`39aa6bd`, CI green), tag `v0.1.0-alpha.2`, GitHub Release (pre-release).
 **Next:** the current plan's items 4–5 below.
 
 ## Phase 11 — done (issue #3: HTTP interactions and wasm32, D-393–D-396)
