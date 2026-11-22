@@ -3676,6 +3676,12 @@ and why.
   (`docs/PERFORMANCE.md`, Phase 11); the A/B's second pass was stopped before its last
   rows. The local quality gate of these commits is left to CI.
 
+### D-410 — Phase 11 ships as 0.1.0-alpha.2 (2026-11-22)
+- **Answer (owner):** "release the fixes as a new release". Following D-387 (later alphas
+  may change the API) and D-388 (tag, GitHub Release, all ten crates on crates.io in
+  dependency order), the next version is `0.1.0-alpha.2`; the `gateway` feature's break
+  for `default-features = false` users is called out in the notes.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
@@ -6010,6 +6016,16 @@ garbage (±1.0 for a frame). Measured with the listeners' side decoded by libopu
   are only `unreachable` otherwise). Its Worker is 1.5 MB of wasm (opt-level `s`, LTO).
 
 ---
+
+### C-143 — Preparing 0.1.0-alpha.2 (D-410)
+- **As C-137:** the workspace `version` and the internal `[workspace.dependencies]` entries
+  are `0.1.0-alpha.2`, and so are the README's, the guide's and the bug form's version strings;
+  `[Unreleased]` became `[0.1.0-alpha.2] - 2026-11-22` with a summary above the list, which
+  is the GitHub Release's notes. The guide's installation chapter lists the new features
+  (`gateway`, `hyper`, `http-interactions`).
+- **Packaging names the ten crates** (`cargo package -p …`): `--workspace` now also tries
+  `benches/vs-node`, whose `djs-rs` dependency is a bare path since C-141 (it is never
+  published). All ten packed and built from their archives (2026-11-22).
 
 ## Open questions (to ask the owner when relevant)
 

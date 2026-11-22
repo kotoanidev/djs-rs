@@ -174,7 +174,7 @@ dependencies = [
 
 [[package]]
 name = "djs-builders"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 dependencies = [
  "compact_str",
  "djs-model",
@@ -182,7 +182,7 @@ dependencies = [
 
 [[package]]
 name = "djs-cache"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 dependencies = [
  "compact_str",
  "dashmap",
@@ -192,7 +192,7 @@ dependencies = [
 
 [[package]]
 name = "djs-collection"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 dependencies = [
  "foldhash",
  "indexmap",
@@ -200,14 +200,14 @@ dependencies = [
 
 [[package]]
 name = "djs-formatters"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 dependencies = [
  "djs-model",
 ]
 
 [[package]]
 name = "djs-model"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 dependencies = [
  "bitflags",
  "bytes",
@@ -218,7 +218,7 @@ dependencies = [
 
 [[package]]
 name = "djs-rest"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 dependencies = [
  "bytes",
  "djs-model",
@@ -233,7 +233,7 @@ dependencies = [
 
 [[package]]
 name = "djs-rs"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 dependencies = [
  "djs-builders",
  "djs-cache",

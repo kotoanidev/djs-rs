@@ -85,7 +85,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```toml
 [dependencies]
-djs-rs = "0.1.0-alpha.1"
+djs-rs = "0.1.0-alpha.2"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 
@@ -175,7 +175,7 @@ builders, collectors, sharding, voice) are in [`docs/PERFORMANCE.md`](docs/PERFO
 
 ## Status
 
-djs-rs is in **alpha** (`0.1.0-alpha.1`): it covers Discord's API and runs bots end to end,
+djs-rs is in **alpha** (`0.1.0-alpha.2`): it covers Discord's API and runs bots end to end,
 but its API may still change between alpha releases; the [changelog](CHANGELOG.md) says
 how. It needs Rust 1.89 or newer (edition 2024) and tokio. Bug reports, questions and
 feedback on the API are very welcome: [issues](https://github.com/kotoanidev/djs-rs/issues),

@@ -622,7 +622,7 @@ dependencies = [
 
 [[package]]
 name = "djs-builders"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 dependencies = [
  "compact_str",
  "divan",
@@ -632,7 +632,7 @@ dependencies = [
 
 [[package]]
 name = "djs-cache"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 dependencies = [
  "compact_str",
  "dashmap",
@@ -645,7 +645,7 @@ dependencies = [
 
 [[package]]
 name = "djs-collection"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 dependencies = [
  "divan",
  "foldhash",
@@ -654,7 +654,7 @@ dependencies = [
 
 [[package]]
 name = "djs-formatters"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 dependencies = [
  "divan",
  "djs-model",
@@ -662,7 +662,7 @@ dependencies = [
 
 [[package]]
 name = "djs-gateway"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 dependencies = [
  "bytes",
  "divan",
@@ -685,7 +685,7 @@ dependencies = [
 
 [[package]]
 name = "djs-model"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 dependencies = [
  "bitflags 2.13.2",
  "bytes",
@@ -698,7 +698,7 @@ dependencies = [
 
 [[package]]
 name = "djs-rest"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 dependencies = [
  "bytes",
  "divan",
@@ -721,7 +721,7 @@ dependencies = [
 
 [[package]]
 name = "djs-rs"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 dependencies = [
  "bytes",
  "divan",
@@ -751,7 +751,7 @@ dependencies = [
 
 [[package]]
 name = "djs-rs-guide"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 dependencies = [
  "axum",
  "djs-rs",
@@ -761,11 +761,11 @@ dependencies = [
 
 [[package]]
 name = "djs-util"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 
 [[package]]
 name = "djs-voice"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 dependencies = [
  "aes-gcm 0.11.1",
  "chacha20poly1305 0.11.0",
@@ -790,7 +790,7 @@ dependencies = [
 
 [[package]]
 name = "djs-vs-node"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 dependencies = [
  "bytes",
  "djs-gateway",

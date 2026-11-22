@@ -4,7 +4,7 @@ A bot can join voice channels, play audio into them and hear what is said there.
 lives in the `djs-voice` crate, which the `voice` feature plugs into the client:
 
 ```toml
-djs-rs = { version = "0.1.0-alpha.1", features = ["voice"] }
+djs-rs = { version = "0.1.0-alpha.2", features = ["voice"] }
 ```
 
 It builds libopus from source and links it in, so building needs CMake and a C compiler.

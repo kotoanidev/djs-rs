@@ -17,7 +17,7 @@ served with [axum](https://docs.rs/axum). It needs the `http-interactions` featu
 that never logs in to the gateway can leave the gateway out:
 
 ```toml
-djs-rs = { version = "0.1.0-alpha.1", default-features = false, features = ["http-interactions", "hyper"] }
+djs-rs = { version = "0.1.0-alpha.2", default-features = false, features = ["http-interactions", "hyper"] }
 ```
 
 (`hyper` is the REST client's HTTP transport; the default features include it, together

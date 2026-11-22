@@ -159,5 +159,6 @@ just with narrow scope.
       release (D-384, D-385)
 - [x] First crates.io release, `0.1.0-alpha.1` (D-022, D-387, D-388, C-137), 2026-11-17:
       ten crates on crates.io and docs.rs, the tag and a GitHub Release
+- [ ] `0.1.0-alpha.2` (D-410): Phase 11, HTTP interactions and wasm32
 
 > Phase 7 crates are independent and may be pulled earlier if the owner wants.

@@ -10,7 +10,7 @@ This chapter's program is
 It needs the `sharding` feature of djs-rs:
 
 ```toml
-djs-rs = { version = "0.1.0-alpha.1", features = ["sharding"] }
+djs-rs = { version = "0.1.0-alpha.2", features = ["sharding"] }
 ```
 
 ## In one process

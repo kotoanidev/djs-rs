@@ -7,6 +7,13 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.0-alpha.2] - 2026-11-22
+
+HTTP interactions and WebAssembly (#3, D-393–D-410): a bot can answer its interactions at
+an Interactions Endpoint URL, in any HTTP server or on Cloudflare Workers, with the same
+routes and `reply` methods as a gateway bot. **Breaking for `default-features = false`
+users of `djs-rs`:** the gateway is now the `gateway` feature; add it to keep `login`.
+
 - `djs-model`, `djs-builders`, `djs-formatters` and `djs-collection` build for
   `wasm32-unknown-unknown` (checked in CI), for bots on Cloudflare Workers (#3, D-393).
   There `Timestamp::now()` (and so `EmbedBuilder::timestamp_now()`) reads the JS host's
@@ -819,5 +826,6 @@ What follows is everything the release contains, as it was added.
 - `djs-model`: received model structs are `#[non_exhaustive]` (D-053).
 - MSRV raised from 1.85 to 1.89 (required by maintained `tokio-websockets` and `simd-json`).
 
-[Unreleased]: https://github.com/kotoanidev/djs-rs/compare/v0.1.0-alpha.1...HEAD
+[Unreleased]: https://github.com/kotoanidev/djs-rs/compare/v0.1.0-alpha.2...HEAD
+[0.1.0-alpha.2]: https://github.com/kotoanidev/djs-rs/compare/v0.1.0-alpha.1...v0.1.0-alpha.2
 [0.1.0-alpha.1]: https://github.com/kotoanidev/djs-rs/releases/tag/v0.1.0-alpha.1

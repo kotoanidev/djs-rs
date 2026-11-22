@@ -32,7 +32,7 @@ body:
     attributes:
       label: Version
       description: The djs-rs version, or the commit for a git dependency.
-      placeholder: 0.1.0-alpha.1
+      placeholder: 0.1.0-alpha.2
     validations:
       required: true
   - type: textarea
