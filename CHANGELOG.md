@@ -18,6 +18,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   client's `InteractionCreate` handlers and routes; their initial response is the HTTP
   body, the rest of their work a returned future. No HTTP server is included.
 - `djs-gateway`: `MessageSender::detached()`, a sender connected to no shard (D-403).
+- The guide's "HTTP interactions" chapter: an axum endpoint and the Cloudflare Workers bot.
 - Examples: the guide's `http_interactions` (an axum endpoint) and
   `examples/cloudflare-workers` (a complete Workers bot with a `fetch` transport), both
   tested live (D-406–D-408).

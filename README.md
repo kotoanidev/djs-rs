@@ -69,9 +69,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   slash commands,
   components (including Components V2) and modals with routers; collectors; an optional,
   configurable cache; automatic sharding in one process or across many; voice with
-  Discord's end-to-end encryption (DAVE).
+  Discord's end-to-end encryption (DAVE); interactions over HTTP, also on Cloudflare
+  Workers.
 - **Documented.** A [guide](https://kotoanidev.github.io/djs-rs/) from the first bot to
-  sharding and voice, with compiled examples; rustdoc on every public item, with Discord's
+  sharding, voice and HTTP interactions, with compiled examples; rustdoc on every public item, with Discord's
   docs page and the discord.js counterpart.
 - **Reliable.** 1,200+ tests against mock Discord servers (93 % line coverage),
   extreme-load tests for every crate, fault injection against the gateway and the API, and
@@ -98,10 +99,13 @@ Cargo features of `djs-rs`:
 
 | Feature | Default | What it adds |
 |---|---|---|
+| `gateway` | yes | the gateway: `client.login()`, the shards and the gateway events |
+| `hyper` | yes | the REST client's HTTP transport (hyper with rustls) |
 | `zstd-stream` | yes | `zstd-stream` gateway compression (needs a C compiler) |
 | `zlib-stream` | no | `zlib-stream` gateway compression, pure Rust |
 | `sharding` | no | `djs_rs::sharding`: a `ClusterManager` running the shards in several processes |
 | `voice` | no | `djs_rs::voice`: voice channels, audio playback and receiving, with DAVE (needs CMake) |
+| `http-interactions` | no | `djs_rs::http_interactions`: answering interactions at an Interactions Endpoint URL, in any HTTP server or on Cloudflare Workers |
 | `native-roots` | no | trusts the system's certificates besides the bundled ones |
 
 ## How it compares

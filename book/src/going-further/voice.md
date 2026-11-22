@@ -88,12 +88,9 @@ records a user until they stop speaking.
 
 (discord.js: `connection.receiver.subscribe`.)
 
-## The end
+## What's next
 
-That is the guide. The [API reference](../api/djs_rs/index.html) documents every type and
-method, with its Discord and discord.js counterparts, and the repository's
-[examples](https://github.com/kotoanidev/djs-rs/tree/main/crates/djs-rs/examples) are
-complete bots. Coming from discord.js? The next page maps what you know to djs-rs.
+The last chapter answers interactions over HTTP, without the gateway.
 
 [`VoiceManager`]: ../api/djs_voice/struct.VoiceManager.html
 [`Call`]: ../api/djs_voice/struct.Call.html

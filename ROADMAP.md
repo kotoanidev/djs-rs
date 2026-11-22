@@ -145,12 +145,13 @@ just with narrow scope.
 - [x] HTTP interactions in djs-rs (D-394, D-395, D-398–D-403): Ed25519 verification, PING,
       the shared router and `reply`; the gateway an optional feature (djs-rs builds for wasm32)
 - [x] REST on wasm32 through a transport trait (D-396, D-404, D-405); a Workers `fetch`
-      example in the guide comes with the HTTP interactions chapter
-- [ ] Benchmarks + extreme-load tests (D-041)
+      example in the guide's HTTP interactions chapter
+- [x] Benchmarks + extreme-load tests (D-041, stopped early by the owner's D-409)
+- [x] The guide's "HTTP interactions" chapter
 
 ## Cross-cutting (continuous)
 - [x] Guide / book: an mdBook on GitHub Pages with the API reference (D-376–D-382, C-131),
-      from the first bot to sharding and voice
+      from the first bot to sharding, voice and HTTP interactions
 - [x] discord.js → djs-rs migration guide (the guide's "Coming from discord.js" chapter, and
       the discord.js counterpart in the docs of every public item, D-386)
 - [x] Benchmarks vs discord.js / serenity / twilight (`docs/VS_NODE.md`,

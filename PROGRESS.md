@@ -47,8 +47,13 @@ compiled as examples of `book/code`, published with the API reference on GitHub 
 the first bot to voice, and the migration chapter from discord.js.
 **Released: `0.1.0-alpha.1`, 2026-11-17** (D-387, D-388, C-137): ten crates on crates.io and
 docs.rs, tag `v0.1.0-alpha.1`, GitHub Release.
+**Phase 11 — HTTP interactions and wasm32 (issue #3): ✅ done 2026-11-22** (D-393–D-409):
+`djs_rs::http_interactions`, the optional `gateway` feature, djs-rest's `Transport`, wasm32
+in CI, the Cloudflare Workers example, both live-tested; measured in `docs/PERFORMANCE.md`
+"Phase 11"; the guide's chapter. Left: answering and closing issue #3 (the owner's call).
+**Next:** the current plan's items 4–5 below.
 
-## Current work — Phase 11 (issue #3: HTTP interactions and wasm32, D-393–D-396)
+## Phase 11 — done (issue #3: HTTP interactions and wasm32, D-393–D-396)
 Before plan item 5 (the README), in stages (D-393):
 1. [x] wasm32 for `djs-model`, `djs-builders`, `djs-formatters`, `djs-collection`
    (2026-11-17): the CI job `wasm` runs clippy for `wasm32-unknown-unknown`; the clock
@@ -97,9 +102,9 @@ Before plan item 5 (the README), in stages (D-393):
    `tests/stress_http_interactions.rs` and the REST transport A/B (`34faf81` vs now); results
    in `docs/PERFORMANCE.md` (Phase 11). The owner stopped further runs (D-409): no headroom
    of power or temperature now.
-6. [ ] The guide's "HTTP interactions" chapter (native axum listing, the Workers
+6. [ ] The guide's "HTTP interactions" chapter (done 2026-11-22) (native axum listing, the Workers
    transport and fetch handler from `examples/cloudflare-workers`); README, CHANGELOG;
-   answer and close issue #3.
+   answering and closing issue #3 waits for the owner's go-ahead.
 
 ## Current plan (the owner's request of 2026-11-16, D-383–D-390), in this order
 1. [x] Live voice test, 2026-11-16 (D-383): the bot recorded the owner (4.5 s of PCM, 272

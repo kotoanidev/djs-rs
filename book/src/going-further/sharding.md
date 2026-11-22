@@ -79,7 +79,7 @@ time, so the code a command runs is compiled into the bot.)
 
 ## What's next
 
-The last chapter of the guide joins voice channels.
+The next chapter joins voice channels.
 
 [`Shards::Auto`]: ../api/djs_rs/enum.Shards.html#variant.Auto
 [`ClusterManager`]: ../api/djs_rs/sharding/struct.ClusterManager.html
