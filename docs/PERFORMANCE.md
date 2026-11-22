@@ -1815,5 +1815,21 @@ cool second run is reported; the spread between runs is up to 2×).
 
 - A pending deferral costs ≈ 6.9 KB (the decoded interaction, its context and the task),
   about the same as a waiting interaction on the gateway path (≈ 6.5 KB, Phase 8).
-- Still to do: the A/B of the REST transport trait (`34faf81` against now, `djs-rest`'s
-  `stress.rs`, pinned cores).
+
+### The REST transport trait, A/B (`djs-rest`'s `tests/stress.rs`, pinned to `0,2`)
+
+Base `34faf81` (hyper called directly) against `ae20c9c` and later (hyper behind the
+`Transport` trait, D-404). Two passes of alternating rounds; the second was stopped before
+its last rows (D-409). The machine was busy and hot, so throughput swung 2× within each
+side; only the ranges are meaningful.
+
+| Test | Base | New |
+|---|---:|---:|
+| Sequential round trip, one channel | 16.8–28.3 µs (19.0–19.4 in the cool pass) | 18.6–27.4 µs (19.3–20.4) |
+| 200 000 requests, 10 000 buckets, 256 in flight | 21 500–116 400/s | 63 500–117 100/s |
+| Peak memory of that run | 195–202 MiB | 196–202 MiB |
+| 50 000 uploads of 1 KiB, extra peak | 44–45 MiB | 44–45 MiB |
+
+- **No regression beyond the noise.** The trait adds a boxed future and a dynamic call per
+  request; at most ≈ 0.5–1 µs of a ≈ 19 µs round trip in the cool pass, which this machine
+  cannot separate from noise today. Memory is unchanged.

@@ -93,10 +93,10 @@ Before plan item 5 (the README), in stages (D-393):
    URL through `PATCH /applications/@me`, cleared after each test. Found and fixed: the
    relay waker (`worker::Delay` keeps its first waker) and `Route::bucket`'s std clock.
    Tools installed on the way: the `wasm32-unknown-unknown` target, `worker-build` 0.9.0.
-5. [ ] Benchmarks + extreme-load tests (D-041): `handle` (verification, PING, an inline
-   - Done 2026-11-22: `benches/http_interactions.rs` and `tests/stress_http_interactions.rs`, results in `docs/PERFORMANCE.md` (Phase 11). **Left:** the REST transport A/B (`34faf81` vs HEAD, `djs-rest` `tests/stress.rs`, `taskset -c 0,2`, 3 rounds) — then step 6.
-   reply, a deferral), the REST transport A/B (`ae20c9c^` vs now), an extreme load of signed
-   requests; results in `docs/PERFORMANCE.md`.
+5. [x] Benchmarks + extreme-load tests (D-041), 2026-11-22: `benches/http_interactions.rs`,
+   `tests/stress_http_interactions.rs` and the REST transport A/B (`34faf81` vs now); results
+   in `docs/PERFORMANCE.md` (Phase 11). The owner stopped further runs (D-409): no headroom
+   of power or temperature now.
 6. [ ] The guide's "HTTP interactions" chapter (native axum listing, the Workers
    transport and fetch handler from `examples/cloudflare-workers`); README, CHANGELOG;
    answer and close issue #3.

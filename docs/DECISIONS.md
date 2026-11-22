@@ -3669,6 +3669,13 @@ and why.
   Workers runtime (`npx wrangler dev`, nothing deployed).
 - Rejected: the owner setting the URL by hand; no live test.
 
+### D-409 — Phase 11's measurements stop where they are (2026-11-22)
+- **Answer (owner):** no more extreme-load runs for Phase 11 now (the laptop has no headroom
+  of power or temperature); only what is necessary. Stage 5 closes with the benchmark, the
+  three 100 000-request stress tests and the REST transport A/B already measured
+  (`docs/PERFORMANCE.md`, Phase 11); the A/B's second pass was stopped before its last
+  rows. The local quality gate of these commits is left to CI.
+
 ---
 
 ## Defaults chosen by Claude (reviewable)
