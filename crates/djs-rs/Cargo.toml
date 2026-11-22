@@ -94,6 +94,15 @@ required-features = ["gateway"]
 name = "http_interactions"
 required-features = ["http-interactions"]
 
+[[test]]
+name = "stress_http_interactions"
+required-features = ["http-interactions"]
+
+[[bench]]
+name = "http_interactions"
+harness = false
+required-features = ["http-interactions"]
+
 [[bench]]
 name = "managers"
 harness = false

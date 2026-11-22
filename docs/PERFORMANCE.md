@@ -1781,3 +1781,39 @@ receive buffer full; the default `net.core.rmem_default` is 212 992 bytes).
   the socket's 208 KiB buffer, however fast the call reads: a voice server forwards each
   client's packets as they come, not in one burst, so this is the mock's limit more than a
   call's. A larger receive buffer (rejected for now, D-374) is what would raise it.
+
+## Phase 11 — HTTP interactions (2026-11-22)
+
+Laptop i7-1355U (12 threads), balanced profile, every run under the resource guard.
+
+### `InteractionsEndpoint::handle` (`djs-rs/benches/http_interactions.rs`, divan, release)
+
+One signed request and its background work per iteration, on a current-thread runtime;
+no REST request. Medians of 100 samples (the CPU throttled during the first run, so the
+cool second run is reported; the spread between runs is up to 2×).
+
+| Benchmark | Median | Fastest | Allocations |
+|---|---:|---:|---:|
+| `PING` → `PONG` | 39.7 µs | 25.7 µs | 3, 85 B |
+| 2.4 KB `/mod config set`, inline `reply` | 38.6 µs | 32.3 µs | 32, 8.7 KB |
+| The same, `defer_reply` | 33.0 µs | 32.1 µs | 31, 8.4 KB |
+| Forged signature (401) | 43.9 µs | 30.4 µs | 2, 2.4 KB |
+| Stale timestamp (401, no cryptography) | 148 ns | 141 ns | 0 |
+
+- The Ed25519 verification is most of every request (≈ 25–30 µs); decoding, routing and
+  the handler add only a few µs. A replayed old request costs nothing.
+
+### Extreme load (`djs-rs/tests/stress_http_interactions.rs`, release, one at a time)
+
+100 000 requests spawned at once (1 000 distinct signed bodies, round robin), all cores.
+
+| Scenario | Responses | All work done | Peak memory |
+|---|---:|---:|---:|
+| Inline replies | 108 400/s (9.2 µs each) | 0.94 s | 96 MiB |
+| Forged signatures, all refused | 117 700/s | 0.87 s | 95 MiB |
+| Deferrals, all 100 000 handlers pending at once | 99 900/s | 1.16 s | 691 MiB |
+
+- A pending deferral costs ≈ 6.9 KB (the decoded interaction, its context and the task),
+  about the same as a waiting interaction on the gateway path (≈ 6.5 KB, Phase 8).
+- Still to do: the A/B of the REST transport trait (`34faf81` against now, `djs-rest`'s
+  `stress.rs`, pinned cores).
