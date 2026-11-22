@@ -50,7 +50,7 @@ docs.rs, tag `v0.1.0-alpha.1`, GitHub Release.
 **Phase 11 — HTTP interactions and wasm32 (issue #3): ✅ done 2026-11-22** (D-393–D-409):
 `djs_rs::http_interactions`, the optional `gateway` feature, djs-rest's `Transport`, wasm32
 in CI, the Cloudflare Workers example, both live-tested; measured in `docs/PERFORMANCE.md`
-"Phase 11"; the guide's chapter. Left: answering and closing issue #3 (the owner's call).
+"Phase 11"; the guide's chapter; issue #3 answered and closed.
 **Next:** the current plan's items 4–5 below.
 
 ## Phase 11 — done (issue #3: HTTP interactions and wasm32, D-393–D-396)
@@ -102,9 +102,9 @@ Before plan item 5 (the README), in stages (D-393):
    `tests/stress_http_interactions.rs` and the REST transport A/B (`34faf81` vs now); results
    in `docs/PERFORMANCE.md` (Phase 11). The owner stopped further runs (D-409): no headroom
    of power or temperature now.
-6. [ ] The guide's "HTTP interactions" chapter (done 2026-11-22) (native axum listing, the Workers
+6. [x] The guide's "HTTP interactions" chapter (native axum listing, the Workers
    transport and fetch handler from `examples/cloudflare-workers`); README, CHANGELOG;
-   answering and closing issue #3 waits for the owner's go-ahead.
+   issue #3 answered and closed (2026-11-22, the owner's go-ahead).
 
 ## Current plan (the owner's request of 2026-11-16, D-383–D-390), in this order
 1. [x] Live voice test, 2026-11-16 (D-383): the bot recorded the owner (4.5 s of PCM, 272
